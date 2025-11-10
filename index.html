@@ -1,0 +1,2071 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Plan Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-H0uWsKekJy5o+1OtSWT8gJtIhXCTITVEWilQoNqT9XyM54q9WlH0I1GtIsfRSAxEPPGjBJOCa/BrGL3hXhNItA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-/p6KDAdAm8YGtS+wGGyRyvE4s46HoPazTA/gkGEXLMaLLq5yRvCNrI6VsgGAaHo9dZYkTfGZNVVRhk1FdY2wJg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #cde7ec;
+            color: #273f43;
+        }
+        .form-input {
+            background-color: #f8fafa;
+            border: 1px solid #dbf6fa;
+            color: #273f43;
+            transition: all 0.3s ease;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #00424a;
+            box-shadow: 0 0 0 3px rgba(0, 66, 74, 0.1);
+        }
+        .btn-primary {
+            background-color: #00424a;
+            color: #edfcff;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #005f6b;
+        }
+        .btn-secondary {
+            background-color: #006b5e; /* sell-bar color */
+            color: #edfcff;
+            transition: background-color 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: #008a7b; /* sell-bar hover */
+        }
+        .card {
+            background-color: #edfcff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .summary-card {
+            background-color: #dbf6fa;
+            border-left: 4px solid #00424a;
+        }
+        .table-header {
+            background-color: #dbf6fa;
+        }
+        .table-row-odd {
+            background-color: #edfcff;
+        }
+        .table-row-even {
+            background-color: #f8fafa;
+        }
+        .executed-rung td {
+            background-color: #cde9d6;
+            font-weight: 600;
+        }
+        .label-invalid {
+            color: #b91c1c !important;
+        }
+        .input-invalid {
+            border-color: #b91c1c !important;
+            box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.1);
+        }
+        .label-with-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .label-with-info .info-button {
+            margin-left: auto;
+        }
+        .info-button {
+            background-color: transparent;
+            border: 1px solid #b91c1c;
+            color: #b91c1c;
+            border-radius: 9999px;
+            width: 18px;
+            height: 18px;
+            font-size: 0.75rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .info-button:hover,
+        .info-button:focus {
+            background-color: rgba(185, 28, 28, 0.1);
+        }
+        .helper-tooltip {
+            background-color: transparent;
+            border: 1px solid #2f3b58;
+            color: #2f3b58;
+            border-radius: 9999px;
+            width: 18px;
+            height: 18px;
+            font-size: 0.75rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .helper-tooltip:hover,
+        .helper-tooltip:focus {
+            background-color: rgba(47, 59, 88, 0.1);
+        }
+        /* Custom slider styles */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #bac6ea;
+            border-radius: 5px;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type=range]:hover {
+            opacity: 1;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00424a;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #edfcff;
+        }
+        input[type=range]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #00424a;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #edfcff;
+        }
+        .d3-chart .domain {
+            stroke: #2f3b58;
+        }
+        .d3-chart .tick line {
+            stroke: #bac6ea;
+        }
+        .d3-chart .tick text {
+            fill: #2f3b58;
+            font-size: 11px; /* Slightly smaller for price labels */
+        }
+        .d3-chart .grid line {
+            stroke: #bac6ea;
+            stroke-opacity: 0.5;
+            shape-rendering: crispEdges;
+        }
+        .d3-chart .buy-bar {
+            fill: #2f3b58;
+            transition: all 0.3s ease-out;
+        }
+        .d3-chart .buy-bar:hover {
+            fill: #00424a;
+        }
+        .d3-chart .sell-bar {
+            fill: #006b5e; /* New color for sell chart */
+            transition: all 0.3s ease-out;
+        }
+        .d3-chart .sell-bar:hover {
+            fill: #008a7b; /* New hover color for sell chart */
+        }
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            background: #00424a;
+            color: #edfcff;
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        @media (max-width: 640px) {
+            .mobile-two-col {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+            .summary-mobile-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+        }
+        details summary {
+            list-style: none;
+        }
+        details summary::-webkit-details-marker {
+            display: none;
+        }
+    </style>
+</head>
+<body class="p-2 sm:p-4">
+    <div id="app" class="max-w-7xl mx-auto">
+        <header class="py-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-center sm:text-left">
+                <h1 class="text-3xl sm:text-4xl font-bold text-primary-dark">Trading Plan Calculator</h1>
+                <details id="export-collapse" class="relative self-center sm:self-auto">
+                    <summary class="btn-secondary text-sm font-medium py-2 px-4 rounded-lg cursor-pointer select-none flex items-center justify-between gap-2">
+                        Export Options
+                        <span class="text-xs opacity-80 tracking-wide">▼</span>
+                    </summary>
+                    <div class="mt-3 sm:mt-2 flex flex-col sm:flex-row gap-2 bg-[#edfcff] sm:bg-transparent p-3 sm:p-0 border border-[#dbf6fa] sm:border-0 rounded-lg shadow-sm sm:shadow-none">
+                        <button id="download-csv-btn" class="btn-primary text-sm font-medium py-2 px-4 rounded-lg w-full sm:w-auto">
+                            Download CSV
+                        </button>
+                        <button id="download-xls-btn" class="btn-primary text-sm font-medium py-2 px-4 rounded-lg w-full sm:w-auto">
+                            Download XLS
+                        </button>
+                        <button id="download-pdf-btn" class="btn-primary text-sm font-medium py-2 px-4 rounded-lg w-full sm:w-auto">
+                            Download PDF
+                        </button>
+                    </div>
+                </details>
+            </div>
+            <p class="text-secondary-dark mt-2 text-md sm:text-lg text-center sm:text-left">Design your buy and sell ladders with precision.</p>
+        </header>
+
+        <main class="grid mobile-two-col grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 auto-rows-min">
+            <div class="card p-6">
+                <h2 class="text-2xl font-semibold text-primary-dark mb-6">Configuration</h2>
+                <form id="trading-plan-form" class="space-y-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="starting_capital" class="block text-sm font-medium text-secondary-dark mb-1">Initial Capital ($)</label>
+                            <input type="number" id="starting_capital" value="50000" class="form-input w-full rounded-md p-2">
+                        </div>
+                        <div>
+                            <label for="current_price" class="block text-sm font-medium text-secondary-dark mb-1">Current Asset Price ($)</label>
+                            <input type="number" id="current_price" value="100" class="form-input w-full rounded-md p-2">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="number_of_rungs" class="block text-sm font-medium text-secondary-dark mb-1">Number of Rungs (<span id="number_of_rungs_display">10</span>)</label>
+                        <input type="range" id="number_of_rungs" value="10" min="2" max="50" step="1" class="w-full h-2 rounded-lg cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="depth" class="block text-sm font-medium text-secondary-dark mb-1">Width (<span id="depth_display">20</span>%)</label>
+                        <input type="range" id="depth" value="20" min="1" max="99" step="1" class="w-full h-2 rounded-lg cursor-pointer">
+                    </div>
+                    <div>
+                        <label for="skew_value" class="block text-sm font-medium text-secondary-dark mb-1">Allocation Skew (<span id="skew_value_display">50</span>)</label>
+                        <input type="range" id="skew_value" min="0" max="100" value="50" class="w-full h-2 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-xs text-tertiary-dark mt-1">
+                            <span>None</span>
+                            <span>Moderate</span>
+                            <span>Heavy</span>
+                        </div>
+                    </div>
+                    <div class="border border-[#dbf6fa] rounded-lg p-3 bg-[#f8fafa] space-y-3">
+                        <label class="flex items-center space-x-2 text-xs font-medium text-secondary-dark">
+                            <input id="advanced_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-0">
+                            <span>Advanced mode</span>
+                        </label>
+                        <div id="advanced-settings" class="space-y-3 hidden">
+                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                <div class="sm:col-span-4">
+                                    <div class="border-2 border-primary-dark bg-[#edf2ff] rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                        <div>
+                                            <p class="text-xs font-semibold text-secondary-dark uppercase tracking-wide">Mode</p>
+                                            <p class="text-sm font-semibold text-primary-dark">Sell-only ladder</p>
+                                            <p class="text-[11px] text-secondary-dark mt-1">Preserve existing buy orders while fine-tuning the sell ladder.</p>
+                                        </div>
+                                        <label class="inline-flex items-center space-x-2 text-sm font-medium text-primary-dark">
+                                            <input id="sell_only_mode" type="checkbox" class="form-checkbox h-4 w-4 text-primary-dark rounded focus:ring-0">
+                                            <span>Enable</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="fee_type" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee Type</label>
+                                    <select id="fee_type" class="form-input w-full rounded-md p-2 text-sm">
+                                        <option value="percent">Percent (%)</option>
+                                        <option value="fixed">Flat ($)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="fee_value" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee</label>
+                                    <input type="number" id="fee_value" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                </div>
+                                <div>
+                                    <label for="fee_settlement" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
+                                        <span>Fee Settlement</span>
+                                        <button type="button" class="helper-tooltip" title="Choose whether trading fees reduce each order (net settlement) or are paid from a separate pool (external settlement)." aria-label="Fee settlement details">i</button>
+                                    </label>
+                                    <select id="fee_settlement" class="form-input w-full rounded-md p-2 text-sm">
+                                        <option value="netted">Net settlement (deduct from order)</option>
+                                        <option value="external">External settlement (separate funds)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="spacing_mode" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
+                                    <span>Spacing Between Rungs</span>
+                                    <button type="button" class="helper-tooltip" title="Relative spacing compounds the rung width as a percent change, creating exponential steps." aria-label="Spacing mode information">i</button>
+                                </label>
+                                <select id="spacing_mode" class="form-input w-full rounded-md p-2 text-sm">
+                                    <option value="absolute">Absolute (Equal Steps)</option>
+                                    <option value="relative">Relative (% per rung)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
+                                    <span class="flex items-center space-x-2">
+                                        <input id="equal_quantity_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-0">
+                                        <span>Equal quantity per rung</span>
+                                    </span>
+                                    <button type="button" class="helper-tooltip" title="Override skew settings and distribute the same asset size across each rung." aria-label="Equal quantity details">i</button>
+                                </label>
+                            </div>
+                            <div id="sell-only-inputs" class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden">
+                                <div>
+                                    <label for="existing_quantity" class="block text-xs font-medium text-secondary-dark mb-1">Existing Quantity</label>
+                                    <input type="number" id="existing_quantity" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                </div>
+                                <div>
+                                    <label for="existing_avg_price" class="block text-xs font-medium text-secondary-dark mb-1">Known Average Buy Price ($)</label>
+                                    <input type="number" id="existing_avg_price" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Removed Generate Plan button -->
+                </form>
+            </div>
+
+            <div class="card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-primary-dark">Plan Summary</h2>
+                </div>
+                <div id="summary" class="grid summary-mobile-grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="summary-card p-4 rounded-lg">
+                        <p class="text-sm text-secondary-dark">Avg. Buy Price</p>
+                        <p id="summary-avg-buy" class="text-xl font-bold text-primary-dark">-</p>
+                        <p class="text-xs text-secondary-dark mt-3">Buy Floor</p>
+                        <p id="summary-buy-floor" class="text-sm font-semibold text-primary-dark">-</p>
+                    </div>
+                    <div class="summary-card p-4 rounded-lg">
+                        <p class="text-sm text-secondary-dark">Avg. Sell Price</p>
+                        <p id="summary-avg-sell" class="text-xl font-bold text-primary-dark">-</p>
+                        <p class="text-xs text-secondary-dark mt-3">Sell Ceiling</p>
+                        <p id="summary-sell-ceiling" class="text-sm font-semibold text-primary-dark">-</p>
+                    </div>
+                    <div class="summary-card p-4 rounded-lg">
+                        <p class="text-sm text-secondary-dark">Gross Profit</p>
+                        <p id="summary-gross-profit" class="text-xl font-bold text-primary-dark">-</p>
+                    </div>
+                    <div class="summary-card p-4 rounded-lg">
+                        <p class="text-sm text-secondary-dark">Total Vol</p>
+                        <p id="summary-total-quantity" class="text-xl font-bold text-primary-dark">-</p>
+                    </div>
+                    <div class="summary-card p-4 rounded-lg">
+                        <p class="text-sm text-secondary-dark">ROI on Cost Basis</p>
+                        <p id="summary-roi" class="text-xl font-bold text-primary-dark">-</p>
+                    </div>
+                    <div class="summary-card p-4 rounded-lg">
+                        <p class="text-sm text-secondary-dark">Total Fees Paid</p>
+                        <p id="summary-total-fees" class="text-xl font-bold text-primary-dark">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buy Chart -->
+            <div class="card p-6" id="buy-chart-card">
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Buy Ladder</h3>
+                <div id="visualization" class="d3-chart">
+                    <svg id="allocation-chart"></svg>
+                </div>
+            </div>
+            
+            <!-- Sell Chart -->
+            <div class="card p-6" id="sell-chart-card">
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Sell Ladder</h3>
+                <div id="sell-visualization" class="d3-chart">
+                    <svg id="sell-allocation-chart"></svg>
+                </div>
+            </div>
+
+            <div class="card p-6" id="buy-orders-card">
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Buy Orders</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-primary-dark uppercase table-header">
+                            <tr id="buy-table-header-row">
+                                <th scope="col" class="px-2 py-2 rounded-l-lg">#</th>
+                                <th scope="col" class="px-2 py-2">Price</th>
+                                <th scope="col" class="px-2 py-2">Vol</th>
+                                <th scope="col" class="px-2 py-2">Alloc</th>
+                                <th scope="col" class="px-2 py-2">Value</th>
+                                <th scope="col" class="px-2 py-2 rounded-r-lg">Avg Buy Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="buy-ladder-body"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card p-6" id="sell-orders-card">
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Sell Orders</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-primary-dark uppercase table-header">
+                            <tr id="sell-table-header-row">
+                                <th scope="col" class="px-2 py-2 rounded-l-lg">#</th>
+                                <th scope="col" class="px-2 py-2">Price</th>
+                                <th scope="col" class="px-2 py-2">Vol</th>
+                                <th scope="col" class="px-2 py-2">Alloc</th>
+                                <th scope="col" class="px-2 py-2">Value</th>
+                                <th scope="col" class="px-2 py-2">Avg Sell Price</th>
+                                <th scope="col" class="px-2 py-2 rounded-r-lg">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sell-ladder-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Store plan data for CSV export
+            let currentPlanData = null;
+            let baselineBuySnapshot = null;
+            const sellOnlyState = {
+                highestExecutedRung: null,
+                checkboxElements: []
+            };
+            const cloneBuyLadder = (ladder) => Array.isArray(ladder)
+                ? ladder.map(rung => ({ ...rung }))
+                : [];
+
+            const form = document.getElementById('trading-plan-form');
+            const skewSlider = document.getElementById('skew_value');
+            const skewDisplay = document.getElementById('skew_value_display');
+            const rungSlider = document.getElementById('number_of_rungs');
+            const depthSlider = document.getElementById('depth');
+            const rungDisplay = document.getElementById('number_of_rungs_display');
+            const depthDisplay = document.getElementById('depth_display');
+            const advancedToggle = document.getElementById('advanced_mode');
+            const advancedSettings = document.getElementById('advanced-settings');
+            const feeTypeSelect = document.getElementById('fee_type');
+            const feeValueInput = document.getElementById('fee_value');
+            const feeSettlementSelect = document.getElementById('fee_settlement');
+            const sellOnlyCheckbox = document.getElementById('sell_only_mode');
+            const sellOnlyInputs = document.getElementById('sell-only-inputs');
+            const existingQuantityInput = document.getElementById('existing_quantity');
+            const existingAvgPriceInput = document.getElementById('existing_avg_price');
+            const spacingModeSelect = document.getElementById('spacing_mode');
+            const equalQuantityCheckbox = document.getElementById('equal_quantity_mode');
+            const buyChartCard = document.getElementById('buy-chart-card');
+            const buyOrdersCard = document.getElementById('buy-orders-card');
+            const buyHeaderRow = document.getElementById('buy-table-header-row');
+            const sellHeaderRow = document.getElementById('sell-table-header-row');
+            const exportCollapse = document.getElementById('export-collapse');
+            const downloadCsvBtn = document.getElementById('download-csv-btn');
+            const downloadXlsBtn = document.getElementById('download-xls-btn');
+            const downloadPdfBtn = document.getElementById('download-pdf-btn');
+
+            const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number.isFinite(value) ? value : 0);
+            const formatPercent = (value) => Number.isFinite(value) ? `${value.toFixed(2)}%` : '0.00%';
+            const formatNumber = (value, digits = 4) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: digits }) : '0';
+            const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
+            const MAX_SKEW_RATIO = 10;
+
+            const deriveExecutedBuyTotals = (buyLadder, highestRung) => {
+                if (!Array.isArray(buyLadder) || buyLadder.length === 0 || !Number.isFinite(highestRung)) {
+                    return {
+                        quantity: 0,
+                        netCapital: 0,
+                        fees: 0,
+                        avgPrice: 0
+                    };
+                }
+                const executed = buyLadder.filter(rung => rung.rung <= highestRung && rung.assetSize > 0);
+                if (executed.length === 0) {
+                    return {
+                        quantity: 0,
+                        netCapital: 0,
+                        fees: 0,
+                        avgPrice: 0
+                    };
+                }
+                const quantity = executed.reduce((sum, rung) => sum + rung.assetSize, 0);
+                const netCapital = executed.reduce((sum, rung) => sum + rung.netCapital, 0);
+                const fees = executed.reduce((sum, rung) => sum + rung.fee, 0);
+                const avgPrice = quantity > 0 ? netCapital / quantity : 0;
+                return {
+                    quantity,
+                    netCapital,
+                    fees,
+                    avgPrice
+                };
+            };
+
+            const updateSellOnlyCheckboxDisplay = () => {
+                const { checkboxElements, highestExecutedRung } = sellOnlyState;
+                if (!Array.isArray(checkboxElements)) {
+                    return;
+                }
+                checkboxElements.forEach(checkbox => {
+                    const rung = Number(checkbox.dataset.rung);
+                    if (!Number.isFinite(rung)) {
+                        checkbox.checked = false;
+                        return;
+                    }
+                    checkbox.checked = Number.isFinite(highestExecutedRung) && highestExecutedRung !== null
+                        ? rung <= highestExecutedRung
+                        : false;
+                });
+            };
+
+            const setSellOnlyHighestExecutedRung = (rung) => {
+                if (Number.isFinite(rung) && rung > 0) {
+                    sellOnlyState.highestExecutedRung = rung;
+                } else {
+                    sellOnlyState.highestExecutedRung = null;
+                }
+                updateSellOnlyCheckboxDisplay();
+            };
+
+            const bindSellOnlyCheckboxEvents = () => {
+                sellOnlyState.checkboxElements = Array.from(document.querySelectorAll('.buy-rung-executed'));
+                if (sellOnlyState.checkboxElements.length === 0) {
+                    return;
+                }
+                sellOnlyState.checkboxElements.forEach(checkbox => {
+                    checkbox.removeEventListener('click', checkbox.__sellOnlyHandler);
+                    const handler = (event) => {
+                        event.preventDefault();
+                        const target = event.currentTarget;
+                        const rung = Number(target.dataset.rung);
+                        if (!Number.isFinite(rung)) {
+                            setSellOnlyHighestExecutedRung(null);
+                            calculatePlan();
+                            return;
+                        }
+                        const previousHighest = sellOnlyState.highestExecutedRung;
+                        let newHighest;
+                        if (Number.isFinite(previousHighest) && previousHighest === rung) {
+                            newHighest = rung > 1 ? rung - 1 : null;
+                        } else {
+                            newHighest = rung;
+                        }
+                        setSellOnlyHighestExecutedRung(newHighest);
+                        calculatePlan();
+                    };
+                    checkbox.__sellOnlyHandler = handler;
+                    checkbox.addEventListener('click', handler);
+                });
+                updateSellOnlyCheckboxDisplay();
+            };
+
+            const applyDerivedSellOnlyInputs = (derivedTotals, options = {}) => {
+                const { force = false } = options;
+                if (!existingQuantityInput || !existingAvgPriceInput) {
+                    return;
+                }
+                if (!derivedTotals || derivedTotals.quantity <= 0 || derivedTotals.avgPrice <= 0) {
+                    return;
+                }
+                const currentQuantity = parseFloat(existingQuantityInput.value);
+                const currentAvgPrice = parseFloat(existingAvgPriceInput.value);
+                const quantityInUse = Number.isFinite(currentQuantity) && currentQuantity > 0;
+                const avgInUse = Number.isFinite(currentAvgPrice) && currentAvgPrice > 0;
+                if (!force && (quantityInUse || avgInUse)) {
+                    return;
+                }
+                existingQuantityInput.value = derivedTotals.quantity;
+                existingAvgPriceInput.value = derivedTotals.avgPrice;
+            };
+
+            const buildSkewWeights = (count, skewValue) => {
+                if (count <= 0) {
+                    return [];
+                }
+                if (skewValue <= 0) {
+                    return Array(count).fill(1);
+                }
+                const normalizedSkew = clampNumber(skewValue, 0, 100) / 100;
+                const targetRatio = 1 + Math.pow(normalizedSkew, 1.2) * (MAX_SKEW_RATIO - 1);
+                const minWeight = 1 / targetRatio;
+                const curvature = 1 + normalizedSkew;
+
+                return Array.from({ length: count }, (_, index) => {
+                    if (count === 1) {
+                        return 1;
+                    }
+                    const relativeIndex = index / (count - 1);
+                    const shapedIndex = Math.pow(relativeIndex, curvature);
+                    const curveValue = Math.pow(targetRatio, shapedIndex);
+                    return Math.max(curveValue - 1 + minWeight, Number.EPSILON);
+                });
+            };
+
+            const computeEqualGrossAllocations = (totalQuantity, prices) => {
+                const allocations = Array(prices.length).fill(0);
+                const validEntries = prices
+                    .map((price, idx) => ({ price, idx }))
+                    .filter(entry => entry.price > 0);
+
+                if (totalQuantity <= 0 || validEntries.length === 0) {
+                    return { allocations, quantityPerRung: 0 };
+                }
+
+                const sharedQuantity = totalQuantity / validEntries.length;
+
+                validEntries.forEach(({ idx }) => {
+                    allocations[idx] = sharedQuantity;
+                });
+
+                return { allocations, quantityPerRung: sharedQuantity };
+            };
+
+            const ensurePlanAvailable = () => {
+                if (currentPlanData) {
+                    return currentPlanData;
+                }
+                const firstInvalidLabel = document.querySelector('.label-invalid');
+                if (firstInvalidLabel) {
+                    firstInvalidLabel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const infoBtn = firstInvalidLabel.querySelector('.info-button');
+                    if (infoBtn) {
+                        infoBtn.focus({ preventScroll: true });
+                    }
+                }
+                return null;
+            };
+
+            const escapeForHtml = (value) => {
+                if (value === null || value === undefined) {
+                    return '';
+                }
+                return String(value)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            };
+
+            const collectExportSettings = () => ({
+                date: new Date().toLocaleString(),
+                startingCapital: document.getElementById('starting_capital')?.value ?? '',
+                rungs: document.getElementById('number_of_rungs')?.value ?? '',
+                currentPrice: document.getElementById('current_price')?.value ?? '',
+                depth: document.getElementById('depth')?.value ?? '',
+                skew: document.getElementById('skew_value')?.value ?? '',
+                advancedMode: advancedToggle ? advancedToggle.checked : false,
+                sellOnly: sellOnlyCheckbox ? sellOnlyCheckbox.checked : false,
+                equalQuantity: equalQuantityCheckbox ? equalQuantityCheckbox.checked : false,
+                feeType: feeTypeSelect ? feeTypeSelect.value : '',
+                feeSettlement: feeSettlementSelect ? feeSettlementSelect.value : '',
+                feeValue: feeValueInput ? feeValueInput.value : '',
+                spacingMode: spacingModeSelect ? spacingModeSelect.value : 'absolute'
+            });
+
+            const closeExportMenu = () => {
+                if (exportCollapse && exportCollapse.open) {
+                    exportCollapse.removeAttribute('open');
+                }
+            };
+
+            const buildCsvContent = (plan, settings) => {
+                let csvContent = "";
+
+                csvContent += "Setting,Value\r\n";
+                csvContent += `Date,"${settings.date}"\r\n`;
+                csvContent += `Initial Capital,${settings.startingCapital}\r\n`;
+                csvContent += `Number of Rungs,${settings.rungs}\r\n`;
+                csvContent += `Current Asset Price,${settings.currentPrice}\r\n`;
+                csvContent += `Width (%),${settings.depth}\r\n`;
+                csvContent += `Allocation Skew,${settings.skew}\r\n`;
+                csvContent += `Advanced Mode Enabled,${settings.advancedMode ? 'Yes' : 'No'}\r\n`;
+                csvContent += `Sell-only Mode,${settings.sellOnly ? 'Yes' : 'No'}\r\n`;
+                csvContent += `Equal Quantity Per Rung,${settings.equalQuantity ? 'Yes' : 'No'}\r\n`;
+                if (settings.advancedMode) {
+                    csvContent += `Trading Fee Type,${settings.feeType}\r\n`;
+                    csvContent += `Fee Settlement Mode,${settings.feeSettlement}\r\n`;
+                    csvContent += `Trading Fee Value,${settings.feeValue}\r\n`;
+                    csvContent += `Spacing Mode,${plan.spacing && plan.spacing.mode === 'relative' ? 'Relative (% per rung)' : 'Absolute'}\r\n`;
+                }
+                csvContent += "\r\n";
+
+                csvContent += "Summary Metric,Value\r\n";
+                csvContent += `Avg. Buy Price,${plan.summary.avgBuyPrice}\r\n`;
+                const csvRungLabel = (rung, price) => (rung ? `Rung ${rung} @ ${formatCurrency(price)}` : '-');
+                csvContent += `Avg. Sell Price (Net),${plan.summary.avgSellPrice}\r\n`;
+                csvContent += `Lowest Buy Rung,${csvRungLabel(plan.summary.lowestBuyRung, plan.summary.lowestBuyPrice)}\r\n`;
+                csvContent += `Highest Sell Rung,${csvRungLabel(plan.summary.highestSellRung, plan.summary.highestSellPrice)}\r\n`;
+                csvContent += `Gross Profit,${plan.summary.grossProfit}\r\n`;
+                csvContent += `Total Fees Paid,${plan.summary.totalFees}\r\n`;
+                csvContent += `Total Vol,${plan.summary.totalQuantity}\r\n`;
+                csvContent += `ROI on Cost Basis (%),${plan.summary.roi}\r\n`;
+                csvContent += "\r\n";
+
+                const csvShowFeeColumns = !!(plan.feeSettings && plan.feeSettings.enabled);
+                const feeHeaderCsv = csvShowFeeColumns
+                    ? (plan.feeSettings.type === 'percent' ? "Fee ($)" : "Fee (%)")
+                    : '';
+                const buyHeaderCsv = [
+                    "Buy Rung",
+                    "Buy Price",
+                    "Buy Vol",
+                    "Buy Alloc (%)",
+                    "Buy Value",
+                    ...(csvShowFeeColumns ? [`Buy ${feeHeaderCsv}`] : []),
+                    "Buy Avg Buy Price"
+                ];
+                const sellHeaderCsv = [
+                    "Sell Rung",
+                    "Sell Price",
+                    "Sell Vol",
+                    "Sell Alloc (%)",
+                    "Sell Value",
+                    ...(csvShowFeeColumns ? [`Sell ${feeHeaderCsv}`] : []),
+                    "Sell Avg Sell Price",
+                    "Sell Net Profit"
+                ];
+
+                csvContent += `${buyHeaderCsv.join(",")},,${sellHeaderCsv.join(",")}\r\n`;
+
+                const numRungs = Math.max(plan.buyLadder.length, plan.sellLadder.length);
+                for (let i = 0; i < numRungs; i += 1) {
+                    const buyRung = plan.buyLadder[i];
+                    const sellRung = plan.sellLadder[i];
+
+                    const buyRowValues = buyRung ? [
+                        buyRung.rung,
+                        buyRung.price,
+                        buyRung.assetSize,
+                        buyRung.allocation,
+                        buyRung.capital,
+                        ...(csvShowFeeColumns ? [
+                            plan.feeSettings.type === 'percent'
+                                ? buyRung.fee
+                                : (buyRung.capital > 0 ? (buyRung.fee / buyRung.capital) * 100 : 0)
+                        ] : []),
+                        buyRung.progressiveAvgPrice
+                    ] : [];
+                    const sellRowValues = sellRung ? [
+                        sellRung.rung,
+                        sellRung.price,
+                        sellRung.assetSize,
+                        sellRung.allocation,
+                        sellRung.capital,
+                        ...(csvShowFeeColumns ? [
+                            plan.feeSettings.type === 'percent'
+                                ? sellRung.fee
+                                : (sellRung.capital > 0 ? (sellRung.fee / sellRung.capital) * 100 : 0)
+                        ] : []),
+                        sellRung.progressiveAvgSellPrice,
+                        sellRung.netProfit
+                    ] : [];
+
+                    const buyRow = buyRowValues.length > 0 ? buyRowValues.join(',') : Array(buyHeaderCsv.length).fill('').join(',');
+                    const sellRow = sellRowValues.length > 0 ? sellRowValues.join(',') : Array(sellHeaderCsv.length).fill('').join(',');
+
+                    csvContent += `${buyRow},,${sellRow}\r\n`;
+                }
+
+                return csvContent;
+            };
+
+            const buildXlsContent = (plan, settings) => {
+                const showFeeColumns = !!(plan.feeSettings && plan.feeSettings.enabled);
+                const feeHeaderLabel = showFeeColumns
+                    ? (plan.feeSettings.type === 'percent' ? 'Fee ($)' : 'Fee (%)')
+                    : '';
+
+                const feeDisplay = (rung) => {
+                    if (!showFeeColumns) {
+                        return '';
+                    }
+                    if (plan.feeSettings.type === 'percent') {
+                        return formatCurrency(rung.fee);
+                    }
+                    const pct = rung.capital > 0 ? (rung.fee / rung.capital) * 100 : 0;
+                    return formatPercent(pct);
+                };
+
+                const settingsRows = [
+                    ['Date', settings.date],
+                    ['Initial Capital', settings.startingCapital],
+                    ['Number of Rungs', settings.rungs],
+                    ['Current Asset Price', settings.currentPrice],
+                    ['Width (%)', settings.depth],
+                    ['Allocation Skew', settings.skew],
+                    ['Advanced Mode Enabled', settings.advancedMode ? 'Yes' : 'No'],
+                    ['Sell-only Mode', settings.sellOnly ? 'Yes' : 'No'],
+                    ['Equal Quantity Per Rung', settings.equalQuantity ? 'Yes' : 'No']
+                ];
+                if (settings.advancedMode) {
+                    settingsRows.push(['Trading Fee Type', settings.feeType]);
+                    settingsRows.push(['Fee Settlement Mode', settings.feeSettlement]);
+                    settingsRows.push(['Trading Fee Value', settings.feeValue]);
+                    settingsRows.push(['Spacing Mode', plan.spacing && plan.spacing.mode === 'relative' ? 'Relative (% per rung)' : 'Absolute']);
+                }
+
+                const rungLabel = (rung, price) => (rung ? `Rung ${rung} @ ${formatCurrency(price)}` : '-');
+
+                const summaryRows = [
+                    ['Avg. Buy Price', formatCurrency(plan.summary.avgBuyPrice)],
+                    ['Avg. Sell Price (Net)', formatCurrency(plan.summary.avgSellPrice)],
+                    ['Lowest Buy Rung', rungLabel(plan.summary.lowestBuyRung, plan.summary.lowestBuyPrice)],
+                    ['Highest Sell Rung', rungLabel(plan.summary.highestSellRung, plan.summary.highestSellPrice)],
+                    ['Gross Profit', formatCurrency(plan.summary.grossProfit)],
+                    ['Total Fees Paid', formatCurrency(plan.summary.totalFees)],
+                    ['Total Vol', formatNumber(plan.summary.totalQuantity, 4)],
+                    ['ROI on Cost Basis', formatPercent(plan.summary.roi)]
+                ];
+
+                const buyHeader = [
+                    '#',
+                    'Price',
+                    'Vol',
+                    'Alloc',
+                    'Value',
+                    ...(showFeeColumns ? [feeHeaderLabel] : []),
+                    'Avg Buy Price'
+                ];
+                const sellHeader = [
+                    '#',
+                    'Price',
+                    'Vol',
+                    'Alloc',
+                    'Value',
+                    ...(showFeeColumns ? [feeHeaderLabel] : []),
+                    'Avg Sell Price',
+                    'Profit'
+                ];
+
+                const buyRows = plan.buyLadder.map(rung => {
+                    const cells = [
+                        escapeForHtml(rung.rung),
+                        escapeForHtml(formatCurrency(rung.price)),
+                        escapeForHtml(formatNumber(rung.assetSize)),
+                        escapeForHtml(formatPercent(rung.allocation)),
+                        escapeForHtml(formatCurrency(rung.capital))
+                    ];
+                    if (showFeeColumns) {
+                        cells.push(escapeForHtml(feeDisplay(rung)));
+                    }
+                    cells.push(escapeForHtml(formatCurrency(rung.progressiveAvgPrice)));
+                    return `<tr>${cells.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+                }).join('');
+
+                const sellRows = plan.sellLadder.map(rung => {
+                    const cells = [
+                        escapeForHtml(rung.rung),
+                        escapeForHtml(formatCurrency(rung.price)),
+                        escapeForHtml(formatNumber(rung.assetSize)),
+                        escapeForHtml(formatPercent(rung.allocation)),
+                        escapeForHtml(formatCurrency(rung.capital))
+                    ];
+                    if (showFeeColumns) {
+                        cells.push(escapeForHtml(feeDisplay(rung)));
+                    }
+                    cells.push(escapeForHtml(formatCurrency(rung.progressiveAvgSellPrice)));
+                    cells.push(escapeForHtml(formatCurrency(rung.netProfit)));
+                    return `<tr>${cells.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+                }).join('');
+
+                const settingsTable = settingsRows.map(([label, value]) => `<tr><th>${escapeForHtml(label)}</th><td>${escapeForHtml(value)}</td></tr>`).join('');
+                const summaryTable = summaryRows.map(([label, value]) => `<tr><th>${escapeForHtml(label)}</th><td>${escapeForHtml(value)}</td></tr>`).join('');
+
+                return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+body { font-family: Arial, sans-serif; color: #273f43; }
+table { border-collapse: collapse; margin-bottom: 16px; width: 100%; }
+th, td { border: 1px solid #93c5fd; padding: 6px 10px; text-align: left; }
+th { background-color: #dbf6fa; }
+caption { font-weight: 600; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<table>
+<caption>Settings</caption>
+<tbody>${settingsTable}</tbody>
+</table>
+<table>
+<caption>Summary</caption>
+<tbody>${summaryTable}</tbody>
+</table>
+<table>
+<caption>Buy Ladder</caption>
+<thead><tr>${buyHeader.map(h => `<th>${escapeForHtml(h)}</th>`).join('')}</tr></thead>
+<tbody>${buyRows}</tbody>
+</table>
+<table>
+<caption>Sell Ladder</caption>
+<thead><tr>${sellHeader.map(h => `<th>${escapeForHtml(h)}</th>`).join('')}</tr></thead>
+<tbody>${sellRows}</tbody>
+</table>
+</body>
+</html>`;
+            };
+            const setSkewDisabled = (disabled) => {
+                if (!skewSlider) {
+                    return;
+                }
+                if (disabled) {
+                    skewSlider.setAttribute('disabled', 'true');
+                    skewSlider.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    skewSlider.removeAttribute('disabled');
+                    skewSlider.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            };
+
+            function setFieldValidity(fieldId, isValid, message = '') {
+                const input = document.getElementById(fieldId);
+                if (input) {
+                    if (isValid) {
+                        input.classList.remove('input-invalid');
+                        input.removeAttribute('aria-invalid');
+                    } else {
+                        input.classList.add('input-invalid');
+                        input.setAttribute('aria-invalid', 'true');
+                    }
+                }
+
+                const label = document.querySelector(`label[for="${fieldId}"]`);
+                if (!label) return;
+
+                if (isValid) {
+                    label.classList.remove('label-invalid', 'label-with-info');
+                    const infoBtn = label.querySelector('.info-button');
+                    if (infoBtn) {
+                        infoBtn.remove();
+                    }
+                    return;
+                }
+
+                label.classList.add('label-invalid', 'label-with-info');
+
+                let infoBtn = label.querySelector('.info-button');
+                if (!infoBtn) {
+                    infoBtn = document.createElement('button');
+                    infoBtn.type = 'button';
+                    infoBtn.className = 'info-button';
+                    infoBtn.textContent = 'i';
+                    label.appendChild(infoBtn);
+                }
+
+                if (message) {
+                    infoBtn.setAttribute('title', message);
+                    infoBtn.setAttribute('aria-label', message);
+                } else {
+                    infoBtn.removeAttribute('title');
+                    infoBtn.setAttribute('aria-label', 'Additional information');
+                }
+            }
+
+            function calculatePlan() {
+                // 1. Get inputs
+                const C = parseFloat(document.getElementById('starting_capital').value);
+                const N = parseInt(document.getElementById('number_of_rungs').value);
+                const S = parseInt(document.getElementById('skew_value').value);
+                const currentPrice = parseFloat(document.getElementById('current_price').value);
+                const depth = parseFloat(document.getElementById('depth').value);
+
+                const advancedEnabled = advancedToggle ? advancedToggle.checked : false;
+                const feeType = advancedEnabled && feeTypeSelect ? feeTypeSelect.value : 'percent';
+                const feeSettlementRaw = advancedEnabled && feeSettlementSelect ? feeSettlementSelect.value : 'netted';
+                const feeSettlement = feeSettlementRaw === 'external' ? 'external' : 'netted';
+                const rawFeeValue = advancedEnabled && feeValueInput ? parseFloat(feeValueInput.value) : 0;
+                const feeValue = Number.isFinite(rawFeeValue) ? Math.max(rawFeeValue, 0) : 0;
+                const sellOnlyMode = advancedEnabled && sellOnlyCheckbox ? sellOnlyCheckbox.checked : false;
+                const existingQuantityRaw = sellOnlyMode && existingQuantityInput ? parseFloat(existingQuantityInput.value) : 0;
+                const existingAvgBuyPriceRaw = sellOnlyMode && existingAvgPriceInput ? parseFloat(existingAvgPriceInput.value) : 0;
+                const existingQuantity = Number.isFinite(existingQuantityRaw) ? existingQuantityRaw : 0;
+                const existingAvgBuyPrice = Number.isFinite(existingAvgBuyPriceRaw) ? existingAvgBuyPriceRaw : 0;
+                const spacingMode = advancedEnabled && spacingModeSelect ? spacingModeSelect.value : 'absolute';
+                const isRelativeSpacing = spacingMode === 'relative';
+                const selectedHighestExecutedRung = sellOnlyMode ? sellOnlyState.highestExecutedRung : null;
+
+                const validations = [
+                    {
+                        id: 'starting_capital',
+                        enabled: !sellOnlyMode,
+                        isValid: Number.isFinite(C) && C > 0,
+                        message: 'Enter initial capital greater than zero.'
+                    },
+                    {
+                        id: 'number_of_rungs',
+                        enabled: true,
+                        isValid: Number.isFinite(N) && N >= 2,
+                        message: 'Rungs must be at least 2.'
+                    },
+                    {
+                        id: 'skew_value',
+                        enabled: true,
+                        isValid: Number.isFinite(S) && S >= 0 && S <= 100,
+                        message: 'Allocation skew must be between 0 and 100.'
+                    },
+                    {
+                        id: 'current_price',
+                        enabled: true,
+                        isValid: Number.isFinite(currentPrice) && currentPrice > 0,
+                        message: 'Enter a current asset price greater than zero.'
+                    },
+                    {
+                        id: 'depth',
+                        enabled: true,
+                        isValid: Number.isFinite(depth) && depth > 0,
+                        message: 'Width must be greater than zero.'
+                    },
+                    {
+                        id: 'fee_value',
+                        enabled: advancedEnabled && !!feeValueInput,
+                        isValid: Number.isFinite(feeValue) && feeValue >= 0,
+                        message: 'Trading fee must be zero or greater.'
+                    },
+                    {
+                        id: 'existing_quantity',
+                        enabled: sellOnlyMode && !(Number.isFinite(selectedHighestExecutedRung) && selectedHighestExecutedRung !== null),
+                        isValid: Number.isFinite(existingQuantity) && existingQuantity >= 0,
+                        message: 'Provide the quantity you already hold or select executed rungs.'
+                    },
+                    {
+                        id: 'existing_avg_price',
+                        enabled: sellOnlyMode && !(Number.isFinite(selectedHighestExecutedRung) && selectedHighestExecutedRung !== null),
+                        isValid: Number.isFinite(existingAvgBuyPrice) && existingAvgBuyPrice >= 0,
+                        message: 'Provide the known average buy price for held assets or select executed rungs.'
+                    }
+                ];
+
+                let hasInvalidInput = false;
+                validations.forEach(({ id, enabled, isValid, message }) => {
+                    if (!enabled) {
+                        setFieldValidity(id, true);
+                        return;
+                    }
+                    if (!isValid) {
+                        setFieldValidity(id, false, message);
+                        hasInvalidInput = true;
+                    } else {
+                        setFieldValidity(id, true);
+                    }
+                });
+
+                if (hasInvalidInput) {
+                    currentPlanData = null;
+                    return;
+                }
+
+                const feeEnabled = feeValue > 0 && advancedEnabled;
+                const feeRate = feeType === 'percent' ? feeValue / 100 : 0;
+                const isFeeNetted = feeSettlement !== 'external';
+                const useEqualQuantity = advancedEnabled && equalQuantityCheckbox ? equalQuantityCheckbox.checked : false;
+
+                const deriveBuyAmounts = (allocatedCapital) => {
+                    if (!feeEnabled) {
+                        return { net: allocatedCapital, fee: 0, gross: allocatedCapital };
+                    }
+                    if (isFeeNetted) {
+                        if (feeType === 'percent') {
+                            const net = allocatedCapital / (1 + feeRate);
+                            const fee = Math.max(allocatedCapital - net, 0);
+                            return { net, fee, gross: allocatedCapital };
+                        }
+                        const fee = Math.min(feeValue, allocatedCapital);
+                        const net = Math.max(allocatedCapital - fee, 0);
+                        return { net, fee, gross: net + fee };
+                    }
+                    if (feeType === 'percent') {
+                        const net = allocatedCapital;
+                        const fee = net * feeRate;
+                        return { net, fee, gross: net };
+                    }
+                    const net = allocatedCapital;
+                    const fee = net > 0 ? feeValue : 0;
+                    return { net, fee, gross: net };
+                };
+
+                const deriveSellAmounts = (grossRevenue) => {
+                    if (!feeEnabled) {
+                        return { net: grossRevenue, fee: 0 };
+                    }
+                    const rawFee = feeType === 'percent'
+                        ? grossRevenue * feeRate
+                        : (grossRevenue > 0 ? feeValue : 0);
+                    const fee = isFeeNetted ? Math.min(rawFee, grossRevenue) : rawFee;
+                    const net = isFeeNetted ? Math.max(grossRevenue - fee, 0) : grossRevenue;
+                    return { net, fee };
+                };
+
+                // 2. Calculate Skew Weights
+                let rawWeights = Array(N).fill(1);
+                if (!useEqualQuantity && N > 0) {
+                    rawWeights = buildSkewWeights(N, S);
+                }
+                const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0) || 0;
+
+                // 3. Calculate Price Points
+                const depthVal = depth / 100;
+                const buyPriceEnd = currentPrice * (1 - depthVal);
+                const sellPriceEnd = currentPrice * (1 + depthVal);
+                const buyRange = currentPrice - buyPriceEnd;
+                const sellRange = sellPriceEnd - currentPrice;
+                const buyPriceStep = (!isRelativeSpacing && N > 0) ? buyRange / N : 0;
+                const sellPriceStep = (!isRelativeSpacing && N > 0) ? sellRange / N : 0;
+                const buyPriceRatio = (isRelativeSpacing && N > 0) ? Math.pow(Math.max(1 - depthVal, 0), 1 / N) : 1;
+                const sellPriceRatio = (isRelativeSpacing && N > 0) ? Math.pow(1 + depthVal, 1 / N) : 1;
+                const buyPrices = Array.from({ length: N }, (_, i) => {
+                    if (isRelativeSpacing) {
+                        return currentPrice * Math.pow(buyPriceRatio, i + 1);
+                    }
+                    return currentPrice - ((i + 1) * buyPriceStep);
+                });
+                const sellPrices = Array.from({ length: N }, (_, i) => {
+                    if (isRelativeSpacing) {
+                        return currentPrice * Math.pow(sellPriceRatio, i + 1);
+                    }
+                    return currentPrice + ((i + 1) * sellPriceStep);
+                });
+
+                // 4. Calculate Buy Ladder
+                let buyLadder = [];
+                let totalAssetBought = 0;
+                let totalNetCapitalSpent = 0;
+                let totalBuyFees = 0;
+
+                const canReuseBuySnapshot = sellOnlyMode
+                    && baselineBuySnapshot
+                    && Array.isArray(baselineBuySnapshot.buyLadder)
+                    && baselineBuySnapshot.buyLadder.length > 0;
+
+                if (canReuseBuySnapshot) {
+                    buyLadder = cloneBuyLadder(baselineBuySnapshot.buyLadder);
+                    totalAssetBought = baselineBuySnapshot.totalAssetBought;
+                    totalNetCapitalSpent = baselineBuySnapshot.totalNetCapitalSpent;
+                    totalBuyFees = baselineBuySnapshot.totalBuyFees;
+                } else {
+                    if (useEqualQuantity) {
+                        const activeBuyEntries = buyPrices
+                            .map((price, idx) => ({ price, idx }))
+                            .filter(entry => entry.price > 0);
+                        const activeCount = activeBuyEntries.length;
+                        const activeIndexSet = new Set(activeBuyEntries.map(entry => entry.idx));
+                        const totalPriceSum = activeBuyEntries.reduce((sum, entry) => sum + entry.price, 0);
+                        let sharedQuantity = 0;
+                        if (activeCount > 0 && Number.isFinite(C) && C > 0 && totalPriceSum > 0) {
+                            if (!feeEnabled || !isFeeNetted) {
+                                sharedQuantity = C / totalPriceSum;
+                            } else if (feeType === 'percent') {
+                                const denominator = totalPriceSum * (1 + feeRate);
+                                sharedQuantity = denominator > 0 ? C / denominator : 0;
+                            } else {
+                                const effectiveBudget = C - (activeCount * feeValue);
+                                sharedQuantity = effectiveBudget > 0 ? effectiveBudget / totalPriceSum : 0;
+                            }
+                        }
+                        sharedQuantity = Math.max(sharedQuantity, 0);
+
+                        buyLadder = buyPrices.map((price, i) => {
+                            const hasVolume = sharedQuantity > 0 && activeIndexSet.has(i);
+                            const assetSize = hasVolume ? sharedQuantity : 0;
+                            const netCapital = assetSize * price;
+                            let fee = 0;
+                            if (assetSize > 0 && feeEnabled) {
+                                if (feeType === 'percent') {
+                                    fee = netCapital * feeRate;
+                                } else {
+                                    fee = feeValue;
+                                }
+                            }
+                            if (assetSize === 0) {
+                                fee = 0;
+                            }
+                            const grossAllocation = isFeeNetted ? netCapital + fee : netCapital;
+                            totalAssetBought += assetSize;
+                            totalNetCapitalSpent += netCapital;
+                            totalBuyFees += fee;
+                            return {
+                                rung: i + 1,
+                                price,
+                                capital: grossAllocation,
+                                netCapital,
+                                allocation: 0,
+                                assetSize,
+                                fee
+                            };
+                        });
+                    } else {
+                        const capitalAllocations = (C > 0 && totalWeight > 0)
+                            ? rawWeights.map(w => (C * w) / totalWeight)
+                            : Array(N).fill(0);
+                        buyLadder = capitalAllocations.map((allocation, i) => {
+                            const price = buyPrices[i];
+                            const { net: netCapital, fee, gross } = deriveBuyAmounts(allocation);
+                            const assetSize = price > 0 && netCapital > 0 ? netCapital / price : 0;
+                            totalAssetBought += assetSize;
+                            totalNetCapitalSpent += netCapital;
+                            totalBuyFees += fee;
+                            return {
+                                rung: i + 1,
+                                price,
+                                capital: gross,
+                                netCapital,
+                                allocation: 0,
+                                assetSize,
+                                fee
+                            };
+                        });
+                    }
+                }
+
+                let cumulativeNetCapital = 0;
+                let cumulativeAsset = 0;
+                const totalAssetForAllocation = totalAssetBought;
+                buyLadder = buyLadder.map(rung => {
+                    cumulativeNetCapital += rung.netCapital;
+                    cumulativeAsset += rung.assetSize;
+                    const progressiveAvgPrice = cumulativeAsset > 0 ? (cumulativeNetCapital / cumulativeAsset) : 0;
+                    return {
+                        ...rung,
+                        allocation: totalAssetForAllocation > 0 ? (rung.assetSize / totalAssetForAllocation) * 100 : 0,
+                        progressiveAvgPrice
+                    };
+                });
+
+                let effectiveAssetBought = totalAssetBought;
+                let effectiveNetCapitalSpent = totalNetCapitalSpent;
+                let effectiveBuyFees = totalBuyFees;
+
+                let derivedTotals = null;
+                if (sellOnlyMode) {
+                    if (Number.isFinite(selectedHighestExecutedRung) && selectedHighestExecutedRung !== null) {
+                        derivedTotals = deriveExecutedBuyTotals(buyLadder, selectedHighestExecutedRung);
+                        if (derivedTotals.quantity > 0 && derivedTotals.avgPrice > 0) {
+                            effectiveAssetBought = derivedTotals.quantity;
+                            effectiveNetCapitalSpent = derivedTotals.netCapital;
+                            effectiveBuyFees = derivedTotals.fees;
+                            applyDerivedSellOnlyInputs(derivedTotals, { force: true });
+                        } else {
+                            derivedTotals = null;
+                        }
+                    }
+
+                    if (!derivedTotals && canReuseBuySnapshot) {
+                        const snapshotQuantity = baselineBuySnapshot.totalAssetBought;
+                        const snapshotNetCapital = baselineBuySnapshot.totalNetCapitalSpent;
+                        const snapshotFees = baselineBuySnapshot.totalBuyFees;
+                        const snapshotAvgPrice = snapshotQuantity > 0
+                            ? snapshotNetCapital / snapshotQuantity
+                            : 0;
+                        if (snapshotQuantity > 0 && snapshotAvgPrice > 0) {
+                            derivedTotals = {
+                                quantity: snapshotQuantity,
+                                netCapital: snapshotNetCapital,
+                                fees: snapshotFees,
+                                avgPrice: snapshotAvgPrice
+                            };
+                            effectiveAssetBought = snapshotQuantity;
+                            effectiveNetCapitalSpent = snapshotNetCapital;
+                            effectiveBuyFees = snapshotFees;
+                            applyDerivedSellOnlyInputs(derivedTotals);
+                        }
+                    }
+
+                    if (!derivedTotals) {
+                        effectiveAssetBought = existingQuantity > 0 ? existingQuantity : 0;
+                        effectiveNetCapitalSpent = existingQuantity > 0 && existingAvgBuyPrice > 0
+                            ? existingQuantity * existingAvgBuyPrice
+                            : 0;
+                        effectiveBuyFees = 0;
+                    }
+                }
+
+                const avgBuyPrice = effectiveAssetBought > 0
+                    ? (sellOnlyMode ? (effectiveNetCapitalSpent / effectiveAssetBought) : (totalNetCapitalSpent / totalAssetBought))
+                    : 0;
+
+                // 5. Determine quantities available for sells
+                let totalQuantityForSell = 0;
+                let assetAllocations = [];
+
+                if (sellOnlyMode) {
+                    totalQuantityForSell = effectiveAssetBought;
+                    if (useEqualQuantity) {
+                        const equalDistribution = computeEqualGrossAllocations(totalQuantityForSell, sellPrices);
+                        assetAllocations = equalDistribution.allocations;
+                    } else {
+                        assetAllocations = (totalWeight > 0 && totalQuantityForSell > 0)
+                            ? rawWeights.map(w => (totalQuantityForSell * w) / totalWeight)
+                            : Array(N).fill(0);
+                    }
+                } else {
+                    assetAllocations = buyLadder.map(rung => rung.assetSize);
+                    totalQuantityForSell = assetAllocations.reduce((sum, size) => sum + size, 0);
+                    if (useEqualQuantity) {
+                        const equalDistribution = computeEqualGrossAllocations(totalQuantityForSell, sellPrices);
+                        assetAllocations = equalDistribution.allocations;
+                    }
+                }
+
+                totalQuantityForSell = assetAllocations.reduce((sum, size) => sum + size, 0);
+
+                let totalRevenueGross = 0;
+                let totalRevenueNet = 0;
+                let totalSellFees = 0;
+                let totalGrossProfit = 0;
+
+                let sellLadder = assetAllocations.map((assetSize, i) => {
+                    const price = sellPrices[i];
+                    const grossRevenue = assetSize * price;
+                    const { net: netRevenue, fee: sellFee } = deriveSellAmounts(grossRevenue);
+                    const grossProfit = grossRevenue - (assetSize * avgBuyPrice);
+                    const netProfit = netRevenue - (assetSize * avgBuyPrice);
+
+                    totalRevenueGross += grossRevenue;
+                    totalRevenueNet += netRevenue;
+                    totalSellFees += sellFee;
+                    totalGrossProfit += grossProfit;
+
+                    return {
+                        rung: i + 1,
+                        price,
+                        assetSize,
+                        capital: grossRevenue,
+                        allocation: 0,
+                        fee: sellFee,
+                        netRevenue,
+                        grossProfit,
+                        netProfit
+                    };
+                });
+
+                sellLadder.forEach(rung => {
+                    rung.allocation = totalQuantityForSell > 0 ? (rung.assetSize / totalQuantityForSell) * 100 : 0;
+                });
+
+                let cumulativeNetRevenue = 0;
+                let cumulativeAssetSold = 0;
+                sellLadder = sellLadder.map(rung => {
+                    cumulativeNetRevenue += rung.netRevenue;
+                    cumulativeAssetSold += rung.assetSize;
+                    const progressiveAvgSellPrice = cumulativeAssetSold > 0 ? (cumulativeNetRevenue / cumulativeAssetSold) : 0;
+                    return {
+                        ...rung,
+                        progressiveAvgSellPrice
+                    };
+                });
+
+                const avgSellPrice = totalQuantityForSell > 0 ? (totalRevenueNet / totalQuantityForSell) : 0;
+                const totalFees = (sellOnlyMode ? effectiveBuyFees : totalBuyFees) + totalSellFees;
+                const costBasis = sellOnlyMode ? effectiveNetCapitalSpent : totalNetCapitalSpent + totalBuyFees;
+                const netProfitAfterFees = totalRevenueNet - costBasis - (isFeeNetted ? 0 : totalSellFees);
+                const roi = costBasis > 0 ? (netProfitAfterFees / costBasis) * 100 : 0;
+
+                const lowestBuyActive = buyLadder.reduce((acc, rung) => {
+                    if (rung.assetSize <= 0) {
+                        return acc;
+                    }
+                    if (!acc || rung.price < acc.price) {
+                        return rung;
+                    }
+                    return acc;
+                }, null);
+
+                const highestSellActive = sellLadder.reduce((acc, rung) => {
+                    if (rung.assetSize <= 0) {
+                        return acc;
+                    }
+                    if (!acc || rung.price > acc.price) {
+                        return rung;
+                    }
+                    return acc;
+                }, null);
+
+                const plan = {
+                    summary: {
+                        avgBuyPrice,
+                        avgSellPrice,
+                        grossProfit: totalGrossProfit,
+                        netProfit: netProfitAfterFees,
+                        totalFees,
+                        totalQuantity: totalQuantityForSell,
+                        roi,
+                        costBasis,
+                        totalRevenueGross,
+                        totalRevenueNet,
+                        totalBuyFees: sellOnlyMode ? effectiveBuyFees : totalBuyFees,
+                        totalSellFees,
+                        lowestBuyPrice: lowestBuyActive ? lowestBuyActive.price : 0,
+                        lowestBuyRung: lowestBuyActive ? lowestBuyActive.rung : null,
+                        highestSellPrice: highestSellActive ? highestSellActive.price : 0,
+                        highestSellRung: highestSellActive ? highestSellActive.rung : null
+                    },
+                    buyLadder,
+                    sellLadder,
+                    modes: {
+                        advancedEnabled,
+                        sellOnly: sellOnlyMode,
+                        equalQuantity: useEqualQuantity
+                    },
+                    selection: {
+                        highestExecutedBuyRung: sellOnlyMode && Number.isFinite(selectedHighestExecutedRung)
+                            ? selectedHighestExecutedRung
+                            : null,
+                        derivedTotals: sellOnlyMode && derivedTotals ? derivedTotals : null
+                    },
+                    feeSettings: {
+                        enabled: feeEnabled,
+                        type: feeType,
+                        value: feeValue,
+                        settlement: feeSettlement
+                    },
+                    spacing: {
+                        mode: spacingMode
+                    }
+                };
+
+                if (!sellOnlyMode && buyLadder.length > 0) {
+                    baselineBuySnapshot = {
+                        buyLadder: cloneBuyLadder(buyLadder),
+                        totalAssetBought,
+                        totalNetCapitalSpent,
+                        totalBuyFees
+                    };
+                }
+
+                updateUI(plan);
+            }
+
+            function updateUI(plan) {
+                // Store data for CSV export
+                currentPlanData = plan;
+
+                const summary = plan.summary;
+                const showFeeColumns = !!(plan.feeSettings && plan.feeSettings.enabled);
+
+                const feeHeaderLabel = showFeeColumns
+                    ? (plan.feeSettings.type === 'percent' ? 'Fee ($)' : 'Fee (%)')
+                    : '';
+
+                const showExecutionCheckboxes = plan.modes && plan.modes.sellOnly;
+
+                if (buyHeaderRow) {
+                    const buyHeaders = [
+                        ...(showExecutionCheckboxes ? ['Executed'] : []),
+                        '#',
+                        'Price',
+                        'Vol',
+                        'Alloc',
+                        'Value',
+                        ...(showFeeColumns ? [feeHeaderLabel] : []),
+                        'Avg Buy Price'
+                    ];
+                    buyHeaderRow.innerHTML = buyHeaders.map((label, idx) => {
+                        const classes = ['px-2', 'py-2'];
+                        if (showExecutionCheckboxes) {
+                            if (idx === 0) {
+                                classes.push('w-16', 'text-center', 'rounded-l-lg');
+                            } else if (idx === 1) {
+                                classes.push('w-12', 'text-center');
+                            }
+                        } else if (idx === 0) {
+                            classes.push('w-12', 'text-center', 'rounded-l-lg');
+                        }
+                        if (idx === buyHeaders.length - 1) {
+                            classes.push('rounded-r-lg');
+                        }
+                        return `<th scope="col" class="${classes.join(' ')}">${label}</th>`;
+                    }).join('');
+                }
+
+                if (sellHeaderRow) {
+                    const sellHeaders = [
+                        '#',
+                        'Price',
+                        'Vol',
+                        'Alloc',
+                        'Value',
+                        ...(showFeeColumns ? [feeHeaderLabel] : []),
+                        'Avg Sell Price',
+                        'Profit'
+                    ];
+                    sellHeaderRow.innerHTML = sellHeaders.map((label, idx) => {
+                        const classes = [
+                            'px-2',
+                            'py-2',
+                            idx === 0 ? 'w-12 text-center' : '',
+                            idx === 0 ? 'rounded-l-lg' : '',
+                            idx === sellHeaders.length - 1 ? 'rounded-r-lg' : ''
+                        ].filter(Boolean).join(' ');
+                        return `<th scope="col" class="${classes}">${label}</th>`;
+                    }).join('');
+                }
+
+                document.getElementById('summary-avg-buy').textContent = formatCurrency(summary.avgBuyPrice);
+                document.getElementById('summary-avg-sell').textContent = formatCurrency(summary.avgSellPrice);
+                document.getElementById('summary-gross-profit').textContent = formatCurrency(summary.grossProfit);
+                document.getElementById('summary-total-fees').textContent = formatCurrency(summary.totalFees);
+                document.getElementById('summary-total-quantity').textContent = formatNumber(summary.totalQuantity, 4);
+                document.getElementById('summary-roi').textContent = formatPercent(summary.roi);
+                const formatSummaryPrice = price => (price ? formatCurrency(price) : '-');
+                document.getElementById('summary-buy-floor').textContent = formatSummaryPrice(summary.lowestBuyPrice);
+                document.getElementById('summary-sell-ceiling').textContent = formatSummaryPrice(summary.highestSellPrice);
+
+                // Toggle visibility for buy components in sell-only mode
+                if (buyChartCard && buyOrdersCard) {
+                    if (plan.modes && plan.modes.sellOnly) {
+                        buyChartCard.classList.add('hidden');
+                        buyOrdersCard.classList.remove('hidden');
+                    } else {
+                        buyChartCard.classList.remove('hidden');
+                        buyOrdersCard.classList.remove('hidden');
+                    }
+                }
+
+                // Update tables
+                const buyBody = document.getElementById('buy-ladder-body');
+                const sellBody = document.getElementById('sell-ladder-body');
+                buyBody.innerHTML = '';
+                sellBody.innerHTML = '';
+
+                const highestExecuted = plan.selection && Number.isFinite(plan.selection.highestExecutedBuyRung)
+                    ? plan.selection.highestExecutedBuyRung
+                    : null;
+
+                plan.buyLadder.forEach((rung, i) => {
+                    const rowClass = i % 2 === 0 ? 'table-row-even' : 'table-row-odd';
+                    const cells = [
+                        ...(showExecutionCheckboxes ? [`<td class="px-2 py-2 text-center">
+                            <input type="checkbox"
+                                   class="form-checkbox buy-rung-executed h-4 w-4 text-primary-dark rounded focus:ring-0"
+                                   data-rung="${rung.rung}">
+                        </td>`] : []),
+                        `<td class="px-2 py-2 font-medium text-center">${rung.rung}</td>`,
+                        `<td class="px-2 py-2">${formatCurrency(rung.price)}</td>`,
+                        `<td class="px-2 py-2">${formatNumber(rung.assetSize)}</td>`,
+                        `<td class="px-2 py-2">${formatPercent(rung.allocation)}</td>`,
+                        `<td class="px-2 py-2">${formatCurrency(rung.capital)}</td>`
+                    ];
+                    if (showFeeColumns) {
+                        const feeCellValue = plan.feeSettings.type === 'percent'
+                            ? formatCurrency(rung.fee)
+                            : formatPercent(rung.capital > 0 ? (rung.fee / rung.capital) * 100 : 0);
+                        cells.push(`<td class="px-2 py-2">${feeCellValue}</td>`);
+                    }
+                    cells.push(`<td class="px-2 py-2">${formatCurrency(rung.progressiveAvgPrice)}</td>`);
+                    const executedClass = Number.isFinite(highestExecuted) && highestExecuted !== null && rung.rung <= highestExecuted
+                        ? ' executed-rung'
+                        : '';
+                    buyBody.innerHTML += `<tr class="${rowClass}${executedClass}">${cells.join('')}</tr>`;
+                });
+
+                plan.sellLadder.forEach((rung, i) => {
+                    const rowClass = i % 2 === 0 ? 'table-row-even' : 'table-row-odd';
+                    const cells = [
+                        `<td class="px-2 py-2 font-medium text-center">${rung.rung}</td>`,
+                        `<td class="px-2 py-2">${formatCurrency(rung.price)}</td>`,
+                        `<td class="px-2 py-2">${formatNumber(rung.assetSize)}</td>`,
+                        `<td class="px-2 py-2">${formatPercent(rung.allocation)}</td>`,
+                        `<td class="px-2 py-2">${formatCurrency(rung.capital)}</td>`
+                    ];
+                    if (showFeeColumns) {
+                        const feeCellValue = plan.feeSettings.type === 'percent'
+                            ? formatCurrency(rung.fee)
+                            : formatPercent(rung.capital > 0 ? (rung.fee / rung.capital) * 100 : 0);
+                        cells.push(`<td class="px-2 py-2">${feeCellValue}</td>`);
+                    }
+                    cells.push(`<td class="px-2 py-2">${formatCurrency(rung.progressiveAvgSellPrice)}</td>`);
+                    cells.push(`<td class="px-2 py-2">${formatCurrency(rung.netProfit)}</td>`);
+                    sellBody.innerHTML += `<tr class="${rowClass}">${cells.join('')}</tr>`;
+                });
+
+                if (showExecutionCheckboxes) {
+                    bindSellOnlyCheckboxEvents();
+                } else {
+                    sellOnlyState.checkboxElements = [];
+                }
+
+                // Draw charts
+                const combinedVolumes = [...plan.buyLadder, ...plan.sellLadder]
+                    .map(rung => (typeof rung?.assetSize === 'number' ? rung.assetSize : 0));
+                const sharedMaxVolume = combinedVolumes.length > 0 ? Math.max(...combinedVolumes) : 1;
+
+                if (plan.buyLadder.length > 0 && !(plan.modes && plan.modes.sellOnly)) {
+                    drawBuyChart(plan.buyLadder, sharedMaxVolume);
+                } else {
+                    d3.select("#allocation-chart").selectAll("*").remove();
+                }
+                drawSellChart(plan.sellLadder, sharedMaxVolume);
+            }
+            
+            function drawBuyChart(data, sharedMaxVolume) {
+                const container = d3.select("#visualization");
+                if (container.node() === null) return; 
+
+                d3.select("#allocation-chart").selectAll("*").remove();
+                if (!data || data.length === 0) {
+                    return;
+                }
+
+                const margin = { top: 20, right: 80, bottom: 70, left: 80 }; // Balanced margins for symmetry
+                let width;
+                try {
+                    width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+                } catch (e) {
+                    console.error("Could not get container width:", e);
+                    width = 500 - margin.left - margin.right; // Fallback width
+                }
+                width = Math.max(width, 100); // Ensure width is positive
+                const height = 300 - margin.top - margin.bottom;
+
+                const svg = d3.select("#allocation-chart")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+                const sortedData = [...data].sort((a, b) => a.price - b.price);
+
+                const x = d3.scaleBand()
+                    .range([0, width])
+                    .domain(sortedData.map(d => d.price)) // X-axis is now price
+                    .padding(0.2);
+
+                svg.append("g")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x).tickFormat(d => formatCurrency(parseFloat(d))))
+                    .selectAll("text")
+                        .style("text-anchor", "end")
+                        .attr("dx", "-.8em")
+                        .attr("dy", ".15em")
+                        .attr("transform", "rotate(-45)"); // Rotate labels
+                
+                svg.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("x", width / 2)
+                    .attr("y", height + margin.bottom - 10) // Adjusted y
+                    .text("Buy Price")
+                    .style("fill", "#2f3b58")
+                    .style("font-size", "12px");
+
+                const localMax = d3.max(data, d => d.assetSize);
+                const yMax = sharedMaxVolume && sharedMaxVolume > 0 ? sharedMaxVolume : (localMax > 0 ? localMax : 1);
+                const y = d3.scaleLinear()
+                    .domain([0, yMax > 0 ? yMax : 1]) 
+                    .range([height, 0]);
+
+                svg.append("g")
+                    .attr("transform", `translate(${width},0)`)
+                    .call(d3.axisRight(y).ticks(5).tickFormat(d => formatNumber(d, 2)));
+
+                svg.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("transform", `translate(${width + 40}, ${height / 2}) rotate(90)`)
+                    .text("Vol")
+                    .style("fill", "#2f3b58")
+                    .style("font-size", "12px");
+
+                const tooltip = d3.select("#tooltip");
+
+                svg.selectAll(".buy-bar")
+                    .data(sortedData)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "buy-bar")
+                    .attr("x", d => x(d.price)) // Use price for x
+                    .attr("width", x.bandwidth())
+                    .attr("y", d => y(0))
+                    .attr("height", d => height - y(0))
+                    .on("mouseover", function(event, d) {
+                        tooltip.style("opacity", 1);
+                        d3.select(this).style("opacity", 0.7);
+                    })
+                    .on("mousemove", function(event, d) {
+                        tooltip.html(`Rung ${d.rung}<br>Price: ${formatCurrency(d.price)}<br>Vol: ${formatNumber(d.assetSize, 4)}<br>Value (incl. fee): ${formatCurrency(d.capital)}<br>Alloc: ${formatPercent(d.allocation)}`)
+                            .style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function(d) {
+                        tooltip.style("opacity", 0);
+                        d3.select(this).style("opacity", 1);
+                    });
+
+                svg.selectAll("rect.buy-bar")
+                    .transition()
+                    .duration(800)
+                    .attr("y", d => y(d.assetSize))
+                    .attr("height", d => height - y(d.assetSize))
+                    .delay((d, i) => i * 20);
+            }
+
+            function drawSellChart(data, sharedMaxVolume) {
+                const container = d3.select("#sell-visualization");
+                if (container.node() === null) return; 
+
+                d3.select("#sell-allocation-chart").selectAll("*").remove();
+                if (!data || data.length === 0) {
+                    return;
+                }
+
+                const margin = { top: 20, right: 80, bottom: 70, left: 80 }; // Balanced margins for symmetry
+                let width;
+                try {
+                     width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+                } catch (e) {
+                    console.error("Could not get container width:", e);
+                    width = 500 - margin.left - margin.right; // Fallback width
+                }
+                width = Math.max(width, 100); // Ensure width is positive
+                const height = 300 - margin.top - margin.bottom;
+
+                const svg = d3.select("#sell-allocation-chart")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+                const sortedData = [...data].sort((a, b) => a.price - b.price);
+
+                const x = d3.scaleBand()
+                    .range([0, width])
+                    .domain(sortedData.map(d => d.price))
+                    .padding(0.2);
+
+                svg.append("g")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(d3.axisBottom(x).tickFormat(d => formatCurrency(parseFloat(d))))
+                    .selectAll("text")
+                        .style("text-anchor", "end")
+                        .attr("dx", "-.8em")
+                        .attr("dy", ".15em")
+                        .attr("transform", "rotate(-45)"); // Rotate labels
+                
+                svg.append("text")
+                    .attr("text-anchor", "middle")
+                    .attr("x", width / 2)
+                    .attr("y", height + margin.bottom - 10) // Adjusted y
+                    .text("Sell Price")
+                    .style("fill", "#2f3b58")
+                    .style("font-size", "12px");
+
+                const localMax = d3.max(sortedData, d => d.assetSize);
+                const yMax = sharedMaxVolume && sharedMaxVolume > 0 ? sharedMaxVolume : (localMax > 0 ? localMax : 1);
+                const y = d3.scaleLinear()
+                    .domain([0, yMax > 0 ? yMax : 1]) 
+                    .range([height, 0]);
+
+                svg.append("g")
+                    .call(d3.axisLeft(y).ticks(5).tickFormat(d => formatNumber(d, 2)));
+
+                svg.append("text")
+                    .attr("text-anchor", "end")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -margin.left + 20)
+                    .attr("x", -height / 2 + 20)
+                    .text("Vol")
+                    .style("fill", "#2f3b58")
+                    .style("font-size", "12px");
+
+                const tooltip = d3.select("#tooltip");
+
+                svg.selectAll(".sell-bar")
+                    .data(sortedData)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "sell-bar")
+                    .attr("x", d => x(d.price)) // Use price for x
+                    .attr("width", x.bandwidth())
+                    .attr("y", d => y(0))
+                    .attr("height", d => height - y(0))
+                    .on("mouseover", function(event, d) {
+                        tooltip.style("opacity", 1);
+                        d3.select(this).style("opacity", 0.7);
+                    })
+                    .on("mousemove", function(event, d) {
+                        tooltip.html(`Rung ${d.rung}<br>Price: ${formatCurrency(d.price)}<br>Vol: ${formatNumber(d.assetSize, 4)}<br>Gross Value: ${formatCurrency(d.capital)}<br>Net Revenue: ${formatCurrency(d.netRevenue)}<br>Net Profit: ${formatCurrency(d.netProfit)}<br>Alloc: ${formatPercent(d.allocation)}`)
+                            .style("left", (event.pageX + 15) + "px")
+                            .style("top", (event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function(d) {
+                        tooltip.style("opacity", 0);
+                        d3.select(this).style("opacity", 1);
+                    });
+
+                svg.selectAll("rect.sell-bar")
+                    .transition()
+                    .duration(800)
+                    .attr("y", d => y(d.assetSize))
+                    .attr("height", d => height - y(d.assetSize))
+                    .delay((d, i) => i * 20);
+            }
+
+            // --- Real-time updates ---
+
+            // Debounce function
+            function debounce(func, wait) {
+                let timeout;
+                return function(...args) {
+                    const context = this;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(context, args), wait);
+                };
+            }
+
+            // Debounced calculate function for number inputs
+            const debouncedCalculate = debounce(calculatePlan, 300); // 300ms delay
+
+            // Add listeners to number inputs
+            const inputsToTrack = [
+                'starting_capital',
+                'current_price'
+            ];
+
+            inputsToTrack.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.addEventListener('input', debouncedCalculate);
+                }
+            });
+
+            // The skew slider updates instantly
+            skewSlider.addEventListener('input', (e) => {
+                skewDisplay.textContent = e.target.value;
+                calculatePlan(); 
+            });
+
+            if (rungSlider && rungDisplay) {
+                rungSlider.addEventListener('input', (e) => {
+                    rungDisplay.textContent = e.target.value;
+                    calculatePlan();
+                });
+                rungDisplay.textContent = rungSlider.value;
+            }
+
+            if (depthSlider && depthDisplay) {
+                depthSlider.addEventListener('input', (e) => {
+                    depthDisplay.textContent = e.target.value;
+                    calculatePlan();
+                });
+                depthDisplay.textContent = depthSlider.value;
+            }
+
+            if (advancedToggle) {
+                advancedToggle.addEventListener('change', () => {
+                    if (advancedToggle.checked) {
+                        advancedSettings?.classList.remove('hidden');
+                        if (equalQuantityCheckbox) {
+                            setSkewDisabled(equalQuantityCheckbox.checked);
+                        }
+                    } else {
+                        advancedSettings?.classList.add('hidden');
+                        if (sellOnlyCheckbox) {
+                            sellOnlyCheckbox.checked = false;
+                        }
+                        if (sellOnlyInputs) {
+                            sellOnlyInputs.classList.add('hidden');
+                        }
+                        if (spacingModeSelect) {
+                            spacingModeSelect.value = 'absolute';
+                        }
+                        if (equalQuantityCheckbox) {
+                            equalQuantityCheckbox.checked = false;
+                        }
+                        setSkewDisabled(false);
+                    }
+                    calculatePlan();
+                });
+                if (!advancedToggle.checked) {
+                    advancedSettings?.classList.add('hidden');
+                    setSkewDisabled(false);
+                } else if (equalQuantityCheckbox) {
+                    setSkewDisabled(equalQuantityCheckbox.checked);
+                }
+            }
+
+            if (sellOnlyCheckbox) {
+                sellOnlyCheckbox.addEventListener('change', () => {
+                    if (sellOnlyCheckbox.checked) {
+                        sellOnlyInputs?.classList.remove('hidden');
+                    } else {
+                        sellOnlyInputs?.classList.add('hidden');
+                        setSellOnlyHighestExecutedRung(null);
+                        sellOnlyState.checkboxElements = [];
+                    }
+                    calculatePlan();
+                });
+                if (!sellOnlyCheckbox.checked) {
+                    sellOnlyInputs?.classList.add('hidden');
+                }
+            }
+
+            if (equalQuantityCheckbox) {
+                equalQuantityCheckbox.addEventListener('change', () => {
+                    setSkewDisabled(equalQuantityCheckbox.checked);
+                    calculatePlan();
+                });
+                if (equalQuantityCheckbox.checked) {
+                    setSkewDisabled(true);
+                }
+            }
+
+            if (feeTypeSelect) {
+                feeTypeSelect.addEventListener('change', calculatePlan);
+            }
+
+            if (feeValueInput) {
+                feeValueInput.addEventListener('input', debouncedCalculate);
+            }
+
+            if (feeSettlementSelect) {
+                feeSettlementSelect.addEventListener('change', calculatePlan);
+            }
+
+            if (existingQuantityInput) {
+                existingQuantityInput.addEventListener('input', debouncedCalculate);
+            }
+
+            if (existingAvgPriceInput) {
+                existingAvgPriceInput.addEventListener('input', debouncedCalculate);
+            }
+
+            if (spacingModeSelect) {
+                spacingModeSelect.addEventListener('change', calculatePlan);
+            }
+            
+            // --- Export Handlers ---
+            if (exportCollapse) {
+                exportCollapse.addEventListener('toggle', () => {
+                    const indicator = exportCollapse.querySelector('summary span');
+                    if (indicator) {
+                        indicator.textContent = exportCollapse.open ? '▲' : '▼';
+                    }
+                });
+            }
+
+            const handleCsvDownload = () => {
+                const plan = ensurePlanAvailable();
+                if (!plan) {
+                    return;
+                }
+                const settings = collectExportSettings();
+                const csvContent = buildCsvContent(plan, settings);
+
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `trading_plan_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                closeExportMenu();
+            };
+
+            const handleXlsDownload = () => {
+                const plan = ensurePlanAvailable();
+                if (!plan) {
+                    return;
+                }
+                const settings = collectExportSettings();
+                const workbook = buildXlsContent(plan, settings);
+
+                const blob = new Blob([workbook], { type: 'application/vnd.ms-excel' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `trading_plan_${new Date().toISOString().slice(0, 10)}.xls`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                closeExportMenu();
+            };
+
+            const handlePdfDownload = async () => {
+                const plan = ensurePlanAvailable();
+                if (!plan) {
+                    return;
+                }
+                const appContainer = document.getElementById('app');
+                if (!appContainer || !window.html2canvas || !window.jspdf) {
+                    console.error('PDF export dependencies are not available.');
+                    return;
+                }
+                try {
+                    const canvas = await window.html2canvas(appContainer, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff'
+                    });
+                    const imgData = canvas.toDataURL('image/png');
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'pt', 'a4');
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const imgWidth = pdfWidth;
+                    const imgHeight = canvas.height * (imgWidth / canvas.width);
+
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pdfHeight;
+
+                    while (heightLeft > 0) {
+                        position -= pdfHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pdfHeight;
+                    }
+
+                    pdf.save(`trading_plan_${new Date().toISOString().slice(0, 10)}.pdf`);
+                    closeExportMenu();
+                } catch (error) {
+                    console.error('Failed to generate PDF export:', error);
+                }
+            };
+
+            if (downloadCsvBtn) {
+                downloadCsvBtn.addEventListener('click', handleCsvDownload);
+            }
+            if (downloadXlsBtn) {
+                downloadXlsBtn.addEventListener('click', handleXlsDownload);
+            }
+            if (downloadPdfBtn) {
+                downloadPdfBtn.addEventListener('click', handlePdfDownload);
+            }
+
+
+            // --- Resize and Initial Load ---
+            
+            // Debounce resize event
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    // Only calculate if we have valid data
+                    if (currentPlanData) {
+                        calculatePlan();
+                    }
+                }, 250); // Redraw 250ms after resize events stop
+            });
+
+            // Initial calculation on page load
+            calculatePlan();
+            
+        });
+    </script>
+</body>
+</html>
