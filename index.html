@@ -6,6 +6,7 @@
     <title>Order Skew | Trading Plan Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -471,6 +472,237 @@
             gap: 0.75rem;
             color: var(--color-text-muted);
             font-size: 0.75rem;
+        }
+
+        .donation-section {
+            margin-top: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .donation-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.7rem;
+            color: var(--color-text-muted);
+            opacity: 0.6;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.2s ease, color 0.2s ease;
+            text-decoration: none;
+        }
+
+        .donation-link:hover {
+            opacity: 1;
+            color: var(--color-text-secondary);
+        }
+
+        .donation-link:focus-visible {
+            outline: 1px solid var(--color-text-muted);
+            outline-offset: 2px;
+            opacity: 1;
+        }
+
+        .donation-icon {
+            width: 12px;
+            height: 12px;
+            flex-shrink: 0;
+        }
+
+        .donation-details {
+            max-width: 400px;
+            margin-top: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--color-card-muted);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            font-size: 0.7rem;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .donation-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            text-align: center;
+        }
+
+        .donation-text {
+            color: var(--color-text-secondary);
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .donation-address-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            justify-content: space-between;
+        }
+
+        .donation-address {
+            flex: 1;
+            font-size: 0.65rem;
+            color: var(--color-text);
+            word-break: break-all;
+            text-align: left;
+            padding: 0.25rem 0;
+            background: transparent;
+            border: none;
+        }
+
+        .donation-copy-btn {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: transparent;
+            border: none;
+            border-radius: 3px;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .donation-copy-btn:hover {
+            background: var(--color-border);
+            color: var(--color-text);
+        }
+
+        .donation-copy-btn:active {
+            transform: scale(0.95);
+        }
+
+        .donation-copy-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .donation-label {
+            margin: 0;
+            font-size: 0.65rem;
+            color: var(--color-text-muted);
+            font-weight: 500;
+        }
+
+        .donation-copy-btn.copied {
+            color: var(--color-secondary);
+        }
+
+        .donation-copy-btn.copied svg {
+            display: none;
+        }
+
+        .donation-copy-btn.copied::after {
+            content: '✓';
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .solana-logo-btn {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .solana-logo-btn:hover {
+            transform: scale(1.05);
+            opacity: 0.9;
+        }
+
+        .solana-logo-btn:active {
+            transform: scale(0.95);
+        }
+
+        .solana-logo {
+            width: 20px;
+            height: 16px;
+        }
+
+        .solana-logo-btn-footer {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+            opacity: 0.7;
+        }
+
+        .solana-logo-btn-footer:hover {
+            transform: scale(1.1);
+            opacity: 1;
+            background-color: rgba(153, 69, 255, 0.1);
+        }
+
+        .solana-logo-btn-footer:active {
+            transform: scale(1.05);
+        }
+
+        .solana-logo-footer {
+            width: 32px;
+            height: 25px;
+        }
+
+        .qr-code-container {
+            display: flex;
+            justify-content: center;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            background: white;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+        }
+
+        .qr-code-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .github-link {
+            text-decoration: none;
+        }
+
+        .github-icon {
+            width: 14px;
+            height: 14px;
         }
 
         .layout-toggle-group {
@@ -1234,8 +1466,8 @@
                         <p id="summary-sell-ceiling" class="text-sm font-semibold text-primary-dark">-</p>
                     </div>
                     <div class="summary-card p-4 rounded-lg">
-                        <p class="text-sm text-secondary-dark">Gross Profit</p>
-                        <p id="summary-gross-profit" class="text-xl font-bold text-primary-dark">-</p>
+                        <p class="text-sm text-secondary-dark">Profit After Fees</p>
+                        <p id="summary-net-profit" class="text-xl font-bold text-primary-dark">-</p>
                     </div>
                     <div class="summary-card p-4 rounded-lg">
                         <p class="text-sm text-secondary-dark">Total Vol</p>
@@ -1325,6 +1557,33 @@
                     </svg>
                 </button>
             </div>
+            
+            <!-- Solana Logo - Always Visible -->
+            <div class="donation-section">
+                <button type="button" id="solana-logo-btn" class="solana-logo-btn-footer" aria-label="Show QR code for Solana address">
+                    <svg viewBox="0 0 397.7 311.7" xmlns="http://www.w3.org/2000/svg" class="solana-logo-footer">
+                        <linearGradient id="solanaGradient" x1="360.879" y1="351.455" x2="141.213" y2="69.836" gradientUnits="userSpaceOnUse">
+                            <stop offset="0" stop-color="#9945FF"/>
+                            <stop offset="1" stop-color="#14F195"/>
+                        </linearGradient>
+                        <path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" fill="url(#solanaGradient)"/>
+                        <path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" fill="url(#solanaGradient)"/>
+                        <path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" fill="url(#solanaGradient)"/>
+                    </svg>
+                </button>
+                <div id="qr-code-container" class="qr-code-container hidden"></div>
+            </div>
+
+            <!-- GitHub Link -->
+            <div class="donation-section">
+                <a href="https://github.com/yanniedog/OrderSkew" target="_blank" rel="noopener noreferrer" class="donation-link github-link" aria-label="View project on GitHub">
+                    <svg viewBox="0 0 24 24" fill="currentColor" class="donation-icon github-icon">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    <span>View on GitHub</span>
+                </a>
+            </div>
+            
             <span id="display-status-announcer" class="sr-only" aria-live="polite"></span>
         </footer>
     </div>
@@ -1476,6 +1735,23 @@
 
             // Storage keys
             const INTRO_SKIP_STORAGE_KEY = 'orderskew_intro_skip';
+            const STORAGE_PREFIX = 'orderskew_';
+            const STORAGE_KEYS = {
+                startingCapital: STORAGE_PREFIX + 'starting_capital',
+                currentPrice: STORAGE_PREFIX + 'current_price',
+                numberOfRungs: STORAGE_PREFIX + 'number_of_rungs',
+                depth: STORAGE_PREFIX + 'depth',
+                skewValue: STORAGE_PREFIX + 'skew_value',
+                advancedMode: STORAGE_PREFIX + 'advanced_mode',
+                sellOnlyMode: STORAGE_PREFIX + 'sell_only_mode',
+                feeType: STORAGE_PREFIX + 'fee_type',
+                feeValue: STORAGE_PREFIX + 'fee_value',
+                feeSettlement: STORAGE_PREFIX + 'fee_settlement',
+                spacingMode: STORAGE_PREFIX + 'spacing_mode',
+                equalQuantityMode: STORAGE_PREFIX + 'equal_quantity_mode',
+                existingQuantity: STORAGE_PREFIX + 'existing_quantity',
+                existingAvgPrice: STORAGE_PREFIX + 'existing_avg_price'
+            };
 
             const getStoredValue = (key) => {
                 try {
@@ -1499,6 +1775,123 @@
                     localStorage.removeItem(key);
                 } catch (error) {
                     console.warn('[Storage] Unable to remove key', key, error);
+                }
+            };
+
+            // Form persistence functions
+            const saveFormValue = (key, value) => {
+                if (value !== null && value !== undefined) {
+                    setStoredValue(key, String(value));
+                }
+            };
+
+            const loadFormValue = (key, defaultValue = null) => {
+                const stored = getStoredValue(key);
+                return stored !== null ? stored : defaultValue;
+            };
+
+            const loadFormValues = () => {
+                // Load number inputs
+                const startingCapitalInput = document.getElementById('starting_capital');
+                const currentPriceInput = document.getElementById('current_price');
+                if (startingCapitalInput) {
+                    const saved = loadFormValue(STORAGE_KEYS.startingCapital);
+                    if (saved !== null) startingCapitalInput.value = saved;
+                }
+                if (currentPriceInput) {
+                    const saved = loadFormValue(STORAGE_KEYS.currentPrice);
+                    if (saved !== null) currentPriceInput.value = saved;
+                }
+
+                // Load range sliders
+                if (rungSlider) {
+                    const saved = loadFormValue(STORAGE_KEYS.numberOfRungs);
+                    if (saved !== null) {
+                        rungSlider.value = saved;
+                        if (rungDisplay) rungDisplay.textContent = saved;
+                    }
+                }
+                if (depthSlider) {
+                    const saved = loadFormValue(STORAGE_KEYS.depth);
+                    if (saved !== null) {
+                        depthSlider.value = saved;
+                        if (depthDisplay) {
+                            const value = parseFloat(saved);
+                            depthDisplay.textContent = value < 2 ? value.toFixed(1) : Math.round(value);
+                        }
+                    }
+                }
+                if (skewSlider) {
+                    const saved = loadFormValue(STORAGE_KEYS.skewValue);
+                    if (saved !== null) {
+                        skewSlider.value = saved;
+                        if (skewDisplay) skewDisplay.textContent = saved;
+                    }
+                }
+
+                // Load checkboxes
+                if (advancedToggle) {
+                    const saved = loadFormValue(STORAGE_KEYS.advancedMode);
+                    if (saved === 'true') {
+                        advancedToggle.checked = true;
+                        if (advancedSettings) {
+                            advancedSettings.classList.remove('hidden');
+                            if (advancedSettingsToggle) {
+                                advancedSettingsToggle.classList.remove('hidden');
+                                advancedSettingsToggle.classList.add('flex');
+                                advancedSettingsToggle.setAttribute('aria-expanded', 'true');
+                                advancedSettingsToggle.querySelector('svg')?.classList.add('rotate-180');
+                            }
+                        }
+                        // Also need to handle equal quantity checkbox state if it was checked
+                        if (equalQuantityCheckbox) {
+                            const equalQuantitySaved = loadFormValue(STORAGE_KEYS.equalQuantityMode);
+                            if (equalQuantitySaved === 'true') {
+                                equalQuantityCheckbox.checked = true;
+                            }
+                        }
+                    }
+                }
+                if (sellOnlyCheckbox) {
+                    const saved = loadFormValue(STORAGE_KEYS.sellOnlyMode);
+                    if (saved === 'true') {
+                        sellOnlyCheckbox.checked = true;
+                        if (sellOnlyInputs) sellOnlyInputs.classList.remove('hidden');
+                    }
+                }
+                if (equalQuantityCheckbox && advancedToggle && advancedToggle.checked) {
+                    const saved = loadFormValue(STORAGE_KEYS.equalQuantityMode);
+                    if (saved === 'true') {
+                        equalQuantityCheckbox.checked = true;
+                    }
+                }
+
+                // Load selects
+                if (feeTypeSelect) {
+                    const saved = loadFormValue(STORAGE_KEYS.feeType);
+                    if (saved !== null) feeTypeSelect.value = saved;
+                }
+                if (feeSettlementSelect) {
+                    const saved = loadFormValue(STORAGE_KEYS.feeSettlement);
+                    if (saved !== null) feeSettlementSelect.value = saved;
+                }
+                if (spacingModeSelect) {
+                    const saved = loadFormValue(STORAGE_KEYS.spacingMode);
+                    if (saved !== null) spacingModeSelect.value = saved;
+                }
+
+                // Load number inputs in advanced mode
+                if (feeValueInput) {
+                    const saved = loadFormValue(STORAGE_KEYS.feeValue);
+                    if (saved !== null) feeValueInput.value = saved;
+                }
+                if (existingQuantityInput) {
+                    const saved = loadFormValue(STORAGE_KEYS.existingQuantity);
+                    if (saved !== null) existingQuantityInput.value = saved;
+                }
+                if (existingAvgPriceInput) {
+                    const saved = loadFormValue(STORAGE_KEYS.existingAvgPrice);
+                    if (saved !== null) existingAvgPriceInput.value = saved;
                 }
             };
 
@@ -2393,7 +2786,8 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         }
                     }
 
-                    // Only use snapshot if user hasn't provided manual inputs
+                    // Only use snapshot if user hasn't provided manual inputs AND snapshot values are reasonable
+                    // Don't use snapshot if it would result in invalid calculations (e.g., avg price way off from current price)
                     if (!derivedTotals && canReuseBuySnapshot && !hasManualInputs) {
                         const snapshotQuantity = baselineBuySnapshot.totalAssetBought;
                         const snapshotNetCapital = baselineBuySnapshot.totalNetCapitalSpent;
@@ -2401,7 +2795,14 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         const snapshotAvgPrice = snapshotQuantity > 0
                             ? snapshotNetCapital / snapshotQuantity
                             : 0;
-                        if (snapshotQuantity > 0 && snapshotAvgPrice > 0) {
+                        // Validate snapshot: avg price should be within reasonable range of current price (e.g., within 10x)
+                        // This prevents using stale snapshots from completely different scenarios
+                        const priceRatio = currentPrice > 0 && snapshotAvgPrice > 0 
+                            ? Math.max(snapshotAvgPrice / currentPrice, currentPrice / snapshotAvgPrice)
+                            : Infinity;
+                        const isSnapshotValid = snapshotQuantity > 0 && snapshotAvgPrice > 0 && priceRatio <= 10;
+                        
+                        if (isSnapshotValid) {
                             derivedTotals = {
                                 quantity: snapshotQuantity,
                                 netCapital: snapshotNetCapital,
@@ -2434,14 +2835,21 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 let assetAllocations = [];
 
                 if (sellOnlyMode) {
-                    totalQuantityForSell = effectiveAssetBought;
-                    if (useEqualQuantity) {
-                        const equalDistribution = computeEqualGrossAllocations(totalQuantityForSell, sellPrices);
-                        assetAllocations = equalDistribution.allocations;
+                    // In sell-only mode, only calculate if we have valid asset quantity and avg buy price
+                    if (effectiveAssetBought > 0 && avgBuyPrice > 0) {
+                        totalQuantityForSell = effectiveAssetBought;
+                        if (useEqualQuantity) {
+                            const equalDistribution = computeEqualGrossAllocations(totalQuantityForSell, sellPrices);
+                            assetAllocations = equalDistribution.allocations;
+                        } else {
+                            assetAllocations = (totalWeight > 0 && totalQuantityForSell > 0)
+                                ? rawWeights.map(w => (totalQuantityForSell * w) / totalWeight)
+                                : Array(N).fill(0);
+                        }
                     } else {
-                        assetAllocations = (totalWeight > 0 && totalQuantityForSell > 0)
-                            ? rawWeights.map(w => (totalQuantityForSell * w) / totalWeight)
-                            : Array(N).fill(0);
+                        // No valid quantity/price in sell-only mode - set everything to zero
+                        assetAllocations = Array(N).fill(0);
+                        totalQuantityForSell = 0;
                     }
                 } else {
                     assetAllocations = buyLadder.map(rung => rung.assetSize);
@@ -2463,8 +2871,10 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     const price = sellPrices[i];
                     const grossRevenue = assetSize * price;
                     const { net: netRevenue, fee: sellFee } = deriveSellAmounts(grossRevenue);
-                    const grossProfit = grossRevenue - (assetSize * avgBuyPrice);
-                    const netProfit = netRevenue - (assetSize * avgBuyPrice);
+                    // Only calculate profit if we have valid avg buy price
+                    const costBasis = (avgBuyPrice > 0 && assetSize > 0) ? (assetSize * avgBuyPrice) : 0;
+                    const grossProfit = grossRevenue - costBasis;
+                    const netProfit = netRevenue - costBasis;
 
                     totalRevenueGross += grossRevenue;
                     totalRevenueNet += netRevenue;
@@ -2506,15 +2916,18 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 const netProfitAfterFees = totalRevenueNet - costBasis - (isFeeNetted ? 0 : totalSellFees);
                 const roi = costBasis > 0 ? (netProfitAfterFees / costBasis) * 100 : 0;
 
-                const lowestBuyActive = buyLadder.reduce((acc, rung) => {
-                    if (rung.assetSize <= 0) {
+                // In sell-only mode, buy floor should use known avg buy price, not from stale buy ladder
+                const lowestBuyActive = sellOnlyMode 
+                    ? (avgBuyPrice > 0 ? { price: avgBuyPrice, rung: null } : null)
+                    : buyLadder.reduce((acc, rung) => {
+                        if (rung.assetSize <= 0) {
+                            return acc;
+                        }
+                        if (!acc || rung.price < acc.price) {
+                            return rung;
+                        }
                         return acc;
-                    }
-                    if (!acc || rung.price < acc.price) {
-                        return rung;
-                    }
-                    return acc;
-                }, null);
+                    }, null);
 
                 const highestSellActive = sellLadder.reduce((acc, rung) => {
                     if (rung.assetSize <= 0) {
@@ -2692,7 +3105,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
 
                 document.getElementById('summary-avg-buy').textContent = formatCurrency(summary.avgBuyPrice);
                 document.getElementById('summary-avg-sell').textContent = formatCurrency(summary.avgSellPrice);
-                document.getElementById('summary-gross-profit').textContent = formatCurrency(summary.grossProfit);
+                document.getElementById('summary-net-profit').textContent = formatCurrency(summary.netProfit);
                 document.getElementById('summary-total-fees').textContent = formatCurrency(summary.totalFees);
                 const initialCapital = parseFloat(document.getElementById('starting_capital')?.value || 0);
                 const feesPercent = initialCapital > 0 ? (summary.totalFees / initialCapital) * 100 : 0;
@@ -3542,9 +3955,134 @@ caption { font-weight: 600; margin-bottom: 6px; }
             }
 
 
-            // Initial calculation on page load
+            // Load saved form values on page load (before first calculation)
+            loadFormValues();
+
+            // Set up form value persistence - save values when they change
+            const startingCapitalInput = document.getElementById('starting_capital');
+            const currentPriceInput = document.getElementById('current_price');
+            
+            if (startingCapitalInput) {
+                startingCapitalInput.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.startingCapital, startingCapitalInput.value);
+                });
+            }
+            if (currentPriceInput) {
+                currentPriceInput.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.currentPrice, currentPriceInput.value);
+                });
+            }
+            if (rungSlider) {
+                rungSlider.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.numberOfRungs, rungSlider.value);
+                });
+            }
+            if (depthSlider) {
+                depthSlider.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.depth, depthSlider.value);
+                });
+            }
+            if (skewSlider) {
+                skewSlider.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.skewValue, skewSlider.value);
+                });
+            }
+            if (advancedToggle) {
+                // Save when changed (in addition to existing change handler)
+                const originalAdvancedHandler = advancedToggle.onchange;
+                advancedToggle.addEventListener('change', () => {
+                    saveFormValue(STORAGE_KEYS.advancedMode, advancedToggle.checked);
+                });
+            }
+            if (sellOnlyCheckbox) {
+                // Save when changed (in addition to existing change handler)
+                sellOnlyCheckbox.addEventListener('change', () => {
+                    saveFormValue(STORAGE_KEYS.sellOnlyMode, sellOnlyCheckbox.checked);
+                });
+            }
+            if (equalQuantityCheckbox) {
+                // Save when changed (in addition to existing change handler)
+                equalQuantityCheckbox.addEventListener('change', () => {
+                    saveFormValue(STORAGE_KEYS.equalQuantityMode, equalQuantityCheckbox.checked);
+                });
+            }
+            if (feeTypeSelect) {
+                feeTypeSelect.addEventListener('change', () => {
+                    saveFormValue(STORAGE_KEYS.feeType, feeTypeSelect.value);
+                });
+            }
+            if (feeSettlementSelect) {
+                feeSettlementSelect.addEventListener('change', () => {
+                    saveFormValue(STORAGE_KEYS.feeSettlement, feeSettlementSelect.value);
+                });
+            }
+            if (spacingModeSelect) {
+                spacingModeSelect.addEventListener('change', () => {
+                    saveFormValue(STORAGE_KEYS.spacingMode, spacingModeSelect.value);
+                });
+            }
+            if (feeValueInput) {
+                feeValueInput.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.feeValue, feeValueInput.value);
+                });
+            }
+            if (existingQuantityInput) {
+                existingQuantityInput.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.existingQuantity, existingQuantityInput.value);
+                });
+            }
+            if (existingAvgPriceInput) {
+                existingAvgPriceInput.addEventListener('input', () => {
+                    saveFormValue(STORAGE_KEYS.existingAvgPrice, existingAvgPriceInput.value);
+                });
+            }
+
+            // Initial calculation on page load (after loading saved values)
             calculatePlan();
             runDisplayTests();
+
+            // Solana logo QR code functionality
+            const solanaLogoBtn = document.getElementById('solana-logo-btn');
+            const qrCodeContainer = document.getElementById('qr-code-container');
+            const SOL_ADDRESS = 'F6mjNXKBKzjmKTK1Z9cWabFHZYtxMg8rojuNuppX2EG1';
+            let qrCodeGenerated = false;
+
+            // Generate QR code when Solana logo is clicked
+            if (solanaLogoBtn && qrCodeContainer) {
+                solanaLogoBtn.addEventListener('click', () => {
+                    // Toggle QR code visibility
+                    const isHidden = qrCodeContainer.classList.contains('hidden');
+                    
+                    if (isHidden) {
+                        // Show QR code
+                        if (!qrCodeGenerated) {
+                            // Generate QR code only once
+                            const canvas = document.createElement('canvas');
+                            qrCodeContainer.appendChild(canvas);
+                            
+                            QRCode.toCanvas(canvas, SOL_ADDRESS, {
+                                width: 200,
+                                margin: 2,
+                                color: {
+                                    dark: '#000000',
+                                    light: '#FFFFFF'
+                                }
+                            }, (error) => {
+                                if (error) {
+                                    console.error('Error generating QR code:', error);
+                                    qrCodeContainer.removeChild(canvas);
+                                } else {
+                                    qrCodeGenerated = true;
+                                }
+                            });
+                        }
+                        qrCodeContainer.classList.remove('hidden');
+                    } else {
+                        // Hide QR code
+                        qrCodeContainer.classList.add('hidden');
+                    }
+                });
+            }
             
         });
     </script>
