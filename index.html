@@ -1641,8 +1641,27 @@
                         <input type="range" id="number_of_rungs" value="10" min="2" max="50" step="1" class="w-full h-2 rounded-lg cursor-pointer">
                     </div>
                     <div>
-                        <label for="depth" class="block text-sm font-medium text-secondary-dark mb-1">Width (<span id="depth_display">20</span>%)</label>
-                        <input type="range" id="depth" value="20" min="0.1" max="99" step="0.1" class="w-full h-2 rounded-lg cursor-pointer">
+                        <label class="block text-sm font-medium text-secondary-dark mb-1">Price Range</label>
+                        <select id="price_range_mode" class="form-input w-full rounded-md p-2 text-sm mb-2">
+                            <option value="width">Width (%)</option>
+                            <option value="floor">Buy Floor & Sell Ceiling</option>
+                        </select>
+                        <div id="width-mode-container">
+                            <label for="depth" class="block text-sm font-medium text-secondary-dark mb-1">Width (<span id="depth_display">20</span>%)</label>
+                            <input type="range" id="depth" value="20" min="0.1" max="99" step="0.1" class="w-full h-2 rounded-lg cursor-pointer">
+                        </div>
+                        <div id="floor-mode-container" class="hidden">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="buy_floor" class="block text-sm font-medium text-secondary-dark mb-1">Buy Floor ($)</label>
+                                    <input type="number" id="buy_floor" value="" min="0" step="0.0001" class="form-input w-full rounded-md p-2" placeholder="Auto">
+                                </div>
+                                <div>
+                                    <label for="sell_ceiling" class="block text-sm font-medium text-secondary-dark mb-1">Sell Ceiling ($)</label>
+                                    <input type="number" id="sell_ceiling" value="" min="0" step="0.0001" class="form-input w-full rounded-md p-2" placeholder="Auto">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label for="skew_value" class="block text-sm font-medium text-secondary-dark mb-1">Allocation Skew (<span id="skew_value_display">50</span>)</label>
@@ -1909,6 +1928,11 @@
             const depthSlider = document.getElementById('depth');
             const rungDisplay = document.getElementById('number_of_rungs_display');
             const depthDisplay = document.getElementById('depth_display');
+            const priceRangeModeSelect = document.getElementById('price_range_mode');
+            const widthModeContainer = document.getElementById('width-mode-container');
+            const floorModeContainer = document.getElementById('floor-mode-container');
+            const buyFloorInput = document.getElementById('buy_floor');
+            const sellCeilingInput = document.getElementById('sell_ceiling');
             const advancedToggle = document.getElementById('advanced_mode');
             const advancedSettings = document.getElementById('advanced-settings');
             const advancedSettingsToggle = document.getElementById('advanced-settings-toggle');
@@ -2806,6 +2830,11 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 const S = parseInt(document.getElementById('skew_value').value);
                 const currentPrice = parseFloat(document.getElementById('current_price').value);
                 const depth = parseFloat(document.getElementById('depth').value);
+                const priceRangeMode = priceRangeModeSelect ? priceRangeModeSelect.value : 'width';
+                const buyFloorRaw = buyFloorInput ? parseFloat(buyFloorInput.value) : null;
+                const sellCeilingRaw = sellCeilingInput ? parseFloat(sellCeilingInput.value) : null;
+                const buyFloor = Number.isFinite(buyFloorRaw) && buyFloorRaw > 0 ? buyFloorRaw : null;
+                const sellCeiling = Number.isFinite(sellCeilingRaw) && sellCeilingRaw > 0 ? sellCeilingRaw : null;
 
                 const advancedEnabled = advancedToggle ? advancedToggle.checked : false;
                 const feeType = advancedEnabled && feeTypeSelect ? feeTypeSelect.value : 'percent';
@@ -2866,9 +2895,21 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     },
                     {
                         id: 'depth',
-                        enabled: true,
-                        isValid: Number.isFinite(depth) && depth > 0,
+                        enabled: priceRangeMode === 'width',
+                        isValid: priceRangeMode !== 'width' || (Number.isFinite(depth) && depth > 0),
                         message: 'Width must be greater than zero.'
+                    },
+                    {
+                        id: 'buy_floor',
+                        enabled: priceRangeMode === 'floor',
+                        isValid: priceRangeMode !== 'floor' || (buyFloor === null || (Number.isFinite(buyFloor) && buyFloor > 0 && buyFloor < currentPrice)),
+                        message: 'Buy floor must be greater than zero and less than current price.'
+                    },
+                    {
+                        id: 'sell_ceiling',
+                        enabled: priceRangeMode === 'floor',
+                        isValid: priceRangeMode !== 'floor' || (sellCeiling === null || (Number.isFinite(sellCeiling) && sellCeiling > 0 && sellCeiling > currentPrice)),
+                        message: 'Sell ceiling must be greater than zero and greater than current price.'
                     },
                     {
                         id: 'fee_value',
@@ -2968,15 +3009,25 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 const totalWeight = rawWeights.reduce((sum, w) => sum + w, 0) || 0;
 
                 // 3. Calculate Price Points
-                const depthVal = depth / 100;
-                const buyPriceEnd = currentPrice * (1 - depthVal);
-                const sellPriceEnd = currentPrice * (1 + depthVal);
+                let buyPriceEnd, sellPriceEnd;
+                if (priceRangeMode === 'floor') {
+                    // Use specified floor/ceiling, or calculate from depth if not specified
+                    buyPriceEnd = buyFloor !== null ? buyFloor : (currentPrice * (1 - depth / 100));
+                    sellPriceEnd = sellCeiling !== null ? sellCeiling : (currentPrice * (1 + depth / 100));
+                } else {
+                    // Use width percentage mode
+                    const depthVal = depth / 100;
+                    buyPriceEnd = currentPrice * (1 - depthVal);
+                    sellPriceEnd = currentPrice * (1 + depthVal);
+                }
                 const buyRange = currentPrice - buyPriceEnd;
                 const sellRange = sellPriceEnd - currentPrice;
                 const buyPriceStep = (!isRelativeSpacing && N > 0) ? buyRange / N : 0;
                 const sellPriceStep = (!isRelativeSpacing && N > 0) ? sellRange / N : 0;
-                const buyPriceRatio = (isRelativeSpacing && N > 0) ? Math.pow(Math.max(1 - depthVal, 0), 1 / N) : 1;
-                const sellPriceRatio = (isRelativeSpacing && N > 0) ? Math.pow(1 + depthVal, 1 / N) : 1;
+                const buyDepthRatio = buyPriceEnd / currentPrice;
+                const sellDepthRatio = sellPriceEnd / currentPrice;
+                const buyPriceRatio = (isRelativeSpacing && N > 0) ? Math.pow(Math.max(buyDepthRatio, 0), 1 / N) : 1;
+                const sellPriceRatio = (isRelativeSpacing && N > 0) ? Math.pow(sellDepthRatio, 1 / N) : 1;
                 const buyPrices = Array.from({ length: N }, (_, i) => {
                     if (isRelativeSpacing) {
                         return currentPrice * Math.pow(buyPriceRatio, i + 1);
@@ -3940,6 +3991,42 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 depthDisplay.textContent = initialValue < 2 ? initialValue.toFixed(1) : Math.round(initialValue);
             }
 
+            // Price range mode selector
+            if (priceRangeModeSelect) {
+                priceRangeModeSelect.addEventListener('change', (e) => {
+                    const mode = e.target.value;
+                    if (mode === 'width') {
+                        if (widthModeContainer) widthModeContainer.classList.remove('hidden');
+                        if (floorModeContainer) floorModeContainer.classList.add('hidden');
+                    } else {
+                        if (widthModeContainer) widthModeContainer.classList.add('hidden');
+                        if (floorModeContainer) floorModeContainer.classList.remove('hidden');
+                    }
+                    calculatePlan();
+                });
+                // Initialize UI state
+                const initialMode = priceRangeModeSelect.value;
+                if (initialMode === 'width') {
+                    if (widthModeContainer) widthModeContainer.classList.remove('hidden');
+                    if (floorModeContainer) floorModeContainer.classList.add('hidden');
+                } else {
+                    if (widthModeContainer) widthModeContainer.classList.add('hidden');
+                    if (floorModeContainer) floorModeContainer.classList.remove('hidden');
+                }
+            }
+
+            // Buy floor and sell ceiling inputs
+            if (buyFloorInput) {
+                buyFloorInput.addEventListener('input', () => {
+                    debouncedCalculate();
+                });
+            }
+            if (sellCeilingInput) {
+                sellCeilingInput.addEventListener('input', () => {
+                    debouncedCalculate();
+                });
+            }
+
             // Toggle advanced settings collapse/expand (independent of checkbox state)
             if (advancedSettingsToggle && advancedSettings) {
                 advancedSettingsToggle.addEventListener('click', () => {
@@ -4220,7 +4307,10 @@ caption { font-weight: 600; margin-bottom: 6px; }
                             currentPrice: document.getElementById('current_price')?.value || '',
                             numberOfRungs: document.getElementById('number_of_rungs')?.value || '',
                             depth: document.getElementById('depth')?.value || '',
-                            skewValue: document.getElementById('skew_value')?.value || ''
+                            skewValue: document.getElementById('skew_value')?.value || '',
+                            priceRangeMode: priceRangeModeSelect ? priceRangeModeSelect.value : 'width',
+                            buyFloor: buyFloorInput ? buyFloorInput.value : '',
+                            sellCeiling: sellCeilingInput ? sellCeilingInput.value : ''
                         },
                         advanced: {
                             advancedMode: advancedToggle ? advancedToggle.checked : false,
@@ -4305,6 +4395,16 @@ caption { font-weight: 600; margin-bottom: 6px; }
                                     skewInput.value = config.basic.skewValue;
                                     skewInput.dispatchEvent(new Event('input', { bubbles: true }));
                                 }
+                            }
+                            if (config.basic.priceRangeMode !== undefined && priceRangeModeSelect) {
+                                priceRangeModeSelect.value = config.basic.priceRangeMode;
+                                priceRangeModeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            if (config.basic.buyFloor !== undefined && buyFloorInput) {
+                                buyFloorInput.value = config.basic.buyFloor;
+                            }
+                            if (config.basic.sellCeiling !== undefined && sellCeilingInput) {
+                                sellCeilingInput.value = config.basic.sellCeiling;
                             }
 
                             // Load advanced settings (set values first, then trigger events)
