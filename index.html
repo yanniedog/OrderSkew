@@ -2159,22 +2159,22 @@
                             <div class="theme-toggle-group" id="theme-toggle-group">
                                 <button type="button" id="theme-toggle" class="theme-toggle-button" aria-pressed="false" aria-label="Toggle theme">
                                     <span class="theme-icon theme-icon--sun">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="5"></circle>
-                                            <line x1="12" y1="1.5" x2="12" y2="4.5"></line>
-                                            <line x1="12" y1="19.5" x2="12" y2="22.5"></line>
-                                            <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"></line>
-                                            <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"></line>
-                                            <line x1="1.5" y1="12" x2="4.5" y2="12"></line>
-                                            <line x1="19.5" y1="12" x2="22.5" y2="12"></line>
-                                            <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"></line>
-                                            <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"></line>
-                                        </svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="5"></circle>
+                                        <line x1="12" y1="1.5" x2="12" y2="4.5"></line>
+                                        <line x1="12" y1="19.5" x2="12" y2="22.5"></line>
+                                        <line x1="4.22" y1="4.22" x2="6.34" y2="6.34"></line>
+                                        <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"></line>
+                                        <line x1="1.5" y1="12" x2="4.5" y2="12"></line>
+                                        <line x1="19.5" y1="12" x2="22.5" y2="12"></line>
+                                        <line x1="4.22" y1="19.78" x2="6.34" y2="17.66"></line>
+                                        <line x1="17.66" y1="6.34" x2="19.78" y2="4.22"></line>
+                                    </svg>
                                     </span>
                                     <span class="theme-icon theme-icon--moon">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                        </svg>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                                    </svg>
                                     </span>
                                 </button>
                             </div>
@@ -2202,13 +2202,13 @@
                     </div>
                 </div>
                     <button id="export-trigger" type="button" class="btn-secondary text-sm font-semibold py-2 px-4 rounded-lg cursor-pointer inline-flex items-center gap-2 min-h-[48px]">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                            <polyline points="7 3 7 8 15 8"></polyline>
-                        </svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                    <polyline points="7 3 7 8 15 8"></polyline>
+                                </svg>
                         <span>Export Plan</span>
-                    </button>
+                            </button>
                     <div class="section-nav-wrapper">
                         <nav class="section-nav" aria-label="Page navigation">
                             <a href="#configuration" class="section-nav-link" data-nav-target="configuration">Configuration</a>
@@ -2216,7 +2216,7 @@
                             <a href="#buy-ladder" class="section-nav-link" data-nav-target="buy-ladder">Buy Ladder</a>
                             <a href="#sell-ladder" class="section-nav-link" data-nav-target="sell-ladder">Sell Ladder</a>
                         </nav>
-                    </div>
+                        </div>
                 </div>
             </div>
         </header>
@@ -2793,6 +2793,7 @@
             };
             const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
             const MAX_SKEW_RATIO = 10;
+            const VALUE_EPSILON = 1e-6;
             const ALERT_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>`;
 
             const renderPlanAlerts = (messages = []) => {
@@ -3487,12 +3488,12 @@
             if (themeToggleButton) {
                 themeToggleButton.addEventListener('click', () => {
                     const nextTheme = currentThemeMode === 'dark' ? 'light' : 'dark';
-                    themeLocked = true;
+                        themeLocked = true;
                     setStoredValue(THEME_STORAGE_KEY, nextTheme);
-                    trackInteraction('theme-toggle', {
+                        trackInteraction('theme-toggle', {
                         requested: nextTheme,
-                        previous: currentThemeMode
-                    });
+                            previous: currentThemeMode
+                        });
                     applyThemeMode(nextTheme, { source: 'user' });
                 });
             }
@@ -4190,6 +4191,39 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     return { net, fee };
                 };
 
+            const enforceBuyCapitalUsage = () => {
+                if (sellOnlyMode || !Number.isFinite(C) || C <= 0) {
+                    return;
+                }
+                const currentUsage = buyLadder.reduce((sum, rung) => sum + rung.capital, 0);
+                if (currentUsage <= 0) {
+                    return;
+                }
+                const diff = Math.abs(currentUsage - C);
+                if (diff <= Math.max(VALUE_EPSILON, C * VALUE_EPSILON)) {
+                    return;
+                }
+                const scaling = C / currentUsage;
+                totalAssetBought = 0;
+                totalNetCapitalSpent = 0;
+                totalBuyFees = 0;
+                buyLadder = buyLadder.map((rung) => {
+                    const scaledAllocation = rung.capital * scaling;
+                    const { net: netCapital, fee, gross } = deriveBuyAmounts(scaledAllocation);
+                    const assetSize = rung.price > 0 && netCapital > 0 ? netCapital / rung.price : 0;
+                    totalAssetBought += assetSize;
+                    totalNetCapitalSpent += netCapital;
+                    totalBuyFees += fee;
+                    return {
+                        ...rung,
+                        capital: gross,
+                        netCapital,
+                        assetSize,
+                        fee
+                    };
+                });
+                };
+
                 // 2. Calculate Skew Weights
                 let rawWeights = Array(N).fill(1);
                 if (!useEqualQuantity && N > 0) {
@@ -4311,6 +4345,10 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     }
                 }
 
+                if (!sellOnlyMode) {
+                    enforceBuyCapitalUsage();
+                }
+
                 let cumulativeNetCapital = 0;
                 let cumulativeAsset = 0;
                 const totalAssetForAllocation = totalAssetBought;
@@ -4392,6 +4430,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
 
                 // 5. Determine quantities available for sells
                 let totalQuantityForSell = 0;
+                let sellVolumeMismatch = false;
                 let assetAllocations = [];
 
                 if (sellOnlyMode) {
@@ -4420,7 +4459,26 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     }
                 }
 
-                totalQuantityForSell = assetAllocations.reduce((sum, size) => sum + size, 0);
+                const desiredSellQuantity = Math.max(sellOnlyMode ? effectiveAssetBought : totalAssetBought, 0);
+                let allocationSum = assetAllocations.reduce((sum, size) => sum + size, 0);
+                if (desiredSellQuantity > 0 && allocationSum > 0) {
+                    const diff = Math.abs(desiredSellQuantity - allocationSum);
+                    if (diff > Math.max(VALUE_EPSILON, desiredSellQuantity * VALUE_EPSILON)) {
+                        const factor = desiredSellQuantity / allocationSum;
+                        assetAllocations = assetAllocations.map(size => size * factor);
+                        allocationSum = desiredSellQuantity;
+                    }
+                    totalQuantityForSell = desiredSellQuantity;
+                } else if (desiredSellQuantity === 0) {
+                    assetAllocations = assetAllocations.map(() => 0);
+                    totalQuantityForSell = 0;
+                    allocationSum = 0;
+                } else {
+                    totalQuantityForSell = allocationSum;
+                    if (desiredSellQuantity > 0 && allocationSum === 0) {
+                        sellVolumeMismatch = true;
+                    }
+                }
 
                 let totalRevenueGross = 0;
                 let totalRevenueNet = 0;
@@ -4486,6 +4544,9 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 const holdingsForComparison = sellOnlyMode ? effectiveAssetBought : totalAssetBought;
                 if (holdingsForComparison > 0 && (totalQuantityForSell - holdingsForComparison) > 1e-6) {
                     planWarnings.push(`Sell ladder allocates ${formatNumber(totalQuantityForSell, 4)} units while only ${formatNumber(holdingsForComparison, 4)} are available.`);
+                }
+                if (sellVolumeMismatch) {
+                    planWarnings.push('Sell ladder volume is zero while holdings exist.');
                 }
                 renderPlanAlerts(planWarnings);
 
@@ -4783,13 +4844,13 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 const sharedMaxVolume = combinedVolumes.length > 0 ? Math.max(...combinedVolumes) : 1;
 
                 if (!chartsLazySupported) {
-                    if (plan.buyLadder.length > 0 && !(plan.modes && plan.modes.sellOnly)) {
-                        drawBuyChart(plan.buyLadder, sharedMaxVolume);
-                    } else {
-                        d3.select("#allocation-chart").selectAll("*").remove();
-                    }
+                if (plan.buyLadder.length > 0 && !(plan.modes && plan.modes.sellOnly)) {
+                    drawBuyChart(plan.buyLadder, sharedMaxVolume);
+                } else {
+                    d3.select("#allocation-chart").selectAll("*").remove();
+                }
                     if (plan.sellLadder.length > 0) {
-                        drawSellChart(plan.sellLadder, sharedMaxVolume);
+                drawSellChart(plan.sellLadder, sharedMaxVolume);
                     } else {
                         d3.select("#sell-allocation-chart").selectAll("*").remove();
                     }
@@ -5282,7 +5343,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         script.onload = () => {
                             if (window.jspdf?.jsPDF) {
                                 resolve(window.jspdf.jsPDF);
-                            } else {
+                    } else {
                                 reject(new Error('jsPDF unavailable after load.'));
                             }
                         };
@@ -5558,20 +5619,20 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 });
                 setExportLoading(true, 'Preparing CSV…');
                 try {
-                    const csvContent = buildCsvContent(plan, settings);
-                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                    const link = document.createElement('a');
-                    const url = URL.createObjectURL(blob);
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.csv`);
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    trackEvent('export', 'csv:completed', {
-                        bytes: csvContent.length,
-                        settings
-                    });
+                const csvContent = buildCsvContent(plan, settings);
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                trackEvent('export', 'csv:completed', {
+                    bytes: csvContent.length,
+                    settings
+                });
                     closeExportSheet();
                 } finally {
                     setExportLoading(false);
@@ -5596,20 +5657,20 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 });
                 setExportLoading(true, 'Preparing XLS…');
                 try {
-                    const workbook = buildXlsContent(plan, settings);
-                    const blob = new Blob([workbook], { type: 'application/vnd.ms-excel' });
-                    const link = document.createElement('a');
-                    const url = URL.createObjectURL(blob);
-                    link.setAttribute('href', url);
-                    link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.xls`);
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    trackEvent('export', 'xls:completed', {
-                        bytes: workbook.byteLength || workbook.length || 0,
-                        settings
-                    });
+                const workbook = buildXlsContent(plan, settings);
+                const blob = new Blob([workbook], { type: 'application/vnd.ms-excel' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.xls`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                trackEvent('export', 'xls:completed', {
+                    bytes: workbook.byteLength || workbook.length || 0,
+                    settings
+                });
                     closeExportSheet();
                 } finally {
                     setExportLoading(false);
