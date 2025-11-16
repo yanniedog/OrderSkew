@@ -128,9 +128,15 @@
         .form-input,
         select.form-input {
             background-color: var(--color-card-muted);
-            border: 1px solid var(--color-border);
+            border: 1.5px solid var(--color-border);
             color: var(--color-text);
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:hover,
+        select.form-input:hover {
+            border-color: var(--color-primary);
+            background-color: var(--color-card);
         }
 
         .form-input:focus,
@@ -138,6 +144,7 @@
             outline: none;
             border-color: var(--color-primary);
             box-shadow: 0 0 0 3px var(--focus-ring-color);
+            background-color: var(--color-card);
         }
 
         .btn-primary {
@@ -170,6 +177,12 @@
         .summary-card {
             background-color: var(--color-summary-bg);
             border-left: 4px solid var(--color-summary-border);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .surface-muted {
@@ -274,36 +287,61 @@
             -webkit-appearance: none;
             appearance: none;
             width: 100%;
-            height: 8px;
+            height: 10px;
             background: var(--color-slider-track);
-            border-radius: 5px;
+            border-radius: 8px;
             outline: none;
-            opacity: 0.7;
-            transition: opacity 0.2s;
+            opacity: 0.8;
+            transition: all 0.2s ease;
         }
 
         input[type=range]:hover {
+            opacity: 1;
+            transform: scaleY(1.1);
+        }
+
+        input[type=range]:active {
             opacity: 1;
         }
 
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             background: var(--color-slider-thumb);
             cursor: pointer;
             border-radius: 50%;
-            border: 2px solid var(--color-primary-contrast);
+            border: 3px solid var(--color-primary-contrast);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
         }
 
         input[type=range]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             background: var(--color-slider-thumb);
             cursor: pointer;
             border-radius: 50%;
-            border: 2px solid var(--color-primary-contrast);
+            border: 3px solid var(--color-primary-contrast);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s ease;
+        }
+
+        input[type=range]::-moz-range-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type=range]::-moz-range-track {
+            height: 10px;
+            background: var(--color-slider-track);
+            border-radius: 8px;
         }
 
         .d3-chart .domain {
@@ -361,7 +399,7 @@
             display: flex;
             flex-direction: column;
             gap: 1.25rem;
-            padding: 1.5rem;
+            padding: 1.75rem 2rem;
             border-radius: 1.25rem;
             background: linear-gradient(145deg, rgba(237, 252, 255, 0.85), rgba(219, 246, 250, 0.65));
             border: 1px solid rgba(186, 198, 234, 0.45);
@@ -1036,6 +1074,12 @@
             }
         }
 
+        @media (min-width: 1280px) {
+            .brand-header {
+                padding: 2rem 2.5rem;
+            }
+        }
+
         .export-panel {
             background-color: var(--color-card);
             border: 1px solid var(--color-border);
@@ -1065,6 +1109,12 @@
             }
             .summary-mobile-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+        }
+
+        @media (min-width: 640px) and (max-width: 768px) {
+            .summary-mobile-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
             }
         }
 
@@ -1541,15 +1591,15 @@
     </div>
 
     <div id="app" class="max-w-7xl mx-auto">
-        <header class="py-4">
-            <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-start lg:items-stretch">
-                <div class="brand-header flex-1">
+        <header class="py-4 lg:py-6">
+            <div class="flex flex-col xl:flex-row gap-6 items-start xl:items-stretch">
+                <div class="brand-header flex-1 w-full">
                     <div class="brand-header-inner">
                         <span class="brand-kicker">OrderSkew.com</span>
                         <h1 class="brand-title">Order Skew</h1>
                         <p class="brand-subtitle">Design your buy and sell ladders with precision at OrderSkew.com.</p>
                     </div>
-                    <div class="header-controls">
+                    <div class="header-controls mt-4">
                         <div class="header-controls-group">
                             <div class="theme-toggle-group" id="theme-toggle-group" role="group" aria-label="Switch theme">
                                 <button type="button" class="theme-toggle-button" data-theme-toggle="light" aria-pressed="false" aria-label="Activate light theme">
@@ -1622,38 +1672,38 @@
                         </details>
                     </div>
                 </div>
-                <div class="card p-6 flex-shrink-0 w-full lg:w-auto">
-                    <div class="flex justify-between items-center mb-4">
+                <div class="card p-6 flex-shrink-0 w-full xl:w-auto xl:min-w-[420px]">
+                    <div class="flex justify-between items-center mb-5">
                         <h2 class="text-2xl font-semibold text-primary-dark">Plan Summary</h2>
                     </div>
-                    <div id="summary" class="grid summary-mobile-grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                        <div class="summary-card p-4 rounded-lg">
-                            <p class="text-sm text-secondary-dark">Avg. Buy Price</p>
-                            <p id="summary-avg-buy" class="text-xl font-bold text-primary-dark">-</p>
-                            <p class="text-xs text-secondary-dark mt-3">Buy Floor</p>
+                    <div id="summary" class="grid summary-mobile-grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                        <div class="summary-card p-4 md:p-5 rounded-lg">
+                            <p class="text-xs md:text-sm text-secondary-dark mb-2">Avg. Buy Price</p>
+                            <p id="summary-avg-buy" class="text-lg md:text-xl font-bold text-primary-dark mb-3">-</p>
+                            <p class="text-xs text-secondary-dark">Buy Floor</p>
                             <p id="summary-buy-floor" class="text-sm font-semibold text-primary-dark">-</p>
                         </div>
-                        <div class="summary-card p-4 rounded-lg">
-                            <p class="text-sm text-secondary-dark">Avg. Sell Price</p>
-                            <p id="summary-avg-sell" class="text-xl font-bold text-primary-dark">-</p>
-                            <p class="text-xs text-secondary-dark mt-3">Sell Ceiling</p>
+                        <div class="summary-card p-4 md:p-5 rounded-lg">
+                            <p class="text-xs md:text-sm text-secondary-dark mb-2">Avg. Sell Price</p>
+                            <p id="summary-avg-sell" class="text-lg md:text-xl font-bold text-primary-dark mb-3">-</p>
+                            <p class="text-xs text-secondary-dark">Sell Ceiling</p>
                             <p id="summary-sell-ceiling" class="text-sm font-semibold text-primary-dark">-</p>
                         </div>
-                        <div class="summary-card p-4 rounded-lg">
-                            <p class="text-sm text-secondary-dark">Profit After Fees</p>
-                            <p id="summary-net-profit" class="text-xl font-bold text-primary-dark">-</p>
+                        <div class="summary-card p-4 md:p-5 rounded-lg">
+                            <p class="text-xs md:text-sm text-secondary-dark mb-2">Profit After Fees</p>
+                            <p id="summary-net-profit" class="text-lg md:text-xl font-bold text-primary-dark">-</p>
                         </div>
-                        <div class="summary-card p-4 rounded-lg">
-                            <p class="text-sm text-secondary-dark">Total Vol</p>
-                            <p id="summary-total-quantity" class="text-xl font-bold text-primary-dark">-</p>
+                        <div class="summary-card p-4 md:p-5 rounded-lg">
+                            <p class="text-xs md:text-sm text-secondary-dark mb-2">Total Vol</p>
+                            <p id="summary-total-quantity" class="text-lg md:text-xl font-bold text-primary-dark">-</p>
                         </div>
-                        <div class="summary-card p-4 rounded-lg">
-                            <p class="text-sm text-secondary-dark">ROI on Cost Basis</p>
-                            <p id="summary-roi" class="text-xl font-bold text-primary-dark">-</p>
+                        <div class="summary-card p-4 md:p-5 rounded-lg">
+                            <p class="text-xs md:text-sm text-secondary-dark mb-2">ROI on Cost Basis</p>
+                            <p id="summary-roi" class="text-lg md:text-xl font-bold text-primary-dark">-</p>
                         </div>
-                        <div class="summary-card p-4 rounded-lg">
-                            <p class="text-sm text-secondary-dark">Total Fees Paid</p>
-                            <p id="summary-total-fees" class="text-xl font-bold text-primary-dark">-</p>
+                        <div class="summary-card p-4 md:p-5 rounded-lg">
+                            <p class="text-xs md:text-sm text-secondary-dark mb-2">Total Fees Paid</p>
+                            <p id="summary-total-fees" class="text-lg md:text-xl font-bold text-primary-dark">-</p>
                             <p id="summary-total-fees-percent" class="text-xs text-secondary-dark mt-1">-</p>
                         </div>
                     </div>
@@ -1661,176 +1711,190 @@
             </div>
         </header>
 
-        <main class="grid mobile-two-col grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 auto-rows-min">
-            <div class="card p-6 col-span-1 lg:col-span-2">
+        <main class="grid mobile-two-col grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 auto-rows-min">
+            <div class="col-span-1 lg:col-span-2">
                 <form id="trading-plan-form">
-                    <div class="flex gap-4 lg:gap-6 items-start">
-                        <div class="flex-shrink-0 space-y-3">
-                            <div>
-                                <label for="starting_capital" id="starting_capital_label" class="block text-xs font-medium text-secondary-dark mb-1">Initial Capital ($)</label>
-                                <input type="number" id="starting_capital" value="50000" class="form-input w-full rounded-md p-1.5 text-sm" style="min-width: 180px;">
+                    <!-- Horizontal Configuration Strip -->
+                    <div class="card p-4 lg:p-5">
+                        <div class="flex flex-wrap items-end gap-4 lg:gap-6">
+                            
+                            <!-- Initial Capital -->
+                            <div class="flex-shrink-0">
+                                <label for="starting_capital" id="starting_capital_label" class="block text-xs font-medium text-tertiary-dark mb-1.5">Initial Capital ($)</label>
+                                <input type="number" id="starting_capital" value="50000" class="form-input w-32 lg:w-36 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:border-primary focus:border-primary">
                             </div>
-                            <div>
-                                <label for="current_price" class="block text-xs font-medium text-secondary-dark mb-1">Current Asset Price ($)</label>
-                                <input type="number" id="current_price" value="100" class="form-input w-full rounded-md p-1.5 text-sm" style="min-width: 180px;">
+
+                            <!-- Current Asset Price -->
+                            <div class="flex-shrink-0">
+                                <label for="current_price" class="block text-xs font-medium text-tertiary-dark mb-1.5">Current Price ($)</label>
+                                <input type="number" id="current_price" value="100" class="form-input w-32 lg:w-36 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:border-primary focus:border-primary">
                             </div>
-                        </div>
-                        <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-                        <div>
-                            <label for="number_of_rungs" class="block text-sm font-medium text-secondary-dark mb-1">Number of Rungs</label>
-                            <div class="flex items-center gap-2">
-                                <input type="range" id="number_of_rungs" value="10" min="2" max="50" step="1" class="flex-1 h-2 rounded-lg cursor-pointer">
-                                <input type="number" id="number_of_rungs_input" value="10" min="2" max="50" step="1" class="form-input w-20 rounded-md p-1.5 text-sm">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-secondary-dark mb-1">Price Range</label>
-                            <select id="price_range_mode" class="form-input w-full rounded-md p-2 text-sm mb-2">
-                                <option value="width">Width (%)</option>
-                                <option value="floor">Buy Floor & Sell Ceiling</option>
-                            </select>
-                            <div id="width-mode-container">
-                                <label for="depth" class="block text-sm font-medium text-secondary-dark mb-1">Width (%)</label>
+
+                            <!-- Number of Rungs -->
+                            <div class="flex-shrink-0 flex-1 min-w-[180px]">
+                                <label for="number_of_rungs" class="block text-xs font-medium text-tertiary-dark mb-1.5">Rungs</label>
                                 <div class="flex items-center gap-2">
-                                    <input type="range" id="depth" value="20" min="0.1" max="99" step="0.1" class="flex-1 h-2 rounded-lg cursor-pointer">
-                                    <input type="number" id="depth_input" value="20" min="0.1" max="99" step="0.1" class="form-input w-20 rounded-md p-1.5 text-sm">
+                                    <input type="range" id="number_of_rungs" value="10" min="2" max="50" step="1" class="flex-1 h-2 rounded-lg cursor-pointer">
+                                    <input type="number" id="number_of_rungs_input" value="10" min="2" max="50" step="1" class="form-input w-16 rounded-lg px-2 py-2 text-sm font-medium text-center transition-all duration-200 hover:border-primary focus:border-primary">
                                 </div>
                             </div>
-                            <div id="floor-mode-container" class="hidden">
-                                <div class="space-y-2">
-                                    <div>
-                                        <label for="buy_floor" class="block text-xs font-medium text-secondary-dark mb-1">Buy Floor ($)</label>
-                                        <input type="number" id="buy_floor" value="" min="0" step="0.0001" class="form-input w-full rounded-md p-2 text-sm" placeholder="Auto">
-                                    </div>
-                                    <div>
-                                        <label for="sell_ceiling" class="block text-xs font-medium text-secondary-dark mb-1">Sell Ceiling ($)</label>
-                                        <input type="number" id="sell_ceiling" value="" min="0" step="0.0001" class="form-input w-full rounded-md p-2 text-sm" placeholder="Auto">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="skew_value" class="block text-sm font-medium text-secondary-dark mb-1">Allocation Skew</label>
-                            <div class="flex items-center gap-2">
-                                <input type="range" id="skew_value" min="0" max="100" value="50" step="1" class="flex-1 h-2 rounded-lg cursor-pointer">
-                                <input type="number" id="skew_value_input" min="0" max="100" value="50" step="1" class="form-input w-20 rounded-md p-1.5 text-sm">
-                            </div>
-                            <div class="flex justify-between text-xs text-tertiary-dark mt-1">
-                                <span>None</span>
-                                <span>Moderate</span>
-                                <span>Heavy</span>
-                            </div>
-                        </div>
-                        </div>
-                    </div>
-                    <div class="mt-4">
-                        <div class="border border-soft rounded-lg p-3 surface-muted space-y-3">
-                        <div class="flex items-center justify-between">
-                            <label class="flex items-center space-x-2 text-xs font-medium text-secondary-dark cursor-pointer">
-                                <input id="advanced_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-0">
-                                <span>Advanced mode</span>
-                            </label>
-                            <button type="button" id="advanced-settings-toggle" class="hidden items-center justify-center w-6 h-6 text-secondary-dark hover:text-primary-dark transition-colors" aria-label="Toggle advanced settings" aria-expanded="false">
-                                <svg class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </button>
-                        </div>
-                        <div id="advanced-settings" class="space-y-3 hidden">
-                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                                <div class="sm:col-span-4">
-                                    <div class="border-2 border-accent surface-accent rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                        <div>
-                                            <p class="text-xs font-semibold text-secondary-dark uppercase tracking-wide">Mode</p>
-                                            <p class="text-sm font-semibold text-primary-dark">Sell-only ladder</p>
-                                            <p class="text-[11px] text-secondary-dark mt-1">Preserve existing buy orders while fine-tuning the sell ladder.</p>
-                                        </div>
-                                        <label class="inline-flex items-center space-x-2 text-sm font-medium text-primary-dark">
-                                            <input id="sell_only_mode" type="checkbox" class="form-checkbox h-4 w-4 text-primary-dark rounded focus:ring-0">
-                                            <span>Enable</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label for="fee_type" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee Type</label>
-                                    <select id="fee_type" class="form-input w-full rounded-md p-2 text-sm">
-                                        <option value="percent">Percent (%)</option>
-                                        <option value="fixed">Flat ($)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="fee_value" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee</label>
-                                    <input type="number" id="fee_value" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
-                                </div>
-                                <div>
-                                    <label for="fee_settlement" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
-                                        <span>Fee Settlement</span>
-                                        <button type="button" class="helper-tooltip" title="Choose whether trading fees reduce each order (net settlement) or are paid from a separate pool (external settlement)." aria-label="Fee settlement details">i</button>
-                                    </label>
-                                    <select id="fee_settlement" class="form-input w-full rounded-md p-2 text-sm">
-                                        <option value="netted">Net settlement (deduct from order)</option>
-                                        <option value="external">External settlement (separate funds)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label for="spacing_mode" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
-                                    <span>Spacing Between Rungs</span>
-                                    <button type="button" class="helper-tooltip" title="Relative spacing compounds the rung width as a percent change, creating exponential steps." aria-label="Spacing mode information">i</button>
-                                </label>
-                                <select id="spacing_mode" class="form-input w-full rounded-md p-2 text-sm">
-                                    <option value="absolute">Absolute (Equal Steps)</option>
-                                    <option value="relative">Relative (% per rung)</option>
+
+                            <!-- Price Range Mode -->
+                            <div class="flex-shrink-0">
+                                <label for="price_range_mode" class="block text-xs font-medium text-tertiary-dark mb-1.5">Range Mode</label>
+                                <select id="price_range_mode" class="form-input w-40 lg:w-44 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:border-primary focus:border-primary">
+                                    <option value="width">Width (%)</option>
+                                    <option value="floor">Buy Floor & Sell Ceiling</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
-                                    <span class="flex items-center space-x-2">
-                                        <input id="equal_quantity_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-0">
-                                        <span>Equal quantity per rung</span>
-                                    </span>
-                                    <button type="button" class="helper-tooltip" title="Override skew settings and distribute the same asset size across each rung." aria-label="Equal quantity details">i</button>
-                                </label>
+
+                            <!-- Width/Depth -->
+                            <div id="width-mode-container" class="flex-shrink-0 flex-1 min-w-[180px]">
+                                <label for="depth" class="block text-xs font-medium text-tertiary-dark mb-1.5">Width (%)</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="range" id="depth" value="20" min="0.1" max="99" step="0.1" class="flex-1 h-2 rounded-lg cursor-pointer">
+                                    <input type="number" id="depth_input" value="20" min="0.1" max="99" step="0.1" class="form-input w-20 rounded-lg px-2 py-2 text-sm font-medium text-center transition-all duration-200 hover:border-primary focus:border-primary">
+                                </div>
                             </div>
-                            <div id="sell-only-inputs" class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden">
+
+                            <!-- Floor Mode Container -->
+                            <div id="floor-mode-container" class="hidden flex flex-shrink-0 items-end gap-3">
                                 <div>
-                                    <label for="existing_quantity" class="block text-xs font-medium text-secondary-dark mb-1">Existing Quantity</label>
-                                    <input type="number" id="existing_quantity" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                    <label for="buy_floor" class="block text-xs font-medium text-tertiary-dark mb-1.5">Buy Floor ($)</label>
+                                    <input type="number" id="buy_floor" value="" min="0" step="0.0001" class="form-input w-32 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:border-primary focus:border-primary" placeholder="Auto">
                                 </div>
                                 <div>
-                                    <label for="existing_avg_price" class="block text-xs font-medium text-secondary-dark mb-1">Known Average Buy Price ($)</label>
-                                    <input type="number" id="existing_avg_price" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                    <label for="sell_ceiling" class="block text-xs font-medium text-tertiary-dark mb-1.5">Sell Ceiling ($)</label>
+                                    <input type="number" id="sell_ceiling" value="" min="0" step="0.0001" class="form-input w-32 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 hover:border-primary focus:border-primary" placeholder="Auto">
+                                </div>
+                            </div>
+
+                            <!-- Allocation Skew -->
+                            <div class="flex-shrink-0 flex-1 min-w-[180px]">
+                                <label for="skew_value" class="block text-xs font-medium text-tertiary-dark mb-1.5">Allocation Skew</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="range" id="skew_value" min="0" max="100" value="50" step="1" class="flex-1 h-2 rounded-lg cursor-pointer">
+                                    <input type="number" id="skew_value_input" min="0" max="100" value="50" step="1" class="form-input w-16 rounded-lg px-2 py-2 text-sm font-medium text-center transition-all duration-200 hover:border-primary focus:border-primary">
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] text-tertiary-dark mt-1 px-1">
+                                    <span>None</span>
+                                    <span>Moderate</span>
+                                    <span>Heavy</span>
+                                </div>
+                            </div>
+
+                            <!-- Advanced Mode Toggle (Understated) -->
+                            <div class="flex-shrink-0 flex items-end pb-0.5">
+                                <label class="flex items-center gap-2 cursor-pointer group">
+                                    <span class="text-xs text-tertiary-dark group-hover:text-secondary-dark transition-colors">Advanced</span>
+                                    <input id="advanced_mode" type="checkbox" class="sr-only peer">
+                                    <div class="w-8 h-4 bg-surface-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary/60 relative"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Settings (Collapsible) -->
+                        <div id="advanced-settings" class="hidden mt-5 pt-5 border-t border-soft">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                
+                                <!-- Sell-only Mode -->
+                                <div class="p-3 rounded-lg border border-soft surface-muted">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label for="sell_only_mode" class="text-xs font-medium text-secondary-dark">Sell-only Mode</label>
+                                        <input id="sell_only_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-1 focus:ring-primary">
+                                    </div>
+                                    <p class="text-[10px] text-tertiary-dark leading-relaxed">Preserve buy orders while adjusting sell ladder.</p>
+                                    <div id="sell-only-inputs" class="hidden mt-3 space-y-2 pt-3 border-t border-soft">
+                                        <div>
+                                            <label for="existing_quantity" class="block text-[10px] font-medium text-tertiary-dark mb-1">Existing Qty</label>
+                                            <input type="number" id="existing_quantity" value="0" min="0" class="form-input w-full rounded px-2 py-1.5 text-xs transition-all duration-200 hover:border-primary focus:border-primary" step="0.0001">
+                                        </div>
+                                        <div>
+                                            <label for="existing_avg_price" class="block text-[10px] font-medium text-tertiary-dark mb-1">Avg Buy ($)</label>
+                                            <input type="number" id="existing_avg_price" value="0" min="0" class="form-input w-full rounded px-2 py-1.5 text-xs transition-all duration-200 hover:border-primary focus:border-primary" step="0.0001">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Trading Fees -->
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-medium text-secondary-dark mb-2">Trading Fees</label>
+                                    <div class="space-y-2">
+                                        <div>
+                                            <label for="fee_type" class="block text-[10px] font-medium text-tertiary-dark mb-1">Type</label>
+                                            <select id="fee_type" class="form-input w-full rounded px-2 py-1.5 text-xs transition-all duration-200 hover:border-primary focus:border-primary">
+                                                <option value="percent">Percent (%)</option>
+                                                <option value="fixed">Flat ($)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label for="fee_value" class="block text-[10px] font-medium text-tertiary-dark mb-1">Amount</label>
+                                            <input type="number" id="fee_value" value="0" min="0" class="form-input w-full rounded px-2 py-1.5 text-xs transition-all duration-200 hover:border-primary focus:border-primary" step="0.0001">
+                                        </div>
+                                        <div>
+                                            <label for="fee_settlement" class="flex items-center justify-between text-[10px] font-medium text-tertiary-dark mb-1">
+                                                <span>Settlement</span>
+                                                <button type="button" class="helper-tooltip" title="Choose whether trading fees reduce each order (net settlement) or are paid from a separate pool (external settlement)." aria-label="Fee settlement details">i</button>
+                                            </label>
+                                            <select id="fee_settlement" class="form-input w-full rounded px-2 py-1.5 text-xs transition-all duration-200 hover:border-primary focus:border-primary">
+                                                <option value="netted">Net</option>
+                                                <option value="external">External</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Spacing -->
+                                <div>
+                                    <label for="spacing_mode" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-2">
+                                        <span>Rung Spacing</span>
+                                        <button type="button" class="helper-tooltip" title="Relative spacing compounds the rung width as a percent change, creating exponential steps." aria-label="Spacing mode information">i</button>
+                                    </label>
+                                    <select id="spacing_mode" class="form-input w-full rounded px-3 py-2 text-sm transition-all duration-200 hover:border-primary focus:border-primary">
+                                        <option value="absolute">Absolute (Equal Steps)</option>
+                                        <option value="relative">Relative (% per rung)</option>
+                                    </select>
+                                </div>
+
+                                <!-- Equal Quantity -->
+                                <div>
+                                    <label class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-2">
+                                        <span class="flex items-center gap-2 cursor-pointer group">
+                                            <input id="equal_quantity_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-1 focus:ring-primary">
+                                            <span class="group-hover:text-primary-dark transition-colors">Equal quantity</span>
+                                        </span>
+                                        <button type="button" class="helper-tooltip" title="Override skew settings and distribute the same asset size across each rung." aria-label="Equal quantity details">i</button>
+                                    </label>
+                                    <p class="text-[10px] text-tertiary-dark mt-1">Override skew and distribute equally across rungs.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    </div>
-                    <!-- Removed Generate Plan button -->
                 </form>
             </div>
 
 
             <!-- Charts Container -->
-            <div class="col-span-1 lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+            <div class="col-span-1 lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
                 <!-- Buy Chart -->
-                <div class="card p-6" id="buy-chart-card">
-                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Buy Ladder</h3>
+                <div class="card p-6 lg:p-8" id="buy-chart-card">
+                    <h3 class="text-xl font-semibold text-primary-dark mb-5">Buy Ladder</h3>
                     <div id="visualization" class="d3-chart">
                         <svg id="allocation-chart"></svg>
                     </div>
                 </div>
                 
                 <!-- Sell Chart -->
-                <div class="card p-6" id="sell-chart-card">
-                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Sell Ladder</h3>
+                <div class="card p-6 lg:p-8" id="sell-chart-card">
+                    <h3 class="text-xl font-semibold text-primary-dark mb-5">Sell Ladder</h3>
                     <div id="sell-visualization" class="d3-chart">
                         <svg id="sell-allocation-chart"></svg>
                     </div>
                 </div>
             </div>
 
-            <div class="card p-6" id="buy-orders-card">
-                <h3 class="text-xl font-semibold text-primary-dark mb-4">Buy Orders</h3>
+            <div class="card p-6 lg:p-8" id="buy-orders-card">
+                <h3 class="text-xl font-semibold text-primary-dark mb-5">Buy Orders</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-primary-dark uppercase table-header">
@@ -1847,8 +1911,8 @@
                     </table>
                 </div>
             </div>
-            <div class="card p-6" id="sell-orders-card">
-                <h3 class="text-xl font-semibold text-primary-dark mb-4">Sell Orders</h3>
+            <div class="card p-6 lg:p-8" id="sell-orders-card">
+                <h3 class="text-xl font-semibold text-primary-dark mb-5">Sell Orders</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-primary-dark uppercase table-header">
@@ -4180,7 +4244,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         enabled: advancedToggle.checked
                     });
                     if (advancedToggle.checked) {
-                        // Show settings and expand by default when enabling advanced mode
+                        // Show settings when enabling advanced mode
                         advancedSettings?.classList.remove('hidden');
                         if (advancedSettingsToggle) {
                             advancedSettingsToggle.classList.remove('hidden');
