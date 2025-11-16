@@ -1466,6 +1466,13 @@
             overflow: hidden;
         }
     </style>
+    <script type="text/javascript">
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "u4us17in70");
+    </script>
 </head>
 <body class="p-2 sm:p-4 theme-light layout-desktop">
     <!-- Intro Modal -->
@@ -2008,6 +2015,41 @@
             const formatCurrency = (value, minimumFractionDigits = 2) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits, maximumFractionDigits: 6 }).format(Number.isFinite(value) ? value : 0);
             const formatPercent = (value) => Number.isFinite(value) ? `${value.toFixed(2)}%` : '0.00%';
             const formatNumber = (value, digits = 4) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: digits }) : '0';
+            
+            // Format number with specified significant figures
+            const formatSignificant = (value, sigFigs = 5) => {
+                if (!Number.isFinite(value)) return '0';
+                if (value === 0) return '0';
+                return parseFloat(value.toPrecision(sigFigs)).toString();
+            };
+            
+            // Format currency with 5 significant figures
+            const formatCurrencySignificant = (value, sigFigs = 5) => {
+                if (!Number.isFinite(value)) return '$0.00';
+                if (value === 0) return '$0.00';
+                
+                const rounded = parseFloat(value.toPrecision(sigFigs));
+                
+                // Determine decimal places needed to show sigFigs
+                const absValue = Math.abs(rounded);
+                let decimals;
+                if (absValue >= 1) {
+                    const magnitude = Math.floor(Math.log10(absValue));
+                    decimals = Math.max(2, Math.min(6, sigFigs - 1 - magnitude));
+                } else if (absValue > 0) {
+                    const magnitude = Math.floor(Math.log10(absValue));
+                    decimals = Math.max(2, sigFigs - 1 - magnitude);
+                } else {
+                    decimals = 2;
+                }
+                
+                return new Intl.NumberFormat('en-US', { 
+                    style: 'currency', 
+                    currency: 'USD',
+                    minimumFractionDigits: Math.min(decimals, 2),
+                    maximumFractionDigits: decimals
+                }).format(rounded);
+            };
             const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
             const MAX_SKEW_RATIO = 10;
 
@@ -3381,19 +3423,19 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     }).join('');
                 }
 
-                document.getElementById('summary-avg-buy').textContent = formatCurrency(summary.avgBuyPrice);
-                document.getElementById('summary-avg-sell').textContent = formatCurrency(summary.avgSellPrice);
-                document.getElementById('summary-net-profit').textContent = formatCurrency(summary.netProfit);
-                document.getElementById('summary-total-fees').textContent = formatCurrency(summary.totalFees);
+                document.getElementById('summary-avg-buy').textContent = formatCurrencySignificant(summary.avgBuyPrice);
+                document.getElementById('summary-avg-sell').textContent = formatCurrencySignificant(summary.avgSellPrice);
+                document.getElementById('summary-net-profit').textContent = formatCurrencySignificant(summary.netProfit);
+                document.getElementById('summary-total-fees').textContent = formatCurrencySignificant(summary.totalFees);
                 const initialCapital = parseFloat(document.getElementById('starting_capital')?.value || 0);
                 const feesPercent = initialCapital > 0 ? (summary.totalFees / initialCapital) * 100 : 0;
                 const feesPercentElement = document.getElementById('summary-total-fees-percent');
                 if (feesPercentElement) {
                     feesPercentElement.textContent = Number.isFinite(feesPercent) ? `${formatPercent(feesPercent)} of initial capital` : '-';
                 }
-                document.getElementById('summary-total-quantity').textContent = formatNumber(summary.totalQuantity, 4);
+                document.getElementById('summary-total-quantity').textContent = formatSignificant(summary.totalQuantity);
                 document.getElementById('summary-roi').textContent = formatPercent(summary.roi);
-                const formatSummaryPrice = price => (price ? formatCurrency(price) : '-');
+                const formatSummaryPrice = price => (price ? formatCurrencySignificant(price) : '-');
                 document.getElementById('summary-buy-floor').textContent = formatSummaryPrice(summary.lowestBuyPrice);
                 document.getElementById('summary-sell-ceiling').textContent = formatSummaryPrice(summary.highestSellPrice);
 
