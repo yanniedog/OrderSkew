@@ -1609,6 +1609,13 @@
                             <button id="download-xls-btn" class="btn-primary text-sm font-medium py-2 px-4 rounded-lg w-full sm:w-auto">
                                 Download XLS
                             </button>
+                            <button id="save-config-btn" class="btn-secondary text-sm font-medium py-2 px-4 rounded-lg w-full sm:w-auto">
+                                Save Config
+                            </button>
+                            <button id="load-config-btn" class="btn-secondary text-sm font-medium py-2 px-4 rounded-lg w-full sm:w-auto">
+                                Load Config
+                            </button>
+                            <input type="file" id="load-config-file" accept=".json" class="hidden">
                         </div>
                     </details>
                 </div>
@@ -1921,6 +1928,9 @@
             const exportCollapse = document.getElementById('export-collapse');
             const downloadCsvBtn = document.getElementById('download-csv-btn');
             const downloadXlsBtn = document.getElementById('download-xls-btn');
+            const saveConfigBtn = document.getElementById('save-config-btn');
+            const loadConfigBtn = document.getElementById('load-config-btn');
+            const loadConfigFile = document.getElementById('load-config-file');
             const layoutToggleButtons = Array.from(document.querySelectorAll('[data-layout-toggle]'));
             const themeToggleButtons = Array.from(document.querySelectorAll('[data-theme-toggle]'));
             const displayStatusAnnouncer = document.getElementById('display-status-announcer');
@@ -3071,6 +3081,31 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     }
                 }
 
+                // Normalize buy orders to ensure total capital equals initial capital
+                if (!sellOnlyMode && buyLadder.length > 0) {
+                    const totalBuyCapital = buyLadder.reduce((sum, rung) => sum + rung.capital, 0);
+                    if (totalBuyCapital > 0 && Math.abs(totalBuyCapital - C) > 1e-10) {
+                        const adjustmentFactor = C / totalBuyCapital;
+                        buyLadder = buyLadder.map(rung => {
+                            const adjustedCapital = rung.capital * adjustmentFactor;
+                            const adjustedNetCapital = rung.netCapital * adjustmentFactor;
+                            const adjustedAssetSize = rung.price > 0 ? adjustedNetCapital / rung.price : 0;
+                            const adjustedFee = rung.fee * adjustmentFactor;
+                            return {
+                                ...rung,
+                                capital: adjustedCapital,
+                                netCapital: adjustedNetCapital,
+                                assetSize: adjustedAssetSize,
+                                fee: adjustedFee
+                            };
+                        });
+                        // Recalculate totals after normalization
+                        totalAssetBought = buyLadder.reduce((sum, rung) => sum + rung.assetSize, 0);
+                        totalNetCapitalSpent = buyLadder.reduce((sum, rung) => sum + rung.netCapital, 0);
+                        totalBuyFees = buyLadder.reduce((sum, rung) => sum + rung.fee, 0);
+                    }
+                }
+
                 let cumulativeNetCapital = 0;
                 let cumulativeAsset = 0;
                 const totalAssetForAllocation = totalAssetBought;
@@ -3213,6 +3248,43 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         netProfit
                     };
                 });
+
+                // Normalize sell orders to ensure total quantity equals totalQuantityForSell
+                if (sellLadder.length > 0 && totalQuantityForSell > 0) {
+                    const totalSellQuantity = sellLadder.reduce((sum, rung) => sum + rung.assetSize, 0);
+                    if (totalSellQuantity > 0 && Math.abs(totalSellQuantity - totalQuantityForSell) > 1e-10) {
+                        const adjustmentFactor = totalQuantityForSell / totalSellQuantity;
+                        // Reset totals before recalculating
+                        totalRevenueGross = 0;
+                        totalRevenueNet = 0;
+                        totalSellFees = 0;
+                        totalGrossProfit = 0;
+                        
+                        sellLadder = sellLadder.map(rung => {
+                            const adjustedAssetSize = rung.assetSize * adjustmentFactor;
+                            const grossRevenue = adjustedAssetSize * rung.price;
+                            const { net: netRevenue, fee: sellFee } = deriveSellAmounts(grossRevenue);
+                            const costBasis = (avgBuyPrice > 0 && adjustedAssetSize > 0) ? (adjustedAssetSize * avgBuyPrice) : 0;
+                            const grossProfit = grossRevenue - costBasis;
+                            const netProfit = netRevenue - costBasis;
+
+                            totalRevenueGross += grossRevenue;
+                            totalRevenueNet += netRevenue;
+                            totalSellFees += sellFee;
+                            totalGrossProfit += grossProfit;
+
+                            return {
+                                ...rung,
+                                assetSize: adjustedAssetSize,
+                                capital: grossRevenue,
+                                fee: sellFee,
+                                netRevenue,
+                                grossProfit,
+                                netProfit
+                            };
+                        });
+                    }
+                }
 
                 sellLadder.forEach(rung => {
                     rung.allocation = totalQuantityForSell > 0 ? (rung.assetSize / totalQuantityForSell) * 100 : 0;
@@ -4135,6 +4207,232 @@ caption { font-weight: 600; margin-bottom: 6px; }
             }
             if (downloadXlsBtn) {
                 downloadXlsBtn.addEventListener('click', handleXlsDownload);
+            }
+
+            // Save configuration to file
+            const saveConfiguration = () => {
+                try {
+                    const config = {
+                        version: '1.0',
+                        timestamp: new Date().toISOString(),
+                        basic: {
+                            startingCapital: document.getElementById('starting_capital')?.value || '',
+                            currentPrice: document.getElementById('current_price')?.value || '',
+                            numberOfRungs: document.getElementById('number_of_rungs')?.value || '',
+                            depth: document.getElementById('depth')?.value || '',
+                            skewValue: document.getElementById('skew_value')?.value || ''
+                        },
+                        advanced: {
+                            advancedMode: advancedToggle ? advancedToggle.checked : false,
+                            feeType: feeTypeSelect ? feeTypeSelect.value : 'percent',
+                            feeValue: feeValueInput ? feeValueInput.value : '0',
+                            feeSettlement: feeSettlementSelect ? feeSettlementSelect.value : 'netted',
+                            spacingMode: spacingModeSelect ? spacingModeSelect.value : 'absolute',
+                            equalQuantityMode: equalQuantityCheckbox ? equalQuantityCheckbox.checked : false
+                        },
+                        sellOnly: {
+                            sellOnlyMode: sellOnlyCheckbox ? sellOnlyCheckbox.checked : false,
+                            existingQuantity: existingQuantityInput ? existingQuantityInput.value : '0',
+                            existingAvgPrice: existingAvgPriceInput ? existingAvgPriceInput.value : '0',
+                            highestExecutedRung: sellOnlyState.highestExecutedRung
+                        },
+                        preferences: {
+                            introSkip: introSkipCheckbox ? introSkipCheckbox.checked : false
+                        }
+                    };
+
+                    const jsonString = JSON.stringify(config, null, 2);
+                    const blob = new Blob([jsonString], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `orderskew-config-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    trackEvent('config', 'save:success', {
+                        hasAdvanced: config.advanced.advancedMode,
+                        hasSellOnly: config.sellOnly.sellOnlyMode
+                    });
+                } catch (error) {
+                    console.error('[Config] Save error', error);
+                    trackEvent('config', 'save:error', { error: error.message }, 'error');
+                    alert('Failed to save configuration: ' + error.message);
+                }
+            };
+
+            // Load configuration from file
+            const loadConfiguration = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const config = JSON.parse(e.target.result);
+                            
+                            // Validate config structure
+                            if (!config.basic || !config.advanced || !config.sellOnly) {
+                                throw new Error('Invalid configuration file format');
+                            }
+
+                            // Load basic settings
+                            if (config.basic.startingCapital !== undefined) {
+                                const startingCapitalInput = document.getElementById('starting_capital');
+                                if (startingCapitalInput) startingCapitalInput.value = config.basic.startingCapital;
+                            }
+                            if (config.basic.currentPrice !== undefined) {
+                                const currentPriceInput = document.getElementById('current_price');
+                                if (currentPriceInput) currentPriceInput.value = config.basic.currentPrice;
+                            }
+                            if (config.basic.numberOfRungs !== undefined) {
+                                const numberOfRungsInput = document.getElementById('number_of_rungs');
+                                if (numberOfRungsInput) {
+                                    numberOfRungsInput.value = config.basic.numberOfRungs;
+                                    numberOfRungsInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                            }
+                            if (config.basic.depth !== undefined) {
+                                const depthInput = document.getElementById('depth');
+                                if (depthInput) {
+                                    depthInput.value = config.basic.depth;
+                                    depthInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                            }
+                            if (config.basic.skewValue !== undefined) {
+                                const skewInput = document.getElementById('skew_value');
+                                if (skewInput) {
+                                    skewInput.value = config.basic.skewValue;
+                                    skewInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                            }
+
+                            // Load advanced settings (set values first, then trigger events)
+                            if (config.advanced.advancedMode !== undefined && advancedToggle) {
+                                advancedToggle.checked = config.advanced.advancedMode;
+                            }
+                            if (config.advanced.feeType !== undefined && feeTypeSelect) {
+                                feeTypeSelect.value = config.advanced.feeType;
+                            }
+                            if (config.advanced.feeValue !== undefined && feeValueInput) {
+                                feeValueInput.value = config.advanced.feeValue;
+                            }
+                            if (config.advanced.feeSettlement !== undefined && feeSettlementSelect) {
+                                feeSettlementSelect.value = config.advanced.feeSettlement;
+                            }
+                            if (config.advanced.spacingMode !== undefined && spacingModeSelect) {
+                                spacingModeSelect.value = config.advanced.spacingMode;
+                            }
+                            if (config.advanced.equalQuantityMode !== undefined && equalQuantityCheckbox) {
+                                equalQuantityCheckbox.checked = config.advanced.equalQuantityMode;
+                            }
+
+                            // Load sell-only settings (set values first)
+                            if (config.sellOnly.sellOnlyMode !== undefined && sellOnlyCheckbox) {
+                                sellOnlyCheckbox.checked = config.sellOnly.sellOnlyMode;
+                            }
+                            if (config.sellOnly.existingQuantity !== undefined && existingQuantityInput) {
+                                existingQuantityInput.value = config.sellOnly.existingQuantity;
+                            }
+                            if (config.sellOnly.existingAvgPrice !== undefined && existingAvgPriceInput) {
+                                existingAvgPriceInput.value = config.sellOnly.existingAvgPrice;
+                            }
+                            if (config.sellOnly.highestExecutedRung !== undefined && config.sellOnly.highestExecutedRung !== null) {
+                                sellOnlyState.highestExecutedRung = config.sellOnly.highestExecutedRung;
+                            }
+
+                            // Load preferences
+                            if (config.preferences && config.preferences.introSkip !== undefined && introSkipCheckbox) {
+                                introSkipCheckbox.checked = config.preferences.introSkip;
+                            }
+
+                            // Trigger UI update events (but prevent calculatePlan from being called multiple times)
+                            if (config.advanced.advancedMode !== undefined && advancedToggle) {
+                                // Manually update UI instead of triggering change event to avoid extra calculatePlan calls
+                                if (config.advanced.advancedMode) {
+                                    if (advancedSettings) advancedSettings.classList.remove('hidden');
+                                    if (advancedSettingsToggle) {
+                                        advancedSettingsToggle.classList.remove('hidden');
+                                        advancedSettingsToggle.classList.add('flex');
+                                        advancedSettingsToggle.setAttribute('aria-expanded', 'true');
+                                        advancedSettingsToggle.querySelector('svg')?.classList.add('rotate-180');
+                                    }
+                                    if (equalQuantityCheckbox) {
+                                        setSkewDisabled(equalQuantityCheckbox.checked);
+                                    }
+                                } else {
+                                    if (advancedSettings) advancedSettings.classList.add('hidden');
+                                    if (advancedSettingsToggle) {
+                                        advancedSettingsToggle.classList.add('hidden');
+                                        advancedSettingsToggle.classList.remove('flex');
+                                        advancedSettingsToggle.setAttribute('aria-expanded', 'false');
+                                        advancedSettingsToggle.querySelector('svg')?.classList.remove('rotate-180');
+                                    }
+                                    setSkewDisabled(false);
+                                }
+                            }
+                            if (config.advanced.equalQuantityMode !== undefined && equalQuantityCheckbox) {
+                                setSkewDisabled(equalQuantityCheckbox.checked);
+                            }
+                            if (config.sellOnly.sellOnlyMode !== undefined && sellOnlyCheckbox) {
+                                if (config.sellOnly.sellOnlyMode) {
+                                    if (sellOnlyInputs) sellOnlyInputs.classList.remove('hidden');
+                                } else {
+                                    if (sellOnlyInputs) sellOnlyInputs.classList.add('hidden');
+                                }
+                            }
+
+                            // Trigger recalculation once with all values set
+                            calculatePlan();
+
+                            // Update checkboxes after UI is rendered
+                            setTimeout(() => {
+                                if (config.sellOnly.highestExecutedRung !== undefined && config.sellOnly.highestExecutedRung !== null) {
+                                    bindSellOnlyCheckboxEvents();
+                                    updateSellOnlyCheckboxDisplay();
+                                }
+                            }, 100);
+
+                            trackEvent('config', 'load:success', {
+                                hasAdvanced: config.advanced.advancedMode,
+                                hasSellOnly: config.sellOnly.sellOnlyMode,
+                                version: config.version || 'unknown'
+                            });
+
+                            resolve(config);
+                        } catch (error) {
+                            console.error('[Config] Load error', error);
+                            trackEvent('config', 'load:error', { error: error.message }, 'error');
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = () => {
+                        const error = new Error('Failed to read file');
+                        trackEvent('config', 'load:error', { error: error.message }, 'error');
+                        reject(error);
+                    };
+                    reader.readAsText(file);
+                });
+            };
+
+            // Set up event listeners
+            if (saveConfigBtn) {
+                saveConfigBtn.addEventListener('click', saveConfiguration);
+            }
+            if (loadConfigBtn && loadConfigFile) {
+                loadConfigBtn.addEventListener('click', () => {
+                    loadConfigFile.click();
+                });
+                loadConfigFile.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        loadConfiguration(file).catch((error) => {
+                            alert('Failed to load configuration: ' + error.message);
+                        });
+                        // Reset file input so same file can be loaded again
+                        e.target.value = '';
+                    }
+                });
             }
 
             const runDisplayTests = () => {
