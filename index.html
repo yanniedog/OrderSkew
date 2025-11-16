@@ -16,8 +16,8 @@
             --color-card-alt: #dbf6fa;
             --color-card-muted: #f8fafa;
             --color-text: #273f43;
-            --color-text-secondary: #2f3b58;
-            --color-text-muted: #48616b;
+            --color-text-secondary: #1f2a44;
+            --color-text-muted: #324a54;
             --color-border: #dbf6fa;
             --color-border-strong: #bac6ea;
             --color-primary: #00424a;
@@ -34,7 +34,7 @@
             --color-executed-bg: #cde9d6;
             --color-invalid: #b91c1c;
             --color-helper-border: #2f3b58;
-            --color-slider-track: #bac6ea;
+            --color-slider-track: #8ca5dd;
             --color-slider-thumb: #00424a;
             --color-grid-line: rgba(186, 198, 234, 0.7);
             --color-chart-axis-text: #2f3b58;
@@ -52,6 +52,9 @@
             --shadow-base: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.06);
             --color-warning-bg: rgba(185, 28, 28, 0.08);
             --color-warning-border: rgba(185, 28, 28, 0.35);
+            --color-success-bg: rgba(22, 163, 74, 0.12);
+            --color-success-text: #166534;
+            --color-error-text: #991b1b;
         }
 
         body.theme-dark {
@@ -96,6 +99,9 @@
             --shadow-base: 0 18px 28px -12px rgba(2, 6, 23, 0.65), 0 10px 16px -8px rgba(2, 6, 23, 0.55);
             --color-warning-bg: rgba(248, 113, 113, 0.16);
             --color-warning-border: rgba(248, 113, 113, 0.45);
+            --color-success-bg: rgba(34, 197, 94, 0.2);
+            --color-success-text: #86efac;
+            --color-error-text: #fecdd3;
         }
 
         html {
@@ -369,12 +375,14 @@
         .slider-value-cluster {
             display: inline-flex;
             align-items: center;
-            gap: 0.35rem;
-            padding: 0.15rem 0.35rem;
+            gap: 0.45rem;
+            padding: 0.25rem 0.55rem;
             border-radius: 999px;
             background-color: var(--color-control-bg);
             border: 1px solid var(--color-control-border);
             box-shadow: var(--color-control-shadow);
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .slider-number-wrapper {
@@ -384,20 +392,23 @@
         }
 
         .slider-value-input {
-            width: 88px;
+            width: 96px;
             text-align: center;
             font-variant-numeric: tabular-nums;
             padding-right: 1.5rem;
-            background-color: transparent;
-            border: none;
-            box-shadow: none;
+            padding-left: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.5);
+            border: 1px solid transparent;
+            border-radius: 999px;
             color: var(--color-control-text);
             font-weight: 600;
+            transition: box-shadow 0.2s ease, border-color 0.2s ease;
         }
 
-        .slider-value-input:focus {
+        .slider-value-input:focus-visible {
             outline: none;
-            box-shadow: none;
+            border-color: var(--color-control-active);
+            box-shadow: 0 0 0 3px var(--focus-ring-color);
         }
 
         .slider-value-input::-webkit-outer-spin-button,
@@ -420,8 +431,10 @@
         }
 
         .slider-stepper {
-            width: 34px;
-            height: 34px;
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            min-height: 44px;
             border-radius: 50%;
             border: 1px solid transparent;
             background: var(--color-control-active);
@@ -431,7 +444,7 @@
             justify-content: center;
             font-size: 1rem;
             font-weight: 600;
-            transition: transform 0.15s ease, background-color 0.2s ease;
+            transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .slider-stepper:hover {
@@ -455,6 +468,23 @@
 
         .slider-track-row input[type=range] {
             width: 100%;
+        }
+
+        @media (max-width: 540px) {
+            .slider-value-cluster {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        .slider-stepper:focus-visible,
+        .helper-tooltip:focus-visible,
+        .layout-toggle-button:focus-visible,
+        .export-sheet-button:focus-visible,
+        .plan-action-button:focus-visible,
+        .plan-action-link:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--focus-ring-color);
         }
 
         .plan-alerts {
@@ -706,6 +736,32 @@
 
         .export-sheet-status-text {
             font-weight: 600;
+        }
+
+        .export-sheet-feedback {
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.75rem 1rem;
+            border-radius: 0.85rem;
+            border: 1px solid transparent;
+            transition: opacity 0.2s ease;
+        }
+
+        .export-sheet-feedback.hidden {
+            display: none;
+        }
+
+        .export-sheet-feedback.success {
+            background-color: var(--color-success-bg);
+            border-color: rgba(22, 163, 74, 0.35);
+            color: var(--color-success-text);
+        }
+
+        .export-sheet-feedback.error {
+            background-color: var(--color-warning-bg);
+            border-color: var(--color-warning-border);
+            color: var(--color-error-text);
         }
 
         @keyframes spin {
@@ -1521,32 +1577,41 @@
         }
 
         .layout-toggle-button {
-            width: 30px;
-            height: 30px;
+            width: 40px;
+            height: 40px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: 999px;
-            border: none;
-            background: transparent;
+            border-radius: 14px;
+            border: 1px solid var(--color-control-border);
+            background: var(--color-card-muted);
             color: var(--color-text-muted);
             cursor: pointer;
-            transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+            transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 6px 12px -8px rgba(15, 23, 42, 0.35);
         }
 
         .layout-toggle-button svg {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
         }
 
         .layout-toggle-button.active {
-            background-color: rgba(0, 66, 74, 0.12);
-            color: var(--color-primary);
+            background-color: var(--color-control-active);
+            border-color: var(--color-control-active);
+            color: var(--color-control-active-text);
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px -10px rgba(15, 23, 42, 0.45);
         }
 
-        .layout-toggle-button:focus-visible {
-            outline: 2px solid var(--color-control-active);
-            outline-offset: 2px;
+        .layout-toggle-button:not(.active) {
+            opacity: 0.75;
+        }
+
+        .layout-toggle-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: none;
         }
 
         body.theme-dark .brand-header {
@@ -1574,9 +1639,15 @@
             border-color: rgba(56, 189, 248, 0.35);
         }
 
+        body.theme-dark .layout-toggle-button {
+            background-color: rgba(15, 23, 42, 0.8);
+            border-color: rgba(56, 189, 248, 0.35);
+        }
+
         body.theme-dark .layout-toggle-button.active {
-            background-color: rgba(56, 189, 248, 0.18);
-            color: var(--color-secondary);
+            background-color: rgba(56, 189, 248, 0.25);
+            border-color: rgba(56, 189, 248, 0.45);
+            color: var(--color-primary-contrast);
         }
 
         @media (min-width: 768px) {
@@ -2249,7 +2320,7 @@
                     </div>
                     <div class="slider-control" data-slider-field="number_of_rungs">
                         <div class="slider-headline">
-                            <label id="number_of_rungs_label" for="number_of_rungs" class="block text-sm font-medium text-secondary-dark mb-1">Number of Rungs (<span id="number_of_rungs_display">10</span>)</label>
+                            <label id="number_of_rungs_label" for="number_of_rungs" class="block text-sm font-medium text-secondary-dark mb-1">Number of Rungs (<span id="number_of_rungs_display" data-slider-display aria-live="polite">10</span>)</label>
                             <div class="slider-value-cluster" role="group" aria-label="Adjust number of rungs precisely">
                                 <button type="button" class="slider-stepper" data-step-target="number_of_rungs" data-step="-1" aria-label="Decrease number of rungs">-</button>
                                 <div class="slider-number-wrapper">
@@ -2264,7 +2335,7 @@
                     </div>
                     <div class="slider-control" data-slider-field="depth">
                         <div class="slider-headline">
-                            <label id="depth_label" for="depth" class="block text-sm font-medium text-secondary-dark mb-1">Width (<span id="depth_display">20</span>%)</label>
+                            <label id="depth_label" for="depth" class="block text-sm font-medium text-secondary-dark mb-1">Width (<span id="depth_display" data-slider-display aria-live="polite">20</span>%)</label>
                             <div class="slider-value-cluster" role="group" aria-label="Adjust width precisely">
                                 <button type="button" class="slider-stepper" data-step-target="depth" data-step="-0.1" aria-label="Decrease width">-</button>
                                 <div class="slider-number-wrapper">
@@ -2280,7 +2351,7 @@
                     </div>
                     <div class="slider-control" data-slider-field="skew_value">
                         <div class="slider-headline">
-                            <label id="skew_value_label" for="skew_value" class="block text-sm font-medium text-secondary-dark mb-1">Allocation Skew (<span id="skew_value_display">50</span>)</label>
+                            <label id="skew_value_label" for="skew_value" class="block text-sm font-medium text-secondary-dark mb-1">Allocation Skew (<span id="skew_value_display" data-slider-display aria-live="polite">50</span>)</label>
                             <div class="slider-value-cluster" role="group" aria-label="Adjust allocation skew precisely">
                                 <button type="button" class="slider-stepper" data-step-target="skew_value" data-step="-1" aria-label="Decrease allocation skew">-</button>
                                 <div class="slider-number-wrapper">
@@ -2317,8 +2388,12 @@
                                     <div class="border-2 border-accent surface-accent rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                         <div>
                                             <p class="text-xs font-semibold text-secondary-dark uppercase tracking-wide">Mode</p>
-                                            <p class="text-sm font-semibold text-primary-dark">Sell-only ladder</p>
-                                            <p class="text-[11px] text-secondary-dark mt-1">Preserve existing buy orders while fine-tuning the sell ladder.</p>
+                                            <div class="flex items-center gap-2 text-primary-dark">
+                                                <p class="text-sm font-semibold">Sell-only ladder</p>
+                                                <button type="button" class="helper-tooltip" title="Locks buy ladder inputs and reallocates sizing based on the existing position you provide below." aria-label="Sell-only ladder explanation">i</button>
+                                            </div>
+                                            <p class="text-[11px] text-secondary-dark mt-1">Preserve existing buy orders while fine-tuning only the sell ladder.</p>
+                                            <p class="text-[11px] text-secondary-dark">When enabled, the calculator assumes you already hold the asset amount entered under Existing Quantity and bases profit math on that position.</p>
                                         </div>
                                         <label class="inline-flex items-center space-x-2 text-sm font-medium text-primary-dark">
                                             <input id="sell_only_mode" type="checkbox" class="form-checkbox h-4 w-4 text-primary-dark rounded focus:ring-0">
@@ -2564,6 +2639,7 @@
                 <span id="export-sheet-spinner" class="export-sheet-spinner hidden" aria-hidden="true"></span>
                 <span class="export-sheet-status-text">Preparing export…</span>
             </div>
+            <p id="export-sheet-feedback" class="export-sheet-feedback hidden" aria-live="assertive"></p>
         </section>
     </div>
     <div id="tooltip" class="tooltip"></div>
@@ -2625,6 +2701,7 @@
             const exportSheetStatus = document.getElementById('export-sheet-status');
             const exportStatusText = exportSheetStatus?.querySelector('.export-sheet-status-text');
             const exportSheetSpinner = document.getElementById('export-sheet-spinner');
+            const exportSheetFeedback = document.getElementById('export-sheet-feedback');
             const exportTriggerButton = document.getElementById('export-trigger');
             const exportFormatButtons = Array.from(document.querySelectorAll('[data-export-format]'));
             const savedPlanSelect = document.getElementById('saved-plan-select');
@@ -2753,6 +2830,86 @@
                 console.info(`[Display] Theme mode set to ${normalizedTheme} (${source}).`);
             };
 
+            // ===== Utility Functions =====
+            
+            // DOM utilities
+            const $ = (id) => document.getElementById(id);
+            const $$ = (selector, context = document) => context.querySelector(selector);
+            const $$all = (selector, context = document) => Array.from(context.querySelectorAll(selector));
+            const safeEventListener = (element, event, handler) => {
+                if (element) {
+                    element.addEventListener(event, handler);
+                }
+            };
+            const safeAddEventListener = (element, event, handler) => safeEventListener(element, event, handler);
+
+            // DOM manipulation utilities
+            const toggleClass = (element, className, condition) => {
+                if (element && className) {
+                    if (condition === undefined) {
+                        element.classList.toggle(className);
+                    } else {
+                        element.classList.toggle(className, condition);
+                    }
+                }
+            };
+
+            const addClass = (element, className) => {
+                if (element && className) {
+                    element.classList.add(className);
+                }
+            };
+
+            const removeClass = (element, className) => {
+                if (element && className) {
+                    element.classList.remove(className);
+                }
+            };
+
+            const setAttribute = (element, attr, value) => {
+                if (element && attr) {
+                    if (value === null || value === undefined) {
+                        element.removeAttribute(attr);
+                    } else {
+                        element.setAttribute(attr, value);
+                    }
+                }
+            };
+
+            const toggleAttribute = (element, attr, condition) => {
+                if (element && attr) {
+                    if (condition === undefined) {
+                        const current = element.hasAttribute(attr);
+                        if (current) {
+                            element.removeAttribute(attr);
+                        } else {
+                            element.setAttribute(attr, '');
+                        }
+                    } else if (condition) {
+                        element.setAttribute(attr, condition === true ? '' : condition);
+                    } else {
+                        element.removeAttribute(attr);
+                    }
+                }
+            };
+
+            const isVisible = (element) => {
+                return element && !element.classList.contains('hidden') && element.offsetParent !== null;
+            };
+
+            const show = (element) => {
+                if (element) {
+                    removeClass(element, 'hidden');
+                }
+            };
+
+            const hide = (element) => {
+                if (element) {
+                    addClass(element, 'hidden');
+                }
+            };
+
+            // Formatting utilities
             const formatCurrency = (value, minimumFractionDigits = 2) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits, maximumFractionDigits: 4 }).format(Number.isFinite(value) ? value : 0);
             const formatPercent = (value) => Number.isFinite(value) ? `${value.toFixed(2)}%` : '0.00%';
             const formatNumber = (value, digits = 4) => Number.isFinite(value) ? value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: digits }) : '0';
@@ -2792,6 +2949,41 @@
                 }).format(rounded);
             };
             const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
+            
+            // Escape HTML utilities
+            const escapeForHtml = (text) => {
+                if (text == null) return '';
+                return String(text)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            };
+            
+            // Copy to clipboard utility
+            const copyToClipboard = async (text, successCallback = null, errorCallback = null) => {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    if (successCallback) successCallback();
+                } catch (err) {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.opacity = '0';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        if (successCallback) successCallback();
+                    } catch (fallbackErr) {
+                        console.warn('Failed to copy:', fallbackErr);
+                        if (errorCallback) errorCallback(fallbackErr);
+                    }
+                    document.body.removeChild(textArea);
+                }
+            };
             const MAX_SKEW_RATIO = 10;
             const VALUE_EPSILON = 1e-6;
             const ALERT_ICON_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>`;
@@ -2891,6 +3083,7 @@
                     shiftStep: 5,
                     storageKey: STORAGE_KEYS.numberOfRungs,
                     displayFormatter: (value) => Math.round(value),
+                    validationMessage: 'Rungs must be between 2 and 50.',
                     normalize: (value) => {
                         const parsed = Number(value);
                         const numeric = Number.isFinite(parsed) ? parsed : 2;
@@ -2908,6 +3101,7 @@
                     shiftStep: 1,
                     storageKey: STORAGE_KEYS.depth,
                     displayFormatter: (value) => (value < 2 ? value.toFixed(1) : Math.round(value)),
+                    validationMessage: 'Width must stay between 0.1% and 99%.',
                     normalize: (value) => {
                         let numeric = parseFloat(value);
                         if (!Number.isFinite(numeric)) {
@@ -2932,6 +3126,7 @@
                     shiftStep: 10,
                     storageKey: STORAGE_KEYS.skewValue,
                     displayFormatter: (value) => Math.round(value),
+                    validationMessage: 'Allocation skew must be between 0% and 100%.',
                     normalize: (value) => {
                         const parsed = Number(value);
                         const numeric = Number.isFinite(parsed) ? parsed : 0;
@@ -2941,6 +3136,37 @@
             ];
 
             const sliderControlInstances = new Map();
+            const sliderStepperHandlers = new WeakMap();
+
+            const bindSliderStepperControls = () => {
+                const buttons = Array.from(document.querySelectorAll('.slider-stepper'));
+                buttons.forEach((button) => {
+                    const existingHandler = sliderStepperHandlers.get(button);
+                    if (existingHandler) {
+                        button.removeEventListener('click', existingHandler);
+                    }
+                    const handler = () => {
+                        const targetId = button.dataset.stepTarget;
+                        if (!targetId) {
+                            return;
+                        }
+                        const instance = sliderControlInstances.get(targetId);
+                        if (!instance) {
+                            console.warn(`[Slider] Missing control instance for ${targetId}`);
+                            return;
+                        }
+                        const explicitStep = parseFloat(button.dataset.step);
+                        const delta = Number.isFinite(explicitStep) ? explicitStep : instance.defaultStep;
+                        instance.adjustByDelta(delta);
+                        trackInteraction('slider-stepper', {
+                            id: targetId,
+                            delta
+                        });
+                    };
+                    button.addEventListener('click', handler);
+                    sliderStepperHandlers.set(button, handler);
+                });
+            };
 
             const updateSliderAriaAttributes = (sliderElement, config, value, formattedText) => {
                 if (!sliderElement) {
@@ -2962,21 +3188,44 @@
             const createSliderControl = (config) => {
                 const slider = document.getElementById(config.id);
                 const numericInput = document.getElementById(config.numericInputId);
-                const display = document.getElementById(config.displayId);
-                if (!slider || !numericInput || !display) {
+                const label = config.labelId
+                    ? document.getElementById(config.labelId)
+                    : document.querySelector(`label[for="${config.id}"]`);
+                let display = config.displayId ? document.getElementById(config.displayId) : null;
+                if (!display && label) {
+                    display = label.querySelector('[data-slider-display]');
+                }
+                if (!slider || !numericInput) {
                     return null;
                 }
+                if (!display && label) {
+                    display = document.createElement('span');
+                    display.id = config.displayId || `${config.id}_display`;
+                    display.className = 'slider-display-fallback';
+                    display.setAttribute('aria-live', 'polite');
+                    label.appendChild(document.createTextNode(' ('));
+                    label.appendChild(display);
+                    label.appendChild(document.createTextNode(')'));
+                }
 
-                const stepperButtons = Array.from(document.querySelectorAll(`[data-step-target="${config.id}"]`));
+                if (label) {
+                    const labelText = label.textContent?.trim();
+                    if (labelText) {
+                        slider.setAttribute('aria-label', labelText);
+                    }
+                }
+
                 const shiftStep = typeof config.shiftStep === 'number'
                     ? config.shiftStep
                     : Math.max((config.step || 1) * 5, 1);
+
                 const formatDisplay = (value) => {
                     if (typeof config.displayFormatter === 'function') {
                         return config.displayFormatter(value);
                     }
                     return Number.isFinite(value) ? value : '';
                 };
+
                 const normalize = (value) => {
                     if (typeof config.normalize === 'function') {
                         return config.normalize(value);
@@ -3000,15 +3249,45 @@
                     return numeric;
                 };
 
-                const label = config.labelId
-                    ? document.getElementById(config.labelId)
-                    : document.querySelector(`label[for="${config.id}"]`);
-                if (label) {
-                    const labelText = label.textContent?.trim();
-                    if (labelText) {
-                        slider.setAttribute('aria-label', labelText);
+                const getStepperButtons = () => Array.from(document.querySelectorAll(`[data-step-target="${config.id}"]`));
+
+                const updateDisplayValue = (formatted) => {
+                    if (display) {
+                        display.textContent = formatted;
+                    } else if (label) {
+                        label.setAttribute('data-slider-value', formatted);
                     }
-                }
+                };
+
+                const applyNumericValidityState = (isValid, message) => {
+                    if (isValid) {
+                        numericInput.classList.remove('input-invalid');
+                        numericInput.removeAttribute('aria-invalid');
+                    } else {
+                        numericInput.classList.add('input-invalid');
+                        numericInput.setAttribute('aria-invalid', 'true');
+                    }
+                    if (config.validationMessage) {
+                        setFieldValidity(config.id, isValid, message || config.validationMessage);
+                    }
+                };
+
+                const validateValue = (rawValue) => {
+                    if (!config.validationMessage) {
+                        return true;
+                    }
+                    if (rawValue === '' || rawValue === '-' || rawValue === '.') {
+                        applyNumericValidityState(true);
+                        return true;
+                    }
+                    const numeric = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+                    const isNumber = Number.isFinite(numeric);
+                    const belowMin = isNumber && typeof config.min === 'number' && numeric < config.min;
+                    const aboveMax = isNumber && typeof config.max === 'number' && numeric > config.max;
+                    const isValid = isNumber && !belowMin && !aboveMax;
+                    applyNumericValidityState(isValid);
+                    return isValid;
+                };
 
                 const state = {
                     value: normalize(slider.value)
@@ -3016,17 +3295,27 @@
 
                 const applyValue = (rawValue, options = {}) => {
                     const normalized = normalize(rawValue);
-                    if (!options.force && state.value === normalized) {
-                        return normalized;
+                    const hasChanged = state.value !== normalized;
+                    if (hasChanged || options.force) {
+                        state.value = normalized;
+                        const normalizedString = `${normalized}`;
+                        if (slider.value !== normalizedString) {
+                            slider.value = normalizedString;
+                        }
+                        if (numericInput.value !== normalizedString) {
+                            numericInput.value = normalizedString;
+                        }
+                        const formatted = formatDisplay(normalized);
+                        updateDisplayValue(formatted);
+                        updateSliderAriaAttributes(slider, config, normalized, formatted);
+                        if (options.persist !== false && config.storageKey) {
+                            saveFormValue(config.storageKey, normalized);
+                        }
                     }
-                    state.value = normalized;
-                    slider.value = normalized;
-                    numericInput.value = normalized;
-                    const formatted = formatDisplay(normalized);
-                    display.textContent = formatted;
-                    updateSliderAriaAttributes(slider, config, normalized, formatted);
-                    if (options.persist !== false && config.storageKey) {
-                        saveFormValue(config.storageKey, normalized);
+                    if (options.validate !== false) {
+                        validateValue(rawValue);
+                    } else if (config.validationMessage) {
+                        applyNumericValidityState(true);
                     }
                     if (options.schedule !== false) {
                         schedulePlanUpdate();
@@ -3048,6 +3337,7 @@
                 numericInput.addEventListener('input', (event) => {
                     const raw = event.target.value;
                     if (raw === '' || raw === '-' || raw === '.') {
+                        applyNumericValidityState(true);
                         return;
                     }
                     applyValue(raw);
@@ -3059,7 +3349,7 @@
                 });
 
                 numericInput.addEventListener('blur', () => {
-                    applyValue(numericInput.value);
+                    applyValue(numericInput.value === '' ? state.value : numericInput.value);
                 });
 
                 const adjustByDelta = (delta) => {
@@ -3068,18 +3358,6 @@
                     }
                     applyValue(state.value + delta, { force: true });
                 };
-
-                stepperButtons.forEach((button) => {
-                    button.addEventListener('click', () => {
-                        const explicitStep = parseFloat(button.dataset.step);
-                        const delta = Number.isFinite(explicitStep) ? explicitStep : (config.step || 1);
-                        adjustByDelta(delta);
-                        trackInteraction('slider-stepper', {
-                            id: config.id,
-                            delta
-                        });
-                    });
-                });
 
                 const handleKeyControl = (event) => {
                     const { key } = event;
@@ -3112,44 +3390,57 @@
                 slider.addEventListener('keydown', handleKeyControl);
                 numericInput.addEventListener('keydown', handleKeyControl);
 
+                const toggleStepperDisabled = (disabled) => {
+                    getStepperButtons().forEach((btn) => {
+                        if (disabled) {
+                            btn.setAttribute('disabled', 'true');
+                        } else {
+                            btn.removeAttribute('disabled');
+                        }
+                    });
+                };
+
                 const storedValue = config.storageKey ? loadFormValue(config.storageKey) : null;
                 if (storedValue !== null) {
-                    applyValue(storedValue, { schedule: false, persist: false, force: true });
+                    applyValue(storedValue, { schedule: false, persist: false, force: true, validate: false });
                 } else {
-                    applyValue(slider.value, { schedule: false, persist: false, force: true });
+                    applyValue(slider.value, { schedule: false, persist: false, force: true, validate: false });
                 }
 
                 return {
                     id: config.id,
+                    defaultStep: config.step || 1,
                     get value() {
                         return state.value;
                     },
                     setValue: (value, options = {}) => applyValue(value, { ...options, force: true }),
+                    adjustByDelta,
                     disable: (disabled) => {
                         if (disabled) {
                             slider.setAttribute('disabled', 'true');
                             numericInput.setAttribute('disabled', 'true');
                             slider.classList.add('opacity-50', 'cursor-not-allowed');
                             numericInput.classList.add('cursor-not-allowed');
-                            stepperButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
                         } else {
                             slider.removeAttribute('disabled');
                             numericInput.removeAttribute('disabled');
                             slider.classList.remove('opacity-50', 'cursor-not-allowed');
                             numericInput.classList.remove('cursor-not-allowed');
-                            stepperButtons.forEach(btn => btn.removeAttribute('disabled'));
                         }
+                        toggleStepperDisabled(disabled);
                     }
                 };
             };
 
             const initializeSliderControls = () => {
+                sliderControlInstances.clear();
                 sliderControlConfigs.forEach((config) => {
                     const instance = createSliderControl(config);
                     if (instance) {
                         sliderControlInstances.set(config.id, instance);
                     }
                 });
+                bindSliderStepperControls();
             };
 
             const getSavedPlans = () => {
@@ -3241,11 +3532,43 @@
                     }
                 };
 
+                const sliderDisplayMap = {
+                    number_of_rungs: 'number_of_rungs_display',
+                    depth: 'depth_display',
+                    skew_value: 'skew_value_display'
+                };
+
+                const applySliderState = (id, value) => {
+                    if (value === undefined || value === null) {
+                        return;
+                    }
+                    const instance = sliderControlInstances.get(id);
+                    if (instance) {
+                        instance.setValue(value, { schedule: false, persist: true, validate: false });
+                        return;
+                    }
+                    const sliderElement = document.getElementById(id);
+                    if (sliderElement) {
+                        sliderElement.value = value;
+                    }
+                    const numericElement = document.getElementById(`${id}_input`);
+                    if (numericElement) {
+                        numericElement.value = value;
+                    }
+                    const displayId = sliderDisplayMap[id];
+                    if (displayId) {
+                        const displayElement = document.getElementById(displayId);
+                        if (displayElement) {
+                            displayElement.textContent = value;
+                        }
+                    }
+                };
+
                 applyInputValue('starting_capital', state.startingCapital ?? DEFAULT_PLAN_VALUES.startingCapital, STORAGE_KEYS.startingCapital);
                 applyInputValue('current_price', state.currentPrice ?? DEFAULT_PLAN_VALUES.currentPrice, STORAGE_KEYS.currentPrice);
-                sliderControlInstances.get('number_of_rungs')?.setValue(state.numberOfRungs ?? DEFAULT_PLAN_VALUES.numberOfRungs, { schedule: false, persist: true });
-                sliderControlInstances.get('depth')?.setValue(state.depth ?? DEFAULT_PLAN_VALUES.depth, { schedule: false, persist: true });
-                sliderControlInstances.get('skew_value')?.setValue(state.skewValue ?? DEFAULT_PLAN_VALUES.skewValue, { schedule: false, persist: true });
+                applySliderState('number_of_rungs', state.numberOfRungs ?? DEFAULT_PLAN_VALUES.numberOfRungs);
+                applySliderState('depth', state.depth ?? DEFAULT_PLAN_VALUES.depth);
+                applySliderState('skew_value', state.skewValue ?? DEFAULT_PLAN_VALUES.skewValue);
                 applyInputValue('fee_value', state.feeValue ?? DEFAULT_PLAN_VALUES.feeValue, STORAGE_KEYS.feeValue);
                 applyInputValue('existing_quantity', state.existingQuantity ?? DEFAULT_PLAN_VALUES.existingQuantity, STORAGE_KEYS.existingQuantity);
                 applyInputValue('existing_avg_price', state.existingAvgPrice ?? DEFAULT_PLAN_VALUES.existingAvgPrice, STORAGE_KEYS.existingAvgPrice);
@@ -3683,22 +4006,53 @@
                 return null;
             };
 
-            const escapeForHtml = (value) => {
-                if (value === null || value === undefined) {
-                    return '';
-                }
-                return String(value)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            };
+            // Removed duplicate escapeForHtml - using utility function defined above
 
             const buildTableCell = (label, content, classList = []) => {
                 const classes = ['px-2', 'py-2', ...classList].filter(Boolean).join(' ');
                 const safeLabel = escapeForHtml(label);
                 return `<td class="${classes}" data-label="${safeLabel}">${content}</td>`;
+            };
+
+            const buildTableRow = (rung, config) => {
+                const { type, showExecutionCheckboxes, showFeeColumns, feeHeaderLabel, feeSettings, highestExecuted, index } = config;
+                const rowClass = index % 2 === 0 ? 'table-row-even' : 'table-row-odd';
+                const cellMarkup = [];
+
+                if (type === 'buy' && showExecutionCheckboxes) {
+                    const checkbox = `
+                        <input type="checkbox"
+                               class="form-checkbox buy-rung-executed h-4 w-4 text-primary-dark rounded focus:ring-0"
+                               data-rung="${escapeForHtml(rung.rung)}">
+                    `;
+                    cellMarkup.push(buildTableCell('Executed', checkbox, ['text-center']));
+                }
+
+                cellMarkup.push(buildTableCell('Rung', `<span class="font-medium">${escapeForHtml(rung.rung)}</span>`, ['font-medium', 'text-center']));
+                cellMarkup.push(buildTableCell('Price', formatCurrency(rung.price, 4), ['text-right', 'whitespace-nowrap']));
+                cellMarkup.push(buildTableCell('Volume', formatNumber(rung.assetSize), ['text-right']));
+                cellMarkup.push(buildTableCell('Allocation', formatPercent(rung.allocation), ['text-right']));
+                cellMarkup.push(buildTableCell('Value', formatCurrency(rung.capital, 4), ['text-right', 'whitespace-nowrap']));
+
+                if (showFeeColumns) {
+                    const feeCellValue = feeSettings.type === 'percent'
+                        ? formatCurrency(rung.fee)
+                        : formatPercent(rung.capital > 0 ? (rung.fee / rung.capital) * 100 : 0);
+                    cellMarkup.push(buildTableCell(feeHeaderLabel, feeCellValue, ['text-right', 'whitespace-nowrap']));
+                }
+
+                if (type === 'buy') {
+                    cellMarkup.push(buildTableCell('Avg Buy Price', formatCurrency(rung.progressiveAvgPrice, 4), ['text-right', 'whitespace-nowrap']));
+                } else {
+                    cellMarkup.push(buildTableCell('Avg Sell Price', formatCurrency(rung.progressiveAvgSellPrice, 4), ['text-right', 'whitespace-nowrap']));
+                    cellMarkup.push(buildTableCell('Net Profit', formatCurrency(rung.netProfit, 4), ['text-right', 'whitespace-nowrap']));
+                }
+
+                const executedClass = type === 'buy' && Number.isFinite(highestExecuted) && highestExecuted !== null && rung.rung <= highestExecuted
+                    ? ' executed-rung'
+                    : '';
+
+                return `<tr class="${rowClass}${executedClass}">${cellMarkup.join('')}</tr>`;
             };
 
             const collectExportSettings = () => ({
@@ -4775,51 +5129,27 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     : null;
 
                 plan.buyLadder.forEach((rung, i) => {
-                    const rowClass = i % 2 === 0 ? 'table-row-even' : 'table-row-odd';
-                    const cellMarkup = [];
-                    if (showExecutionCheckboxes) {
-                        const checkbox = `
-                            <input type="checkbox"
-                                   class="form-checkbox buy-rung-executed h-4 w-4 text-primary-dark rounded focus:ring-0"
-                                   data-rung="${escapeForHtml(rung.rung)}">
-                        `;
-                        cellMarkup.push(buildTableCell('Executed', checkbox, ['text-center']));
-                    }
-                    cellMarkup.push(buildTableCell('Rung', `<span class="font-medium">${escapeForHtml(rung.rung)}</span>`, ['font-medium', 'text-center']));
-                    cellMarkup.push(buildTableCell('Price', formatCurrency(rung.price, 4), ['text-right', 'whitespace-nowrap']));
-                    cellMarkup.push(buildTableCell('Volume', formatNumber(rung.assetSize), ['text-right']));
-                    cellMarkup.push(buildTableCell('Allocation', formatPercent(rung.allocation), ['text-right']));
-                    cellMarkup.push(buildTableCell('Value', formatCurrency(rung.capital, 4), ['text-right', 'whitespace-nowrap']));
-                    if (showFeeColumns) {
-                        const feeCellValue = plan.feeSettings.type === 'percent'
-                            ? formatCurrency(rung.fee)
-                            : formatPercent(rung.capital > 0 ? (rung.fee / rung.capital) * 100 : 0);
-                        cellMarkup.push(buildTableCell(feeHeaderLabel, feeCellValue, ['text-right', 'whitespace-nowrap']));
-                    }
-                    cellMarkup.push(buildTableCell('Avg Buy Price', formatCurrency(rung.progressiveAvgPrice, 4), ['text-right', 'whitespace-nowrap']));
-                    const executedClass = Number.isFinite(highestExecuted) && highestExecuted !== null && rung.rung <= highestExecuted
-                        ? ' executed-rung'
-                        : '';
-                    buyBody.innerHTML += `<tr class="${rowClass}${executedClass}">${cellMarkup.join('')}</tr>`;
+                    buyBody.innerHTML += buildTableRow(rung, {
+                        type: 'buy',
+                        showExecutionCheckboxes,
+                        showFeeColumns,
+                        feeHeaderLabel,
+                        feeSettings: plan.feeSettings,
+                        highestExecuted,
+                        index: i
+                    });
                 });
 
                 plan.sellLadder.forEach((rung, i) => {
-                    const rowClass = i % 2 === 0 ? 'table-row-even' : 'table-row-odd';
-                    const cellMarkup = [];
-                    cellMarkup.push(buildTableCell('Rung', `<span class="font-medium">${escapeForHtml(rung.rung)}</span>`, ['font-medium', 'text-center']));
-                    cellMarkup.push(buildTableCell('Price', formatCurrency(rung.price, 4), ['text-right', 'whitespace-nowrap']));
-                    cellMarkup.push(buildTableCell('Volume', formatNumber(rung.assetSize), ['text-right']));
-                    cellMarkup.push(buildTableCell('Allocation', formatPercent(rung.allocation), ['text-right']));
-                    cellMarkup.push(buildTableCell('Value', formatCurrency(rung.capital, 4), ['text-right', 'whitespace-nowrap']));
-                    if (showFeeColumns) {
-                        const feeCellValue = plan.feeSettings.type === 'percent'
-                            ? formatCurrency(rung.fee)
-                            : formatPercent(rung.capital > 0 ? (rung.fee / rung.capital) * 100 : 0);
-                        cellMarkup.push(buildTableCell(feeHeaderLabel, feeCellValue, ['text-right', 'whitespace-nowrap']));
-                    }
-                    cellMarkup.push(buildTableCell('Avg Sell Price', formatCurrency(rung.progressiveAvgSellPrice, 4), ['text-right', 'whitespace-nowrap']));
-                    cellMarkup.push(buildTableCell('Net Profit', formatCurrency(rung.netProfit, 4), ['text-right', 'whitespace-nowrap']));
-                    sellBody.innerHTML += `<tr class="${rowClass}">${cellMarkup.join('')}</tr>`;
+                    sellBody.innerHTML += buildTableRow(rung, {
+                        type: 'sell',
+                        showExecutionCheckboxes: false,
+                        showFeeColumns,
+                        feeHeaderLabel,
+                        feeSettings: plan.feeSettings,
+                        highestExecuted: null,
+                        index: i
+                    });
                 });
 
                 const buyRowCount = Array.isArray(plan.buyLadder) ? plan.buyLadder.length : 0;
@@ -4883,147 +5213,35 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 });
             }
             
-            function drawBuyChart(data, sharedMaxVolume) {
-                const container = d3.select("#visualization");
+            function drawChart(data, sharedMaxVolume, config) {
+                const { containerSelector, chartSelector, barClass, type, priceLabel, tooltipFormatter, eventCategory } = config;
+                
+                const container = d3.select(containerSelector);
                 if (container.node() === null) {
-                    trackEvent('chart', 'buy:container-missing', {}, 'warn');
+                    trackEvent('chart', `${eventCategory}:container-missing`, {}, 'warn');
                     return;
                 }
 
-                d3.select("#allocation-chart").selectAll("*").remove();
+                d3.select(chartSelector).selectAll("*").remove();
                 if (!data || data.length === 0) {
-                    trackEvent('chart', 'buy:empty', {
+                    trackEvent('chart', `${eventCategory}:empty`, {
                         sharedMaxVolume: safeNumericSummary(sharedMaxVolume, 4)
                     }, 'warn');
                     return;
                 }
 
-                const margin = { top: 20, right: 80, bottom: 70, left: 80 }; // Balanced margins for symmetry
+                const margin = { top: 20, right: 80, bottom: 70, left: 80 };
                 let width;
                 try {
                     width = container.node().getBoundingClientRect().width - margin.left - margin.right;
                 } catch (e) {
                     console.error("Could not get container width:", e);
-                    width = 500 - margin.left - margin.right; // Fallback width
+                    width = 500 - margin.left - margin.right;
                 }
-                width = Math.max(width, 100); // Ensure width is positive
+                width = Math.max(width, 100);
                 const height = 300 - margin.top - margin.bottom;
 
-                const svg = d3.select("#allocation-chart")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-                const sortedData = [...data].sort((a, b) => a.price - b.price);
-
-                const x = d3.scaleBand()
-                    .range([0, width])
-                    .domain(sortedData.map(d => d.price)) // X-axis is now price
-                    .padding(0.2);
-
-                const axisTextColor = getCssVariable('--color-chart-axis-text', '#2f3b58');
-
-                svg.append("g")
-                    .attr("transform", `translate(0,${height})`)
-                    .call(d3.axisBottom(x).tickFormat(d => formatCurrency(parseFloat(d))))
-                    .selectAll("text")
-                        .style("text-anchor", "end")
-                        .attr("dx", "-.8em")
-                        .attr("dy", ".15em")
-                        .attr("transform", "rotate(-45)"); // Rotate labels
-                
-                svg.append("text")
-                    .attr("text-anchor", "middle")
-                    .attr("x", width / 2)
-                    .attr("y", height + margin.bottom - 10) // Adjusted y
-                    .text("Buy Price")
-                    .style("fill", axisTextColor)
-                    .style("font-size", "12px");
-
-                const localMax = d3.max(data, d => d.assetSize);
-                const yMax = sharedMaxVolume && sharedMaxVolume > 0 ? sharedMaxVolume : (localMax > 0 ? localMax : 1);
-                const y = d3.scaleLinear()
-                    .domain([0, yMax > 0 ? yMax : 1]) 
-                    .range([height, 0]);
-
-                svg.append("g")
-                    .attr("transform", `translate(${width},0)`)
-                    .call(d3.axisRight(y).ticks(5).tickFormat(d => formatNumber(d, 2)));
-
-                svg.append("text")
-                    .attr("text-anchor", "middle")
-                    .attr("transform", `translate(${width + 40}, ${height / 2}) rotate(90)`)
-                    .text("Vol")
-                    .style("fill", axisTextColor)
-                    .style("font-size", "12px");
-
-                const tooltip = d3.select("#tooltip");
-
-                svg.selectAll(".buy-bar")
-                    .data(sortedData)
-                    .enter()
-                    .append("rect")
-                    .attr("class", "buy-bar")
-                    .attr("x", d => x(d.price)) // Use price for x
-                    .attr("width", x.bandwidth())
-                    .attr("y", d => y(0))
-                    .attr("height", d => height - y(0))
-                    .on("mouseover", function(event, d) {
-                        tooltip.style("opacity", 1);
-                        d3.select(this).style("opacity", 0.7);
-                    })
-                    .on("mousemove", function(event, d) {
-                        tooltip.html(`Rung ${d.rung}<br>Price: ${formatCurrency(d.price)}<br>Vol: ${formatNumber(d.assetSize, 4)}<br>Value (incl. fee): ${formatCurrency(d.capital)}<br>Alloc: ${formatPercent(d.allocation)}`)
-                            .style("left", (event.pageX + 15) + "px")
-                            .style("top", (event.pageY - 28) + "px");
-                    })
-                    .on("mouseout", function(d) {
-                        tooltip.style("opacity", 0);
-                        d3.select(this).style("opacity", 1);
-                    });
-
-                svg.selectAll("rect.buy-bar")
-                    .transition()
-                    .duration(800)
-                    .attr("y", d => y(d.assetSize))
-                    .attr("height", d => height - y(d.assetSize))
-                    .delay((d, i) => i * 20);
-                trackEvent('chart', 'buy:rendered', {
-                    bars: Array.isArray(sortedData) ? sortedData.length : 0,
-                    width,
-                    height,
-                    sharedMaxVolume: safeNumericSummary(sharedMaxVolume, 4)
-                });
-            }
-
-            function drawSellChart(data, sharedMaxVolume) {
-                const container = d3.select("#sell-visualization");
-                if (container.node() === null) {
-                    trackEvent('chart', 'sell:container-missing', {}, 'warn');
-                    return;
-                }
-
-                d3.select("#sell-allocation-chart").selectAll("*").remove();
-                if (!data || data.length === 0) {
-                    trackEvent('chart', 'sell:empty', {
-                        sharedMaxVolume: safeNumericSummary(sharedMaxVolume, 4)
-                    }, 'warn');
-                    return;
-                }
-
-                const margin = { top: 20, right: 80, bottom: 70, left: 80 }; // Balanced margins for symmetry
-                let width;
-                try {
-                     width = container.node().getBoundingClientRect().width - margin.left - margin.right;
-                } catch (e) {
-                    console.error("Could not get container width:", e);
-                    width = 500 - margin.left - margin.right; // Fallback width
-                }
-                width = Math.max(width, 100); // Ensure width is positive
-                const height = 300 - margin.top - margin.bottom;
-
-                const svg = d3.select("#sell-allocation-chart")
+                const svg = d3.select(chartSelector)
                     .attr("width", width + margin.left + margin.right)
                     .attr("height", height + margin.top + margin.bottom)
                     .append("g")
@@ -5045,13 +5263,13 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         .style("text-anchor", "end")
                         .attr("dx", "-.8em")
                         .attr("dy", ".15em")
-                        .attr("transform", "rotate(-45)"); // Rotate labels
+                        .attr("transform", "rotate(-45)");
                 
                 svg.append("text")
                     .attr("text-anchor", "middle")
                     .attr("x", width / 2)
-                    .attr("y", height + margin.bottom - 10) // Adjusted y
-                    .text("Sell Price")
+                    .attr("y", height + margin.bottom - 10)
+                    .text(priceLabel)
                     .style("fill", axisTextColor)
                     .style("font-size", "12px");
 
@@ -5061,26 +5279,34 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     .domain([0, yMax > 0 ? yMax : 1]) 
                     .range([height, 0]);
 
+                const isBuy = type === 'buy';
+                const axisPosition = isBuy ? `translate(${width},0)` : '';
+                const axisType = isBuy ? d3.axisRight : d3.axisLeft;
                 svg.append("g")
-                    .call(d3.axisLeft(y).ticks(5).tickFormat(d => formatNumber(d, 2)));
+                    .attr("transform", axisPosition)
+                    .call(axisType(y).ticks(5).tickFormat(d => formatNumber(d, 2)));
 
+                const yLabelX = isBuy ? width + 40 : -margin.left + 20;
+                const yLabelY = isBuy ? height / 2 : -height / 2 + 20;
+                const yLabelTransform = isBuy ? `translate(${yLabelX}, ${yLabelY}) rotate(90)` : "rotate(-90)";
+                const yLabelAnchor = isBuy ? "middle" : "end";
                 svg.append("text")
-                    .attr("text-anchor", "end")
-                    .attr("transform", "rotate(-90)")
-                    .attr("y", -margin.left + 20)
-                    .attr("x", -height / 2 + 20)
+                    .attr("text-anchor", yLabelAnchor)
+                    .attr("transform", yLabelTransform)
+                    .attr("y", isBuy ? 0 : -margin.left + 20)
+                    .attr("x", isBuy ? 0 : -height / 2 + 20)
                     .text("Vol")
                     .style("fill", axisTextColor)
                     .style("font-size", "12px");
 
                 const tooltip = d3.select("#tooltip");
 
-                svg.selectAll(".sell-bar")
+                svg.selectAll(`.${barClass}`)
                     .data(sortedData)
                     .enter()
                     .append("rect")
-                    .attr("class", "sell-bar")
-                    .attr("x", d => x(d.price)) // Use price for x
+                    .attr("class", barClass)
+                    .attr("x", d => x(d.price))
                     .attr("width", x.bandwidth())
                     .attr("y", d => y(0))
                     .attr("height", d => height - y(0))
@@ -5089,7 +5315,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         d3.select(this).style("opacity", 0.7);
                     })
                     .on("mousemove", function(event, d) {
-                        tooltip.html(`Rung ${d.rung}<br>Price: ${formatCurrency(d.price)}<br>Vol: ${formatNumber(d.assetSize, 4)}<br>Gross Value: ${formatCurrency(d.capital)}<br>Net Revenue: ${formatCurrency(d.netRevenue)}<br>Net Profit: ${formatCurrency(d.netProfit)}<br>Alloc: ${formatPercent(d.allocation)}`)
+                        tooltip.html(tooltipFormatter(d))
                             .style("left", (event.pageX + 15) + "px")
                             .style("top", (event.pageY - 28) + "px");
                     })
@@ -5098,17 +5324,41 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         d3.select(this).style("opacity", 1);
                     });
 
-                svg.selectAll("rect.sell-bar")
+                svg.selectAll(`rect.${barClass}`)
                     .transition()
                     .duration(800)
                     .attr("y", d => y(d.assetSize))
                     .attr("height", d => height - y(d.assetSize))
                     .delay((d, i) => i * 20);
-                trackEvent('chart', 'sell:rendered', {
+                trackEvent('chart', `${eventCategory}:rendered`, {
                     bars: Array.isArray(sortedData) ? sortedData.length : 0,
                     width,
                     height,
                     sharedMaxVolume: safeNumericSummary(sharedMaxVolume, 4)
+                });
+            }
+
+            function drawBuyChart(data, sharedMaxVolume) {
+                drawChart(data, sharedMaxVolume, {
+                    containerSelector: "#visualization",
+                    chartSelector: "#allocation-chart",
+                    barClass: "buy-bar",
+                    type: "buy",
+                    priceLabel: "Buy Price",
+                    tooltipFormatter: (d) => `Rung ${d.rung}<br>Price: ${formatCurrency(d.price)}<br>Vol: ${formatNumber(d.assetSize, 4)}<br>Value (incl. fee): ${formatCurrency(d.capital)}<br>Alloc: ${formatPercent(d.allocation)}`,
+                    eventCategory: "buy"
+                });
+            }
+
+            function drawSellChart(data, sharedMaxVolume) {
+                drawChart(data, sharedMaxVolume, {
+                    containerSelector: "#sell-visualization",
+                    chartSelector: "#sell-allocation-chart",
+                    barClass: "sell-bar",
+                    type: "sell",
+                    priceLabel: "Sell Price",
+                    tooltipFormatter: (d) => `Rung ${d.rung}<br>Price: ${formatCurrency(d.price)}<br>Vol: ${formatNumber(d.assetSize, 4)}<br>Gross Value: ${formatCurrency(d.capital)}<br>Net Revenue: ${formatCurrency(d.netRevenue)}<br>Net Profit: ${formatCurrency(d.netProfit)}<br>Alloc: ${formatPercent(d.allocation)}`,
+                    eventCategory: "sell"
                 });
             }
 
@@ -5263,6 +5513,27 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 }
             };
 
+            let exportFeedbackTimer = null;
+            let exportAutoCloseTimer = null;
+
+            const clearExportFeedback = () => {
+                if (exportFeedbackTimer) {
+                    clearTimeout(exportFeedbackTimer);
+                    exportFeedbackTimer = null;
+                }
+                if (exportAutoCloseTimer) {
+                    clearTimeout(exportAutoCloseTimer);
+                    exportAutoCloseTimer = null;
+                }
+                if (!exportSheetFeedback) {
+                    return;
+                }
+                exportSheetFeedback.textContent = '';
+                exportSheetFeedback.classList.add('hidden');
+                exportSheetFeedback.classList.remove('success', 'error');
+                exportSheetFeedback.removeAttribute('role');
+            };
+
             const focusFirstExportElement = () => {
                 if (!exportSheet) {
                     return;
@@ -5276,6 +5547,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 if (!exportSheet || !exportSheetOverlay) {
                     return;
                 }
+                clearExportFeedback();
                 exportSheetLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
                 exportScrollRestore = document.body.style.overflow;
                 document.body.style.overflow = 'hidden';
@@ -5295,6 +5567,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 if (!exportSheet || !exportSheetOverlay) {
                     return;
                 }
+                clearExportFeedback();
                 exportSheet.classList.remove('is-visible');
                 exportSheetOverlay.classList.remove('is-visible');
                 const finalize = () => {
@@ -5310,6 +5583,34 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     exportSheetLastFocus.focus({ preventScroll: true });
                 }
                 exportSheetLastFocus = null;
+            };
+
+            const announceExportResult = (message, variant = 'success', { autoCloseDelay } = {}) => {
+                if (!exportSheetFeedback) {
+                    return;
+                }
+                exportSheetFeedback.textContent = message;
+                exportSheetFeedback.classList.remove('hidden', 'success', 'error');
+                exportSheetFeedback.classList.add(variant === 'error' ? 'error' : 'success');
+                if (variant === 'error') {
+                    exportSheetFeedback.setAttribute('role', 'alert');
+                } else {
+                    exportSheetFeedback.removeAttribute('role');
+                }
+                if (exportFeedbackTimer) {
+                    clearTimeout(exportFeedbackTimer);
+                }
+                exportFeedbackTimer = window.setTimeout(() => {
+                    exportSheetFeedback.classList.add('hidden');
+                }, 4000);
+                if (autoCloseDelay) {
+                    if (exportAutoCloseTimer) {
+                        clearTimeout(exportAutoCloseTimer);
+                    }
+                    exportAutoCloseTimer = window.setTimeout(() => {
+                        closeExportSheet();
+                    }, autoCloseDelay);
+                }
             };
 
             const handleExportSheetKeyDown = (event) => {
@@ -5601,12 +5902,16 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 });
             }
 
+            const EXPORT_AUTO_CLOSE_DELAY_MS = 1400;
+
             const handleCsvDownload = () => {
+                clearExportFeedback();
                 const plan = ensurePlanAvailable();
                 if (!plan) {
                     trackEvent('export', 'csv:aborted', {
                         reason: 'missing-plan'
                     }, 'warn');
+                    announceExportResult('Create or load a plan before exporting.', 'error');
                     return;
                 }
                 const settings = collectExportSettings();
@@ -5619,32 +5924,40 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 });
                 setExportLoading(true, 'Preparing CSV…');
                 try {
-                const csvContent = buildCsvContent(plan, settings);
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.csv`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                trackEvent('export', 'csv:completed', {
-                    bytes: csvContent.length,
-                    settings
-                });
-                    closeExportSheet();
+                    const csvContent = buildCsvContent(plan, settings);
+                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    trackEvent('export', 'csv:completed', {
+                        bytes: csvContent.length,
+                        settings
+                    });
+                    announceExportResult('CSV download started.', 'success', { autoCloseDelay: EXPORT_AUTO_CLOSE_DELAY_MS });
+                } catch (error) {
+                    console.error('CSV export failed', error);
+                    trackEvent('export', 'csv:error', {
+                        message: error?.message || 'unknown'
+                    }, 'error');
+                    announceExportResult('Unable to create CSV. Please try again.', 'error');
                 } finally {
                     setExportLoading(false);
                 }
             };
 
             const handleXlsDownload = () => {
+                clearExportFeedback();
                 const plan = ensurePlanAvailable();
                 if (!plan) {
                     trackEvent('export', 'xls:aborted', {
                         reason: 'missing-plan'
                     }, 'warn');
+                    announceExportResult('Create or load a plan before exporting.', 'error');
                     return;
                 }
                 const settings = collectExportSettings();
@@ -5657,32 +5970,40 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 });
                 setExportLoading(true, 'Preparing XLS…');
                 try {
-                const workbook = buildXlsContent(plan, settings);
-                const blob = new Blob([workbook], { type: 'application/vnd.ms-excel' });
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.xls`);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                trackEvent('export', 'xls:completed', {
-                    bytes: workbook.byteLength || workbook.length || 0,
-                    settings
-                });
-                    closeExportSheet();
+                    const workbook = buildXlsContent(plan, settings);
+                    const blob = new Blob([workbook], { type: 'application/vnd.ms-excel' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', `order_skew_plan_${new Date().toISOString().slice(0, 10)}.xls`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    trackEvent('export', 'xls:completed', {
+                        bytes: workbook.byteLength || workbook.length || 0,
+                        settings
+                    });
+                    announceExportResult('XLS download started.', 'success', { autoCloseDelay: EXPORT_AUTO_CLOSE_DELAY_MS });
+                } catch (error) {
+                    console.error('XLS export failed', error);
+                    trackEvent('export', 'xls:error', {
+                        message: error?.message || 'unknown'
+                    }, 'error');
+                    announceExportResult('Unable to create XLS file. Please try again.', 'error');
                 } finally {
                     setExportLoading(false);
                 }
             };
 
             const handlePdfDownload = async () => {
+                clearExportFeedback();
                 const plan = ensurePlanAvailable();
                 if (!plan) {
                     trackEvent('export', 'pdf:aborted', {
                         reason: 'missing-plan'
                     }, 'warn');
+                    announceExportResult('Create or load a plan before exporting.', 'error');
                     return;
                 }
                 const settings = collectExportSettings();
@@ -5719,10 +6040,13 @@ caption { font-weight: 600; margin-bottom: 6px; }
                             netProfit: safeNumericSummary(plan.summary.netProfit, 2)
                         } : {}
                     });
-                    closeExportSheet();
+                    announceExportResult('PDF download started.', 'success', { autoCloseDelay: EXPORT_AUTO_CLOSE_DELAY_MS });
                 } catch (error) {
                     console.error('PDF export failed', error);
-                    alert('Unable to generate PDF at the moment. Please try again.');
+                    trackEvent('export', 'pdf:error', {
+                        message: error?.message || 'unknown'
+                    }, 'error');
+                    announceExportResult('Unable to create PDF. Please try again.', 'error');
                 } finally {
                     setExportLoading(false);
                 }
@@ -5937,69 +6261,30 @@ caption { font-weight: 600; margin-bottom: 6px; }
             initializeSliderControls();
             loadFormValues();
 
-            // Set up form value persistence - save values when they change
-            const startingCapitalInput = document.getElementById('starting_capital');
-            const currentPriceInput = document.getElementById('current_price');
+            // Unified form persistence handler
+            const startingCapitalInputPersist = document.getElementById('starting_capital');
+            const currentPriceInputPersist = document.getElementById('current_price');
+            const formPersistenceConfig = [
+                { element: startingCapitalInputPersist, key: STORAGE_KEYS.startingCapital, event: 'input', getValue: (el) => el.value },
+                { element: currentPriceInputPersist, key: STORAGE_KEYS.currentPrice, event: 'input', getValue: (el) => el.value },
+                { element: advancedToggle, key: STORAGE_KEYS.advancedMode, event: 'change', getValue: (el) => el.checked },
+                { element: sellOnlyCheckbox, key: STORAGE_KEYS.sellOnlyMode, event: 'change', getValue: (el) => el.checked },
+                { element: equalQuantityCheckbox, key: STORAGE_KEYS.equalQuantityMode, event: 'change', getValue: (el) => el.checked },
+                { element: feeTypeSelect, key: STORAGE_KEYS.feeType, event: 'change', getValue: (el) => el.value },
+                { element: feeSettlementSelect, key: STORAGE_KEYS.feeSettlement, event: 'change', getValue: (el) => el.value },
+                { element: spacingModeSelect, key: STORAGE_KEYS.spacingMode, event: 'change', getValue: (el) => el.value },
+                { element: feeValueInput, key: STORAGE_KEYS.feeValue, event: 'input', getValue: (el) => el.value },
+                { element: existingQuantityInput, key: STORAGE_KEYS.existingQuantity, event: 'input', getValue: (el) => el.value },
+                { element: existingAvgPriceInput, key: STORAGE_KEYS.existingAvgPrice, event: 'input', getValue: (el) => el.value }
+            ];
             
-            if (startingCapitalInput) {
-                startingCapitalInput.addEventListener('input', () => {
-                    saveFormValue(STORAGE_KEYS.startingCapital, startingCapitalInput.value);
-                });
-            }
-            if (currentPriceInput) {
-                currentPriceInput.addEventListener('input', () => {
-                    saveFormValue(STORAGE_KEYS.currentPrice, currentPriceInput.value);
-                });
-            }
-            if (advancedToggle) {
-                // Save when changed (in addition to existing change handler)
-                const originalAdvancedHandler = advancedToggle.onchange;
-                advancedToggle.addEventListener('change', () => {
-                    saveFormValue(STORAGE_KEYS.advancedMode, advancedToggle.checked);
-                });
-            }
-            if (sellOnlyCheckbox) {
-                // Save when changed (in addition to existing change handler)
-                sellOnlyCheckbox.addEventListener('change', () => {
-                    saveFormValue(STORAGE_KEYS.sellOnlyMode, sellOnlyCheckbox.checked);
-                });
-            }
-            if (equalQuantityCheckbox) {
-                // Save when changed (in addition to existing change handler)
-                equalQuantityCheckbox.addEventListener('change', () => {
-                    saveFormValue(STORAGE_KEYS.equalQuantityMode, equalQuantityCheckbox.checked);
-                });
-            }
-            if (feeTypeSelect) {
-                feeTypeSelect.addEventListener('change', () => {
-                    saveFormValue(STORAGE_KEYS.feeType, feeTypeSelect.value);
-                });
-            }
-            if (feeSettlementSelect) {
-                feeSettlementSelect.addEventListener('change', () => {
-                    saveFormValue(STORAGE_KEYS.feeSettlement, feeSettlementSelect.value);
-                });
-            }
-            if (spacingModeSelect) {
-                spacingModeSelect.addEventListener('change', () => {
-                    saveFormValue(STORAGE_KEYS.spacingMode, spacingModeSelect.value);
-                });
-            }
-            if (feeValueInput) {
-                feeValueInput.addEventListener('input', () => {
-                    saveFormValue(STORAGE_KEYS.feeValue, feeValueInput.value);
-                });
-            }
-            if (existingQuantityInput) {
-                existingQuantityInput.addEventListener('input', () => {
-                    saveFormValue(STORAGE_KEYS.existingQuantity, existingQuantityInput.value);
-                });
-            }
-            if (existingAvgPriceInput) {
-                existingAvgPriceInput.addEventListener('input', () => {
-                    saveFormValue(STORAGE_KEYS.existingAvgPrice, existingAvgPriceInput.value);
-                });
-            }
+            formPersistenceConfig.forEach(({ element, key, event, getValue }) => {
+                if (element) {
+                    element.addEventListener(event, () => {
+                        saveFormValue(key, getValue(element));
+                    });
+                }
+            });
 
             // Initial calculation on page load (after loading saved values)
             calculatePlan();
@@ -6076,37 +6361,17 @@ caption { font-weight: 600; margin-bottom: 6px; }
             // Copy address button functionality
             if (donationAddressCopyBtn) {
                 donationAddressCopyBtn.addEventListener('click', async () => {
-                    try {
-                        await navigator.clipboard.writeText(SOL_ADDRESS);
+                    const originalLabel = donationAddressCopyBtn.getAttribute('aria-label') || 'Copy Solana address';
+                    await copyToClipboard(SOL_ADDRESS, () => {
                         donationAddressCopyBtn.classList.add('copied');
                         donationAddressCopyBtn.setAttribute('aria-label', 'Address copied!');
-                        
                         setTimeout(() => {
                             donationAddressCopyBtn.classList.remove('copied');
-                            donationAddressCopyBtn.setAttribute('aria-label', 'Copy Solana address');
+                            donationAddressCopyBtn.setAttribute('aria-label', originalLabel);
                         }, 2000);
-                    } catch (err) {
-                        // Fallback for older browsers
-                        const textArea = document.createElement('textarea');
-                        textArea.value = SOL_ADDRESS;
-                        textArea.style.position = 'fixed';
-                        textArea.style.opacity = '0';
-                        document.body.appendChild(textArea);
-                        textArea.select();
-                        try {
-                            document.execCommand('copy');
-                            donationAddressCopyBtn.classList.add('copied');
-                            donationAddressCopyBtn.setAttribute('aria-label', 'Address copied!');
-                            
-                            setTimeout(() => {
-                                donationAddressCopyBtn.classList.remove('copied');
-                                donationAddressCopyBtn.setAttribute('aria-label', 'Copy Solana address');
-                            }, 2000);
-                        } catch (fallbackErr) {
-                            console.warn('Failed to copy address:', fallbackErr);
-                        }
-                        document.body.removeChild(textArea);
-                    }
+                    }, (err) => {
+                        console.warn('Failed to copy address:', err);
+                    });
                 });
             }
             
