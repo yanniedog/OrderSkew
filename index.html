@@ -9,7 +9,553 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>:root{--color-bg:#cde7ec;--color-card:#edfcff;--color-card-alt:#dbf6fa;--color-card-muted:#f8fafa;--color-text:#273f43;--color-text-secondary:#2f3b58;--color-text-muted:#48616b;--color-border:#dbf6fa;--color-border-strong:#bac6ea;--color-primary:#00424a;--color-primary-accent:#005f6b;--color-primary-contrast:#edfcff;--color-secondary:#006b5e;--color-secondary-hover:#008a7b;--color-tooltip-bg:#00424a;--color-tooltip-text:#edfcff;--color-table-row-even:#f8fafa;--color-table-row-odd:#edfcff;--color-summary-bg:#dbf6fa;--color-summary-border:#00424a;--color-executed-bg:#cde9d6;--color-invalid:#b91c1c;--color-helper-border:#2f3b58;--color-slider-track:#bac6ea;--color-slider-thumb:#00424a;--color-grid-line:rgba(186,198,234,0.7);--color-chart-axis-text:#2f3b58;--color-buy-bar:#2f3b58;--color-buy-bar-hover:#00424a;--color-sell-bar:#006b5e;--color-sell-bar-hover:#008a7b;--color-control-bg:rgba(237,252,255,0.75);--color-control-text:#2f3b58;--color-control-border:#bac6ea;--color-control-active:#00424a;--color-control-active-text:#edfcff;--color-control-shadow:0 6px 16px -8px rgba(15,23,42,0.18);--focus-ring-color:rgba(0,66,74,0.2);--shadow-base:0 10px 15px -3px rgba(15,23,42,0.08),0 4px 6px -2px rgba(15,23,42,0.06)}body.theme-dark{--color-bg:#0f172a;--color-card:#1e293b;--color-card-alt:rgba(30,41,59,0.78);--color-card-muted:rgba(15,23,42,0.85);--color-text:#e2e8f0;--color-text-secondary:#cbd5f5;--color-text-muted:#94a3b8;--color-border:#334155;--color-border-strong:#475569;--color-primary:#38bdf8;--color-primary-accent:#0ea5e9;--color-primary-contrast:#0f172a;--color-secondary:#22d3ee;--color-secondary-hover:#06b6d4;--color-tooltip-bg:#0ea5e9;--color-tooltip-text:#0f172a;--color-table-row-even:rgba(30,41,59,0.6);--color-table-row-odd:rgba(15,23,42,0.7);--color-summary-bg:rgba(29,78,216,0.78);--color-summary-border:#38bdf8;--color-executed-bg:rgba(34,197,94,0.25);--color-invalid:#f87171;--color-helper-border:#38bdf8;--color-slider-track:#1e40af;--color-slider-thumb:#38bdf8;--color-grid-line:rgba(148,163,184,0.5);--color-chart-axis-text:#e2e8f0;--color-buy-bar:#38bdf8;--color-buy-bar-hover:#0ea5e9;--color-sell-bar:#22d3ee;--color-sell-bar-hover:#06b6d4;--color-control-bg:rgba(15,23,42,0.82);--color-control-text:#cbd5f5;--color-control-border:#1e3a8a;--color-control-active:#38bdf8;--color-control-active-text:#0f172a;--color-control-shadow:0 10px 24px -12px rgba(2,6,23,0.65);--focus-ring-color:rgba(56,189,248,0.35);--shadow-base:0 18px 28px -12px rgba(2,6,23,0.65),0 10px 16px -8px rgba(2,6,23,0.55)}body{font-family:'Inter',sans-serif;background-color:var(--color-bg);color:var(--color-text);transition:background-color .3s ease,color .3s ease}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}.text-primary-dark{color:var(--color-text)}.text-secondary-dark{color:var(--color-text-secondary)}.text-tertiary-dark{color:var(--color-text-muted)}.form-input,select.form-input{background-color:var(--color-card-muted);border:1px solid var(--color-border);color:var(--color-text);transition:all .3s ease}.form-input:focus,select.form-input:focus{outline:0;border-color:var(--color-primary);box-shadow:0 0 0 3px var(--focus-ring-color)}.btn-primary{background-color:var(--color-primary);color:var(--color-primary-contrast);transition:background-color .3s ease,color .3s ease}.btn-primary:hover{background-color:var(--color-primary-accent)}.btn-secondary{background-color:var(--color-secondary);color:var(--color-primary-contrast);transition:background-color .3s ease}.btn-secondary:hover{background-color:var(--color-secondary-hover)}.card{background-color:var(--color-card);border-radius:1rem;box-shadow:var(--shadow-base);transition:background-color .3s ease,box-shadow .3s ease}.summary-card{background-color:var(--color-summary-bg);border-left:4px solid var(--color-summary-border)}.surface-muted{background-color:var(--color-card-muted)}.surface-accent{background-color:var(--color-card-alt)}.border-soft{border-color:var(--color-border)}.border-strong{border-color:var(--color-border-strong)}.border-accent{border-color:var(--color-summary-border)}.table-header{background-color:var(--color-card-alt)}body.layout-desktop .table-row-odd td{background-color:var(--color-table-row-odd)}body.layout-desktop .table-row-even td{background-color:var(--color-table-row-even)}.executed-rung td{background-color:var(--color-executed-bg);font-weight:600}.label-invalid{color:var(--color-invalid) !important}.input-invalid{border-color:var(--color-invalid) !important;box-shadow:0 0 0 3px rgba(185,28,28,0.18)}.label-with-info{display:flex;align-items:center;gap:.5rem}.label-with-info .info-button{margin-left:auto}.info-button{background-color:transparent;border:1px solid var(--color-invalid);color:var(--color-invalid);border-radius:9999px;width:18px;height:18px;font-size:.75rem;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .2s ease,color .2s ease}.info-button:hover,.info-button:focus-visible{background-color:rgba(185,28,28,0.12)}.helper-tooltip{background-color:transparent;border:1px solid var(--color-helper-border);color:var(--color-helper-border);border-radius:9999px;width:18px;height:18px;font-size:.75rem;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .2s ease,color .2s ease}.helper-tooltip:hover,.helper-tooltip:focus-visible{background-color:rgba(47,59,88,0.12)}input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:8px;background:var(--color-slider-track);border-radius:5px;outline:0;opacity:.7;transition:opacity .2s}input[type=range]:hover{opacity:1}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:var(--color-slider-thumb);cursor:pointer;border-radius:50%;border:2px solid var(--color-primary-contrast)}input[type=range]::-moz-range-thumb{width:20px;height:20px;background:var(--color-slider-thumb);cursor:pointer;border-radius:50%;border:2px solid var(--color-primary-contrast)}.d3-chart .domain{stroke:var(--color-chart-axis-text)}.d3-chart .tick line{stroke:var(--color-grid-line)}.d3-chart .tick text{fill:var(--color-chart-axis-text);font-size:11px}.d3-chart .grid line{stroke:var(--color-grid-line);stroke-opacity:.6;shape-rendering:crispEdges}.d3-chart .buy-bar{fill:var(--color-buy-bar);transition:all .3s ease-out}.d3-chart .buy-bar:hover{fill:var(--color-buy-bar-hover)}.d3-chart .sell-bar{fill:var(--color-sell-bar);transition:all .3s ease-out}.d3-chart .sell-bar:hover{fill:var(--color-sell-bar-hover)}.tooltip{position:absolute;text-align:center;padding:8px;font-size:12px;background:var(--color-tooltip-bg);color:var(--color-tooltip-text);border-radius:8px;pointer-events:none;opacity:0;transition:opacity .2s,transform .2s;box-shadow:0 10px 18px -12px rgba(15,23,42,0.45)}.brand-header{display:flex;flex-direction:column;gap:1.25rem;padding:1.5rem;border-radius:1.25rem;background:linear-gradient(145deg,rgba(237,252,255,0.85),rgba(219,246,250,0.65));border:1px solid rgba(186,198,234,0.45);box-shadow:0 20px 35px -18px rgba(15,23,42,0.35)}.brand-header-inner{display:flex;flex-direction:column;gap:.5rem}.brand-title{font-size:clamp(2.5rem,3.8vw,3.75rem);font-weight:800;line-height:1.05;letter-spacing:-.02em;background:linear-gradient(120deg,var(--color-primary) 0,var(--color-secondary) 45%,var(--color-primary-accent) 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 6px 14px rgba(0,66,74,0.18)}.brand-kicker{display:inline-flex;align-items:center;gap:.6rem;font-size:.75rem;text-transform:uppercase;letter-spacing:.16em;font-weight:600;color:var(--color-text-muted)}.brand-kicker::before{content:'';display:inline-block;width:32px;height:1px;background:var(--color-border-strong);opacity:.6}.brand-subtitle{font-size:clamp(1rem,1.8vw,1.35rem);color:var(--color-text-secondary);max-width:38rem}.header-controls{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}.header-controls-group{display:inline-flex;align-items:center;gap:.5rem}.header-export-section{margin-top:.5rem;padding-top:1rem;border-top:1px solid rgba(186,198,234,0.3)}.theme-toggle-group{display:inline-flex;align-items:center;gap:.35rem;padding:.25rem;border-radius:999px;border:1px solid rgba(186,198,234,0.6);background-color:rgba(237,252,255,0.6);box-shadow:var(--color-control-shadow)}.header-icons-group{display:inline-flex;align-items:center;gap:.25rem;padding:.25rem;border-radius:999px;opacity:.5;transition:opacity .2s ease}.header-icons-group:hover{opacity:.8}.header-icon-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;background:transparent;border:0;border-radius:4px;cursor:pointer;transition:transform .2s ease,opacity .2s ease;color:var(--color-text-muted);text-decoration:none}.header-icon-btn:hover{transform:scale(1.1);opacity:1;background:rgba(186,198,234,0.2)}.header-icon-btn:active{transform:scale(0.95)}.header-solana-icon{width:18px;height:14px}.header-github-icon{width:16px;height:16px}.theme-toggle-button{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:0;background:transparent;color:var(--color-control-text);cursor:pointer;transition:background-color .2s ease,color .2s ease,transform .2s ease}.theme-toggle-button svg{width:16px;height:16px}.theme-toggle-button.active{background-color:var(--color-control-active);color:var(--color-control-active-text);box-shadow:0 8px 14px -8px rgba(15,23,42,0.3)}.theme-toggle-button:focus-visible{outline:2px solid var(--color-control-active);outline-offset:2px}.display-footer{margin-top:3rem;padding:1.5rem 0 2rem;display:flex;flex-direction:column;align-items:center;gap:.75rem;color:var(--color-text-muted);font-size:.75rem}.donation-section{margin-top:.5rem;display:flex;flex-direction:column;align-items:center;gap:.75rem;position:relative}.donation-link{display:inline-flex;align-items:center;gap:.35rem;padding:.25rem .5rem;font-size:.7rem;color:var(--color-text-muted);opacity:.6;background:transparent;border:0;border-radius:4px;cursor:pointer;transition:opacity .2s ease,color .2s ease;text-decoration:none}.donation-link:hover{opacity:1;color:var(--color-text-secondary)}.donation-link:focus-visible{outline:1px solid var(--color-text-muted);outline-offset:2px;opacity:1}.donation-icon{width:12px;height:12px;flex-shrink:0}.donation-details{max-width:400px;margin-top:.5rem;padding:.75rem 1rem;background:var(--color-card-muted);border:1px solid var(--color-border);border-radius:6px;font-size:.7rem;animation:fadeIn .2s ease}@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}.donation-content{display:flex;flex-direction:column;gap:.5rem;text-align:center}.donation-text{color:var(--color-text-secondary);margin:0;line-height:1.4}.donation-address-container{display:flex;align-items:center;gap:.5rem;padding:.5rem;background:var(--color-card);border:1px solid var(--color-border);border-radius:4px;font-family:'Courier New',monospace;justify-content:space-between}.donation-address{flex:1;font-size:.65rem;color:var(--color-text);word-break:break-all;text-align:left;padding:.25rem 0;background:transparent;border:0}.donation-copy-btn{flex-shrink:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0;background:transparent;border:0;border-radius:3px;color:var(--color-text-muted);cursor:pointer;transition:background-color .2s ease,color .2s ease}.donation-copy-btn:hover{background:var(--color-border);color:var(--color-text)}.donation-copy-btn:active{transform:scale(0.95)}.donation-copy-btn svg{width:14px;height:14px}.donation-label{margin:0;font-size:.65rem;color:var(--color-text-muted);font-weight:500}.donation-copy-btn.copied{color:var(--color-secondary)}.donation-copy-btn.copied svg{display:none}.donation-copy-btn.copied::after{content:'✓';font-size:.75rem;font-weight:bold}.solana-logo-btn{flex-shrink:0;width:28px;height:28px;display:flex;align-items:center;justify-content:center;padding:0;background:transparent;border:0;border-radius:4px;cursor:pointer;transition:transform .2s ease,opacity .2s ease}.solana-logo-btn:hover{transform:scale(1.05);opacity:.9}.solana-logo-btn:active{transform:scale(0.95)}.solana-logo{width:20px;height:16px}.solana-logo-btn-footer{display:inline-flex;align-items:center;justify-content:center;padding:.5rem;background:transparent;border:0;border-radius:6px;cursor:pointer;transition:transform .2s ease,opacity .2s ease,background-color .2s ease;opacity:.7}.solana-logo-btn-footer:hover{transform:scale(1.1);opacity:1;background-color:rgba(153,69,255,0.1)}.solana-logo-btn-footer:active{transform:scale(1.05)}.solana-logo-footer{width:32px;height:25px}.qr-code-container{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:400px;width:90%;z-index:10000;animation:fadeIn .2s ease}.qr-code-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;animation:fadeIn .2s ease}.qr-code-content{position:relative;display:flex;flex-direction:column;align-items:center;gap:1rem;padding:2rem;background:var(--color-card);border:1px solid var(--color-border);border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.15),0 4px 12px rgba(0,0,0,0.1);backdrop-filter:blur(10px)}.qr-code-close-btn{position:absolute;top:1rem;right:1rem;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:0;background:rgba(186,198,234,0.2);border:0;border-radius:8px;color:var(--color-text-muted);cursor:pointer;transition:all .2s ease}.qr-code-close-btn:hover{background:rgba(186,198,234,0.4);color:var(--color-text);transform:scale(1.05)}.qr-code-close-btn:active{transform:scale(0.95)}.qr-code-close-btn svg{width:18px;height:18px}.donation-message{margin:0;font-size:.875rem;color:var(--color-text-secondary);text-align:center;font-weight:600;padding:.5rem 1rem;background:linear-gradient(135deg,rgba(153,69,255,0.1),rgba(20,241,149,0.1));border-radius:8px;width:100%}.qr-code-wrapper{display:flex;justify-content:center;align-items:center;padding:1rem;background:linear-gradient(135deg,#fff 0,#f8fafa 100%);border:2px solid var(--color-border);border-radius:12px;min-height:240px;width:100%;box-shadow:inset 0 2px 4px rgba(0,0,0,0.05)}.qr-code-wrapper canvas,.qr-code-wrapper img{max-width:100%;height:auto;display:block;border-radius:8px}.qr-code-image{width:220px;height:220px}.donation-address-display{display:flex;flex-direction:column;align-items:center;gap:.75rem;width:100%}.donation-network-label{margin:0;font-size:.7rem;color:var(--color-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:1px;padding:.25rem .75rem;background:rgba(153,69,255,0.1);border-radius:6px}.donation-address-row{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;background:var(--color-card-muted);border:1px solid var(--color-border);border-radius:8px;width:100%;max-width:340px;min-width:0;box-shadow:0 2px 4px rgba(0,0,0,0.05)}.donation-address-code{flex:1;padding:0;background:transparent;border:0;font-family:'Courier New',monospace;font-size:.7rem;color:var(--color-text);word-break:break-word;overflow-wrap:break-word;white-space:normal;overflow:visible;text-align:left;margin:0;line-height:1.5;min-width:0}.donation-address-copy-btn{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;padding:0;background:rgba(186,198,234,0.2);border:0;border-radius:6px;color:var(--color-text-muted);cursor:pointer;transition:all .2s ease}.donation-address-copy-btn:hover{background:rgba(186,198,234,0.4);color:var(--color-text);transform:scale(1.05)}.donation-address-copy-btn:active{transform:scale(0.95)}.donation-address-copy-btn svg{width:16px;height:16px}.donation-address-copy-btn.copied{background:var(--color-secondary);color:white}.donation-address-copy-btn.copied svg{display:none}.donation-address-copy-btn.copied::after{content:'✓';font-size:1rem;font-weight:bold}.github-link{text-decoration:none}.github-icon{width:14px;height:14px}.layout-toggle-group{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .35rem;border-radius:999px;border:1px dashed rgba(186,198,234,0.6);background-color:rgba(237,252,255,0.35)}.layout-toggle-button{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;border:0;background:transparent;color:var(--color-text-muted);cursor:pointer;transition:background-color .2s ease,color .2s ease,transform .2s ease}.layout-toggle-button svg{width:16px;height:16px}.layout-toggle-button.active{background-color:rgba(0,66,74,0.12);color:var(--color-primary)}.layout-toggle-button:focus-visible{outline:2px solid var(--color-control-active);outline-offset:2px}body.theme-dark .brand-header{background:linear-gradient(150deg,rgba(30,41,59,0.92),rgba(15,23,42,0.88));border-color:rgba(56,189,248,0.28);box-shadow:0 24px 50px -24px rgba(2,6,23,0.8)}body.theme-dark .brand-kicker::before{background:rgba(56,189,248,0.4)}body.theme-dark .brand-subtitle{color:var(--color-text-muted)}body.theme-dark .theme-toggle-group{background-color:rgba(15,23,42,0.75);border-color:rgba(56,189,248,0.35);box-shadow:0 10px 20px -14px rgba(2,6,23,0.7)}body.theme-dark .layout-toggle-group{background-color:rgba(15,23,42,0.65);border-color:rgba(56,189,248,0.35)}body.theme-dark .layout-toggle-button.active{background-color:rgba(56,189,248,0.18);color:var(--color-secondary)}@media(min-width:768px){.brand-header{flex-direction:row;align-items:flex-start;justify-content:space-between}.header-controls{align-self:flex-end}}.export-panel{background-color:var(--color-card);border:1px solid var(--color-border);border-radius:.75rem;padding:.75rem;box-shadow:0 12px 20px -14px rgba(15,23,42,0.3)}@media(min-width:640px){.export-panel{background-color:transparent;border-color:transparent;box-shadow:none;padding:0}}@media(min-width:768px){.display-control-panel{align-items:center}}@media(max-width:640px){.mobile-two-col{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.summary-mobile-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}body.layout-mobile{background-color:var(--color-bg)}body.layout-mobile header{text-align:left}body.layout-mobile .brand-title{font-size:clamp(2.1rem,6vw,2.65rem)}body.layout-mobile #app{max-width:100%}body.layout-mobile main{display:flex;flex-direction:column;gap:1.25rem}body.layout-mobile .card{padding:1.25rem}body.layout-mobile .summary-mobile-grid{grid-template-columns:1fr !important}body.layout-mobile .summary-card{text-align:left}body.layout-mobile .text-secondary-dark,body.layout-mobile .text-tertiary-dark{text-align:left}body.layout-mobile .overflow-x-auto{overflow-x:visible}body.layout-mobile table{border-collapse:separate;border-spacing:0}body.layout-mobile table thead{display:none}body.layout-mobile table tbody tr{display:flex;flex-direction:column;gap:.65rem;padding:.85rem;border:1px solid var(--color-border);border-radius:.85rem;background-color:var(--color-card);margin-bottom:.85rem}body.layout-mobile table tbody tr:last-child{margin-bottom:0}body.layout-mobile table tbody tr.executed-rung{background-color:var(--color-executed-bg)}body.layout-mobile table tbody tr td{display:flex;align-items:center;justify-content:space-between;gap:.75rem;border:0;background:transparent;padding:0;font-size:.95rem}body.layout-mobile table tbody tr td::before{content:attr(data-label);font-weight:600;color:var(--color-text-secondary)}body.layout-mobile table tbody tr td input[type="checkbox"]{margin-left:auto}body.layout-mobile .d3-chart svg{min-height:260px}details summary{list-style:none}details summary::-webkit-details-marker{display:none}.intro-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background-color:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;animation:fadeIn .3s ease-in-out}.intro-modal-overlay.hidden{display:none}.intro-modal-container{background-color:var(--color-card);border-radius:1rem;max-width:900px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3),0 10px 10px -5px rgba(0,0,0,0.2);animation:slideUp .3s ease-out}.intro-modal-content{padding:2rem;display:flex;flex-direction:column;gap:2rem}.intro-text-section{text-align:center}.intro-title{font-size:2rem;font-weight:700;color:var(--color-primary);margin-bottom:1rem}.intro-description{font-size:1.125rem;color:var(--color-text-secondary);line-height:1.6;margin-bottom:1.5rem;max-width:700px;margin-left:auto;margin-right:auto}.intro-features{text-align:left;max-width:600px;margin:0 auto}.intro-features-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:.75rem}.intro-features-list li{color:var(--color-text);font-size:.95rem;line-height:1.5;padding-left:1.5rem;position:relative}.intro-features-list li::before{content:"✓";position:absolute;left:0;color:var(--color-secondary);font-weight:bold}.intro-video-section{display:flex;flex-direction:column;gap:.75rem}.intro-video-container{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:.5rem;background-color:var(--color-bg)}.youtube-link-wrapper{position:absolute;top:0;left:0;width:100%;height:100%;text-decoration:none;display:block;cursor:pointer}.youtube-thumbnail{position:relative;width:100%;height:100%;overflow:hidden;border-radius:.5rem;background-color:var(--color-bg);transition:transform .2s ease}.youtube-link-wrapper:hover .youtube-thumbnail{transform:scale(1.02)}.youtube-thumbnail-image{width:100%;height:100%;object-fit:cover;display:block}.youtube-play-button{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:68px;height:48px;transition:transform .2s ease}.youtube-link-wrapper:hover .youtube-play-button{transform:translate(-50%,-50%) scale(1.1)}.youtube-overlay-text{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);padding:1.5rem 1rem 1rem;color:white;text-align:center}.youtube-overlay-title{font-size:1.125rem;font-weight:600;margin:0 0 .25rem 0}.youtube-overlay-subtitle{font-size:.875rem;opacity:.9;margin:0}.intro-video-caption{text-align:center;font-size:.875rem;color:var(--color-text-muted);font-style:italic}.intro-controls-section{display:flex;flex-direction:column;gap:1.5rem;align-items:center;padding-top:1rem;border-top:1px solid var(--color-border)}.intro-skip-checkbox{display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.875rem;color:var(--color-text-secondary);user-select:none}.intro-skip-checkbox input[type="checkbox"]{cursor:pointer}.intro-buttons{display:flex;gap:1rem;align-items:center}.intro-skip-link{background:0;border:0;color:var(--color-text-muted);font-size:.875rem;cursor:pointer;padding:.5rem 1rem;text-decoration:underline;transition:color .2s}.intro-skip-link:hover{color:var(--color-text-secondary)}.intro-primary-button{background-color:var(--color-primary);color:var(--color-primary-contrast);border:0;padding:.75rem 2rem;border-radius:.5rem;font-size:1rem;font-weight:600;cursor:pointer;transition:background-color .2s}.intro-primary-button:hover{background-color:var(--color-primary-accent)}.intro-primary-button:active{transform:scale(0.98)}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}@media(max-width:640px){.intro-modal-content{padding:1.5rem;gap:1.5rem}.intro-title{font-size:1.5rem}.intro-description{font-size:1rem}.intro-buttons{flex-direction:column;width:100%}.intro-primary-button,.intro-skip-link{width:100%;text-align:center}}body.intro-modal-open{overflow:hidden}.table-subtotal-cell{border-top:2px solid var(--color-border-strong);padding-top:.5rem}</style>
+    <style>
+        :root {
+            --color-bg: #cde7ec;
+            --color-card: #edfcff;
+            --color-card-alt: #dbf6fa;
+            --color-card-muted: #f8fafa;
+            --color-text: #273f43;
+            --color-text-secondary: #2f3b58;
+            --color-text-muted: #48616b;
+            --color-border: #dbf6fa;
+            --color-border-strong: #bac6ea;
+            --color-primary: #00424a;
+            --color-primary-accent: #005f6b;
+            --color-primary-contrast: #edfcff;
+            --color-secondary: #006b5e;
+            --color-secondary-hover: #008a7b;
+            --color-tooltip-bg: #00424a;
+            --color-tooltip-text: #edfcff;
+            --color-table-row-even: #f8fafa;
+            --color-table-row-odd: #edfcff;
+            --color-summary-bg: #dbf6fa;
+            --color-summary-border: #00424a;
+            --color-executed-bg: #cde9d6;
+            --color-invalid: #b91c1c;
+            --color-helper-border: #2f3b58;
+            --color-slider-track: #bac6ea;
+            --color-slider-thumb: #00424a;
+            --color-grid-line: rgba(186, 198, 234, 0.7);
+            --color-chart-axis-text: #2f3b58;
+            --color-buy-bar: #2f3b58;
+            --color-buy-bar-hover: #00424a;
+            --color-sell-bar: #006b5e;
+            --color-sell-bar-hover: #008a7b;
+            --color-control-bg: rgba(237, 252, 255, 0.75);
+            --color-control-text: #2f3b58;
+            --color-control-border: #bac6ea;
+            --color-control-active: #00424a;
+            --color-control-active-text: #edfcff;
+            --color-control-shadow: 0 6px 16px -8px rgba(15, 23, 42, 0.18);
+            --focus-ring-color: rgba(0, 66, 74, 0.2);
+            --shadow-base: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.06);
+        }
+
+        body.theme-dark {
+            --color-bg: #0f172a;
+            --color-card: #1e293b;
+            --color-card-alt: rgba(30, 41, 59, 0.78);
+            --color-card-muted: rgba(15, 23, 42, 0.85);
+            --color-text: #e2e8f0;
+            --color-text-secondary: #cbd5f5;
+            --color-text-muted: #94a3b8;
+            --color-border: #334155;
+            --color-border-strong: #475569;
+            --color-primary: #38bdf8;
+            --color-primary-accent: #0ea5e9;
+            --color-primary-contrast: #0f172a;
+            --color-secondary: #22d3ee;
+            --color-secondary-hover: #06b6d4;
+            --color-tooltip-bg: #0ea5e9;
+            --color-tooltip-text: #0f172a;
+            --color-table-row-even: rgba(30, 41, 59, 0.6);
+            --color-table-row-odd: rgba(15, 23, 42, 0.7);
+            --color-summary-bg: rgba(29, 78, 216, 0.78);
+            --color-summary-border: #38bdf8;
+            --color-executed-bg: rgba(34, 197, 94, 0.25);
+            --color-invalid: #f87171;
+            --color-helper-border: #38bdf8;
+            --color-slider-track: #1e40af;
+            --color-slider-thumb: #38bdf8;
+            --color-grid-line: rgba(148, 163, 184, 0.5);
+            --color-chart-axis-text: #e2e8f0;
+            --color-buy-bar: #38bdf8;
+            --color-buy-bar-hover: #0ea5e9;
+            --color-sell-bar: #22d3ee;
+            --color-sell-bar-hover: #06b6d4;
+            --color-control-bg: rgba(15, 23, 42, 0.82);
+            --color-control-text: #cbd5f5;
+            --color-control-border: #1e3a8a;
+            --color-control-active: #38bdf8;
+            --color-control-active-text: #0f172a;
+            --color-control-shadow: 0 10px 24px -12px rgba(2, 6, 23, 0.65);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .text-primary-dark {
+            color: var(--color-text);
+        }
+
+        .text-secondary-dark {
+            color: var(--color-text-secondary);
+        }
+
+        .text-tertiary-dark {
+            color: var(--color-text-muted);
+        }
+
+        .form-input,
+        select.form-input {
+            background-color: var(--color-card-muted);
+            border: 1px solid var(--color-border);
+            color: var(--color-text);
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus,
+        select.form-input:focus {
+            outline: 0;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--focus-ring-color);
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: var(--color-primary-contrast);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-primary-accent);
+        }
+
+        .btn-secondary {
+            background-color: var(--color-secondary);
+            color: var(--color-primary-contrast);
+            transition: background-color 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--color-secondary-hover);
+        }
+
+        .card {
+            background-color: var(--color-card);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-base);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .summary-card {
+            background-color: var(--color-summary-bg);
+            border-left: 4px solid var(--color-summary-border);
+        }
+
+        .surface-muted {
+            background-color: var(--color-card-muted);
+        }
+
+        .surface-accent {
+            background-color: var(--color-card-alt);
+        }
+
+        .border-soft {
+            border-color: var(--color-border);
+        }
+
+        .border-strong {
+            border-color: var(--color-border-strong);
+        }
+
+        .border-accent {
+            border-color: var(--color-summary-border);
+        }
+
+        .table-header {
+            background-color: var(--color-card-alt);
+        }
+
+        body.layout-desktop .table-row-odd td {
+            background-color: var(--color-table-row-odd);
+        }
+
+        body.layout-desktop .table-row-even td {
+            background-color: var(--color-table-row-even);
+        }
+
+        .executed-rung td {
+            background-color: var(--color-executed-bg);
+            font-weight: 600;
+        }
+
+        .label-invalid {
+            color: var(--color-invalid) !important;
+        }
+
+        .input-invalid {
+            border-color: var(--color-invalid) !important;
+            box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.18);
+        }
+
+        .label-with-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .label-with-info .info-button {
+            margin-left: auto;
+        }
+
+        .info-button {
+            background-color: transparent;
+            border: 1px solid var(--color-invalid);
+            color: var(--color-invalid);
+            border-radius: 9999px;
+            width: 18px;
+            height: 18px;
+            font-size: 0.75rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .info-button:hover,
+        .info-button:focus-visible {
+            background-color: rgba(185, 28, 28, 0.12);
+        }
+
+        .helper-tooltip {
+            background-color: transparent;
+            border: 1px solid var(--color-helper-border);
+            color: var(--color-helper-border);
+            border-radius: 9999px;
+            width: 18px;
+            height: 18px;
+            font-size: 0.75rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .helper-tooltip:hover,
+        .helper-tooltip:focus-visible {
+            background-color: rgba(47, 59, 88, 0.12);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: var(--color-slider-track);
+            border-radius: 5px;
+            outline: 0;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: var(--color-slider-thumb);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid var(--color-primary-contrast);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: var(--color-slider-thumb);
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid var(--color-primary-contrast);
+        }
+
+        .d3-chart .domain {
+            stroke: var(--color-chart-axis-text);
+        }
+
+        .d3-chart .tick line {
+            stroke: var(--color-grid-line);
+        }
+
+        .d3-chart .tick text {
+            fill: var(--color-chart-axis-text);
+            font-size: 11px;
+        }
+
+        .d3-chart .grid line {
+            stroke: var(--color-grid-line);
+            stroke-opacity: 0.6;
+            shape-rendering: crispEdges;
+        }
+
+        .d3-chart .buy-bar {
+            fill: var(--color-buy-bar);
+            transition: all 0.3s ease-out;
+        }
+
+        .d3-chart .buy-bar:hover {
+            fill: var(--color-buy-bar-hover);
+        }
+
+        .d3-chart .sell-bar {
+            fill: var(--color-sell-bar);
+            transition: all 0.3s ease-out;
+        }
+
+        .d3-chart .sell-bar:hover {
+            fill: var(--color-sell-bar-hover);
+        }
+
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            background: var(--color-tooltip-bg);
+            color: var(--color-tooltip-text);
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            box-shadow: 0 10px 18px -12px rgba(15, 23, 42, 0.45);
+        }
+
+        .display-footer {
+            margin-top: 3rem;
+            padding: 1.5rem 0 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--color-text-muted);
+            font-size: 0.75rem;
+        }
+
+        .table-cell-with-bar {
+            position: relative;
+        }
+
+        .table-bar-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.35rem;
+        }
+
+        .table-bar {
+            flex: 0 0 42px;
+            height: 0.5rem;
+            border-radius: 9999px;
+            opacity: 0.45;
+            transform-origin: left center;
+            transform: scaleX(var(--bar-ratio, 0));
+        }
+
+        .table-bar-buy {
+            background: linear-gradient(to right, var(--color-buy-bar), var(--color-buy-bar-hover));
+        }
+
+        .table-bar-sell {
+            background: linear-gradient(to right, var(--color-sell-bar), var(--color-sell-bar-hover));
+        }
+
+        .table-bar-profit {
+            background: linear-gradient(to right, #16a34a, #4ade80);
+        }
+
+        .table-bar-text {
+            min-width: 0;
+        }
+
+        .text-profit {
+            color: #15803d;
+        }
+
+        .text-loss {
+            color: var(--color-invalid);
+        }
+
+        .table-subtotal-cell {
+            border-top: 2px solid var(--color-border-strong);
+            padding-top: 0.5rem;
+        }
+
+        /* Mobile table cards */
+        body.layout-mobile table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        body.layout-mobile table thead {
+            display: none;
+        }
+
+        body.layout-mobile table tbody tr {
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            padding: 0.85rem;
+            border: 1px solid var(--color-border);
+            border-radius: 0.85rem;
+            background-color: var(--color-card);
+            margin-bottom: 0.85rem;
+        }
+
+        body.layout-mobile table tbody tr:last-child {
+            margin-bottom: 0;
+        }
+
+        body.layout-mobile table tbody tr.executed-rung {
+            background-color: var(--color-executed-bg);
+        }
+
+        body.layout-mobile table tbody tr td {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            border: 0;
+            background: transparent;
+            padding: 0;
+            font-size: 0.95rem;
+        }
+
+        body.layout-mobile table tbody tr td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: var(--color-text-secondary);
+        }
+
+        body.layout-mobile table tbody tr td input[type="checkbox"] {
+            margin-left: auto;
+        }
+
+        /* Intro modal */
+        .intro-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.75);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .intro-modal-overlay.hidden {
+            display: none;
+        }
+
+        .intro-modal-container {
+            background-color: var(--color-card);
+            border-radius: 1rem;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        .intro-modal-content {
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .intro-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            margin-bottom: 1rem;
+        }
+
+        .intro-description {
+            font-size: 1.125rem;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .intro-features-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .intro-features-list li {
+            color: var(--color-text);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .intro-features-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--color-secondary);
+            font-weight: bold;
+        }
+
+        @media (max-width: 640px) {
+            .intro-modal-content {
+                padding: 1.5rem;
+                gap: 1.5rem;
+            }
+
+            .intro-title {
+                font-size: 1.5rem;
+            }
+
+            .intro-description {
+                font-size: 1rem;
+            }
+        }
+    </style>
     <script type="text/javascript">
         (function(c,l,a,r,i,t,y){
             c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -126,6 +672,9 @@
                                     </svg>
                                 </a>
                             </div>
+                            <button type="button" id="help-toggle-button" class="text-xs font-medium text-secondary-dark underline underline-offset-2 hover:text-primary-dark">
+                                Help &amp; FAQ
+                            </button>
                         </div>
                     </div>
                     <div class="header-export-section">
@@ -194,21 +743,48 @@
                             <p id="summary-total-fees-percent" class="text-xs text-secondary-dark mt-1">-</p>
                         </div>
                     </div>
+                    <p id="calculation-status" class="mt-3 text-xs text-red-700 hidden"></p>
                 </div>
             </div>
         </header>
+        <section id="help-panel" class="card p-4 mb-4 hidden">
+            <h2 class="text-sm font-semibold text-secondary-dark mb-2">How this calculator works</h2>
+            <p class="text-xs text-tertiary-dark mb-2">Order Skew builds symmetric buy and sell ladders around a reference price, keeping a single source of truth so charts, tables, and exports always match.</p>
+            <ul class="list-disc pl-5 space-y-1 text-xs text-tertiary-dark mb-2">
+                <li>Use <strong>Basic Setup</strong> to set capital, current price, ladder width, and skew.</li>
+                <li><strong>Fees &amp; Execution</strong> controls how trading fees are applied and how spacing between rungs is measured.</li>
+                <li><strong>Advanced Options</strong> enable sell-only ladders and equal-quantity overrides for existing positions.</li>
+            </ul>
+            <p class="text-xs text-tertiary-dark">The calculator allocates capital across rungs, applies fees per your settings, then derives progressive average prices and net profit so the tables and charts represent the exact same plan.</p>
+        </section>
         <main class="grid mobile-two-col grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 auto-rows-min">
             <div class="card p-6 col-span-1 lg:col-span-2">
                 <form id="trading-plan-form">
+                    <div class="mb-4 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+                        <div>
+                            <h2 class="text-xs font-semibold tracking-[0.2em] uppercase text-secondary-dark">Basic Setup</h2>
+                            <p class="text-[11px] text-tertiary-dark mt-1">Set your capital, price range, ladder width, and skew.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="sample_config" class="text-[11px] text-tertiary-dark">Load sample:</label>
+                            <select id="sample_config" class="form-input rounded-md px-2 py-1 text-xs">
+                                <option value="">None</option>
+                                <option value="crypto-ladder">Sample Crypto Ladder</option>
+                                <option value="sell-only-rebalance">Sample Sell-only Rebalance</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="flex gap-4 lg:gap-6 items-start">
                         <div class="flex-shrink-0 space-y-3">
                             <div>
                                 <label for="starting_capital" id="starting_capital_label" class="block text-xs font-medium text-secondary-dark mb-1">Initial Capital ($)</label>
-                                <input type="number" id="starting_capital" value="50000" class="form-input w-full rounded-md p-1.5 text-sm" style="min-width: 180px;">
+                                <input type="number" id="starting_capital" value="50000" min="0" step="0.01" class="form-input w-full rounded-md p-1.5 text-sm" style="min-width: 180px;">
+                                <p id="starting_capital-error" class="mt-1 text-xs text-red-700 hidden"></p>
                             </div>
                             <div>
                                 <label for="current_price" class="block text-xs font-medium text-secondary-dark mb-1">Current Asset Price ($)</label>
-                                <input type="number" id="current_price" value="100" class="form-input w-full rounded-md p-1.5 text-sm" style="min-width: 180px;">
+                                <input type="number" id="current_price" value="100" min="0" step="0.01" class="form-input w-full rounded-md p-1.5 text-sm" style="min-width: 180px;">
+                                <p id="current_price-error" class="mt-1 text-xs text-red-700 hidden"></p>
                             </div>
                         </div>
                         <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
@@ -218,6 +794,7 @@
                                 <input type="range" id="number_of_rungs" value="10" min="2" max="50" step="1" class="flex-1 h-2 rounded-lg cursor-pointer">
                                 <input type="number" id="number_of_rungs_input" value="10" min="2" max="50" step="1" class="form-input w-20 rounded-md p-1.5 text-sm">
                             </div>
+                            <p id="number_of_rungs-error" class="mt-1 text-xs text-red-700 hidden"></p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-secondary-dark mb-1">Price Range</label>
@@ -231,16 +808,19 @@
                                     <input type="range" id="depth" value="20" min="0.1" max="99" step="0.1" class="flex-1 h-2 rounded-lg cursor-pointer">
                                     <input type="number" id="depth_input" value="20" min="0.1" max="99" step="0.1" class="form-input w-20 rounded-md p-1.5 text-sm">
                                 </div>
+                                <p id="depth-error" class="mt-1 text-xs text-red-700 hidden"></p>
                             </div>
                             <div id="floor-mode-container" class="hidden">
                                 <div class="space-y-2">
                                     <div>
                                         <label for="buy_floor" class="block text-xs font-medium text-secondary-dark mb-1">Buy Floor ($)</label>
                                         <input type="number" id="buy_floor" value="" min="0" step="0.0001" class="form-input w-full rounded-md p-2 text-sm" placeholder="Auto">
+                                        <p id="buy_floor-error" class="mt-1 text-xs text-red-700 hidden"></p>
                                     </div>
                                     <div>
                                         <label for="sell_ceiling" class="block text-xs font-medium text-secondary-dark mb-1">Sell Ceiling ($)</label>
                                         <input type="number" id="sell_ceiling" value="" min="0" step="0.0001" class="form-input w-full rounded-md p-2 text-sm" placeholder="Auto">
+                                        <p id="sell_ceiling-error" class="mt-1 text-xs text-red-700 hidden"></p>
                                     </div>
                                 </div>
                             </div>
@@ -272,72 +852,79 @@
                                 </svg>
                             </button>
                         </div>
-                        <div id="advanced-settings" class="space-y-3 hidden">
-                            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                                <div class="sm:col-span-4">
-                                    <div class="border-2 border-accent surface-accent rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                        <div>
-                                            <p class="text-xs font-semibold text-secondary-dark uppercase tracking-wide">Mode</p>
-                                            <p class="text-sm font-semibold text-primary-dark">Sell-only ladder</p>
-                                            <p class="text-[11px] text-secondary-dark mt-1">Preserve existing buy orders while fine-tuning the sell ladder.</p>
-                                        </div>
-                                        <label class="inline-flex items-center space-x-2 text-sm font-medium text-primary-dark">
-                                            <input id="sell_only_mode" type="checkbox" class="form-checkbox h-4 w-4 text-primary-dark rounded focus:ring-0">
-                                            <span>Enable</span>
+                        <div id="advanced-settings" class="space-y-4 hidden">
+                            <section aria-labelledby="fees-execution-heading" class="space-y-2">
+                                <p id="fees-execution-heading" class="text-[11px] font-semibold text-secondary-dark uppercase tracking-wide">Fees &amp; Execution</p>
+                                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                                    <div>
+                                        <label for="fee_type" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee Type</label>
+                                        <select id="fee_type" class="form-input w-full rounded-md p-2 text-sm">
+                                            <option value="percent">Percent (%)</option>
+                                            <option value="fixed">Flat ($)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="fee_value" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee</label>
+                                        <input type="number" id="fee_value" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                        <p id="fee_value-error" class="mt-1 text-xs text-red-700 hidden"></p>
+                                    </div>
+                                    <div>
+                                        <label for="fee_settlement" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
+                                            <span>Fee Settlement</span>
+                                            <button type="button" class="helper-tooltip" title="Choose whether trading fees reduce each order (net settlement) or are paid from a separate pool (external settlement)." aria-label="Fee settlement details">i</button>
                                         </label>
+                                        <select id="fee_settlement" class="form-input w-full rounded-md p-2 text-sm">
+                                            <option value="netted">Net settlement (deduct from order)</option>
+                                            <option value="external">External settlement (separate funds)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="spacing_mode" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
+                                            <span>Spacing Between Rungs</span>
+                                            <button type="button" class="helper-tooltip" title="Relative spacing compounds the rung width as a percent change, creating exponential steps." aria-label="Spacing mode information">i</button>
+                                        </label>
+                                        <select id="spacing_mode" class="form-input w-full rounded-md p-2 text-sm">
+                                            <option value="absolute">Absolute (Equal Steps)</option>
+                                            <option value="relative">Relative (% per rung)</option>
+                                        </select>
                                     </div>
                                 </div>
-                                <div>
-                                    <label for="fee_type" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee Type</label>
-                                    <select id="fee_type" class="form-input w-full rounded-md p-2 text-sm">
-                                        <option value="percent">Percent (%)</option>
-                                        <option value="fixed">Flat ($)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="fee_value" class="block text-xs font-medium text-secondary-dark mb-1">Trading Fee</label>
-                                    <input type="number" id="fee_value" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
-                                </div>
-                                <div>
-                                    <label for="fee_settlement" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
-                                        <span>Fee Settlement</span>
-                                        <button type="button" class="helper-tooltip" title="Choose whether trading fees reduce each order (net settlement) or are paid from a separate pool (external settlement)." aria-label="Fee settlement details">i</button>
+                            </section>
+                            <section aria-labelledby="advanced-options-heading" class="space-y-3">
+                                <p id="advanced-options-heading" class="text-[11px] font-semibold text-secondary-dark uppercase tracking-wide">Advanced Options</p>
+                                <div class="border-2 border-accent surface-accent rounded-lg p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div>
+                                        <p class="text-xs font-semibold text-secondary-dark uppercase tracking-wide">Mode</p>
+                                        <p class="text-sm font-semibold text-primary-dark">Sell-only ladder</p>
+                                        <p class="text-[11px] text-secondary-dark mt-1">Preserve existing buy orders while fine-tuning the sell ladder.</p>
+                                    </div>
+                                    <label class="inline-flex items-center space-x-2 text-sm font-medium text-primary-dark">
+                                        <input id="sell_only_mode" type="checkbox" class="form-checkbox h-4 w-4 text-primary-dark rounded focus:ring-0">
+                                        <span>Enable</span>
                                     </label>
-                                    <select id="fee_settlement" class="form-input w-full rounded-md p-2 text-sm">
-                                        <option value="netted">Net settlement (deduct from order)</option>
-                                        <option value="external">External settlement (separate funds)</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div>
-                                <label for="spacing_mode" class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
-                                    <span>Spacing Between Rungs</span>
-                                    <button type="button" class="helper-tooltip" title="Relative spacing compounds the rung width as a percent change, creating exponential steps." aria-label="Spacing mode information">i</button>
-                                </label>
-                                <select id="spacing_mode" class="form-input w-full rounded-md p-2 text-sm">
-                                    <option value="absolute">Absolute (Equal Steps)</option>
-                                    <option value="relative">Relative (% per rung)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
-                                    <span class="flex items-center space-x-2">
-                                        <input id="equal_quantity_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-0">
-                                        <span>Equal quantity per rung</span>
-                                    </span>
-                                    <button type="button" class="helper-tooltip" title="Override skew settings and distribute the same asset size across each rung." aria-label="Equal quantity details">i</button>
-                                </label>
-                            </div>
-                            <div id="sell-only-inputs" class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden">
-                                <div>
-                                    <label for="existing_quantity" class="block text-xs font-medium text-secondary-dark mb-1">Existing Quantity</label>
-                                    <input type="number" id="existing_quantity" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
                                 </div>
                                 <div>
-                                    <label for="existing_avg_price" class="block text-xs font-medium text-secondary-dark mb-1">Known Average Buy Price ($)</label>
-                                    <input type="number" id="existing_avg_price" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                    <label class="flex items-center justify-between text-xs font-medium text-secondary-dark mb-1">
+                                        <span class="flex items-center space-x-2">
+                                            <input id="equal_quantity_mode" type="checkbox" class="form-checkbox h-3.5 w-3.5 text-primary-dark rounded focus:ring-0">
+                                            <span>Equal quantity per rung</span>
+                                        </span>
+                                        <button type="button" class="helper-tooltip" title="Override skew settings and distribute the same asset size across each rung." aria-label="Equal quantity details">i</button>
+                                    </label>
                                 </div>
-                            </div>
+                                <div id="sell-only-inputs" class="grid grid-cols-1 sm:grid-cols-2 gap-3 hidden">
+                                    <div>
+                                        <label for="existing_quantity" class="block text-xs font-medium text-secondary-dark mb-1">Existing Quantity</label>
+                                        <input type="number" id="existing_quantity" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                        <p id="existing_quantity-error" class="mt-1 text-xs text-red-700 hidden"></p>
+                                    </div>
+                                    <div>
+                                        <label for="existing_avg_price" class="block text-xs font-medium text-secondary-dark mb-1">Known Average Buy Price ($)</label>
+                                        <input type="number" id="existing_avg_price" value="0" min="0" class="form-input w-full rounded-md p-2 text-sm" step="0.0001">
+                                        <p id="existing_avg_price-error" class="mt-1 text-xs text-red-700 hidden"></p>
+                                    </div>
+                                </div>
+                            </section>
                         </div>
                     </div>
                     </div>
@@ -400,22 +987,6 @@
             </div>
         </main>
         <footer class="display-footer">
-            <span class="text-[10px] font-semibold tracking-[0.3em] uppercase opacity-70">Layout</span>
-            <div class="layout-toggle-group" id="layout-toggle-group" role="group" aria-label="Switch layout">
-                <button type="button" class="layout-toggle-button" data-layout-toggle="desktop" aria-pressed="false" aria-label="Show desktop layout">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="12" rx="2"></rect>
-                        <line x1="8" y1="20" x2="16" y2="20"></line>
-                        <line x1="12" y1="16" x2="12" y2="20"></line>
-                    </svg>
-                </button>
-                <button type="button" class="layout-toggle-button" data-layout-toggle="mobile" aria-pressed="false" aria-label="Show mobile layout">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="7" y="2" width="10" height="20" rx="2"></rect>
-                        <line x1="11" y1="18" x2="13" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
             <!-- QR Code Modal -->
             <div id="qr-code-overlay" class="qr-code-overlay hidden"></div>
             <div id="qr-code-container" class="qr-code-container hidden">
@@ -504,6 +1075,9 @@
             const saveConfigBtn = document.getElementById('save-config-btn');
             const loadConfigBtn = document.getElementById('load-config-btn');
             const loadConfigFile = document.getElementById('load-config-file');
+            const sampleConfigSelect = document.getElementById('sample_config');
+            const helpToggleButton = document.getElementById('help-toggle-button');
+            const helpPanel = document.getElementById('help-panel');
             const layoutToggleButtons = Array.from(document.querySelectorAll('[data-layout-toggle]'));
             const themeToggleButtons = Array.from(document.querySelectorAll('[data-theme-toggle]'));
             const displayStatusAnnouncer = document.getElementById('display-status-announcer');
@@ -623,6 +1197,54 @@
             };
             const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
             const MAX_SKEW_RATIO = 10;
+            const sampleConfigurations = {
+                'crypto-ladder': {
+                    startingCapital: 5000,
+                    currentPrice: 100,
+                    numberOfRungs: 12,
+                    depthPercent: 30,
+                    skewValue: 60,
+                    priceRangeMode: 'width',
+                    buyFloor: null,
+                    sellCeiling: null,
+                    advanced: {
+                        advancedMode: true,
+                        feeType: 'percent',
+                        feeValue: 0.1,
+                        feeSettlement: 'netted',
+                        spacingMode: 'relative',
+                        equalQuantityMode: false
+                    },
+                    sellOnly: {
+                        sellOnlyMode: false,
+                        existingQuantity: 0,
+                        existingAvgPrice: 0
+                    }
+                },
+                'sell-only-rebalance': {
+                    startingCapital: 0,
+                    currentPrice: 120,
+                    numberOfRungs: 10,
+                    depthPercent: 20,
+                    skewValue: 40,
+                    priceRangeMode: 'floor',
+                    buyFloor: 80,
+                    sellCeiling: 180,
+                    advanced: {
+                        advancedMode: true,
+                        feeType: 'percent',
+                        feeValue: 0.15,
+                        feeSettlement: 'external',
+                        spacingMode: 'absolute',
+                        equalQuantityMode: true
+                    },
+                    sellOnly: {
+                        sellOnlyMode: true,
+                        existingQuantity: 1.5,
+                        existingAvgPrice: 90
+                    }
+                }
+            };
             // Storage keys
             const INTRO_SKIP_STORAGE_KEY = 'orderskew_intro_skip';
             const STORAGE_PREFIX = 'orderskew_';
@@ -1005,10 +1627,24 @@
                     .replace(/"/g, '&quot;')
                     .replace(/'/g, '&#39;');
             };
-            const buildTableCell = (label, content, classList = []) => {
-                const classes = ['px-2', 'py-2', ...classList].filter(Boolean).join(' ');
+            const buildTableCell = (label, content, classList = [], options = {}) => {
+                const { barRatio, barType } = options || {};
+                const hasBar = typeof barRatio === 'number' && Number.isFinite(barRatio) && barRatio > 0;
+                const normalizedRatio = hasBar ? Math.min(Math.max(barRatio, 0), 1) : 0;
+                const classes = ['px-2', 'py-2', hasBar ? 'table-cell-with-bar' : '', ...classList]
+                    .filter(Boolean)
+                    .join(' ');
                 const safeLabel = escapeForHtml(label);
-                return `<td class="${classes}" data-label="${safeLabel}">${content}</td>`;
+                let innerContent = content;
+                if (hasBar) {
+                    const barClass = barType === 'sell'
+                        ? 'table-bar table-bar-sell'
+                        : barType === 'profit'
+                            ? 'table-bar table-bar-profit'
+                            : 'table-bar table-bar-buy';
+                    innerContent = `<div class="table-bar-wrapper"><div class="${barClass}" style="--bar-ratio:${normalizedRatio}"></div><div class="table-bar-text">${content}</div></div>`;
+                }
+                return `<td class="${classes}" data-label="${safeLabel}">${innerContent}</td>`;
             };
             const collectExportSettings = () => ({
                 date: new Date().toLocaleString(),
@@ -1271,6 +1907,16 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         input.setAttribute('aria-invalid', 'true');
                     }
                 }
+                const errorElement = document.getElementById(`${fieldId}-error`);
+                if (errorElement) {
+                    if (isValid) {
+                        errorElement.textContent = '';
+                        errorElement.classList.add('hidden');
+                    } else {
+                        errorElement.textContent = message || 'Please review this value.';
+                        errorElement.classList.remove('hidden');
+                    }
+                }
                 const label = document.querySelector(`label[for="${fieldId}"]`);
                 if (!label) return;
                 if (isValid) {
@@ -1298,6 +1944,26 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     infoBtn.setAttribute('aria-label', 'Additional information');
                 }
             }
+            const updateCalculationStatus = (options = {}) => {
+                const statusElement = document.getElementById('calculation-status');
+                if (!statusElement) {
+                    return;
+                }
+                const { type, invalidFields } = options;
+                if (type === 'invalid') {
+                    const fieldCount = Array.isArray(invalidFields) ? invalidFields.length : 0;
+                    const fieldLabel = fieldCount === 1 ? 'field' : 'fields';
+                    statusElement.textContent = `Some inputs are invalid. Please fix the highlighted ${fieldLabel} to update the plan.`;
+                    statusElement.classList.remove('hidden');
+                    statusElement.setAttribute('role', 'status');
+                    statusElement.setAttribute('aria-live', 'polite');
+                } else if (type === 'ok') {
+                    statusElement.textContent = '';
+                    statusElement.classList.add('hidden');
+                    statusElement.removeAttribute('role');
+                    statusElement.removeAttribute('aria-live');
+                }
+            };
             function calculatePlan() {
                 const finishCalculation = startTimer('calculatePlan', {
                     layout: currentLayoutMode,
@@ -1423,6 +2089,10 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     const invalidFields = validations
                         .filter(({ enabled, isValid }) => enabled && !isValid)
                         .map(({ id }) => id);
+                    updateCalculationStatus({
+                        type: 'invalid',
+                        invalidFields
+                    });
                     trackEvent('calculation', 'calculate:invalid', {
                         invalidFields
                     }, 'warn');
@@ -1433,6 +2103,7 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     currentPlanData = null;
                     return;
                 }
+                updateCalculationStatus({ type: 'ok' });
                 const feeEnabled = feeValue > 0 && advancedEnabled;
                 const feeRate = feeType === 'percent' ? feeValue / 100 : 0;
                 const isFeeNetted = feeSettlement !== 'external';
@@ -2067,6 +2738,14 @@ caption { font-weight: 600; margin-bottom: 6px; }
                 const sellBody = document.getElementById('sell-ladder-body');
                 buyBody.innerHTML = '';
                 sellBody.innerHTML = '';
+                const buyVolumes = plan.buyLadder.map((rung) => (typeof rung.assetSize === 'number' ? rung.assetSize : 0));
+                const sellVolumes = plan.sellLadder.map((rung) => (typeof rung.assetSize === 'number' ? rung.assetSize : 0));
+                const buyValues = plan.buyLadder.map((rung) => (typeof rung.capital === 'number' ? rung.capital : 0));
+                const sellValues = plan.sellLadder.map((rung) => (typeof rung.capital === 'number' ? rung.capital : 0));
+                const profitValues = plan.sellLadder.map((rung) => (typeof rung.netProfit === 'number' ? Math.abs(rung.netProfit) : 0));
+                const maxVolume = Math.max(...buyVolumes, ...sellVolumes, 0);
+                const maxValue = Math.max(...buyValues, ...sellValues, 0);
+                const maxProfit = Math.max(...profitValues, 0);
                 const highestExecuted = plan.selection && Number.isFinite(plan.selection.highestExecutedBuyRung)
                     ? plan.selection.highestExecutedBuyRung
                     : null;
@@ -2083,9 +2762,25 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     }
                     cellMarkup.push(buildTableCell('Rung', `<span class="font-medium">${escapeForHtml(rung.rung)}</span>`, ['font-medium', 'text-center']));
                     cellMarkup.push(buildTableCell('Price', formatCurrency(rung.price, 4), ['text-right', 'whitespace-nowrap']));
-                    cellMarkup.push(buildTableCell('Volume', formatNumber(rung.assetSize), ['text-right']));
+                    cellMarkup.push(buildTableCell(
+                        'Volume',
+                        formatNumber(rung.assetSize),
+                        ['text-right'],
+                        {
+                            barRatio: maxVolume > 0 ? (typeof rung.assetSize === 'number' ? rung.assetSize : 0) / maxVolume : 0,
+                            barType: 'buy'
+                        }
+                    ));
                     cellMarkup.push(buildTableCell('Allocation', formatPercent(rung.allocation), ['text-right']));
-                    cellMarkup.push(buildTableCell('Value', formatCurrency(rung.capital, 4), ['text-right', 'whitespace-nowrap']));
+                    cellMarkup.push(buildTableCell(
+                        'Value',
+                        formatCurrency(rung.capital, 4),
+                        ['text-right', 'whitespace-nowrap'],
+                        {
+                            barRatio: maxValue > 0 ? (typeof rung.capital === 'number' ? rung.capital : 0) / maxValue : 0,
+                            barType: 'buy'
+                        }
+                    ));
                     if (showFeeColumns) {
                         const feeCellValue = plan.feeSettings.type === 'percent'
                             ? formatCurrency(rung.fee)
@@ -2129,9 +2824,25 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     const cellMarkup = [];
                     cellMarkup.push(buildTableCell('Rung', `<span class="font-medium">${escapeForHtml(rung.rung)}</span>`, ['font-medium', 'text-center']));
                     cellMarkup.push(buildTableCell('Price', formatCurrency(rung.price, 4), ['text-right', 'whitespace-nowrap']));
-                    cellMarkup.push(buildTableCell('Volume', formatNumber(rung.assetSize), ['text-right']));
+                    cellMarkup.push(buildTableCell(
+                        'Volume',
+                        formatNumber(rung.assetSize),
+                        ['text-right'],
+                        {
+                            barRatio: maxVolume > 0 ? (typeof rung.assetSize === 'number' ? rung.assetSize : 0) / maxVolume : 0,
+                            barType: 'sell'
+                        }
+                    ));
                     cellMarkup.push(buildTableCell('Allocation', formatPercent(rung.allocation), ['text-right']));
-                    cellMarkup.push(buildTableCell('Value', formatCurrency(rung.capital, 4), ['text-right', 'whitespace-nowrap']));
+                    cellMarkup.push(buildTableCell(
+                        'Value',
+                        formatCurrency(rung.capital, 4),
+                        ['text-right', 'whitespace-nowrap'],
+                        {
+                            barRatio: maxValue > 0 ? (typeof rung.capital === 'number' ? rung.capital : 0) / maxValue : 0,
+                            barType: 'sell'
+                        }
+                    ));
                     if (showFeeColumns) {
                         const feeCellValue = plan.feeSettings.type === 'percent'
                             ? formatCurrency(rung.fee)
@@ -2139,7 +2850,23 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         cellMarkup.push(buildTableCell(feeHeaderLabel, feeCellValue, ['text-right', 'whitespace-nowrap']));
                     }
                     cellMarkup.push(buildTableCell('Avg Sell Price', formatCurrency(rung.progressiveAvgSellPrice, 4), ['text-right', 'whitespace-nowrap']));
-                    cellMarkup.push(buildTableCell('Net Profit', formatCurrency(rung.netProfit, 4), ['text-right', 'whitespace-nowrap']));
+                    const profitClasses = ['text-right', 'whitespace-nowrap'];
+                    if (Number.isFinite(rung.netProfit)) {
+                        if (rung.netProfit > 0) {
+                            profitClasses.push('text-profit');
+                        } else if (rung.netProfit < 0) {
+                            profitClasses.push('text-loss');
+                        }
+                    }
+                    cellMarkup.push(buildTableCell(
+                        'Net Profit',
+                        formatCurrency(rung.netProfit, 4),
+                        profitClasses,
+                        {
+                            barRatio: maxProfit > 0 ? (typeof rung.netProfit === 'number' ? Math.abs(rung.netProfit) : 0) / maxProfit : 0,
+                            barType: 'profit'
+                        }
+                    ));
                     sellBody.innerHTML += `<tr class="${rowClass}">${cellMarkup.join('')}</tr>`;
                 });
                 // Add subtotal row for sell table
@@ -2437,6 +3164,96 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     });
                 }
             });
+            if (sampleConfigSelect) {
+                const applySampleConfiguration = (key) => {
+                    const config = sampleConfigurations[key];
+                    if (!config) {
+                        return;
+                    }
+                    const startingCapitalInput = document.getElementById('starting_capital');
+                    const currentPriceInput = document.getElementById('current_price');
+                    if (startingCapitalInput) {
+                        startingCapitalInput.value = config.startingCapital;
+                    }
+                    if (currentPriceInput) {
+                        currentPriceInput.value = config.currentPrice;
+                    }
+                    if (rungSlider && rungInput) {
+                        rungSlider.value = String(config.numberOfRungs);
+                        rungInput.value = String(config.numberOfRungs);
+                        if (rungDisplay) {
+                            rungDisplay.textContent = String(config.numberOfRungs);
+                        }
+                    }
+                    if (depthSlider && depthInput && typeof config.depthPercent === 'number') {
+                        const depthValue = config.depthPercent;
+                        depthSlider.value = String(depthValue);
+                        depthInput.value = String(depthValue);
+                        if (depthDisplay) {
+                            depthDisplay.textContent = depthValue < 2 ? depthValue.toFixed(1) : Math.round(depthValue);
+                        }
+                    }
+                    if (skewSlider && skewInput && typeof config.skewValue === 'number') {
+                        const skewValue = config.skewValue;
+                        skewSlider.value = String(skewValue);
+                        skewInput.value = String(skewValue);
+                        if (skewDisplay) {
+                            skewDisplay.textContent = String(skewValue);
+                        }
+                    }
+                    if (priceRangeModeSelect && config.priceRangeMode) {
+                        priceRangeModeSelect.value = config.priceRangeMode;
+                        priceRangeModeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    if (buyFloorInput && config.buyFloor !== null && config.buyFloor !== undefined) {
+                        buyFloorInput.value = String(config.buyFloor);
+                    }
+                    if (sellCeilingInput && config.sellCeiling !== null && config.sellCeiling !== undefined) {
+                        sellCeilingInput.value = String(config.sellCeiling);
+                    }
+                    if (config.advanced) {
+                        if (advancedToggle) {
+                            advancedToggle.checked = !!config.advanced.advancedMode;
+                        }
+                        if (feeTypeSelect && config.advanced.feeType) {
+                            feeTypeSelect.value = config.advanced.feeType;
+                        }
+                        if (feeValueInput && typeof config.advanced.feeValue === 'number') {
+                            feeValueInput.value = String(config.advanced.feeValue);
+                        }
+                        if (feeSettlementSelect && config.advanced.feeSettlement) {
+                            feeSettlementSelect.value = config.advanced.feeSettlement;
+                        }
+                        if (spacingModeSelect && config.advanced.spacingMode) {
+                            spacingModeSelect.value = config.advanced.spacingMode;
+                        }
+                        if (equalQuantityCheckbox && typeof config.advanced.equalQuantityMode === 'boolean') {
+                            equalQuantityCheckbox.checked = config.advanced.equalQuantityMode;
+                        }
+                    }
+                    if (config.sellOnly) {
+                        if (sellOnlyCheckbox) {
+                            sellOnlyCheckbox.checked = !!config.sellOnly.sellOnlyMode;
+                        }
+                        if (existingQuantityInput && typeof config.sellOnly.existingQuantity === 'number') {
+                            existingQuantityInput.value = String(config.sellOnly.existingQuantity);
+                        }
+                        if (existingAvgPriceInput && typeof config.sellOnly.existingAvgPrice === 'number') {
+                            existingAvgPriceInput.value = String(config.sellOnly.existingAvgPrice);
+                        }
+                        updateStartingCapitalLabel();
+                    }
+                    calculatePlan();
+                };
+                sampleConfigSelect.addEventListener('change', (event) => {
+                    const value = event.target.value;
+                    if (!value) {
+                        return;
+                    }
+                    applySampleConfiguration(value);
+                    trackEvent('config', 'sample:apply', { key: value });
+                });
+            }
             // The skew slider updates instantly
             skewSlider.addEventListener('input', (e) => {
                 trackInteraction('skew-adjust', {
@@ -3134,10 +3951,22 @@ caption { font-weight: 600; margin-bottom: 6px; }
                     document.body.classList.add('intro-modal-open');
                 }
             };
+            const focusMainConfiguration = () => {
+                const startingCapitalInput = document.getElementById('starting_capital');
+                if (startingCapitalInput && typeof startingCapitalInput.focus === 'function') {
+                    startingCapitalInput.focus();
+                    return;
+                }
+                const mainElement = document.querySelector('#app main');
+                if (mainElement && typeof mainElement.scrollIntoView === 'function') {
+                    mainElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            };
             const hideIntroModal = () => {
                 if (introModal) {
                     introModal.classList.add('hidden');
                     document.body.classList.remove('intro-modal-open');
+                    focusMainConfiguration();
                 }
             };
             const closeIntroAndSavePreference = () => {
@@ -3192,6 +4021,16 @@ caption { font-weight: 600; margin-bottom: 6px; }
                         e.stopPropagation();
                     });
                 }
+            }
+            if (helpToggleButton && helpPanel) {
+                helpToggleButton.addEventListener('click', () => {
+                    const isHidden = helpPanel.classList.contains('hidden');
+                    helpPanel.classList.toggle('hidden', !isHidden);
+                    if (isHidden && typeof helpPanel.scrollIntoView === 'function') {
+                        helpPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    trackInteraction('help', 'toggle', { open: isHidden });
+                });
             }
             // Load saved form values on page load (before first calculation)
             loadFormValues();
