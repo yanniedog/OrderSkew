@@ -413,6 +413,10 @@
             background: rgba(186, 198, 234, 0.2);
         }
         .header-icon-btn:active { transform: scale(0.95); }
+        .header-icon-btn.copied {
+            color: var(--color-secondary);
+            background: rgba(34, 211, 238, 0.15);
+        }
         .header-solana-icon { width: 18px; height: 14px; }
         .header-github-icon { width: 16px; height: 16px; }
 
@@ -996,7 +1000,15 @@
                 </div>
             </div>
             <div class="card p-6" id="buy-orders-card">
-                <h3 class="text-xl font-semibold text-primary-dark mb-4">Buy Orders</h3>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-primary-dark">Buy Orders</h3>
+                    <button type="button" class="header-icon-btn" id="copy-buy-table" title="Copy table to clipboard">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-primary-dark uppercase table-header">
@@ -1014,7 +1026,15 @@
                 </div>
             </div>
             <div class="card p-6" id="sell-orders-card">
-                <h3 class="text-xl font-semibold text-primary-dark mb-4">Sell Orders</h3>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-primary-dark">Sell Orders</h3>
+                    <button type="button" class="header-icon-btn" id="copy-sell-table" title="Copy table to clipboard">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-primary-dark uppercase table-header">
@@ -1151,6 +1171,17 @@
                         .replace(/>/g, '&gt;')
                         .replace(/"/g, '&quot;')
                         .replace(/'/g, '&#39;');
+                },
+
+                copyToClipboard: async (text, element) => {
+                    if (!navigator.clipboard) return;
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        if (element) {
+                            element.classList.add('copied');
+                            setTimeout(() => element.classList.remove('copied'), 1500);
+                        }
+                    } catch (err) { console.warn('Copy failed', err); }
                 },
 
                 debounce: (func, wait) => {
@@ -1717,6 +1748,9 @@
                     // Export
                     if (els.downloadCsv) els.downloadCsv.addEventListener('click', App.handleCsvDownload);
                     if (els.downloadXls) els.downloadXls.addEventListener('click', App.handleXlsDownload);
+                    document.getElementById('copy-buy-table')?.addEventListener('click', (e) => App.handleCopyTable('buy', e.currentTarget));
+                    document.getElementById('copy-sell-table')?.addEventListener('click', (e) => App.handleCopyTable('sell', e.currentTarget));
+
                     if (els.saveConfig) els.saveConfig.addEventListener('click', App.saveConfiguration);
                     if (els.loadConfig && els.loadConfigFile) {
                         els.loadConfig.addEventListener('click', () => els.loadConfigFile.click());
@@ -2307,6 +2341,29 @@
                     // or simply reuse CSV logic as simple Excel readable format.
                     // Keeping it simple to match original functionality intent.
                     App.handleCsvDownload(); 
+                },
+
+                handleCopyTable: (type, btnElement) => {
+                    if (!State.currentPlanData) return;
+                    const plan = State.currentPlanData;
+                    const isBuy = type === 'buy';
+                    const data = isBuy ? plan.buyLadder : plan.sellLadder;
+                    
+                    // Headers
+                    let tsv = isBuy 
+                        ? `Rung\tPrice\tVol\tAlloc\tValue\tAvg Buy\n`
+                        : `Rung\tPrice\tVol\tAlloc\tValue\tAvg Sell\tProfit\n`;
+
+                    // Rows
+                    data.forEach(r => {
+                         if (isBuy) {
+                             tsv += `${r.rung}\t${r.price}\t${r.assetSize}\t${Utils.format.percent(r.allocation)}\t${r.capital}\t${r.progressiveAvgPrice}\n`;
+                         } else {
+                             tsv += `${r.rung}\t${r.price}\t${r.assetSize}\t${Utils.format.percent(r.allocation)}\t${r.capital}\t${r.progressiveAvgSellPrice}\t${r.netProfit}\n`;
+                         }
+                    });
+                    
+                    Utils.copyToClipboard(tsv, btnElement);
                 },
 
                 saveConfiguration: () => {
