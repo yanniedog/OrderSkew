@@ -404,59 +404,15 @@
         </div>
     </div>
 
-    <!-- Video Modal -->
-    <div id="video-modal" class="qr-modal">
-        <div class="qr-backdrop" id="video-backdrop"></div>
-        <div class="qr-content w-full max-w-3xl p-0 bg-black overflow-hidden flex flex-col" style="max-width: 600px;">
-            <div class="relative pb-[56.25%] h-0">
-                <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/LPaAtWphx2U" title="Order Skew Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-            </div>
-            <button id="video-close" class="w-full py-3 text-sm font-medium bg-[var(--color-card)] text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors">Close Tutorial</button>
-        </div>
-    </div>
-
     <!-- Sticky Mobile Summary -->
-    <div id="mobile-sticky-summary" class="mobile-sticky-footer flex-col lg:hidden">
-        <div class="w-full flex justify-between items-center">
-            <div class="flex flex-col">
-                <span class="text-[10px] text-[var(--color-text-secondary)] font-medium uppercase tracking-wider">Net Profit</span>
-                <span id="sticky-net-profit" class="text-base font-bold text-[var(--color-primary)]">-</span>
-            </div>
-            <button id="sticky-expand-btn" class="p-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus:outline-none transition-colors">
-                <svg id="sticky-chevron" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
-            </button>
-            <div class="flex flex-col items-end">
-                 <span class="text-[10px] text-[var(--color-text-secondary)] font-medium uppercase tracking-wider">ROI</span>
-                 <span id="sticky-roi" class="text-base font-bold text-green-600">-</span>
-            </div>
+    <div id="mobile-sticky-summary" class="mobile-sticky-footer lg:hidden">
+        <div class="flex flex-col">
+            <span class="text-[10px] text-secondary font-medium uppercase tracking-wider">Net Profit</span>
+            <span id="sticky-net-profit" class="text-base font-bold text-primary">-</span>
         </div>
-        
-        <!-- Expanded Details -->
-        <div id="sticky-details" class="hidden w-full pt-3 mt-2 border-t border-[var(--color-border)] grid grid-cols-2 gap-y-3 gap-x-4 text-xs animate-fade-in">
-            <div>
-                <span class="text-[var(--color-text-muted)]">Avg Buy:</span>
-                <span id="sticky-avg-buy" class="float-right font-mono font-medium text-[var(--color-text)]">-</span>
-            </div>
-            <div>
-                <span class="text-[var(--color-text-muted)]">Avg Sell:</span>
-                <span id="sticky-avg-sell" class="float-right font-mono font-medium text-[var(--color-text)]">-</span>
-            </div>
-            <div>
-                <span class="text-[var(--color-text-muted)]">Fees:</span>
-                <span id="sticky-fees" class="float-right font-mono font-medium text-[var(--color-text)]">-</span>
-            </div>
-            <div>
-                <span class="text-[var(--color-text-muted)]">Vol:</span>
-                <span id="sticky-vol" class="float-right font-mono font-medium text-[var(--color-text)]">-</span>
-            </div>
-            <div>
-                <span class="text-[var(--color-text-muted)]">Floor:</span>
-                <span id="sticky-floor" class="float-right font-mono font-medium text-[var(--color-text)]">-</span>
-            </div>
-            <div>
-                <span class="text-[var(--color-text-muted)]">Ceiling:</span>
-                <span id="sticky-ceiling" class="float-right font-mono font-medium text-[var(--color-text)]">-</span>
-            </div>
+        <div class="flex flex-col items-end">
+             <span class="text-[10px] text-secondary font-medium uppercase tracking-wider">ROI</span>
+             <span id="sticky-roi" class="text-base font-bold text-green-600">-</span>
         </div>
     </div>
 
@@ -475,15 +431,6 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <!-- Video Tutorial -->
-                <button id="video-btn" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)] hover:text-[var(--color-primary)] transition-colors text-xs font-medium border border-transparent hover:border-[var(--color-border-strong)]" title="Watch Tutorial">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span>Tutorial</span>
-                </button>
-                <button id="video-btn-mobile" class="sm:hidden p-2 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] transition-colors" title="Watch Tutorial">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </button>
-
                 <!-- Solana Donation -->
                 <button id="sol-btn" class="p-2 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[#9945FF] hover:bg-[var(--color-border)] transition-colors" title="Donate SOL">
                     <svg viewBox="0 0 397.7 311.7" class="w-5 h-5" fill="currentColor"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6-11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>
@@ -536,12 +483,10 @@
                         
                         <!-- Market Data Group -->
                         <div class="space-y-4">
-                            <button type="button" id="toggle-market-data" class="w-full flex items-center justify-between focus:outline-none group">
-                                <label class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider cursor-pointer group-hover:text-[var(--color-primary)] transition-colors">Market Data</label>
-                                <svg id="chevron-market-data" class="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </button>
-                            
-                            <div id="section-market-data" class="grid grid-cols-2 gap-4">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Market Data</label>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
                                 <div>
                                     <div class="flex items-center gap-1 mb-1.5">
                                         <label class="text-xs font-medium text-[var(--color-text-secondary)]" id="starting_capital_label">Initial Capital ($)</label>
@@ -563,12 +508,8 @@
 
                         <!-- Ladder Settings Group -->
                         <div class="space-y-5">
-                            <button type="button" id="toggle-ladder-settings" class="w-full flex items-center justify-between focus:outline-none group">
-                                <label class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider cursor-pointer group-hover:text-[var(--color-primary)] transition-colors">Ladder Settings</label>
-                                <svg id="chevron-ladder-settings" class="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-primary)] transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </button>
+                            <label class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Ladder Settings</label>
                             
-                            <div id="section-ladder-settings" class="space-y-5">
                             <!-- Rungs -->
                             <div>
                                 <div class="flex justify-between mb-1.5">
@@ -657,7 +598,6 @@
                                     <input type="hidden" id="fee_type" value="percent">
                                 </div>
                             </div>
-                            </div>
                         </div>
 
                         <!-- Advanced Toggle -->
@@ -739,7 +679,7 @@
                 </div>
 
                 <!-- Summary Card (Desktop) -->
-                <div class="card p-6 animate-fade-in" style="animation-delay: 0.2s;">
+                <div class="hidden lg:block card p-6 animate-fade-in" style="animation-delay: 0.2s;">
                      <h3 class="text-sm font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-4">Projected Results</h3>
                      <div class="grid grid-cols-2 gap-y-6 gap-x-4">
                          <div>
@@ -982,27 +922,7 @@
                 solBtn: document.getElementById('sol-btn'),
                 qrModal: document.getElementById('qr-modal'),
                 qrBackdrop: document.getElementById('qr-backdrop'),
-                qrClose: document.getElementById('qr-close'),
-
-                // Video
-                videoBtn: document.getElementById('video-btn'),
-                videoBtnMobile: document.getElementById('video-btn-mobile'),
-                videoModal: document.getElementById('video-modal'),
-                videoBackdrop: document.getElementById('video-backdrop'),
-                videoClose: document.getElementById('video-close'),
-
-                // Sections
-                marketToggle: document.getElementById('toggle-market-data'),
-                marketSection: document.getElementById('section-market-data'),
-                marketChevron: document.getElementById('chevron-market-data'),
-                ladderToggle: document.getElementById('toggle-ladder-settings'),
-                ladderSection: document.getElementById('section-ladder-settings'),
-                ladderChevron: document.getElementById('chevron-ladder-settings'),
-
-                // Sticky Extended
-                stickyBtn: document.getElementById('sticky-expand-btn'),
-                stickyChevron: document.getElementById('sticky-chevron'),
-                stickyDetails: document.getElementById('sticky-details')
+                qrClose: document.getElementById('qr-close')
             };
 
             // --- CALCULATOR ENGINE ---
@@ -1311,32 +1231,6 @@
                     els.solBtn.addEventListener('click', () => toggleModal(true));
                     els.qrBackdrop.addEventListener('click', () => toggleModal(false));
                     els.qrClose.addEventListener('click', () => toggleModal(false));
-
-                    // Video Modal
-                    const toggleVideo = (show) => els.videoModal.classList.toggle('open', show);
-                    if(els.videoBtn) els.videoBtn.addEventListener('click', () => toggleVideo(true));
-                    if(els.videoBtnMobile) els.videoBtnMobile.addEventListener('click', () => toggleVideo(true));
-                    els.videoBackdrop.addEventListener('click', () => toggleVideo(false));
-                    els.videoClose.addEventListener('click', () => toggleVideo(false));
-
-                    // Sections
-                    const toggleSection = (btn, section, chevron) => {
-                        if(!btn) return;
-                        btn.addEventListener('click', () => {
-                            section.classList.toggle('hidden');
-                            chevron.classList.toggle('rotate-180');
-                        });
-                    };
-                    toggleSection(els.marketToggle, els.marketSection, els.marketChevron);
-                    toggleSection(els.ladderToggle, els.ladderSection, els.ladderChevron);
-
-                    // Sticky Footer
-                    if(els.stickyBtn) {
-                        els.stickyBtn.addEventListener('click', () => {
-                            els.stickyDetails.classList.toggle('hidden');
-                            els.stickyChevron.classList.toggle('rotate-180');
-                        });
-                    }
                 },
 
                 debouncedCalc: () => Utils.debounce(App.calculatePlan, 50)(),
@@ -1581,12 +1475,6 @@
 
                     setTxt('sticky-net-profit', Utils.fmtCurr(s.netProfit));
                     setTxt('sticky-roi', Utils.fmtPct(s.roi));
-                    setTxt('sticky-avg-buy', Utils.fmtCurr(s.avgBuy));
-                    setTxt('sticky-avg-sell', Utils.fmtCurr(s.avgSell));
-                    setTxt('sticky-fees', Utils.fmtCurr(s.totalFees));
-                    setTxt('sticky-vol', Utils.fmtNum(s.totalQuantity));
-                    setTxt('sticky-floor', Utils.fmtCurr(s.lowestBuy));
-                    setTxt('sticky-ceiling', Utils.fmtCurr(s.highestSell));
                     els.stickyFooter.classList.add('visible');
 
                     const renderRow = (r, isSell) => `
