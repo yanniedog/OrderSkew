@@ -2716,31 +2716,42 @@
                             return Math.max(priceRange / 20, (yDomainMax - yDomainMin) * 0.02);
                         }
                         if (index === 0) {
-                            // First rung: half distance to next, but ensure it fits in domain
-                            const halfDist = Math.abs(series[1].price - series[0].price) / 2;
-                            // For bids (descending): first is highest, clamp to yDomainMax
-                            // For asks (ascending): first is lowest, clamp to yDomainMin
+                            // First rung: use distance to next rung (similar to middle rungs)
+                            // This ensures consistent thickness with other bars
+                            const distToNext = Math.abs(series[1].price - series[0].price);
+                            // Use the same approach as middle rungs: average of distances
+                            // For first rung, we only have next distance, so use that
+                            const height = distToNext;
+                            
+                            // Only clamp if absolutely necessary (when it would exceed domain)
                             const isAscending = series[0].price < series[series.length - 1].price;
                             if (isAscending) {
                                 // Ask series: first rung is lowest, ensure it doesn't go below yDomainMin
-                                return Math.min(halfDist, series[0].price - yDomainMin);
+                                const maxHeight = series[0].price - yDomainMin;
+                                return Math.min(height, maxHeight * 2); // Allow up to 2x the available space
                             } else {
                                 // Bid series: first rung is highest, ensure it doesn't exceed yDomainMax
-                                return Math.min(halfDist, yDomainMax - series[0].price);
+                                const maxHeight = yDomainMax - series[0].price;
+                                return Math.min(height, maxHeight * 2); // Allow up to 2x the available space
                             }
                         }
                         if (index === series.length - 1) {
-                            // Last rung: half distance from previous, but ensure it fits in domain
-                            const halfDist = Math.abs(series[index].price - series[index - 1].price) / 2;
-                            // For bids (descending): last is lowest, clamp to yDomainMin
-                            // For asks (ascending): last is highest, clamp to yDomainMax
+                            // Last rung: use distance from previous rung (similar to middle rungs)
+                            // This ensures consistent thickness with other bars
+                            const distFromPrev = Math.abs(series[index].price - series[index - 1].price);
+                            // Use the same approach as middle rungs
+                            const height = distFromPrev;
+                            
+                            // Only clamp if absolutely necessary (when it would exceed domain)
                             const isAscending = series[0].price < series[series.length - 1].price;
                             if (isAscending) {
                                 // Ask series: last rung is highest, ensure it doesn't exceed yDomainMax
-                                return Math.min(halfDist, yDomainMax - series[index].price);
+                                const maxHeight = yDomainMax - series[index].price;
+                                return Math.min(height, maxHeight * 2); // Allow up to 2x the available space
                             } else {
                                 // Bid series: last rung is lowest, ensure it doesn't go below yDomainMin
-                                return Math.min(halfDist, series[index].price - yDomainMin);
+                                const maxHeight = series[index].price - yDomainMin;
+                                return Math.min(height, maxHeight * 2); // Allow up to 2x the available space
                             }
                         }
                         // Middle rungs: average of distances to adjacent rungs
@@ -2761,17 +2772,49 @@
                             .attr("y", (d, i) => {
                                 const colHeight = calculateColumnHeight(buySeries, i);
                                 // Bar centered at d.price: top edge at higher price (lower y in SVG)
-                                // Clamp to domain for first/last rungs
-                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
+                                // Calculate ideal positions
+                                let topPrice = d.price + colHeight / 2;
+                                let bottomPrice = d.price - colHeight / 2;
+                                
+                                // Clamp to domain boundaries while trying to keep centered
+                                if (topPrice > yDomainMax) {
+                                    // Top exceeds domain, shift down
+                                    const excess = topPrice - yDomainMax;
+                                    topPrice = yDomainMax;
+                                    bottomPrice = Math.max(bottomPrice - excess, yDomainMin);
+                                }
+                                if (bottomPrice < yDomainMin) {
+                                    // Bottom below domain, shift up
+                                    const deficit = yDomainMin - bottomPrice;
+                                    bottomPrice = yDomainMin;
+                                    topPrice = Math.min(topPrice + deficit, yDomainMax);
+                                }
+                                
                                 return y(topPrice);
                             })
                             .attr("height", (d, i) => {
                                 const colHeight = calculateColumnHeight(buySeries, i);
                                 // Height from top (higher price, lower y) to bottom (lower price, higher y)
-                                // Clamp bottom to domain minimum for last rung
-                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
-                                const bottomPrice = Math.max(d.price - colHeight / 2, yDomainMin);
-                                return Math.abs(y(bottomPrice) - y(topPrice));
+                                let topPrice = d.price + colHeight / 2;
+                                let bottomPrice = d.price - colHeight / 2;
+                                
+                                // Clamp to domain boundaries while trying to keep centered
+                                if (topPrice > yDomainMax) {
+                                    // Top exceeds domain, shift down
+                                    const excess = topPrice - yDomainMax;
+                                    topPrice = yDomainMax;
+                                    bottomPrice = Math.max(bottomPrice - excess, yDomainMin);
+                                }
+                                if (bottomPrice < yDomainMin) {
+                                    // Bottom below domain, shift up
+                                    const deficit = yDomainMin - bottomPrice;
+                                    bottomPrice = yDomainMin;
+                                    topPrice = Math.min(topPrice + deficit, yDomainMax);
+                                }
+                                
+                                const height = Math.abs(y(bottomPrice) - y(topPrice));
+                                // Ensure minimum visible height
+                                return Math.max(height, 2);
                             })
                             .attr("fill", "url(#grad-bids)")
                             .attr("opacity", 0)
@@ -2792,17 +2835,49 @@
                             .attr("y", (d, i) => {
                                 const colHeight = calculateColumnHeight(sellSeries, i);
                                 // Bar centered at d.price: top edge at higher price (lower y in SVG)
-                                // Clamp to domain for first/last rungs
-                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
+                                // Calculate ideal positions
+                                let topPrice = d.price + colHeight / 2;
+                                let bottomPrice = d.price - colHeight / 2;
+                                
+                                // Clamp to domain boundaries while trying to keep centered
+                                if (topPrice > yDomainMax) {
+                                    // Top exceeds domain, shift down
+                                    const excess = topPrice - yDomainMax;
+                                    topPrice = yDomainMax;
+                                    bottomPrice = Math.max(bottomPrice - excess, yDomainMin);
+                                }
+                                if (bottomPrice < yDomainMin) {
+                                    // Bottom below domain, shift up
+                                    const deficit = yDomainMin - bottomPrice;
+                                    bottomPrice = yDomainMin;
+                                    topPrice = Math.min(topPrice + deficit, yDomainMax);
+                                }
+                                
                                 return y(topPrice);
                             })
                             .attr("height", (d, i) => {
                                 const colHeight = calculateColumnHeight(sellSeries, i);
                                 // Height from top (higher price, lower y) to bottom (lower price, higher y)
-                                // Clamp bottom to domain minimum for first rung, top to domain max for last rung
-                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
-                                const bottomPrice = Math.max(d.price - colHeight / 2, yDomainMin);
-                                return Math.abs(y(bottomPrice) - y(topPrice));
+                                let topPrice = d.price + colHeight / 2;
+                                let bottomPrice = d.price - colHeight / 2;
+                                
+                                // Clamp to domain boundaries while trying to keep centered
+                                if (topPrice > yDomainMax) {
+                                    // Top exceeds domain, shift down
+                                    const excess = topPrice - yDomainMax;
+                                    topPrice = yDomainMax;
+                                    bottomPrice = Math.max(bottomPrice - excess, yDomainMin);
+                                }
+                                if (bottomPrice < yDomainMin) {
+                                    // Bottom below domain, shift up
+                                    const deficit = yDomainMin - bottomPrice;
+                                    bottomPrice = yDomainMin;
+                                    topPrice = Math.min(topPrice + deficit, yDomainMax);
+                                }
+                                
+                                const height = Math.abs(y(bottomPrice) - y(topPrice));
+                                // Ensure minimum visible height
+                                return Math.max(height, 2);
                             })
                             .attr("fill", "url(#grad-asks)")
                             .attr("opacity", 0)
