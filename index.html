@@ -457,7 +457,8 @@
             </div>
             
             <p class="text-gray-200 text-lg md:text-xl tracking-wide font-light max-w-lg mx-auto leading-relaxed">
-                Advanced Trading Strategy<br>& Ladder Visualization
+                Plan your trades.<br>
+                <span class="text-base">Buy <span class="text-red-500">low</span>, sell <span class="text-green-500">high</span>.</span>
             </p>
             
             <button id="enter-app-btn" class="group relative px-10 py-4 bg-transparent overflow-hidden rounded-full border border-cyan-500 text-cyan-400 font-bold tracking-widest uppercase hover:text-black transition-colors duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.6)]">
@@ -616,10 +617,10 @@
         <header class="relative z-40 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
             <div>
                 <div class="flex items-center gap-2">
-                    <h1 class="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] font-solana">
+                    <h1 id="logo-header" class="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] font-solana cursor-pointer hover:opacity-80 transition-opacity">
                         ORDER SKEW
                     </h1>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--color-primary)] text-[var(--color-primary-contrast)] uppercase tracking-widest">Pro</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--color-primary)] text-[var(--color-primary-contrast)] uppercase tracking-widest">Customise</span>
                 </div>
                 <p class="text-sm text-[var(--color-text-secondary)] mt-1">Trading ladder strategy calculator & visualizer</p>
             </div>
@@ -688,8 +689,8 @@
                             Strategy
                         </h2>
                         <div class="flex items-center bg-[var(--color-card-muted)] rounded-lg p-1 border border-[var(--color-border)]">
-                            <button id="mode-simple" class="px-3 py-1 text-xs font-medium rounded-md transition-all shadow-sm bg-[var(--color-card)] text-[var(--color-primary)]">Simple</button>
-                            <button id="mode-pro" class="px-3 py-1 text-xs font-medium rounded-md transition-all text-[var(--color-text-secondary)] hover:text-[var(--color-text)]">Pro</button>
+                            <button id="mode-simple" class="px-3 py-1 text-xs font-medium rounded-md transition-all shadow-sm bg-[var(--color-card)] text-[var(--color-primary)]">Current</button>
+                            <button id="mode-pro" class="px-3 py-1 text-xs font-medium rounded-md transition-all text-[var(--color-text-secondary)] hover:text-[var(--color-text)]">Customise</button>
                         </div>
                     </div>
                     
@@ -704,14 +705,20 @@
                                         <label class="text-xs font-medium text-[var(--color-text-secondary)]" id="starting_capital_label">Initial Capital ($)</label>
                                         <button type="button" class="helper-tooltip" title="Total amount of capital available to deploy for this plan.">?</button>
                                     </div>
-                                    <input type="text" id="starting_capital" value="50,000" class="form-input w-full rounded-lg p-2.5 font-mono">
+                                    <div class="relative flex items-center">
+                                        <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
+                                        <input type="text" id="starting_capital" value="10,000" class="form-input w-full rounded-lg p-2.5 font-mono pl-7">
+                                    </div>
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-1 mb-1.5">
                                         <label class="block text-xs font-medium text-[var(--color-text-secondary)]">Asset Price ($)</label>
                                         <button type="button" class="helper-tooltip" title="Current market price of the asset used as a baseline.">?</button>
                                     </div>
-                                    <input type="text" id="current_price" value="100" class="form-input w-full rounded-lg p-2.5 font-mono">
+                                    <div class="relative flex items-center">
+                                        <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
+                                        <input type="text" id="current_price" value="100" class="form-input w-full rounded-lg p-2.5 font-mono pl-7">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -770,14 +777,20 @@
                                             <label class="text-[10px] text-[var(--color-text-muted)]">Buy Floor ($)</label>
                                             <button type="button" class="helper-tooltip" title="The price of the absolute lowest buy order.">?</button>
                                         </div>
-                                        <input type="number" id="buy_floor" class="form-input w-full rounded p-2 text-xs" placeholder="Low">
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
+                                            <input type="number" id="buy_floor" class="form-input w-full rounded p-2 text-xs pl-6" placeholder="Low">
+                                        </div>
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-1 mb-1">
                                             <label class="text-[10px] text-[var(--color-text-muted)]">Sell Ceiling ($)</label>
                                             <button type="button" class="helper-tooltip" title="The price of the absolute highest sell order.">?</button>
                                         </div>
-                                        <input type="number" id="sell_ceiling" class="form-input w-full rounded p-2 text-xs" placeholder="High">
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
+                                            <input type="number" id="sell_ceiling" class="form-input w-full rounded p-2 text-xs pl-6" placeholder="High">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -810,7 +823,10 @@
                                         <button type="button" id="fee_type_percent" class="fee-type-btn active px-3 py-2 text-xs font-medium transition-colors" data-value="percent">%</button>
                                         <button type="button" id="fee_type_fixed" class="fee-type-btn px-3 py-2 text-xs font-medium transition-colors" data-value="fixed">$</button>
                                     </div>
-                                    <input type="number" id="fee_value" value="0.1" step="0.01" class="form-input flex-1 rounded-lg p-2.5 font-mono">
+                                    <div class="relative flex items-center flex-1">
+                                        <span id="fee_dollar_prefix" class="absolute left-3 text-[var(--color-text-secondary)] font-mono hidden">$</span>
+                                        <input type="number" id="fee_value" value="0.1" step="0.01" class="form-input w-full rounded-lg p-2.5 font-mono">
+                                    </div>
                                     <input type="hidden" id="fee_type" value="percent">
                                 </div>
                             </div>
@@ -846,14 +862,17 @@
                                             <label class="text-[10px] font-medium">Held Qty</label>
                                             <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
                                         </div>
-                                        <input type="number" id="existing_quantity" value="0" class="form-input w-full rounded p-1.5 text-sm">
+                                        <input type="number" id="existing_quantity" value="50" class="form-input w-full rounded p-1.5 text-sm">
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-1 mb-1">
                                             <label class="text-[10px] font-medium">Avg Cost</label>
                                             <button type="button" class="helper-tooltip" title="Your average buy price for the assets you hold.">?</button>
                                         </div>
-                                        <input type="number" id="existing_avg_price" value="0" class="form-input w-full rounded p-1.5 text-sm">
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-sm">$</span>
+                                            <input type="number" id="existing_avg_price" value="0" class="form-input w-full rounded p-1.5 text-sm pl-6">
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1231,34 +1250,43 @@
                 questions: [
                     {
                         question: "What's your trading goal?",
-                        hint: "Are you looking to buy a new position or sell assets you already own? This helps us set up the right strategy for you.",
+                        hint: "Buy new positions or sell existing holdings.",
                         type: "choice",
                         field: "sell_only_mode",
                         options: [
-                            { label: "💰 Buy New Positions", value: false, description: "I want to purchase assets using a ladder strategy" },
-                            { label: "📈 Sell Existing Holdings", value: true, description: "I already own assets and want to plan my exit strategy" }
+                            { label: "Buy New Positions", value: false, description: "Purchase assets using a ladder strategy" },
+                            { label: "Sell Existing Holdings", value: true, description: "Plan exit strategy for existing assets" }
                         ],
                         default: false
                     },
                     {
                         question: "How much capital are you working with?",
-                        hint: "Enter the total amount of money you want to invest. You can use commas (e.g., 50,000) or just numbers.",
+                        hint: "Total investment amount.",
                         type: "currency",
                         field: "starting_capital",
-                        placeholder: "50,000",
-                        default: 50000
+                        placeholder: "10,000",
+                        default: 10000
                     },
                     {
                         question: "What's the current price of your asset?",
-                        hint: "Enter the current market price. This will be the center point for your buy and sell orders.",
+                        hint: "Current market price.",
                         type: "currency",
                         field: "current_price",
                         placeholder: "100",
                         default: 100
                     },
                     {
+                        question: "What's the lowest price you want to buy at?",
+                        hint: "Enter the lowest price you're willing to pay. The percentage range will be calculated automatically.",
+                        type: "currency",
+                        field: "lowest_buy_price",
+                        placeholder: "80",
+                        min: 0.01,
+                        default: null
+                    },
+                    {
                         question: "How many price levels do you want?",
-                        hint: "This is the number of separate buy and sell orders. More levels give you finer control but require more management. We recommend 5-15 for most traders.",
+                        hint: "Number of buy and sell orders (5-15 recommended).",
                         type: "number",
                         field: "number_of_rungs",
                         placeholder: "10",
@@ -1267,31 +1295,21 @@
                         default: 10
                     },
                     {
-                        question: "How wide should your price range be?",
-                        hint: "This is the percentage range below (for buys) and above (for sells) the current price. A 20% range means your lowest buy will be 20% below current price, and highest sell will be 20% above.",
-                        type: "percentage",
-                        field: "depth",
-                        placeholder: "20",
-                        min: 0.1,
-                        max: 99,
-                        default: 20
-                    },
-                    {
                         question: "How should your money be distributed?",
-                        hint: "Choose how to spread your capital across price levels. 'Flat' means equal amounts at each price. 'Curved' means more money at lower prices (better for buying the dip).",
+                        hint: "Flat: equal amounts. Curved: more at lower prices.",
                         type: "skew",
                         field: "skew_value",
                         options: [
-                            { label: "⚖️ Flat Distribution", value: 0, description: "Equal amounts at each price level" },
-                            { label: "📉 Gentle Curve", value: 30, description: "Slightly more at lower prices" },
-                            { label: "📊 Moderate Curve", value: 50, description: "Balanced curve (recommended)" },
-                            { label: "📉 Aggressive Curve", value: 80, description: "Much more at lower prices" }
+                            { label: "Flat Distribution", value: 0, description: "Equal amounts at each level" },
+                            { label: "Gentle Curve", value: 30, description: "Slightly more at lower prices" },
+                            { label: "Moderate Curve", value: 50, description: "Balanced (recommended)" },
+                            { label: "Aggressive Curve", value: 80, description: "Much more at lower prices" }
                         ],
                         default: 50
                     },
                     {
                         question: "What trading fees do you pay?",
-                        hint: "Enter your trading fee as a percentage (e.g., 0.1 for 0.1%). Most exchanges charge between 0.05% and 0.5%. This helps calculate your true costs.",
+                        hint: "Trading fee percentage (e.g., 0.1 for 0.1%).",
                         type: "fee",
                         field: "fee_value",
                         placeholder: "0.1",
@@ -1353,9 +1371,23 @@
 
                 renderQuestion: () => {
                     const wizardContent = document.getElementById('wizard-content');
-                    const question = SetupWizard.questions[SetupWizard.currentStep];
+                    let question = SetupWizard.questions[SetupWizard.currentStep];
                     const stepNum = document.getElementById('wizard-step-num');
                     const progress = document.getElementById('wizard-progress');
+                    
+                    // Dynamically change capital question to quantity question when in sell-only mode
+                    const isSellOnly = SetupWizard.answers['sell_only_mode'] === true;
+                    if (question.field === 'starting_capital' && isSellOnly) {
+                        question = {
+                            ...question,
+                            question: "What quantity of assets do you want to sell?",
+                            hint: "Enter the total quantity of assets you currently hold and wish to sell. This will be distributed across your sell ladder.",
+                            type: "number",
+                            field: "existing_quantity",
+                            placeholder: "50",
+                            default: 50
+                        };
+                    }
                     
                     stepNum.textContent = SetupWizard.currentStep + 1;
                     const progressPercent = ((SetupWizard.currentStep + 1) / SetupWizard.questions.length) * 100;
@@ -1376,26 +1408,49 @@
                     `;
 
                     if (question.type === 'currency' || question.type === 'number' || question.type === 'percentage' || question.type === 'fee') {
-                        const currentValue = SetupWizard.answers[question.field] !== undefined 
-                            ? (question.type === 'currency' && SetupWizard.answers[question.field] >= 1000 
-                                ? Utils.formatNumberWithCommas(SetupWizard.answers[question.field].toString())
-                                : SetupWizard.answers[question.field])
-                            : (question.default !== undefined ? question.default : '');
+                        // Get the correct field value (handle quantity vs capital)
+                        const valueField = question.field === 'starting_capital' && isSellOnly ? 'existing_quantity' : question.field;
+                        const actualValue = SetupWizard.answers[valueField];
+                        const currentPrice = SetupWizard.answers['current_price'] || 0;
+                        
+                        // Calculate default for lowest_buy_price as 25% below current price
+                        let defaultValue = question.default;
+                        if (question.field === 'lowest_buy_price' && currentPrice > 0 && actualValue === undefined) {
+                            defaultValue = currentPrice * 0.75;
+                        }
+                        
+                        const currentValue = actualValue !== undefined 
+                            ? (question.type === 'currency' && actualValue >= 1000 
+                                ? Utils.formatNumberWithCommas(actualValue.toString())
+                                : actualValue)
+                            : (defaultValue !== undefined && defaultValue !== null 
+                                ? (question.type === 'currency' && defaultValue >= 1000 
+                                    ? Utils.formatNumberWithCommas(defaultValue.toString())
+                                    : defaultValue)
+                                : '');
                         const inputType = question.type === 'number' ? 'number' : 'text';
+                        const isCurrency = question.type === 'currency';
+                        const showRangeCalc = question.field === 'lowest_buy_price';
                         html += `
                             <div class="mt-6">
                                 <label for="wizard-input" class="sr-only">${question.question}</label>
-                                <input 
-                                    type="${inputType}"
-                                    id="wizard-input" 
-                                    class="wizard-input" 
-                                    placeholder="${question.placeholder || ''}"
-                                    value="${currentValue}"
-                                    ${question.min !== undefined ? `min="${question.min}"` : ''}
-                                    ${question.max !== undefined ? `max="${question.max}"` : ''}
-                                    aria-describedby="wizard-hint"
-                                    autocomplete="off"
-                                >
+                                <div class="relative flex items-center gap-4">
+                                    <div class="flex-1 relative">
+                                        ${isCurrency ? '<span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--color-text-secondary)] font-mono">$</span>' : ''}
+                                        <input 
+                                            type="${inputType}"
+                                            id="wizard-input" 
+                                            class="wizard-input ${isCurrency ? 'pl-7' : ''}" 
+                                            placeholder="${question.placeholder || ''}"
+                                            value="${currentValue}"
+                                            ${question.min !== undefined ? `min="${question.min}"` : ''}
+                                            ${question.max !== undefined ? `max="${question.max}"` : ''}
+                                            aria-describedby="wizard-hint"
+                                            autocomplete="off"
+                                        >
+                                    </div>
+                                    ${showRangeCalc ? `<div id="wizard-range-display" class="text-sm text-[var(--color-text-muted)] whitespace-nowrap">Range: <span class="font-mono">0%</span></div>` : ''}
+                                </div>
                             </div>
                         `;
                     } else if (question.type === 'skew' || question.type === 'choice') {
@@ -1429,6 +1484,20 @@
                     html += '</div>';
                     wizardContent.innerHTML = html;
 
+                    // Initialize range display for lowest buy price
+                    if (question.field === 'lowest_buy_price') {
+                        const currentPrice = SetupWizard.answers['current_price'] || 0;
+                        let lowestPrice = SetupWizard.answers['lowest_buy_price'];
+                        if (!lowestPrice && currentPrice > 0) {
+                            lowestPrice = currentPrice * 0.75;
+                        }
+                        const rangeDisplay = document.getElementById('wizard-range-display');
+                        if (rangeDisplay && currentPrice > 0 && lowestPrice > 0) {
+                            const range = ((currentPrice - lowestPrice) / currentPrice) * 100;
+                            rangeDisplay.innerHTML = `Range: <span class="font-mono">${range.toFixed(1)}%</span>`;
+                        }
+                    }
+
                     // Focus input if it exists
                     const input = document.getElementById('wizard-input');
                     if (input) {
@@ -1448,6 +1517,17 @@
                             // Hide error on input
                             const errorEl = document.getElementById('wizard-error');
                             if (errorEl) errorEl.classList.remove('show');
+                            
+                            // Update range calculation for lowest buy price
+                            if (question.field === 'lowest_buy_price') {
+                                const currentPrice = SetupWizard.answers['current_price'] || 0;
+                                const lowestPrice = parseFloat(input.value.replace(/,/g, '')) || 0;
+                                const rangeDisplay = document.getElementById('wizard-range-display');
+                                if (rangeDisplay && currentPrice > 0 && lowestPrice > 0) {
+                                    const range = ((currentPrice - lowestPrice) / currentPrice) * 100;
+                                    rangeDisplay.innerHTML = `Range: <span class="font-mono">${range.toFixed(1)}%</span>`;
+                                }
+                            }
                         });
                     }
 
@@ -1481,8 +1561,14 @@
                 selectOption: (field, value) => {
                     SetupWizard.answers[field] = value;
                     SetupWizard.updateFormInRealTime();
-                    // Re-render to update selected state
+                    // Re-render to update selected state and potentially change next question
                     SetupWizard.renderQuestion();
+                    // Auto-advance to next step
+                    setTimeout(() => {
+                        if (SetupWizard.currentStep < SetupWizard.questions.length - 1) {
+                            SetupWizard.next();
+                        }
+                    }, 300);
                 },
 
                 showError: (message) => {
@@ -1495,12 +1581,28 @@
                 },
 
                 next: () => {
-                    const question = SetupWizard.questions[SetupWizard.currentStep];
+                    let question = SetupWizard.questions[SetupWizard.currentStep];
                     const input = document.getElementById('wizard-input');
+                    
+                    // Check if we need to use quantity field instead of capital
+                    const isSellOnly = SetupWizard.answers['sell_only_mode'] === true;
+                    let actualField = question.field;
+                    if (question.field === 'starting_capital' && isSellOnly) {
+                        actualField = 'existing_quantity';
+                    }
                     
                     // Validate and save answer
                     if (input) {
                         let value = input.value.trim();
+                        
+                        // Use default for lowest_buy_price if empty (25% below current price)
+                        if (!value && question.field === 'lowest_buy_price') {
+                            const currentPrice = SetupWizard.answers['current_price'] || 0;
+                            if (currentPrice > 0) {
+                                value = (currentPrice * 0.75).toString();
+                            }
+                        }
+                        
                         if (!value) {
                             SetupWizard.showError('Please enter a value to continue.');
                             input.focus();
@@ -1528,13 +1630,33 @@
                                 input.select();
                                 return;
                             }
+                            // Validate lowest buy price is less than current price
+                            if (question.field === 'lowest_buy_price') {
+                                const currentPrice = SetupWizard.answers['current_price'] || 0;
+                                if (currentPrice > 0 && value >= currentPrice) {
+                                    SetupWizard.showError('Lowest buy price must be less than current price.');
+                                    input.focus();
+                                    input.select();
+                                    return;
+                                }
+                            }
                         }
                         
-                        SetupWizard.answers[question.field] = value;
+                        // Calculate depth from lowest buy price if needed
+                        if (question.field === 'lowest_buy_price') {
+                            const currentPrice = SetupWizard.answers['current_price'] || 0;
+                            if (currentPrice > 0 && value > 0 && value < currentPrice) {
+                                const depth = ((currentPrice - value) / currentPrice) * 100;
+                                SetupWizard.answers['depth'] = depth;
+                            }
+                            SetupWizard.answers['lowest_buy_price'] = value;
+                        } else {
+                            SetupWizard.answers[actualField] = value;
+                        }
                         SetupWizard.updateFormInRealTime();
                     } else if (question.type === 'skew' || question.type === 'choice') {
-                        if (SetupWizard.answers[question.field] === undefined) {
-                            SetupWizard.answers[question.field] = question.default;
+                        if (SetupWizard.answers[actualField] === undefined) {
+                            SetupWizard.answers[actualField] = question.default;
                         }
                         SetupWizard.updateFormInRealTime();
                     }
@@ -1583,6 +1705,7 @@
                     // Map wizard answers to form fields
                     const fieldMap = {
                         'starting_capital': els.startCap,
+                        'existing_quantity': els.existQty,
                         'current_price': els.currPrice,
                         'number_of_rungs': els.rungsInput,
                         'depth': els.depthInput,
@@ -1598,6 +1721,8 @@
                         if (element) {
                             if (field === 'starting_capital') {
                                 element.value = Utils.formatNumberWithCommas(value.toString());
+                            } else if (field === 'existing_quantity') {
+                                element.value = value;
                             } else if (field === 'number_of_rungs') {
                                 element.value = Math.round(value);
                                 els.rungs.value = Math.round(value);
@@ -1628,11 +1753,29 @@
 
                 updateFormInRealTime: () => {
                     // Update form as user progresses through wizard
-                    const question = SetupWizard.questions[SetupWizard.currentStep];
+                    let question = SetupWizard.questions[SetupWizard.currentStep];
                     if (!question) return;
+                    
+                    // Recalculate depth from lowest buy price if needed
+                    if (question.field === 'lowest_buy_price' || SetupWizard.answers['lowest_buy_price'] !== undefined) {
+                        const currentPrice = SetupWizard.answers['current_price'] || 0;
+                        const lowestPrice = SetupWizard.answers['lowest_buy_price'];
+                        if (currentPrice > 0 && lowestPrice > 0 && lowestPrice < currentPrice) {
+                            const depth = ((currentPrice - lowestPrice) / currentPrice) * 100;
+                            SetupWizard.answers['depth'] = depth;
+                        }
+                    }
+                    
+                    // Check if we need to use the quantity field instead of capital
+                    const isSellOnly = SetupWizard.answers['sell_only_mode'] === true;
+                    let actualField = question.field;
+                    if (question.field === 'starting_capital' && isSellOnly) {
+                        actualField = 'existing_quantity';
+                    }
                     
                     const fieldMap = {
                         'starting_capital': els.startCap,
+                        'existing_quantity': els.existQty,
                         'current_price': els.currPrice,
                         'number_of_rungs': els.rungsInput,
                         'depth': els.depthInput,
@@ -1641,28 +1784,29 @@
                         'sell_only_mode': els.sellOnlyCheck
                     };
 
-                    const field = question.field;
-                    const element = fieldMap[field];
-                    const answer = SetupWizard.answers[field];
+                    const element = fieldMap[actualField];
+                    const answer = SetupWizard.answers[actualField] !== undefined ? SetupWizard.answers[actualField] : SetupWizard.answers[question.field];
                     
                     if (element && answer !== undefined) {
-                        if (field === 'starting_capital') {
+                        if (actualField === 'starting_capital') {
                             element.value = Utils.formatNumberWithCommas(answer.toString());
-                        } else if (field === 'number_of_rungs') {
+                        } else if (actualField === 'existing_quantity') {
+                            element.value = answer;
+                        } else if (actualField === 'number_of_rungs') {
                             element.value = Math.round(answer);
                             els.rungs.value = Math.round(answer);
                             els.rungsDisplay.textContent = Math.round(answer);
-                        } else if (field === 'depth') {
+                        } else if (actualField === 'depth') {
                             element.value = answer;
                             els.depth.value = answer;
-                        } else if (field === 'skew_value') {
+                        } else if (actualField === 'skew_value') {
                             element.value = answer;
                             const v = parseInt(answer);
                             if (v === 0) els.skewLabel.textContent = "Flat";
                             else if (v <= 30) els.skewLabel.textContent = "Gentle";
                             else if (v <= 70) els.skewLabel.textContent = "Moderate";
                             else els.skewLabel.textContent = "Aggressive";
-                        } else if (field === 'sell_only_mode') {
+                        } else if (actualField === 'sell_only_mode') {
                             element.checked = answer;
                             if (answer) {
                                 els.sellOnlyInputs.classList.remove('hidden');
@@ -1749,10 +1893,23 @@
                             introLayer.style.opacity = '0';
                             introLayer.style.pointerEvents = 'none';
                             setTimeout(() => {
-                                introLayer.remove();
+                                introLayer.style.display = 'none';
                                 // Always show wizard when clicking Get Started
                                 SetupWizard.init();
                             }, 700);
+                        });
+                    }
+
+                    // Handle Logo Click - Return to Start Page
+                    const logoHeader = document.getElementById('logo-header');
+                    if (logoHeader) {
+                        logoHeader.addEventListener('click', () => {
+                            const introLayer = document.getElementById('intro-layer');
+                            if (introLayer) {
+                                introLayer.style.display = 'flex';
+                                introLayer.style.opacity = '1';
+                                introLayer.style.pointerEvents = 'auto';
+                            }
                         });
                     }
 
@@ -1891,15 +2048,24 @@
                     // Fee Type Toggle Buttons
                     const feeTypePercent = document.getElementById('fee_type_percent');
                     const feeTypeFixed = document.getElementById('fee_type_fixed');
+                    const feeDollarPrefix = document.getElementById('fee_dollar_prefix');
                     if (feeTypePercent && feeTypeFixed) {
                         const updateFeeType = (value) => {
                             els.feeType.value = value;
                             if (value === 'percent') {
                                 feeTypePercent.classList.add('active');
                                 feeTypeFixed.classList.remove('active');
+                                if (feeDollarPrefix) {
+                                    feeDollarPrefix.classList.add('hidden');
+                                    els.feeValue.style.paddingLeft = '';
+                                }
                             } else {
                                 feeTypeFixed.classList.add('active');
                                 feeTypePercent.classList.remove('active');
+                                if (feeDollarPrefix) {
+                                    feeDollarPrefix.classList.remove('hidden');
+                                    els.feeValue.style.paddingLeft = '2.5rem';
+                                }
                             }
                             App.calculatePlan();
                         };
