@@ -1247,6 +1247,7 @@
             const SetupWizard = {
                 currentStep: 0,
                 answers: {},
+                wasSkipped: false,
                 questions: [
                     {
                         question: "What's your trading goal?",
@@ -1320,6 +1321,7 @@
                 init: () => {
                     SetupWizard.currentStep = 0;
                     SetupWizard.answers = {};
+                    SetupWizard.wasSkipped = false;
                     // Pre-populate with defaults
                     SetupWizard.questions.forEach(q => {
                         if (q.default !== undefined) {
@@ -1410,24 +1412,25 @@
                     if (question.type === 'currency' || question.type === 'number' || question.type === 'percentage' || question.type === 'fee') {
                         // Get the correct field value (handle quantity vs capital)
                         const valueField = question.field === 'starting_capital' && isSellOnly ? 'existing_quantity' : question.field;
-                        const actualValue = SetupWizard.answers[valueField];
+                        let actualValue = SetupWizard.answers[valueField];
                         const currentPrice = SetupWizard.answers['current_price'] || 0;
                         
                         // Calculate default for lowest_buy_price as 25% below current price
                         let defaultValue = question.default;
-                        if (question.field === 'lowest_buy_price' && currentPrice > 0 && actualValue === undefined) {
-                            defaultValue = currentPrice * 0.75;
+                        if (question.field === 'lowest_buy_price' && currentPrice > 0 && (actualValue === undefined || actualValue === null)) {
+                            defaultValue = Math.round((currentPrice * 0.75) * 100) / 100; // Round to 2 decimal places
+                            // Pre-populate the answer with the calculated default
+                            SetupWizard.answers[valueField] = defaultValue;
+                            actualValue = defaultValue; // Update actualValue to reflect the set default
                         }
                         
-                        const currentValue = actualValue !== undefined 
-                            ? (question.type === 'currency' && actualValue >= 1000 
-                                ? Utils.formatNumberWithCommas(actualValue.toString())
-                                : actualValue)
-                            : (defaultValue !== undefined && defaultValue !== null 
-                                ? (question.type === 'currency' && defaultValue >= 1000 
-                                    ? Utils.formatNumberWithCommas(defaultValue.toString())
-                                    : defaultValue)
-                                : '');
+                        // Use actualValue if it exists and is valid, otherwise use defaultValue
+                        const valueToUse = (actualValue !== undefined && actualValue !== null) ? actualValue : defaultValue;
+                        const currentValue = valueToUse !== undefined && valueToUse !== null
+                            ? (question.type === 'currency' && valueToUse >= 1000 
+                                ? Utils.formatNumberWithCommas(valueToUse.toString())
+                                : valueToUse)
+                            : '';
                         const inputType = question.type === 'number' ? 'number' : 'text';
                         const isCurrency = question.type === 'currency';
                         const showRangeCalc = question.field === 'lowest_buy_price';
@@ -1678,6 +1681,7 @@
                 },
 
                 skip: () => {
+                    SetupWizard.wasSkipped = true;
                     SetupWizard.finish();
                 },
 
@@ -1685,8 +1689,13 @@
                     // Apply answers to form fields
                     SetupWizard.applyAnswers();
                     
-                    // Enable Pro mode to show all fields
-                    App.setMode('pro');
+                    // Set mode based on whether wizard was skipped or completed
+                    // If skipped: Customise mode (pro), If completed: Current mode (simple)
+                    if (SetupWizard.wasSkipped) {
+                        App.setMode('pro'); // Customise mode when skipped
+                    } else {
+                        App.setMode('simple'); // Current mode when completed
+                    }
                     
                     // Hide wizard
                     const wizard = document.getElementById('setup-wizard');
