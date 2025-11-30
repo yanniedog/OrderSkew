@@ -328,60 +328,6 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
 
-        /* --- SETUP WIZARD --- */
-        #setup-wizard.open {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        #setup-wizard.open > div {
-            transform: scale(1);
-        }
-        .wizard-question {
-            animation: fadeIn 0.3s ease-out;
-        }
-        .wizard-input {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            background-color: var(--color-card-muted);
-            border: 2px solid var(--color-border);
-            border-radius: 0.75rem;
-            color: var(--color-text);
-            font-size: 1rem;
-            transition: all 0.2s ease;
-        }
-        .wizard-input:focus {
-            outline: none;
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px var(--focus-ring-color);
-            background-color: var(--color-card);
-        }
-        .wizard-option {
-            padding: 1rem 1.25rem;
-            background-color: var(--color-card-muted);
-            border: 2px solid var(--color-border);
-            border-radius: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: left;
-        }
-        .wizard-option:hover {
-            border-color: var(--color-primary);
-            background-color: var(--color-card);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-        .wizard-option.selected {
-            border-color: var(--color-primary);
-            background-color: var(--color-primary);
-            color: var(--color-primary-contrast);
-        }
-        .wizard-hint {
-            font-size: 0.875rem;
-            color: var(--color-text-muted);
-            margin-top: 0.5rem;
-            line-height: 1.5;
-        }
-
     </style>
 </head>
 <body class="p-3 sm:p-6 theme-light layout-desktop antialiased">
@@ -411,42 +357,8 @@
             
             <button id="enter-app-btn" class="group relative px-10 py-4 bg-transparent overflow-hidden rounded-full border border-cyan-500 text-cyan-400 font-bold tracking-widest uppercase hover:text-black transition-colors duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.6)]">
                 <span class="absolute inset-0 w-full h-full bg-cyan-400 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out"></span>
-                <span class="relative z-10">Get Started</span>
+                <span class="relative z-10">Initialize System</span>
             </button>
-        </div>
-    </div>
-
-    <!-- Question-Based Setup Wizard -->
-    <div id="setup-wizard" class="fixed inset-0 z-[9998] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-500 opacity-0 pointer-events-none">
-        <div class="bg-[var(--color-card)] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" style="transform: scale(0.95); transition: transform 0.3s ease;">
-            <div class="p-6 sm:p-8">
-                <!-- Progress Bar -->
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-medium text-[var(--color-text-muted)]">Step <span id="wizard-step-num">1</span> of <span id="wizard-total-steps">7</span></span>
-                        <button id="wizard-skip" class="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors">Skip Setup</button>
-                    </div>
-                    <div class="w-full bg-[var(--color-card-muted)] rounded-full h-2 overflow-hidden">
-                        <div id="wizard-progress" class="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
-                </div>
-
-                <!-- Question Content -->
-                <div id="wizard-content" class="space-y-6">
-                    <!-- Question will be dynamically inserted here -->
-                </div>
-
-                <!-- Navigation Buttons -->
-                <div class="flex justify-between items-center mt-8 pt-6 border-t border-[var(--color-border)]">
-                    <button id="wizard-back" class="px-6 py-2.5 rounded-lg bg-[var(--color-card-alt)] text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors font-medium text-sm hidden">
-                        ← Back
-                    </button>
-                    <div class="flex-1"></div>
-                    <button id="wizard-next" class="px-8 py-2.5 rounded-lg bg-[var(--color-primary)] text-[var(--color-primary-contrast)] hover:bg-[var(--color-primary-accent)] transition-colors font-medium text-sm shadow-sm">
-                        Next →
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -564,11 +476,6 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <!-- Reset Setup Button -->
-                <button id="reset-setup-btn" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] transition-colors text-xs font-medium" title="Restart Setup Wizard">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    <span>Reset Setup</span>
-                </button>
                 <!-- Video Tutorial -->
                 <button id="video-btn" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-primary)] text-[var(--color-primary-contrast)] hover:bg-[var(--color-primary-accent)] transition-colors text-xs font-medium shadow-sm" title="Watch Tutorial">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -1101,9 +1008,6 @@
                 videoBackdrop: document.getElementById('video-backdrop'),
                 videoClose: document.getElementById('video-close'),
 
-                // Setup Wizard
-                resetSetupBtn: document.getElementById('reset-setup-btn'),
-
                 // Fees
                 showFeesToggle: document.getElementById('show-fees-toggle'),
 
@@ -1160,377 +1064,6 @@
                     const netCapital = executed.reduce((sum, rung) => sum + rung.netCapital, 0);
                     const fees = executed.reduce((sum, rung) => sum + rung.fee, 0);
                     return { quantity, netCapital, fees };
-                }
-            };
-
-            // --- SETUP WIZARD ---
-            const SetupWizard = {
-                currentStep: 0,
-                answers: {},
-                questions: [
-                    {
-                        question: "How much money do you want to invest?",
-                        hint: "Enter the total amount of capital you're planning to use for this trading strategy.",
-                        type: "currency",
-                        field: "starting_capital",
-                        placeholder: "e.g., 50,000"
-                    },
-                    {
-                        question: "What's the current price of the asset you're trading?",
-                        hint: "This is the current market price that will serve as the baseline for your buy and sell orders.",
-                        type: "currency",
-                        field: "current_price",
-                        placeholder: "e.g., 100"
-                    },
-                    {
-                        question: "How many separate orders do you want to place?",
-                        hint: "This is the number of buy and sell orders in your ladder. More orders give finer control but require more management.",
-                        type: "number",
-                        field: "number_of_rungs",
-                        placeholder: "e.g., 10",
-                        min: 2,
-                        max: 50,
-                        default: 10
-                    },
-                    {
-                        question: "How wide should your price range be?",
-                        hint: "This determines how far below (for buys) and above (for sells) the current price your orders will extend. A wider range captures more price movement but requires more capital.",
-                        type: "percentage",
-                        field: "depth",
-                        placeholder: "e.g., 20",
-                        min: 0.1,
-                        max: 99,
-                        default: 20
-                    },
-                    {
-                        question: "How should your capital be distributed?",
-                        hint: "Flat means equal amounts at each price. Curved means more capital at lower buy prices (like a martingale strategy).",
-                        type: "skew",
-                        field: "skew_value",
-                        options: [
-                            { label: "Flat (Equal Distribution)", value: 0 },
-                            { label: "Gentle Curve", value: 30 },
-                            { label: "Moderate Curve", value: 50 },
-                            { label: "Aggressive Curve", value: 80 }
-                        ],
-                        default: 50
-                    },
-                    {
-                        question: "What's your trading fee?",
-                        hint: "Enter the fee you pay per trade. This can be a percentage (like 0.1% for most exchanges) or a fixed dollar amount.",
-                        type: "fee",
-                        field: "fee_value",
-                        placeholder: "e.g., 0.1",
-                        default: 0.1
-                    },
-                    {
-                        question: "Are you planning to buy new positions or sell existing ones?",
-                        hint: "Choose 'Buy New Positions' if you're starting fresh. Choose 'Sell Existing Holdings' if you already own the asset and want to plan your exit strategy.",
-                        type: "choice",
-                        field: "sell_only_mode",
-                        options: [
-                            { label: "Buy New Positions", value: false },
-                            { label: "Sell Existing Holdings", value: true }
-                        ],
-                        default: false
-                    }
-                ],
-
-                init: () => {
-                    SetupWizard.currentStep = 0;
-                    SetupWizard.answers = {};
-                    SetupWizard.show();
-                },
-
-                show: () => {
-                    const wizard = document.getElementById('setup-wizard');
-                    const wizardContent = document.getElementById('wizard-content');
-                    const stepNum = document.getElementById('wizard-step-num');
-                    const totalSteps = document.getElementById('wizard-total-steps');
-                    const progress = document.getElementById('wizard-progress');
-                    const backBtn = document.getElementById('wizard-back');
-                    const nextBtn = document.getElementById('wizard-next');
-                    const skipBtn = document.getElementById('wizard-skip');
-
-                    totalSteps.textContent = SetupWizard.questions.length;
-                    SetupWizard.renderQuestion();
-                    
-                    wizard.classList.add('open');
-                    
-                    // Update progress
-                    const progressPercent = ((SetupWizard.currentStep + 1) / SetupWizard.questions.length) * 100;
-                    progress.style.width = progressPercent + '%';
-                    
-                    // Show/hide back button
-                    backBtn.classList.toggle('hidden', SetupWizard.currentStep === 0);
-                    
-                    // Update next button text
-                    if (SetupWizard.currentStep === SetupWizard.questions.length - 1) {
-                        nextBtn.textContent = 'Finish Setup';
-                    } else {
-                        nextBtn.textContent = 'Next →';
-                    }
-
-                    // Bind events
-                    nextBtn.onclick = () => SetupWizard.next();
-                    backBtn.onclick = () => SetupWizard.back();
-                    skipBtn.onclick = () => SetupWizard.skip();
-                },
-
-                renderQuestion: () => {
-                    const wizardContent = document.getElementById('wizard-content');
-                    const question = SetupWizard.questions[SetupWizard.currentStep];
-                    const stepNum = document.getElementById('wizard-step-num');
-                    
-                    stepNum.textContent = SetupWizard.currentStep + 1;
-                    
-                    let html = `
-                        <div class="wizard-question">
-                            <h2 class="text-2xl font-bold text-[var(--color-text)] mb-3">${question.question}</h2>
-                            <p class="wizard-hint">${question.hint}</p>
-                    `;
-
-                    if (question.type === 'currency' || question.type === 'number' || question.type === 'percentage' || question.type === 'fee') {
-                        const currentValue = SetupWizard.answers[question.field] || question.default || '';
-                        html += `
-                            <input 
-                                type="text" 
-                                id="wizard-input" 
-                                class="wizard-input mt-4" 
-                                placeholder="${question.placeholder || ''}"
-                                value="${currentValue}"
-                                ${question.min !== undefined ? `min="${question.min}"` : ''}
-                                ${question.max !== undefined ? `max="${question.max}"` : ''}
-                            >
-                        `;
-                    } else if (question.type === 'skew' || question.type === 'choice') {
-                        html += '<div class="mt-4 space-y-3">';
-                        question.options.forEach((option, idx) => {
-                            const isSelected = SetupWizard.answers[question.field] === option.value || 
-                                             (SetupWizard.answers[question.field] === undefined && option.value === question.default);
-                            const valueStr = typeof option.value === 'boolean' ? option.value : option.value;
-                            html += `
-                                <button 
-                                    type="button"
-                                    class="wizard-option w-full ${isSelected ? 'selected' : ''}"
-                                    data-field="${question.field}"
-                                    data-value="${valueStr}"
-                                >
-                                    ${option.label}
-                                </button>
-                            `;
-                        });
-                        html += '</div>';
-                    }
-
-                    html += '</div>';
-                    wizardContent.innerHTML = html;
-
-                    // Focus input if it exists
-                    const input = document.getElementById('wizard-input');
-                    if (input) {
-                        setTimeout(() => input.focus(), 100);
-                        input.addEventListener('keypress', (e) => {
-                            if (e.key === 'Enter') {
-                                SetupWizard.next();
-                            }
-                        });
-                    }
-
-                    // Bind option buttons
-                    const optionButtons = wizardContent.querySelectorAll('.wizard-option');
-                    optionButtons.forEach(btn => {
-                        btn.addEventListener('click', () => {
-                            const field = btn.dataset.field;
-                            let value = btn.dataset.value;
-                            // Parse value appropriately
-                            if (value === 'true') value = true;
-                            else if (value === 'false') value = false;
-                            else if (!isNaN(value)) value = parseFloat(value);
-                            SetupWizard.selectOption(field, value);
-                        });
-                    });
-                },
-
-                selectOption: (field, value) => {
-                    SetupWizard.answers[field] = value;
-                    SetupWizard.updateFormInRealTime();
-                    // Re-render to update selected state
-                    SetupWizard.renderQuestion();
-                },
-
-                next: () => {
-                    const question = SetupWizard.questions[SetupWizard.currentStep];
-                    const input = document.getElementById('wizard-input');
-                    
-                    // Validate and save answer
-                    if (input) {
-                        let value = input.value.trim();
-                        if (!value) {
-                            alert('Please enter a value');
-                            return;
-                        }
-                        
-                        // Parse value based on type
-                        if (question.type === 'currency' || question.type === 'number' || question.type === 'percentage' || question.type === 'fee') {
-                            value = parseFloat(value.replace(/,/g, ''));
-                            if (isNaN(value) || value <= 0) {
-                                alert('Please enter a valid positive number');
-                                return;
-                            }
-                            if (question.min !== undefined && value < question.min) {
-                                alert(`Value must be at least ${question.min}`);
-                                return;
-                            }
-                            if (question.max !== undefined && value > question.max) {
-                                alert(`Value must be at most ${question.max}`);
-                                return;
-                            }
-                        }
-                        
-                        SetupWizard.answers[question.field] = value;
-                        SetupWizard.updateFormInRealTime();
-                    } else if (question.type === 'skew' || question.type === 'choice') {
-                        if (SetupWizard.answers[question.field] === undefined) {
-                            SetupWizard.answers[question.field] = question.default;
-                        }
-                        SetupWizard.updateFormInRealTime();
-                    }
-
-                    // Move to next step or finish
-                    if (SetupWizard.currentStep < SetupWizard.questions.length - 1) {
-                        SetupWizard.currentStep++;
-                        SetupWizard.show();
-                    } else {
-                        SetupWizard.finish();
-                    }
-                },
-
-                back: () => {
-                    if (SetupWizard.currentStep > 0) {
-                        SetupWizard.currentStep--;
-                        SetupWizard.show();
-                    }
-                },
-
-                skip: () => {
-                    SetupWizard.finish();
-                },
-
-                finish: () => {
-                    // Apply answers to form fields
-                    SetupWizard.applyAnswers();
-                    
-                    // Enable Pro mode to show all fields
-                    App.setMode('pro');
-                    
-                    // Hide wizard
-                    const wizard = document.getElementById('setup-wizard');
-                    wizard.classList.remove('open');
-                    
-                    // Mark as completed
-                    localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed', 'true');
-                    
-                    // Trigger calculation
-                    setTimeout(() => {
-                        App.calculatePlan();
-                    }, 300);
-                },
-
-                applyAnswers: () => {
-                    // Map wizard answers to form fields
-                    const fieldMap = {
-                        'starting_capital': els.startCap,
-                        'current_price': els.currPrice,
-                        'number_of_rungs': els.rungsInput,
-                        'depth': els.depthInput,
-                        'skew_value': els.skew,
-                        'fee_value': els.feeValue,
-                        'sell_only_mode': els.sellOnlyCheck
-                    };
-
-                    Object.keys(SetupWizard.answers).forEach(field => {
-                        const value = SetupWizard.answers[field];
-                        const element = fieldMap[field];
-                        
-                        if (element) {
-                            if (field === 'starting_capital') {
-                                element.value = Utils.formatNumberWithCommas(value.toString());
-                            } else if (field === 'number_of_rungs') {
-                                element.value = Math.round(value);
-                                els.rungs.value = Math.round(value);
-                                els.rungsDisplay.textContent = Math.round(value);
-                            } else if (field === 'depth') {
-                                element.value = value;
-                                els.depth.value = value;
-                            } else if (field === 'skew_value') {
-                                element.value = value;
-                                const v = parseInt(value);
-                                if (v === 0) els.skewLabel.textContent = "Flat";
-                                else if (v <= 30) els.skewLabel.textContent = "Gentle";
-                                else if (v <= 70) els.skewLabel.textContent = "Moderate";
-                                else els.skewLabel.textContent = "Aggressive";
-                            } else if (field === 'sell_only_mode') {
-                                element.checked = value;
-                                if (value) {
-                                    els.sellOnlyInputs.classList.remove('hidden');
-                                } else {
-                                    els.sellOnlyInputs.classList.add('hidden');
-                                }
-                            } else {
-                                element.value = value;
-                            }
-                        }
-                    });
-                },
-
-                updateFormInRealTime: () => {
-                    // Update form as user progresses through wizard
-                    const question = SetupWizard.questions[SetupWizard.currentStep];
-                    if (!question) return;
-                    
-                    const fieldMap = {
-                        'starting_capital': els.startCap,
-                        'current_price': els.currPrice,
-                        'number_of_rungs': els.rungsInput,
-                        'depth': els.depthInput,
-                        'skew_value': els.skew,
-                        'fee_value': els.feeValue,
-                        'sell_only_mode': els.sellOnlyCheck
-                    };
-
-                    const field = question.field;
-                    const element = fieldMap[field];
-                    const answer = SetupWizard.answers[field];
-                    
-                    if (element && answer !== undefined) {
-                        if (field === 'starting_capital') {
-                            element.value = Utils.formatNumberWithCommas(answer.toString());
-                        } else if (field === 'number_of_rungs') {
-                            element.value = Math.round(answer);
-                            els.rungs.value = Math.round(answer);
-                            els.rungsDisplay.textContent = Math.round(answer);
-                        } else if (field === 'depth') {
-                            element.value = answer;
-                            els.depth.value = answer;
-                        } else if (field === 'skew_value') {
-                            element.value = answer;
-                            const v = parseInt(answer);
-                            if (v === 0) els.skewLabel.textContent = "Flat";
-                            else if (v <= 30) els.skewLabel.textContent = "Gentle";
-                            else if (v <= 70) els.skewLabel.textContent = "Moderate";
-                            else els.skewLabel.textContent = "Aggressive";
-                        } else if (field === 'sell_only_mode') {
-                            element.checked = answer;
-                            if (answer) {
-                                els.sellOnlyInputs.classList.remove('hidden');
-                            } else {
-                                els.sellOnlyInputs.classList.add('hidden');
-                            }
-                        } else {
-                            element.value = answer;
-                        }
-                    }
                 }
             };
 
@@ -1606,14 +1139,7 @@
                             const introLayer = document.getElementById('intro-layer');
                             introLayer.style.opacity = '0';
                             introLayer.style.pointerEvents = 'none';
-                            setTimeout(() => {
-                                introLayer.remove();
-                                // Check if user has completed setup before
-                                const hasCompletedSetup = localStorage.getItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed');
-                                if (!hasCompletedSetup) {
-                                    SetupWizard.init();
-                                }
-                            }, 700);
+                            setTimeout(() => introLayer.remove(), 700); // Remove from DOM after transition
                         });
                     }
 
@@ -1832,16 +1358,6 @@
                     if(els.videoBtnMobile) els.videoBtnMobile.addEventListener('click', () => toggleVideo(true));
                     els.videoBackdrop.addEventListener('click', () => toggleVideo(false));
                     els.videoClose.addEventListener('click', () => toggleVideo(false));
-
-                    // Reset Setup Button
-                    if(els.resetSetupBtn) {
-                        els.resetSetupBtn.addEventListener('click', () => {
-                            if (confirm('Reset the setup wizard? This will clear your current settings and restart the guided setup.')) {
-                                localStorage.removeItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed');
-                                SetupWizard.init();
-                            }
-                        });
-                    }
 
                     // Sections (Removed)
                     // const toggleSection = (btn, section, chevron) => ...
@@ -2456,7 +1972,6 @@
             };
 
             window.App = App;
-            window.SetupWizard = SetupWizard;
             window.App.toggleExecutedGlobal = (rung) => {
                 State.sellOnlyHighestExecuted = State.sellOnlyHighestExecuted === rung ? rung - 1 : rung;
                 App.calculatePlan();
