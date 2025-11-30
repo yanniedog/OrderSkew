@@ -341,45 +341,96 @@
         }
         .wizard-input {
             width: 100%;
-            padding: 0.75rem 1rem;
+            padding: 0.875rem 1.25rem;
             background-color: var(--color-card-muted);
             border: 2px solid var(--color-border);
-            border-radius: 0.75rem;
+            border-radius: 0.875rem;
             color: var(--color-text);
-            font-size: 1rem;
+            font-size: 1.125rem;
             transition: all 0.2s ease;
+            font-weight: 500;
         }
         .wizard-input:focus {
             outline: none;
-            border-color: var(--color-primary);
-            box-shadow: 0 0 0 3px var(--focus-ring-color);
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15);
             background-color: var(--color-card);
         }
+        .wizard-input::placeholder {
+            color: var(--color-text-muted);
+            opacity: 0.6;
+        }
         .wizard-option {
-            padding: 1rem 1.25rem;
+            padding: 1.125rem 1.5rem;
             background-color: var(--color-card-muted);
             border: 2px solid var(--color-border);
-            border-radius: 0.75rem;
+            border-radius: 0.875rem;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: left;
+            font-size: 1rem;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+        .wizard-option::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, #0ea5e9, #0284c7);
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
         }
         .wizard-option:hover {
-            border-color: var(--color-primary);
+            border-color: #0ea5e9;
             background-color: var(--color-card);
             transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+        }
+        .wizard-option:hover::before {
+            transform: scaleY(1);
         }
         .wizard-option.selected {
-            border-color: var(--color-primary);
-            background-color: var(--color-primary);
-            color: var(--color-primary-contrast);
+            border-color: #0ea5e9;
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.1));
+            color: var(--color-text);
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3);
+        }
+        .wizard-option.selected::before {
+            transform: scaleY(1);
+        }
+        .wizard-option:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.3);
         }
         .wizard-hint {
-            font-size: 0.875rem;
+            font-size: 0.9375rem;
             color: var(--color-text-muted);
+            margin-top: 0.75rem;
+            line-height: 1.6;
+            padding: 0.75rem 1rem;
+            background-color: var(--color-card-muted);
+            border-left: 3px solid #0ea5e9;
+            border-radius: 0.5rem;
+        }
+        .wizard-error {
+            color: var(--color-invalid);
+            font-size: 0.875rem;
             margin-top: 0.5rem;
-            line-height: 1.5;
+            padding: 0.5rem 0.75rem;
+            background-color: rgba(239, 68, 68, 0.1);
+            border-radius: 0.5rem;
+            display: none;
+        }
+        .wizard-error.show {
+            display: block;
+            animation: fadeIn 0.2s ease-out;
+        }
+        #wizard-progress {
+            background: linear-gradient(to right, #0ea5e9, #0284c7, #06b6d4);
         }
 
     </style>
@@ -417,32 +468,42 @@
     </div>
 
     <!-- Question-Based Setup Wizard -->
-    <div id="setup-wizard" class="fixed inset-0 z-[9998] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-500 opacity-0 pointer-events-none">
+    <div id="setup-wizard" class="fixed inset-0 z-[9998] bg-black/80 backdrop-blur-sm flex items-center justify-center transition-opacity duration-500 opacity-0 pointer-events-none" role="dialog" aria-labelledby="wizard-title" aria-modal="true">
         <div class="bg-[var(--color-card)] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" style="transform: scale(0.95); transition: transform 0.3s ease;">
             <div class="p-6 sm:p-8">
-                <!-- Progress Bar -->
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-medium text-[var(--color-text-muted)]">Step <span id="wizard-step-num">1</span> of <span id="wizard-total-steps">7</span></span>
-                        <button id="wizard-skip" class="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors">Skip Setup</button>
+                <!-- Header with gradient accent -->
+                <div class="mb-6 pb-4 border-b border-[var(--color-border)]">
+                    <h2 id="wizard-title" class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 font-solana mb-2">
+                        Let's Set Up Your Trading Plan
+                    </h2>
+                    <div class="flex justify-between items-center mt-3">
+                        <span class="text-xs font-medium text-[var(--color-text-muted)]" aria-live="polite">
+                            Step <span id="wizard-step-num">1</span> of <span id="wizard-total-steps">7</span>
+                        </span>
+                        <button id="wizard-skip" class="text-xs text-[var(--color-text-muted)] hover:text-cyan-400 transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 rounded px-2 py-1" aria-label="Skip setup wizard">
+                            Skip Setup
+                        </button>
                     </div>
-                    <div class="w-full bg-[var(--color-card-muted)] rounded-full h-2 overflow-hidden">
-                        <div id="wizard-progress" class="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] rounded-full transition-all duration-300" style="width: 0%"></div>
+                    <div class="w-full bg-[var(--color-card-muted)] rounded-full h-2.5 overflow-hidden mt-3">
+                        <div id="wizard-progress" class="h-full rounded-full transition-all duration-300" style="width: 0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
                     </div>
                 </div>
 
                 <!-- Question Content -->
-                <div id="wizard-content" class="space-y-6">
+                <div id="wizard-content" class="space-y-6" role="region" aria-live="polite">
                     <!-- Question will be dynamically inserted here -->
                 </div>
 
+                <!-- Error Message -->
+                <div id="wizard-error" class="wizard-error" role="alert" aria-live="assertive"></div>
+
                 <!-- Navigation Buttons -->
                 <div class="flex justify-between items-center mt-8 pt-6 border-t border-[var(--color-border)]">
-                    <button id="wizard-back" class="px-6 py-2.5 rounded-lg bg-[var(--color-card-alt)] text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors font-medium text-sm hidden">
+                    <button id="wizard-back" class="px-6 py-2.5 rounded-lg bg-[var(--color-card-alt)] text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors font-medium text-sm hidden focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2" aria-label="Go to previous question">
                         ← Back
                     </button>
                     <div class="flex-1"></div>
-                    <button id="wizard-next" class="px-8 py-2.5 rounded-lg bg-[var(--color-primary)] text-[var(--color-primary-contrast)] hover:bg-[var(--color-primary-accent)] transition-colors font-medium text-sm shadow-sm">
+                    <button id="wizard-next" class="px-8 py-2.5 rounded-lg bg-gradient-to-r from-cyan-400 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-700 transition-all font-medium text-sm shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 transform hover:scale-105">
                         Next →
                     </button>
                 </div>
@@ -1169,76 +1230,84 @@
                 answers: {},
                 questions: [
                     {
-                        question: "How much money do you want to invest?",
-                        hint: "Enter the total amount of capital you're planning to use for this trading strategy.",
+                        question: "What's your trading goal?",
+                        hint: "Are you looking to buy a new position or sell assets you already own? This helps us set up the right strategy for you.",
+                        type: "choice",
+                        field: "sell_only_mode",
+                        options: [
+                            { label: "💰 Buy New Positions", value: false, description: "I want to purchase assets using a ladder strategy" },
+                            { label: "📈 Sell Existing Holdings", value: true, description: "I already own assets and want to plan my exit strategy" }
+                        ],
+                        default: false
+                    },
+                    {
+                        question: "How much capital are you working with?",
+                        hint: "Enter the total amount of money you want to invest. You can use commas (e.g., 50,000) or just numbers.",
                         type: "currency",
                         field: "starting_capital",
-                        placeholder: "e.g., 50,000"
+                        placeholder: "50,000",
+                        default: 50000
                     },
                     {
-                        question: "What's the current price of the asset you're trading?",
-                        hint: "This is the current market price that will serve as the baseline for your buy and sell orders.",
+                        question: "What's the current price of your asset?",
+                        hint: "Enter the current market price. This will be the center point for your buy and sell orders.",
                         type: "currency",
                         field: "current_price",
-                        placeholder: "e.g., 100"
+                        placeholder: "100",
+                        default: 100
                     },
                     {
-                        question: "How many separate orders do you want to place?",
-                        hint: "This is the number of buy and sell orders in your ladder. More orders give finer control but require more management.",
+                        question: "How many price levels do you want?",
+                        hint: "This is the number of separate buy and sell orders. More levels give you finer control but require more management. We recommend 5-15 for most traders.",
                         type: "number",
                         field: "number_of_rungs",
-                        placeholder: "e.g., 10",
+                        placeholder: "10",
                         min: 2,
                         max: 50,
                         default: 10
                     },
                     {
                         question: "How wide should your price range be?",
-                        hint: "This determines how far below (for buys) and above (for sells) the current price your orders will extend. A wider range captures more price movement but requires more capital.",
+                        hint: "This is the percentage range below (for buys) and above (for sells) the current price. A 20% range means your lowest buy will be 20% below current price, and highest sell will be 20% above.",
                         type: "percentage",
                         field: "depth",
-                        placeholder: "e.g., 20",
+                        placeholder: "20",
                         min: 0.1,
                         max: 99,
                         default: 20
                     },
                     {
-                        question: "How should your capital be distributed?",
-                        hint: "Flat means equal amounts at each price. Curved means more capital at lower buy prices (like a martingale strategy).",
+                        question: "How should your money be distributed?",
+                        hint: "Choose how to spread your capital across price levels. 'Flat' means equal amounts at each price. 'Curved' means more money at lower prices (better for buying the dip).",
                         type: "skew",
                         field: "skew_value",
                         options: [
-                            { label: "Flat (Equal Distribution)", value: 0 },
-                            { label: "Gentle Curve", value: 30 },
-                            { label: "Moderate Curve", value: 50 },
-                            { label: "Aggressive Curve", value: 80 }
+                            { label: "⚖️ Flat Distribution", value: 0, description: "Equal amounts at each price level" },
+                            { label: "📉 Gentle Curve", value: 30, description: "Slightly more at lower prices" },
+                            { label: "📊 Moderate Curve", value: 50, description: "Balanced curve (recommended)" },
+                            { label: "📉 Aggressive Curve", value: 80, description: "Much more at lower prices" }
                         ],
                         default: 50
                     },
                     {
-                        question: "What's your trading fee?",
-                        hint: "Enter the fee you pay per trade. This can be a percentage (like 0.1% for most exchanges) or a fixed dollar amount.",
+                        question: "What trading fees do you pay?",
+                        hint: "Enter your trading fee as a percentage (e.g., 0.1 for 0.1%). Most exchanges charge between 0.05% and 0.5%. This helps calculate your true costs.",
                         type: "fee",
                         field: "fee_value",
-                        placeholder: "e.g., 0.1",
+                        placeholder: "0.1",
                         default: 0.1
-                    },
-                    {
-                        question: "Are you planning to buy new positions or sell existing ones?",
-                        hint: "Choose 'Buy New Positions' if you're starting fresh. Choose 'Sell Existing Holdings' if you already own the asset and want to plan your exit strategy.",
-                        type: "choice",
-                        field: "sell_only_mode",
-                        options: [
-                            { label: "Buy New Positions", value: false },
-                            { label: "Sell Existing Holdings", value: true }
-                        ],
-                        default: false
                     }
                 ],
 
                 init: () => {
                     SetupWizard.currentStep = 0;
                     SetupWizard.answers = {};
+                    // Pre-populate with defaults
+                    SetupWizard.questions.forEach(q => {
+                        if (q.default !== undefined) {
+                            SetupWizard.answers[q.field] = q.default;
+                        }
+                    });
                     SetupWizard.show();
                 },
 
@@ -1257,66 +1326,100 @@
                     
                     wizard.classList.add('open');
                     
-                    // Update progress
-                    const progressPercent = ((SetupWizard.currentStep + 1) / SetupWizard.questions.length) * 100;
-                    progress.style.width = progressPercent + '%';
-                    
                     // Show/hide back button
                     backBtn.classList.toggle('hidden', SetupWizard.currentStep === 0);
                     
                     // Update next button text
                     if (SetupWizard.currentStep === SetupWizard.questions.length - 1) {
-                        nextBtn.textContent = 'Finish Setup';
+                        nextBtn.textContent = '✨ Finish Setup';
+                        nextBtn.setAttribute('aria-label', 'Finish setup wizard');
                     } else {
                         nextBtn.textContent = 'Next →';
+                        nextBtn.setAttribute('aria-label', 'Go to next question');
                     }
 
                     // Bind events
                     nextBtn.onclick = () => SetupWizard.next();
                     backBtn.onclick = () => SetupWizard.back();
                     skipBtn.onclick = () => SetupWizard.skip();
+                    
+                    // Keyboard navigation
+                    wizard.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') {
+                            SetupWizard.skip();
+                        }
+                    });
                 },
 
                 renderQuestion: () => {
                     const wizardContent = document.getElementById('wizard-content');
                     const question = SetupWizard.questions[SetupWizard.currentStep];
                     const stepNum = document.getElementById('wizard-step-num');
+                    const progress = document.getElementById('wizard-progress');
                     
                     stepNum.textContent = SetupWizard.currentStep + 1;
+                    const progressPercent = ((SetupWizard.currentStep + 1) / SetupWizard.questions.length) * 100;
+                    progress.style.width = progressPercent + '%';
+                    progress.setAttribute('aria-valuenow', Math.round(progressPercent));
+                    
+                    // Hide error message
+                    const errorEl = document.getElementById('wizard-error');
+                    if (errorEl) {
+                        errorEl.classList.remove('show');
+                        errorEl.textContent = '';
+                    }
                     
                     let html = `
                         <div class="wizard-question">
-                            <h2 class="text-2xl font-bold text-[var(--color-text)] mb-3">${question.question}</h2>
+                            <h3 class="text-2xl md:text-3xl font-bold text-[var(--color-text)] mb-4">${question.question}</h3>
                             <p class="wizard-hint">${question.hint}</p>
                     `;
 
                     if (question.type === 'currency' || question.type === 'number' || question.type === 'percentage' || question.type === 'fee') {
-                        const currentValue = SetupWizard.answers[question.field] || question.default || '';
+                        const currentValue = SetupWizard.answers[question.field] !== undefined 
+                            ? (question.type === 'currency' && SetupWizard.answers[question.field] >= 1000 
+                                ? Utils.formatNumberWithCommas(SetupWizard.answers[question.field].toString())
+                                : SetupWizard.answers[question.field])
+                            : (question.default !== undefined ? question.default : '');
+                        const inputType = question.type === 'number' ? 'number' : 'text';
                         html += `
-                            <input 
-                                type="text" 
-                                id="wizard-input" 
-                                class="wizard-input mt-4" 
-                                placeholder="${question.placeholder || ''}"
-                                value="${currentValue}"
-                                ${question.min !== undefined ? `min="${question.min}"` : ''}
-                                ${question.max !== undefined ? `max="${question.max}"` : ''}
-                            >
+                            <div class="mt-6">
+                                <label for="wizard-input" class="sr-only">${question.question}</label>
+                                <input 
+                                    type="${inputType}"
+                                    id="wizard-input" 
+                                    class="wizard-input" 
+                                    placeholder="${question.placeholder || ''}"
+                                    value="${currentValue}"
+                                    ${question.min !== undefined ? `min="${question.min}"` : ''}
+                                    ${question.max !== undefined ? `max="${question.max}"` : ''}
+                                    aria-describedby="wizard-hint"
+                                    autocomplete="off"
+                                >
+                            </div>
                         `;
                     } else if (question.type === 'skew' || question.type === 'choice') {
-                        html += '<div class="mt-4 space-y-3">';
+                        html += '<div class="mt-6 space-y-3" role="radiogroup" aria-labelledby="wizard-question-title">';
                         question.options.forEach((option, idx) => {
                             const isSelected = SetupWizard.answers[question.field] === option.value || 
                                              (SetupWizard.answers[question.field] === undefined && option.value === question.default);
                             const valueStr = typeof option.value === 'boolean' ? option.value : option.value;
+                            const optionId = `wizard-option-${SetupWizard.currentStep}-${idx}`;
                             html += `
                                 <button 
                                     type="button"
+                                    id="${optionId}"
                                     class="wizard-option w-full ${isSelected ? 'selected' : ''}"
                                     data-field="${question.field}"
                                     data-value="${valueStr}"
+                                    role="radio"
+                                    aria-checked="${isSelected}"
+                                    aria-label="${option.label}${option.description ? ': ' + option.description : ''}"
                                 >
-                                    ${option.label}
+                                    <div class="flex flex-col items-start">
+                                        <span class="font-semibold">${option.label}</span>
+                                        ${option.description ? `<span class="text-sm text-[var(--color-text-muted)] mt-1">${option.description}</span>` : ''}
+                                    </div>
                                 </button>
                             `;
                         });
@@ -1329,17 +1432,28 @@
                     // Focus input if it exists
                     const input = document.getElementById('wizard-input');
                     if (input) {
-                        setTimeout(() => input.focus(), 100);
+                        setTimeout(() => {
+                            input.focus();
+                            if (input.type === 'text') {
+                                input.select();
+                            }
+                        }, 150);
                         input.addEventListener('keypress', (e) => {
                             if (e.key === 'Enter') {
+                                e.preventDefault();
                                 SetupWizard.next();
                             }
+                        });
+                        input.addEventListener('input', () => {
+                            // Hide error on input
+                            const errorEl = document.getElementById('wizard-error');
+                            if (errorEl) errorEl.classList.remove('show');
                         });
                     }
 
                     // Bind option buttons
                     const optionButtons = wizardContent.querySelectorAll('.wizard-option');
-                    optionButtons.forEach(btn => {
+                    optionButtons.forEach((btn, idx) => {
                         btn.addEventListener('click', () => {
                             const field = btn.dataset.field;
                             let value = btn.dataset.value;
@@ -1348,6 +1462,18 @@
                             else if (value === 'false') value = false;
                             else if (!isNaN(value)) value = parseFloat(value);
                             SetupWizard.selectOption(field, value);
+                        });
+                        btn.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                btn.click();
+                            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                const nextIdx = e.key === 'ArrowDown' 
+                                    ? Math.min(idx + 1, optionButtons.length - 1)
+                                    : Math.max(idx - 1, 0);
+                                optionButtons[nextIdx].focus();
+                            }
                         });
                     });
                 },
@@ -1359,6 +1485,15 @@
                     SetupWizard.renderQuestion();
                 },
 
+                showError: (message) => {
+                    const errorEl = document.getElementById('wizard-error');
+                    if (errorEl) {
+                        errorEl.textContent = message;
+                        errorEl.classList.add('show');
+                        errorEl.focus();
+                    }
+                },
+
                 next: () => {
                     const question = SetupWizard.questions[SetupWizard.currentStep];
                     const input = document.getElementById('wizard-input');
@@ -1367,7 +1502,8 @@
                     if (input) {
                         let value = input.value.trim();
                         if (!value) {
-                            alert('Please enter a value');
+                            SetupWizard.showError('Please enter a value to continue.');
+                            input.focus();
                             return;
                         }
                         
@@ -1375,15 +1511,21 @@
                         if (question.type === 'currency' || question.type === 'number' || question.type === 'percentage' || question.type === 'fee') {
                             value = parseFloat(value.replace(/,/g, ''));
                             if (isNaN(value) || value <= 0) {
-                                alert('Please enter a valid positive number');
+                                SetupWizard.showError('Please enter a valid positive number.');
+                                input.focus();
+                                input.select();
                                 return;
                             }
                             if (question.min !== undefined && value < question.min) {
-                                alert(`Value must be at least ${question.min}`);
+                                SetupWizard.showError(`Please enter a value of at least ${question.min}.`);
+                                input.focus();
+                                input.select();
                                 return;
                             }
                             if (question.max !== undefined && value > question.max) {
-                                alert(`Value must be at most ${question.max}`);
+                                SetupWizard.showError(`Please enter a value no more than ${question.max}.`);
+                                input.focus();
+                                input.select();
                                 return;
                             }
                         }
@@ -1608,11 +1750,8 @@
                             introLayer.style.pointerEvents = 'none';
                             setTimeout(() => {
                                 introLayer.remove();
-                                // Check if user has completed setup before
-                                const hasCompletedSetup = localStorage.getItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed');
-                                if (!hasCompletedSetup) {
-                                    SetupWizard.init();
-                                }
+                                // Always show wizard when clicking Get Started
+                                SetupWizard.init();
                             }, 700);
                         });
                     }
@@ -1931,8 +2070,12 @@
                     const useFloor = State.mode === 'pro' && els.priceRangeMode.value === 'floor';
                     
                     if (useFloor) {
-                        buyPriceEnd = parseFloat(els.buyFloor.value) || currentPrice * 0.8;
-                        sellPriceEnd = parseFloat(els.sellCeiling.value) || currentPrice * 1.2;
+                        // Use explicit NaN check instead of || to allow 0 as a valid value
+                        const buyFloorValue = parseFloat(els.buyFloor.value);
+                        buyPriceEnd = !isNaN(buyFloorValue) ? buyFloorValue : currentPrice * 0.8;
+                        
+                        const sellCeilingValue = parseFloat(els.sellCeiling.value);
+                        sellPriceEnd = !isNaN(sellCeilingValue) ? sellCeilingValue : currentPrice * 1.2;
                     } else {
                         buyPriceEnd = currentPrice * (1 - depth/100);
                         sellPriceEnd = currentPrice * (1 + depth/100);
@@ -2458,7 +2601,9 @@
             window.App = App;
             window.SetupWizard = SetupWizard;
             window.App.toggleExecutedGlobal = (rung) => {
-                State.sellOnlyHighestExecuted = State.sellOnlyHighestExecuted === rung ? rung - 1 : rung;
+                // Toggle: if clicking the same rung, deselect it (set to null)
+                // Otherwise, select the clicked rung
+                State.sellOnlyHighestExecuted = State.sellOnlyHighestExecuted === rung ? null : rung;
                 App.calculatePlan();
             };
 
