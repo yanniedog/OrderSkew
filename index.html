@@ -1282,7 +1282,7 @@
                         field: "lowest_buy_price",
                         placeholder: "80",
                         min: 0.01,
-                        default: null
+                        default: undefined
                     },
                     {
                         question: "How many price levels do you want?",
@@ -1419,8 +1419,8 @@
                             const calculatedDefault = currentPrice * 0.75;
                             defaultValue = calculatedDefault;
                             
-                            // If actualValue is undefined, use the calculated default
-                            if (actualValue === undefined) {
+                            // If actualValue is undefined or null, use the calculated default
+                            if (actualValue === undefined || actualValue === null) {
                                 actualValue = calculatedDefault;
                                 SetupWizard.answers[valueField] = calculatedDefault;
                             } else {
@@ -1435,15 +1435,21 @@
                             }
                         }
                         
-                        const currentValue = actualValue !== undefined 
-                            ? (question.type === 'currency' && actualValue >= 1000 
-                                ? Utils.formatNumberWithCommas(actualValue.toString())
-                                : actualValue)
-                            : (defaultValue !== undefined && defaultValue !== null 
-                                ? (question.type === 'currency' && defaultValue >= 1000 
-                                    ? Utils.formatNumberWithCommas(defaultValue.toString())
-                                    : defaultValue)
-                                : '');
+                        // Format value for display, ensuring null/undefined never appears
+                        let currentValue = '';
+                        if (actualValue !== undefined && actualValue !== null) {
+                            if (question.type === 'currency' && actualValue >= 1000) {
+                                currentValue = Utils.formatNumberWithCommas(actualValue.toString());
+                            } else {
+                                currentValue = actualValue.toString();
+                            }
+                        } else if (defaultValue !== undefined && defaultValue !== null) {
+                            if (question.type === 'currency' && defaultValue >= 1000) {
+                                currentValue = Utils.formatNumberWithCommas(defaultValue.toString());
+                            } else {
+                                currentValue = defaultValue.toString();
+                            }
+                        }
                         const inputType = question.type === 'number' ? 'number' : 'text';
                         const isCurrency = question.type === 'currency';
                         const showRangeCalc = question.field === 'lowest_buy_price';
@@ -1504,11 +1510,22 @@
                     if (question.field === 'lowest_buy_price') {
                         const currentPrice = SetupWizard.answers['current_price'] || 0;
                         let lowestPrice = SetupWizard.answers['lowest_buy_price'];
-                        if (!lowestPrice && currentPrice > 0) {
+                        // If lowestPrice is null, undefined, or 0, calculate it from current price
+                        if ((!lowestPrice || lowestPrice === null) && currentPrice > 0) {
                             lowestPrice = currentPrice * 0.75;
+                            SetupWizard.answers['lowest_buy_price'] = lowestPrice;
+                            // Update the input field if it exists
+                            const input = document.getElementById('wizard-input');
+                            if (input) {
+                                if (lowestPrice >= 1000) {
+                                    input.value = Utils.formatNumberWithCommas(lowestPrice.toString());
+                                } else {
+                                    input.value = lowestPrice.toString();
+                                }
+                            }
                         }
                         const rangeDisplay = document.getElementById('wizard-range-display');
-                        if (rangeDisplay && currentPrice > 0 && lowestPrice > 0) {
+                        if (rangeDisplay && currentPrice > 0 && lowestPrice && lowestPrice > 0) {
                             const range = ((currentPrice - lowestPrice) / currentPrice) * 100;
                             rangeDisplay.innerHTML = `Range: <span class="font-mono">${range.toFixed(1)}%</span>`;
                         }
@@ -1668,6 +1685,16 @@
                             SetupWizard.answers['lowest_buy_price'] = value;
                         } else {
                             SetupWizard.answers[actualField] = value;
+                            
+                            // If current_price was just set, automatically calculate lowest_buy_price
+                            if (question.field === 'current_price' && value > 0) {
+                                const calculatedLowestPrice = value * 0.75;
+                                // Only set if lowest_buy_price hasn't been manually set yet
+                                if (SetupWizard.answers['lowest_buy_price'] === undefined || 
+                                    SetupWizard.answers['lowest_buy_price'] === null) {
+                                    SetupWizard.answers['lowest_buy_price'] = calculatedLowestPrice;
+                                }
+                            }
                         }
                         SetupWizard.updateFormInRealTime();
                     } else if (question.type === 'skew' || question.type === 'choice') {
