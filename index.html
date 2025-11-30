@@ -2706,40 +2706,105 @@
                         .attr("stop-color", getComputedStyle(document.body).getPropertyValue("--color-chart-sell-end").trim())
                         .attr("stop-opacity", 0.15);
 
-                    // Area generators – depth style (vertical)
-                    // Bids: bottom half, extending right
-                    const midY = (height - margin.bottom + margin.top) / 2;
-                    const areaBids = d3.area()
-                        .x0(margin.left)
-                        .x1(d => x(d.cumQty || 0))
-                        .y(d => y(d.price))
-                        .curve(d3.curveStepAfter);
+                    // Calculate column widths based on price spacing
+                    // For each rung, calculate the height (price range) it should occupy
+                    const calculateColumnHeight = (series, index) => {
+                        if (series.length === 0) return 0;
+                        if (series.length === 1) {
+                            // Single rung: use a reasonable default height
+                            const priceRange = yDomainMax - yDomainMin;
+                            return Math.max(priceRange / 20, (yDomainMax - yDomainMin) * 0.02);
+                        }
+                        if (index === 0) {
+                            // First rung: half distance to next, but ensure it fits in domain
+                            const halfDist = Math.abs(series[1].price - series[0].price) / 2;
+                            // For bids (descending): first is highest, clamp to yDomainMax
+                            // For asks (ascending): first is lowest, clamp to yDomainMin
+                            const isAscending = series[0].price < series[series.length - 1].price;
+                            if (isAscending) {
+                                // Ask series: first rung is lowest, ensure it doesn't go below yDomainMin
+                                return Math.min(halfDist, series[0].price - yDomainMin);
+                            } else {
+                                // Bid series: first rung is highest, ensure it doesn't exceed yDomainMax
+                                return Math.min(halfDist, yDomainMax - series[0].price);
+                            }
+                        }
+                        if (index === series.length - 1) {
+                            // Last rung: half distance from previous, but ensure it fits in domain
+                            const halfDist = Math.abs(series[index].price - series[index - 1].price) / 2;
+                            // For bids (descending): last is lowest, clamp to yDomainMin
+                            // For asks (ascending): last is highest, clamp to yDomainMax
+                            const isAscending = series[0].price < series[series.length - 1].price;
+                            if (isAscending) {
+                                // Ask series: last rung is highest, ensure it doesn't exceed yDomainMax
+                                return Math.min(halfDist, yDomainMax - series[index].price);
+                            } else {
+                                // Bid series: last rung is lowest, ensure it doesn't go below yDomainMin
+                                return Math.min(halfDist, series[index].price - yDomainMin);
+                            }
+                        }
+                        // Middle rungs: average of distances to adjacent rungs
+                        const prevDist = Math.abs(series[index].price - series[index - 1].price);
+                        const nextDist = Math.abs(series[index + 1].price - series[index].price);
+                        return (prevDist + nextDist) / 2;
+                    };
 
-                    // Asks: top half, extending right
-                    const areaAsks = d3.area()
-                        .x0(margin.left)
-                        .x1(d => x(d.cumSold || 0))
-                        .y(d => y(d.price))
-                        .curve(d3.curveStepBefore);
-
-                    // Draw bids (bottom)
+                    // Draw bids as columns (bottom) - horizontal bars centered at each price
                     if (buySeries.length) {
-                        svg.append("path")
-                            .datum(buySeries)
+                        const bidColumns = svg.selectAll(".bid-column")
+                            .data(buySeries)
+                            .enter()
+                            .append("rect")
+                            .attr("class", "bid-column")
+                            .attr("x", margin.left)
+                            .attr("width", d => x(d.cumQty || 0) - margin.left)
+                            .attr("y", (d, i) => {
+                                const colHeight = calculateColumnHeight(buySeries, i);
+                                // Bar centered at d.price: top edge at higher price (lower y in SVG)
+                                // Clamp to domain for first/last rungs
+                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
+                                return y(topPrice);
+                            })
+                            .attr("height", (d, i) => {
+                                const colHeight = calculateColumnHeight(buySeries, i);
+                                // Height from top (higher price, lower y) to bottom (lower price, higher y)
+                                // Clamp bottom to domain minimum for last rung
+                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
+                                const bottomPrice = Math.max(d.price - colHeight / 2, yDomainMin);
+                                return Math.abs(y(bottomPrice) - y(topPrice));
+                            })
                             .attr("fill", "url(#grad-bids)")
-                            .attr("d", areaBids)
                             .attr("opacity", 0)
                             .transition()
                             .duration(600)
                             .attr("opacity", 1);
                     }
 
-                    // Draw asks (top)
+                    // Draw asks as columns (top) - horizontal bars centered at each price
                     if (sellSeries.length) {
-                        svg.append("path")
-                            .datum(sellSeries)
+                        const askColumns = svg.selectAll(".ask-column")
+                            .data(sellSeries)
+                            .enter()
+                            .append("rect")
+                            .attr("class", "ask-column")
+                            .attr("x", margin.left)
+                            .attr("width", d => x(d.cumSold || 0) - margin.left)
+                            .attr("y", (d, i) => {
+                                const colHeight = calculateColumnHeight(sellSeries, i);
+                                // Bar centered at d.price: top edge at higher price (lower y in SVG)
+                                // Clamp to domain for first/last rungs
+                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
+                                return y(topPrice);
+                            })
+                            .attr("height", (d, i) => {
+                                const colHeight = calculateColumnHeight(sellSeries, i);
+                                // Height from top (higher price, lower y) to bottom (lower price, higher y)
+                                // Clamp bottom to domain minimum for first rung, top to domain max for last rung
+                                const topPrice = Math.min(d.price + colHeight / 2, yDomainMax);
+                                const bottomPrice = Math.max(d.price - colHeight / 2, yDomainMin);
+                                return Math.abs(y(bottomPrice) - y(topPrice));
+                            })
                             .attr("fill", "url(#grad-asks)")
-                            .attr("d", areaAsks)
                             .attr("opacity", 0)
                             .transition()
                             .duration(600)
@@ -2791,7 +2856,6 @@
 
                     // Tooltip
                     const tooltip = d3.select("#tooltip");
-                    const bisect  = d3.bisector(d => d.price).left;
 
                     // Combined interaction over full price range
                     const allSeries = buySeries.concat(sellSeries).sort((a, b) => a.price - b.price);
@@ -2806,15 +2870,19 @@
                             const [, py] = d3.pointer(event);
                             const y0   = y.invert(py);
 
-                            let i = bisect(allSeries, y0, 1);
-                            i = Math.min(Math.max(i, 0), allSeries.length - 1);
-                            if (i > 0) {
-                                const d0 = allSeries[i - 1];
-                                const d1 = allSeries[i];
-                                if (y0 - d0.price < d1.price - y0) i = i - 1;
+                            // Find the nearest rung by price (snap to center of columns)
+                            let nearestIndex = 0;
+                            let minDist = Math.abs(allSeries[0].price - y0);
+                            
+                            for (let i = 1; i < allSeries.length; i++) {
+                                const dist = Math.abs(allSeries[i].price - y0);
+                                if (dist < minDist) {
+                                    minDist = dist;
+                                    nearestIndex = i;
+                                }
                             }
 
-                            const d = allSeries[i];
+                            const d = allSeries[nearestIndex];
                             if (!d) return;
 
                             const isBid = buySeries.includes(d);
