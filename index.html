@@ -529,37 +529,186 @@
     </div>
     
     <!-- How It Works Modal -->
-    <div id="how-it-works-modal" class="qr-modal">
+    <div id="how-it-works-modal" class="qr-modal" style="z-index: 10001;">
         <div class="qr-backdrop" id="how-it-works-backdrop"></div>
-        <div class="qr-content w-full max-w-lg p-6 bg-[var(--color-card)]">
-            <h3 class="text-xl font-bold text-[var(--color-text)] font-solana mb-4 text-center">How Order Skew Works</h3>
-            <div class="space-y-4 text-sm text-[var(--color-text-secondary)]">
-                <div class="flex gap-3">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center font-bold">1</div>
-                    <div>
-                        <p class="font-medium text-[var(--color-text)]">Set Your Parameters</p>
-                        <p>Enter your capital, current asset price, and how far you want your orders to span.</p>
+        <div class="qr-content w-full max-w-2xl p-0 bg-[var(--color-card)] rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 p-6 border-b border-[var(--color-border)]">
+                <h3 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 font-solana text-center">Welcome to Order Skew</h3>
+                <p class="text-center text-[var(--color-text-secondary)] text-sm mt-2">Your intelligent trading plan calculator for strategic order placement</p>
+            </div>
+            
+            <div class="p-6 space-y-6">
+                <!-- What is Order Skew -->
+                <div class="space-y-3">
+                    <h4 class="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm">?</span>
+                        What is Order Skew?
+                    </h4>
+                    <p class="text-sm text-[var(--color-text-secondary)] leading-relaxed pl-9">
+                        Order Skew helps you create <strong class="text-red-400">buy ladders</strong> and <strong class="text-green-400">sell ladders</strong> — 
+                        a series of limit orders at different price levels. Instead of placing one big order, you spread your capital across multiple price points 
+                        to reduce risk and improve your average entry/exit price.
+                    </p>
+                </div>
+
+                <!-- Trading Modes -->
+                <div class="space-y-3">
+                    <h4 class="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-sm">⚙</span>
+                        Choose Your Mode
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-9">
+                        <div class="p-3 rounded-lg bg-gradient-to-br from-red-500/10 to-green-500/10 border border-[var(--color-border)]">
+                            <p class="font-medium text-[var(--color-text)] text-sm">Buy + Sell</p>
+                            <p class="text-xs text-[var(--color-text-muted)] mt-1">Plan both entry and exit orders for complete round-trip trades</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                            <p class="font-medium text-red-400 text-sm">Buy Only</p>
+                            <p class="text-xs text-[var(--color-text-muted)] mt-1">Accumulate assets with a DCA-style buy ladder</p>
+                        </div>
+                        <div class="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                            <p class="font-medium text-green-400 text-sm">Sell Only</p>
+                            <p class="text-xs text-[var(--color-text-muted)] mt-1">Already holding? Plan your exit strategy</p>
+                        </div>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold">2</div>
-                    <div>
-                        <p class="font-medium text-[var(--color-text)]">Choose Your Strategy</p>
-                        <p>Decide how to distribute your capital: evenly, or with more weight at extreme prices (martingale style).</p>
+
+                <!-- Step by Step -->
+                <div class="space-y-3">
+                    <h4 class="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center text-sm">📋</span>
+                        Step-by-Step Guide
+                    </h4>
+                    <div class="space-y-2 pl-9">
+                        <div class="flex gap-3 items-start">
+                            <div class="flex-shrink-0 w-6 h-6 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-xs font-bold">1</div>
+                            <div>
+                                <p class="font-medium text-[var(--color-text)] text-sm">Set Your Capital & Price</p>
+                                <p class="text-xs text-[var(--color-text-muted)]">Enter how much you want to invest and the current asset price</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 items-start">
+                            <div class="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center text-xs font-bold">2</div>
+                            <div>
+                                <p class="font-medium text-[var(--color-text)] text-sm">Define Your Range</p>
+                                <p class="text-xs text-[var(--color-text-muted)]">Set the price spread (%) for buy orders below and sell orders above current price</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 items-start">
+                            <div class="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center text-xs font-bold">3</div>
+                            <div>
+                                <p class="font-medium text-[var(--color-text)] text-sm">Choose Allocation Strategy</p>
+                                <p class="text-xs text-[var(--color-text-muted)]">Linear (equal amounts) or Martingale (larger orders at extreme prices)</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 items-start">
+                            <div class="flex-shrink-0 w-6 h-6 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">4</div>
+                            <div>
+                                <p class="font-medium text-[var(--color-text)] text-sm">Set Number of Orders</p>
+                                <p class="text-xs text-[var(--color-text-muted)]">More orders = finer granularity, but some exchanges have minimum order sizes</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 items-start">
+                            <div class="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold">5</div>
+                            <div>
+                                <p class="font-medium text-[var(--color-text)] text-sm">Review & Export</p>
+                                <p class="text-xs text-[var(--color-text-muted)]">View your order table, charts, and projected profits — then copy or export</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="flex gap-3">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center font-bold">3</div>
-                    <div>
-                        <p class="font-medium text-[var(--color-text)]">Review Your Plan</p>
-                        <p>See exactly how much to buy/sell at each price level, with projected profits and fees calculated automatically.</p>
+
+                <!-- Allocation Strategies Visual -->
+                <div class="space-y-3">
+                    <h4 class="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm">⚖</span>
+                        Allocation Strategies
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-9">
+                        <div class="p-4 rounded-lg bg-[var(--color-card-muted)] border border-[var(--color-border)]">
+                            <p class="font-medium text-[var(--color-text)] text-sm mb-2">Linear (Even)</p>
+                            <div class="flex items-end gap-1 h-12 mb-2">
+                                <div class="flex-1 bg-cyan-500/60 rounded-t" style="height: 100%"></div>
+                                <div class="flex-1 bg-cyan-500/60 rounded-t" style="height: 100%"></div>
+                                <div class="flex-1 bg-cyan-500/60 rounded-t" style="height: 100%"></div>
+                                <div class="flex-1 bg-cyan-500/60 rounded-t" style="height: 100%"></div>
+                                <div class="flex-1 bg-cyan-500/60 rounded-t" style="height: 100%"></div>
+                            </div>
+                            <p class="text-xs text-[var(--color-text-muted)]">Equal capital per order. Predictable and simple.</p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-[var(--color-card-muted)] border border-[var(--color-border)]">
+                            <p class="font-medium text-[var(--color-text)] text-sm mb-2">Martingale (Weighted)</p>
+                            <div class="flex items-end gap-1 h-12 mb-2">
+                                <div class="flex-1 bg-orange-500/60 rounded-t" style="height: 30%"></div>
+                                <div class="flex-1 bg-orange-500/60 rounded-t" style="height: 50%"></div>
+                                <div class="flex-1 bg-orange-500/60 rounded-t" style="height: 70%"></div>
+                                <div class="flex-1 bg-orange-500/60 rounded-t" style="height: 85%"></div>
+                                <div class="flex-1 bg-orange-500/60 rounded-t" style="height: 100%"></div>
+                            </div>
+                            <p class="text-xs text-[var(--color-text-muted)]">Larger orders at better prices. Higher risk, higher reward.</p>
+                        </div>
                     </div>
                 </div>
-                <div class="p-3 bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] mt-4">
-                    <p class="text-xs text-[var(--color-text-muted)]">💡 <strong>Tip:</strong> Use "Sell-Only Mode" if you already hold assets and just want to plan your exit strategy.</p>
+
+                <!-- Pro Tips -->
+                <div class="p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg border border-cyan-500/20">
+                    <h4 class="font-semibold text-cyan-400 text-sm mb-3 flex items-center gap-2">
+                        <span>💡</span> Pro Tips
+                    </h4>
+                    <ul class="space-y-2 text-xs text-[var(--color-text-secondary)]">
+                        <li class="flex gap-2">
+                            <span class="text-cyan-400">•</span>
+                            <span>Start with <strong>Linear allocation</strong> if you're new — it's easier to understand and manage</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="text-cyan-400">•</span>
+                            <span>Use <strong>Sell-Only mode</strong> when you already hold assets and want to plan profit-taking</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="text-cyan-400">•</span>
+                            <span>Check your exchange's <strong>minimum order size</strong> before setting too many orders</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="text-cyan-400">•</span>
+                            <span>The <strong>charts</strong> help visualize how your capital is distributed across price levels</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Quick Glossary -->
+                <div class="space-y-3">
+                    <h4 class="text-lg font-semibold text-[var(--color-text)] flex items-center gap-2">
+                        <span class="w-7 h-7 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-sm">📖</span>
+                        Quick Glossary
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-9 text-xs">
+                        <div class="flex gap-2">
+                            <span class="text-red-400 font-medium min-w-[80px]">Buy Ladder:</span>
+                            <span class="text-[var(--color-text-muted)]">Series of buy orders at decreasing prices</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-green-400 font-medium min-w-[80px]">Sell Ladder:</span>
+                            <span class="text-[var(--color-text-muted)]">Series of sell orders at increasing prices</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-yellow-400 font-medium min-w-[80px]">Spread:</span>
+                            <span class="text-[var(--color-text-muted)]">Price range your orders will cover (%)</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <span class="text-purple-400 font-medium min-w-[80px]">DCA:</span>
+                            <span class="text-[var(--color-text-muted)]">Dollar Cost Averaging across price levels</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <button id="how-it-works-close" class="btn-primary w-full py-2.5 rounded-lg text-sm font-medium mt-6">Got It!</button>
+
+            <!-- Footer -->
+            <div class="p-6 border-t border-[var(--color-border)] bg-[var(--color-card-muted)]">
+                <button id="how-it-works-close" class="btn-primary w-full py-3 rounded-lg text-sm font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 transition-all">
+                    Got It — Let's Start Planning!
+                </button>
+            </div>
         </div>
     </div>
 
