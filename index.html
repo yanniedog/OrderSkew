@@ -215,6 +215,29 @@
             background-color: var(--color-card);
         }
 
+        /* Mode Cards */
+        .mode-card {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .mode-card:hover {
+            transform: translateY(-2px);
+        }
+        .mode-card.active {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Sell Mode Active State */
+        .sell-mode-active .buy-only-content {
+            display: none !important;
+        }
+        .sell-mode-active #tab-buy {
+            display: none !important;
+        }
+        .sell-mode-active .chart-buy-legend {
+            display: none !important;
+        }
+
         /* --- CARDS --- */
         .card {
             background-color: var(--color-card);
@@ -438,40 +461,105 @@
 <body class="p-3 sm:p-6 theme-light layout-desktop antialiased">
 
     <!-- Intro Overlay -->
-    <div id="intro-layer" class="fixed inset-0 z-[9999] bg-black flex items-center justify-center transition-opacity duration-500">
-        <!-- Video Background -->
+    <div id="intro-layer" class="fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center transition-opacity duration-500 overflow-hidden">
+        <!-- Animated Background Pattern -->
         <div class="absolute inset-0 overflow-hidden">
-            <div class="absolute inset-0 bg-black/60 z-10"></div>
-            <video autoplay loop muted playsinline class="w-full h-full object-cover opacity-60">
-                <!-- Using a reliable financial tech background video -->
-                <source src="https://assets.mixkit.co/videos/preview/mixkit-digital-animation-of-financial-data-2789-large.mp4" type="video/mp4">
-            </video>
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/20 via-transparent to-transparent"></div>
+            <div class="absolute top-0 left-0 w-full h-full">
+                <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
+                <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
         </div>
+        </div>
+        
         <!-- Content -->
-        <div class="relative z-20 text-center space-y-8 animate-fade-in px-4">
-            <div class="space-y-2">
-                <h1 class="text-5xl md:text-7xl font-bold font-solana text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 drop-shadow-lg">
+        <div class="relative z-20 text-center space-y-8 animate-fade-in px-4 max-w-2xl">
+            <div class="space-y-3">
+                <h1 class="text-5xl md:text-7xl font-bold font-solana text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-300 drop-shadow-lg tracking-tight">
                     ORDER SKEW
                 </h1>
-                <div class="h-1 w-32 mx-auto bg-gradient-to-r from-cyan-400 to-blue-600 rounded-full"></div>
+                <div class="h-1 w-40 mx-auto bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full"></div>
+                <p class="text-cyan-200/80 text-sm tracking-[0.3em] uppercase font-light">Trading Plan Calculator</p>
             </div>
             
-            <p class="text-gray-200 text-lg md:text-xl tracking-wide font-light max-w-lg mx-auto leading-relaxed">
-                Plan your trades.<br>
-                <span class="text-base">Buy <span class="bg-red-500/30 text-white px-2 py-0.5 rounded">low</span>, sell <span class="bg-green-500/30 text-white px-2 py-0.5 rounded">high</span>.</span>
+            <p class="text-gray-300 text-lg md:text-xl tracking-wide font-light max-w-lg mx-auto leading-relaxed">
+                Create smart <span class="text-red-400 font-medium">buy</span> and <span class="text-green-400 font-medium">sell</span> ladders<br>
+                <span class="text-gray-400 text-base">with customizable allocation strategies</span>
             </p>
+
+            <!-- Feature Highlights -->
+            <div class="grid grid-cols-3 gap-4 max-w-md mx-auto text-center">
+                <div class="p-3 rounded-lg bg-white/5 border border-white/10">
+                    <div class="text-2xl mb-1">📊</div>
+                    <div class="text-xs text-gray-400">Visual Planning</div>
+                </div>
+                <div class="p-3 rounded-lg bg-white/5 border border-white/10">
+                    <div class="text-2xl mb-1">⚖️</div>
+                    <div class="text-xs text-gray-400">Smart Allocation</div>
+                </div>
+                <div class="p-3 rounded-lg bg-white/5 border border-white/10">
+                    <div class="text-2xl mb-1">💰</div>
+                    <div class="text-xs text-gray-400">Profit Projection</div>
+                </div>
+            </div>
             
-            <div class="flex flex-col items-center gap-4">
-                <button id="enter-app-btn" class="group relative px-10 py-4 bg-transparent overflow-hidden rounded-full border border-cyan-500 text-cyan-400 font-bold tracking-widest uppercase hover:text-black transition-colors duration-300 shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:shadow-[0_0_30px_rgba(34,211,238,0.6)]">
-                    <span class="absolute inset-0 w-full h-full bg-cyan-400 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out"></span>
-                    <span class="relative z-10">Get Started</span>
+            <div class="flex flex-col items-center gap-4 pt-4">
+                <button id="enter-app-btn" class="group relative px-12 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 overflow-hidden rounded-xl text-white font-bold tracking-wide uppercase shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 hover:scale-105">
+                    <span class="relative z-10 flex items-center gap-2">
+                        <span>Start Planning</span>
+                        <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                    </span>
                 </button>
                 
-                <button id="intro-video-link" class="flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors text-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span>Watch Introduction</span>
+                <button id="quick-start-btn" class="text-cyan-400/70 hover:text-cyan-400 transition-colors text-sm underline underline-offset-4">
+                    Quick start with example values →
                 </button>
+                
+                <div class="flex items-center gap-6 text-sm mt-2">
+                    <button id="intro-video-link" class="flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>Watch Tutorial</span>
+                    </button>
+                    <button id="intro-how-it-works" class="flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>How It Works</span>
+                    </button>
+                </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- How It Works Modal -->
+    <div id="how-it-works-modal" class="qr-modal">
+        <div class="qr-backdrop" id="how-it-works-backdrop"></div>
+        <div class="qr-content w-full max-w-lg p-6 bg-[var(--color-card)]">
+            <h3 class="text-xl font-bold text-[var(--color-text)] font-solana mb-4 text-center">How Order Skew Works</h3>
+            <div class="space-y-4 text-sm text-[var(--color-text-secondary)]">
+                <div class="flex gap-3">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center font-bold">1</div>
+                    <div>
+                        <p class="font-medium text-[var(--color-text)]">Set Your Parameters</p>
+                        <p>Enter your capital, current asset price, and how far you want your orders to span.</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-500/20 text-yellow-400 flex items-center justify-center font-bold">2</div>
+                    <div>
+                        <p class="font-medium text-[var(--color-text)]">Choose Your Strategy</p>
+                        <p>Decide how to distribute your capital: evenly, or with more weight at extreme prices (martingale style).</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center font-bold">3</div>
+                    <div>
+                        <p class="font-medium text-[var(--color-text)]">Review Your Plan</p>
+                        <p>See exactly how much to buy/sell at each price level, with projected profits and fees calculated automatically.</p>
+                    </div>
+                </div>
+                <div class="p-3 bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] mt-4">
+                    <p class="text-xs text-[var(--color-text-muted)]">💡 <strong>Tip:</strong> Use "Sell-Only Mode" if you already hold assets and just want to plan your exit strategy.</p>
+                </div>
+            </div>
+            <button id="how-it-works-close" class="btn-primary w-full py-2.5 rounded-lg text-sm font-medium mt-6">Got It!</button>
         </div>
     </div>
 
@@ -567,7 +655,7 @@
         <div class="qr-backdrop" id="video-backdrop"></div>
         <div class="qr-content w-full max-w-3xl p-0 bg-black overflow-hidden flex flex-col" style="max-width: 600px;">
             <div class="relative pb-[56.25%] h-0">
-                <iframe class="absolute top-0 left-0 w-full h-full" src="https://www.youtube.com/embed/LPaAtWphx2U" title="Order Skew Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <iframe class="absolute top-0 left-0 w-full h-full" data-src="https://www.youtube.com/embed/LPaAtWphx2U" title="Order Skew Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
             </div>
             <button id="video-close" class="w-full py-3 text-sm font-medium bg-[var(--color-card)] text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors">Close Tutorial</button>
         </div>
@@ -643,7 +731,7 @@
 
                 <!-- Solana Donation -->
                 <button id="sol-btn" class="p-2 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[#9945FF] hover:bg-[var(--color-border)] transition-colors" title="Donate SOL">
-                    <svg viewBox="0 0 397.7 311.7" class="w-5 h-5" fill="currentColor"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6-11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>
+                    <svg viewBox="0 0 397.7 311.7" class="w-5 h-5" fill="currentColor"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7 4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>
                 </button>
 
                 <!-- GitHub -->
@@ -697,10 +785,42 @@
                     
                     <form id="trading-plan-form" class="space-y-6" onsubmit="return false;">
                         
+                        <!-- Mode Selector (Buy vs Sell-Only) -->
+                        <div id="mode-selector" class="grid grid-cols-2 gap-3">
+                            <button type="button" id="mode-buy-btn" class="mode-card active relative p-4 rounded-xl border-2 border-red-500/50 bg-red-500/10 transition-all hover:border-red-500 group">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                    </div>
+                                    <div class="text-left">
+                                        <div class="font-semibold text-red-500 text-sm">Buy Mode</div>
+                                        <div class="text-[10px] text-[var(--color-text-muted)]">Build buy & sell ladders</div>
+                                    </div>
+                                </div>
+                                <div class="absolute top-2 right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-100 transition-opacity" id="mode-buy-check">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                            </button>
+                            <button type="button" id="mode-sell-btn" class="mode-card relative p-4 rounded-xl border-2 border-[var(--color-border)] bg-[var(--color-card-muted)] transition-all hover:border-green-500/50 group">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </div>
+                                    <div class="text-left">
+                                        <div class="font-semibold text-green-500 text-sm">Sell Mode</div>
+                                        <div class="text-[10px] text-[var(--color-text-muted)]">Plan exits for holdings</div>
+                                    </div>
+                                </div>
+                                <div class="absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center opacity-0 transition-opacity" id="mode-sell-check">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                </div>
+                            </button>
+                        </div>
+                        
                         <!-- Market Data Group (Always Visible) -->
                         <div class="space-y-4">
-                            <!-- Removed collapsible wrapper for simplified view -->
-                            <div id="section-market-data" class="grid grid-cols-2 gap-4">
+                            <!-- Buy Mode Inputs -->
+                            <div id="buy-mode-inputs" class="grid grid-cols-2 gap-4">
                                 <div>
                                     <div class="flex items-center gap-1 mb-1.5">
                                         <label class="text-xs font-medium text-[var(--color-text-secondary)]" id="starting_capital_label">Initial Capital ($)</label>
@@ -722,7 +842,43 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Sell Mode Inputs (Hidden by default) -->
+                            <div id="sell-mode-inputs" class="hidden space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div class="flex items-center gap-1 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text-secondary)]">Held Quantity</label>
+                                            <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
+                                        </div>
+                                        <input type="number" id="existing_quantity" value="50" class="form-input w-full rounded-lg p-2.5 font-mono">
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text-secondary)]">Asset Price ($)</label>
+                                            <button type="button" class="helper-tooltip" title="Current market price of the asset.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
+                                            <input type="text" id="current_price_sell" value="100" class="form-input w-full rounded-lg p-2.5 font-mono pl-7">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1 mb-1.5">
+                                        <label class="text-xs font-medium text-[var(--color-text-secondary)]">Average Cost Basis ($)</label>
+                                        <button type="button" class="helper-tooltip" title="Your average buy price for the assets you hold.">?</button>
+                                    </div>
+                                    <div class="relative flex items-center">
+                                        <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
+                                        <input type="number" id="existing_avg_price" value="80" class="form-input w-full rounded-lg p-2.5 font-mono pl-7">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                        
+                        <!-- Hidden checkbox for compatibility -->
+                        <input type="checkbox" id="sell_only_mode" class="hidden">
 
                         <!-- Pro Controls Container -->
                         <div id="pro-controls" class="hidden space-y-4 pt-4 border-t border-[var(--color-border)]">
@@ -733,31 +889,31 @@
                                     <div class="flex items-center gap-2">
                                         <svg class="w-4 h-4 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
                                         <span class="text-sm font-semibold text-[var(--color-text)]">Order Structure</span>
-                                    </div>
+                            </div>
                                     <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </summary>
                                 <div class="p-4 space-y-4">
                                     <!-- Number of Orders -->
-                                    <div>
-                                        <div class="flex justify-between mb-1.5">
-                                            <div class="flex items-center gap-1">
+                            <div>
+                                <div class="flex justify-between mb-1.5">
+                                    <div class="flex items-center gap-1">
                                                 <label class="text-xs font-medium text-[var(--color-text-secondary)]">Number of Orders</label>
-                                                <button type="button" class="helper-tooltip" title="How many separate buy/sell orders (rungs) to place in the ladder.">?</button>
-                                            </div>
-                                            <span id="number_of_rungs_display" class="text-xs font-mono font-bold text-[var(--color-primary)]">10</span>
-                                        </div>
-                                        <div class="flex items-center gap-3">
-                                            <input type="range" id="number_of_rungs" min="2" max="50" value="10" class="flex-1">
-                                            <input type="number" id="number_of_rungs_input" value="10" min="2" max="50" class="form-input w-14 rounded-md p-1 text-center text-xs">
-                                        </div>
+                                        <button type="button" class="helper-tooltip" title="How many separate buy/sell orders (rungs) to place in the ladder.">?</button>
                                     </div>
+                                            <span id="number_of_rungs_display" class="text-xs font-mono font-bold text-[var(--color-primary)]">10</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <input type="range" id="number_of_rungs" min="2" max="50" value="10" class="flex-1">
+                                            <input type="number" id="number_of_rungs_input" value="10" min="2" max="50" class="form-input w-14 rounded-md p-1 text-center text-xs">
+                                </div>
+                            </div>
 
                                     <!-- Spacing Mode -->
-                                    <div>
+                            <div>
                                         <div class="flex items-center gap-1 mb-1.5">
                                             <label class="text-xs font-medium text-[var(--color-text-secondary)]">Spacing Mode</label>
                                             <button type="button" class="helper-tooltip" title="'Absolute' means equal dollar distance between orders. 'Relative' means geometric progression (percentage distance).">?</button>
-                                        </div>
+                                    </div>
                                         <select id="spacing_mode" class="form-input w-full rounded-lg p-2 text-sm">
                                             <option value="absolute">Absolute (Equal Steps)</option>
                                             <option value="relative">Relative (Geometric %)</option>
@@ -779,44 +935,44 @@
                                     <div class="flex justify-between items-center mb-2">
                                         <span class="text-xs text-[var(--color-text-muted)]">Range Type</span>
                                         <select id="price_range_mode" class="bg-[var(--color-card)] text-xs font-medium text-[var(--color-primary)] border border-[var(--color-border)] rounded-md px-2 py-1 focus:ring-1 focus:ring-[var(--color-primary)] cursor-pointer">
-                                            <option value="width">Percentage (%)</option>
-                                            <option value="floor">Fixed Price Range</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div id="width-mode-container">
-                                        <div class="flex items-center gap-3">
-                                            <input type="range" id="depth" min="0.1" max="99" step="0.1" value="20" class="flex-1">
-                                            <div class="relative">
+                                        <option value="width">Percentage (%)</option>
+                                        <option value="floor">Fixed Price Range</option>
+                                    </select>
+                                </div>
+                                
+                                <div id="width-mode-container">
+                                    <div class="flex items-center gap-3">
+                                        <input type="range" id="depth" min="0.1" max="99" step="0.1" value="20" class="flex-1">
+                                        <div class="relative">
                                                 <input type="number" id="depth_input" value="20" step="0.1" class="form-input w-16 rounded-md p-1.5 text-center text-xs pr-5">
                                                 <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--color-text-muted)]">%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="floor-mode-container" class="hidden grid grid-cols-2 gap-3">
-                                        <div>
-                                            <div class="flex items-center gap-1 mb-1">
-                                                <label class="text-[10px] text-[var(--color-text-muted)]">Buy Floor</label>
-                                                <button type="button" class="helper-tooltip" title="The price of the absolute lowest buy order.">?</button>
-                                            </div>
-                                            <div class="relative flex items-center">
-                                                <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
-                                                <input type="number" id="buy_floor" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="Low">
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="flex items-center gap-1 mb-1">
-                                                <label class="text-[10px] text-[var(--color-text-muted)]">Sell Ceiling</label>
-                                                <button type="button" class="helper-tooltip" title="The price of the absolute highest sell order.">?</button>
-                                            </div>
-                                            <div class="relative flex items-center">
-                                                <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
-                                                <input type="number" id="sell_ceiling" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="High">
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
+
+                                    <div id="floor-mode-container" class="hidden grid grid-cols-2 gap-3">
+                                    <div>
+                                        <div class="flex items-center gap-1 mb-1">
+                                                <label class="text-[10px] text-[var(--color-text-muted)]">Buy Floor</label>
+                                            <button type="button" class="helper-tooltip" title="The price of the absolute lowest buy order.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
+                                                <input type="number" id="buy_floor" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="Low">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1 mb-1">
+                                                <label class="text-[10px] text-[var(--color-text-muted)]">Sell Ceiling</label>
+                                            <button type="button" class="helper-tooltip" title="The price of the absolute highest sell order.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
+                                                <input type="number" id="sell_ceiling" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="High">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             </details>
 
                             <!-- Section 3: Allocation -->
@@ -829,22 +985,22 @@
                                     <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                                 </summary>
                                 <div class="p-4 space-y-4">
-                                    <!-- Skew -->
-                                    <div>
-                                        <div class="flex justify-between mb-1.5">
-                                            <div class="flex items-center gap-1">
+                            <!-- Skew -->
+                            <div>
+                                <div class="flex justify-between mb-1.5">
+                                    <div class="flex items-center gap-1">
                                                 <label class="text-xs font-medium text-[var(--color-text-secondary)]">Capital Skew</label>
-                                                <button type="button" class="helper-tooltip" title="Adjusts capital distribution. 'Flat' means equal distribution. 'Curved' allocates more capital to lower buy prices (martingale style).">?</button>
-                                            </div>
+                                        <button type="button" class="helper-tooltip" title="Adjusts capital distribution. 'Flat' means equal distribution. 'Curved' allocates more capital to lower buy prices (martingale style).">?</button>
+                                    </div>
                                             <span class="text-xs font-medium text-[var(--color-primary)]" id="skew_label">Moderate</span>
-                                        </div>
+                                </div>
                                         <div class="flex items-center gap-2">
                                             <span class="text-[9px] font-bold text-[var(--color-text-muted)] w-8">FLAT</span>
-                                            <input type="range" id="skew_value" min="0" max="100" value="50" class="flex-1">
+                                    <input type="range" id="skew_value" min="0" max="100" value="50" class="flex-1">
                                             <span class="text-[9px] font-bold text-[var(--color-text-muted)] w-12 text-right">CURVED</span>
-                                            <input type="number" id="skew_value_input" min="0" max="100" value="50" class="form-input w-14 rounded-md p-1 text-center text-xs hidden">
-                                        </div>
-                                    </div>
+                                    <input type="number" id="skew_value_input" min="0" max="100" value="50" class="form-input w-14 rounded-md p-1 text-center text-xs hidden">
+                                </div>
+                            </div>
 
                                     <!-- Equal Quantity -->
                                     <div class="flex items-center gap-2 p-2 bg-[var(--color-card)] rounded-lg border border-[var(--color-border)]">
@@ -868,84 +1024,36 @@
                                 </summary>
                                 <div class="p-4 space-y-4">
                                     <!-- Fee Type & Value -->
-                                    <div>
-                                        <div class="flex items-center gap-1 mb-1.5">
+                            <div>
+                                <div class="flex items-center gap-1 mb-1.5">
                                             <label class="text-xs font-medium text-[var(--color-text-secondary)]">Trading Fee</label>
-                                            <button type="button" class="helper-tooltip" title="Trading fee as a percentage or fixed dollar amount per trade.">?</button>
-                                        </div>
-                                        <div class="flex items-center gap-2">
+                                    <button type="button" class="helper-tooltip" title="Trading fee as a percentage or fixed dollar amount per trade.">?</button>
+                                </div>
+                                <div class="flex items-center gap-2">
                                             <div class="flex rounded-lg border border-[var(--color-border)] overflow-hidden bg-[var(--color-card)]">
-                                                <button type="button" id="fee_type_percent" class="fee-type-btn active px-3 py-2 text-xs font-medium transition-colors" data-value="percent">%</button>
-                                                <button type="button" id="fee_type_fixed" class="fee-type-btn px-3 py-2 text-xs font-medium transition-colors" data-value="fixed">$</button>
-                                            </div>
-                                            <div class="relative flex items-center flex-1">
-                                                <span id="fee_dollar_prefix" class="absolute left-3 text-[var(--color-text-secondary)] font-mono hidden">$</span>
-                                                <input type="number" id="fee_value" value="0.1" step="0.01" class="form-input w-full rounded-lg p-2 font-mono text-sm">
-                                            </div>
-                                            <input type="hidden" id="fee_type" value="percent">
-                                        </div>
+                                        <button type="button" id="fee_type_percent" class="fee-type-btn active px-3 py-2 text-xs font-medium transition-colors" data-value="percent">%</button>
+                                        <button type="button" id="fee_type_fixed" class="fee-type-btn px-3 py-2 text-xs font-medium transition-colors" data-value="fixed">$</button>
                                     </div>
+                                    <div class="relative flex items-center flex-1">
+                                        <span id="fee_dollar_prefix" class="absolute left-3 text-[var(--color-text-secondary)] font-mono hidden">$</span>
+                                                <input type="number" id="fee_value" value="0.1" step="0.01" class="form-input w-full rounded-lg p-2 font-mono text-sm">
+                                    </div>
+                                    <input type="hidden" id="fee_type" value="percent">
+                            </div>
+                        </div>
 
                                     <!-- Fee Settlement -->
                                     <div>
                                         <div class="flex items-center gap-1 mb-1.5">
                                             <label class="text-xs font-medium text-[var(--color-text-secondary)]">Settlement</label>
-                                            <button type="button" class="helper-tooltip" title="'Net' means fees reduce the asset received. 'External' means fees are paid from a separate cash balance.">?</button>
-                                        </div>
+                                        <button type="button" class="helper-tooltip" title="'Net' means fees reduce the asset received. 'External' means fees are paid from a separate cash balance.">?</button>
+                                    </div>
                                         <select id="fee_settlement" class="form-input w-full rounded-lg p-2 text-sm">
-                                            <option value="netted">Net (Deduct from Order)</option>
-                                            <option value="external">External (Separate Funds)</option>
-                                        </select>
-                                    </div>
+                                        <option value="netted">Net (Deduct from Order)</option>
+                                        <option value="external">External (Separate Funds)</option>
+                                    </select>
                                 </div>
-                            </details>
-
-                            <!-- Section 5: Sell Mode -->
-                            <details class="group bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] overflow-hidden">
-                                <summary class="flex items-center justify-between cursor-pointer px-4 py-3 bg-[var(--color-card-alt)] hover:bg-[var(--color-border)] transition-colors">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                                        <span class="text-sm font-semibold text-[var(--color-text)]">Sell-Only Mode</span>
                                     </div>
-                                    <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                                </summary>
-                                <div class="p-4 space-y-4">
-                                    <!-- Toggle -->
-                                    <div class="flex items-center justify-between p-3 bg-[var(--color-card)] rounded-lg border border-[var(--color-border)]">
-                                        <div>
-                                            <div class="flex items-center gap-1">
-                                                <span class="text-xs font-medium text-[var(--color-text)]">Enable Sell-Only</span>
-                                                <button type="button" class="helper-tooltip" title="Enable this if you already hold the asset and want to plan a sell-ladder only.">?</button>
-                                            </div>
-                                            <span class="block text-[10px] text-[var(--color-text-muted)]">Plan exits for existing position</span>
-                                        </div>
-                                        <label class="relative inline-flex items-center cursor-pointer">
-                                            <input type="checkbox" id="sell_only_mode" class="sr-only peer">
-                                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[var(--color-primary)] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
-                                        </label>
-                                    </div>
-                                    
-                                    <!-- Sell Only Inputs -->
-                                    <div id="sell-only-inputs" class="hidden grid grid-cols-2 gap-3">
-                                        <div>
-                                            <div class="flex items-center gap-1 mb-1">
-                                                <label class="text-[10px] font-medium text-[var(--color-text-secondary)]">Held Quantity</label>
-                                                <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
-                                            </div>
-                                            <input type="number" id="existing_quantity" value="50" class="form-input w-full rounded-lg p-2 text-sm">
-                                        </div>
-                                        <div>
-                                            <div class="flex items-center gap-1 mb-1">
-                                                <label class="text-[10px] font-medium text-[var(--color-text-secondary)]">Avg Cost</label>
-                                                <button type="button" class="helper-tooltip" title="Your average buy price for the assets you hold.">?</button>
-                                            </div>
-                                            <div class="relative flex items-center">
-                                                <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-sm">$</span>
-                                                <input type="number" id="existing_avg_price" value="0" class="form-input w-full rounded-lg p-2 text-sm pl-6">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             </details>
 
                         </div> <!-- End Pro Controls -->
@@ -961,8 +1069,8 @@
                 <!-- Combined Depth Chart (Vertical) -->
                 <div id="depth-chart-card" class="card p-4 h-[600px] flex flex-col animate-fade-in relative z-0" style="animation-delay: 0.3s;">
                     <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-                        <div class="flex items-center gap-3 text-xs">
-                            <span class="inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
+                        <div id="chart-legend" class="flex items-center gap-3 text-xs">
+                            <span id="chart-buy-legend" class="chart-buy-legend buy-only-content inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
                                 <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span> Buy
                             </span>
                             <span class="inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
@@ -972,13 +1080,16 @@
                         
                         <!-- Chart Display Options -->
                         <div class="flex items-center gap-4 text-[10px]">
-                            <!-- Data Type Toggle -->
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-[var(--color-text-muted)]">Show:</span>
-                                <div class="flex rounded-md border border-[var(--color-border)] overflow-hidden bg-[var(--color-card-muted)]">
-                                    <button type="button" id="chart-data-individual" class="chart-toggle-btn active px-2 py-1 text-[10px] font-medium transition-colors" title="Individual order sizes">Individual</button>
-                                    <button type="button" id="chart-data-cumulative" class="chart-toggle-btn px-2 py-1 text-[10px] font-medium transition-colors" title="Cumulative order sizes">Cumulative</button>
-                                </div>
+                            <!-- Layer Toggles -->
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input type="checkbox" id="chart-show-bars" checked class="w-3 h-3 rounded border-[var(--color-border-strong)] text-[var(--color-primary)] focus:ring-[var(--focus-ring-color)]">
+                                    <span class="text-[var(--color-text-secondary)]">Bars</span>
+                                </label>
+                                <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input type="checkbox" id="chart-show-cumulative" checked class="w-3 h-3 rounded border-[var(--color-border-strong)] text-[var(--color-primary)] focus:ring-[var(--focus-ring-color)]">
+                                    <span class="text-[var(--color-text-secondary)]">Cumulative</span>
+                                </label>
                             </div>
                             
                             <!-- Value Type Toggle -->
@@ -1034,10 +1145,10 @@
                 </div>
 
                 <!-- Data Tables -->
-                <div class="card overflow-hidden animate-fade-in mb-48 lg:mb-8" style="animation-delay: 0.5s;">
+                <div id="data-tables-card" class="card overflow-hidden animate-fade-in mb-48 lg:mb-8" style="animation-delay: 0.5s;">
                     <div class="border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-card-alt)]">
-                        <div class="flex flex-1">
-                            <button id="tab-buy" class="flex-1 py-3 text-sm font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] bg-[var(--color-card-alt)]">Buy Orders</button>
+                        <div id="table-tabs" class="flex flex-1">
+                            <button id="tab-buy" class="buy-only-content flex-1 py-3 text-sm font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] bg-[var(--color-card-alt)]">Buy Orders</button>
                             <button id="tab-sell" class="flex-1 py-3 text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)]">Sell Orders</button>
                         </div>
                         <div class="px-4 flex items-center gap-2">
@@ -1163,8 +1274,10 @@
                 theme: 'light',
                 mode: 'simple', // 'simple' or 'pro'
                 showFees: false,
-                chartDataType: 'individual', // 'individual' or 'cumulative'
-                chartUnitType: 'volume' // 'volume' or 'value'
+                chartShowBars: true,
+                chartShowCumulative: true,
+                chartUnitType: 'volume', // 'volume' or 'value'
+                sellOnlyMode: false
             };
 
             // --- DOM ELEMENTS ---
@@ -1300,62 +1413,53 @@
                 answers: {},
                 questions: [
                     {
-                        question: "What do you want to do?",
-                        hint: "Choose your trading mode",
-                        type: "choice",
+                        question: "What's your goal?",
+                        hint: "This determines how the calculator works",
+                        type: "mode_choice",
                         field: "sell_only_mode",
                         options: [
-                            { label: "🟢 Buy Mode", value: false, description: "Build buy & sell ladders from capital" },
-                            { label: "🔴 Sell Mode", value: true, description: "Plan exits for assets you already hold" }
+                            { 
+                                label: "Build a Buy Ladder", 
+                                value: false, 
+                                description: "I have capital to invest",
+                                icon: "📈",
+                                color: "red"
+                            },
+                            { 
+                                label: "Plan My Exit", 
+                                value: true, 
+                                description: "I already own the asset",
+                                icon: "💰",
+                                color: "green"
+                            }
                         ],
                         default: false
                     },
                     {
-                        question: "Capital to invest?",
-                        hint: "Amount you'll deploy",
+                        question: "How much are you working with?",
+                        hint: "Enter your capital (buy mode) or quantity held (sell mode)",
                         type: "currency",
                         field: "starting_capital",
                         placeholder: "10,000",
                         default: 10000
                     },
                     {
-                        question: "Current asset price?",
-                        hint: "Market price now",
+                        question: "What's the current price?",
+                        hint: "The asset's market price right now",
                         type: "currency",
                         field: "current_price",
                         placeholder: "100",
                         default: 100
                     },
                     {
-                        question: "Target price?",
-                        hint: "Your lowest buy target (buys) or highest sell target (sells). Range calculated automatically.",
+                        question: "What's your target?",
+                        hint: "Your lowest buy price or highest sell price",
                         type: "currency",
                         field: "target_price",
                         placeholder: "80",
                         min: 0.01,
                         default: undefined,
                         dynamicHint: true
-                    },
-                    {
-                        question: "Distribution style?",
-                        hint: "How to spread your orders",
-                        type: "skew",
-                        field: "skew_value",
-                        options: [
-                            { label: "Even Split", value: 0, description: "Same size at each level" },
-                            { label: "Mild Curve", value: 30, description: "Slightly heavier at extremes" },
-                            { label: "Balanced", value: 50, description: "Recommended" },
-                            { label: "Heavy Curve", value: 80, description: "Much more at extremes" }
-                        ],
-                        default: 50
-                    },
-                    {
-                        question: "Trading fee %?",
-                        hint: "Your exchange fee (e.g., 0.1)",
-                        type: "fee",
-                        field: "fee_value",
-                        placeholder: "0.1",
-                        default: 0.1
                     }
                 ],
 
@@ -1554,6 +1658,34 @@
                                 </div>
                             </div>
                         `;
+                    } else if (question.type === 'mode_choice') {
+                        // Special visual mode choice (Buy vs Sell)
+                        html += '<div class="mt-6 grid grid-cols-2 gap-4" role="radiogroup">';
+                        question.options.forEach((option, idx) => {
+                            const isSelected = SetupWizard.answers[question.field] === option.value || 
+                                             (SetupWizard.answers[question.field] === undefined && option.value === question.default);
+                            const valueStr = typeof option.value === 'boolean' ? option.value : option.value;
+                            const colorClass = option.color === 'red' ? 'red' : 'green';
+                            const borderClass = isSelected 
+                                ? `border-${colorClass}-500 bg-${colorClass}-500/10` 
+                                : 'border-[var(--color-border)] bg-[var(--color-card-muted)]';
+                            html += `
+                                <button 
+                                    type="button"
+                                    class="wizard-mode-option relative p-6 rounded-xl border-2 transition-all hover:scale-105 ${isSelected ? `border-${colorClass}-500 bg-${colorClass}-500/10 shadow-lg` : 'border-[var(--color-border)] bg-[var(--color-card-muted)] hover:border-' + colorClass + '-500/50'}"
+                                    data-field="${question.field}"
+                                    data-value="${valueStr}"
+                                    role="radio"
+                                    aria-checked="${isSelected}"
+                                >
+                                    <div class="text-4xl mb-3">${option.icon || ''}</div>
+                                    <div class="font-bold text-${colorClass}-500 text-lg mb-1">${option.label}</div>
+                                    <div class="text-sm text-[var(--color-text-muted)]">${option.description || ''}</div>
+                                    ${isSelected ? `<div class="absolute top-3 right-3 w-6 h-6 rounded-full bg-${colorClass}-500 text-white flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>` : ''}
+                                </button>
+                            `;
+                        });
+                        html += '</div>';
                     } else if (question.type === 'skew' || question.type === 'choice') {
                         html += '<div class="mt-6 space-y-3" role="radiogroup" aria-labelledby="wizard-question-title">';
                         question.options.forEach((option, idx) => {
@@ -1647,8 +1779,8 @@
                         });
                     }
 
-                    // Bind option buttons
-                    const optionButtons = wizardContent.querySelectorAll('.wizard-option');
+                    // Bind option buttons (both regular and mode options)
+                    const optionButtons = wizardContent.querySelectorAll('.wizard-option, .wizard-mode-option');
                     optionButtons.forEach((btn, idx) => {
                         btn.addEventListener('click', () => {
                             const field = btn.dataset.field;
@@ -1663,9 +1795,9 @@
                             if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
                                 btn.click();
-                            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
                                 e.preventDefault();
-                                const nextIdx = e.key === 'ArrowDown' 
+                                const nextIdx = (e.key === 'ArrowDown' || e.key === 'ArrowRight')
                                     ? Math.min(idx + 1, optionButtons.length - 1)
                                     : Math.max(idx - 1, 0);
                                 optionButtons[nextIdx].focus();
@@ -1789,7 +1921,7 @@
                             }
                         }
                         SetupWizard.updateFormInRealTime();
-                    } else if (question.type === 'skew' || question.type === 'choice') {
+                    } else if (question.type === 'skew' || question.type === 'choice' || question.type === 'mode_choice') {
                         if (SetupWizard.answers[actualField] === undefined) {
                             SetupWizard.answers[actualField] = question.default;
                         }
@@ -1973,6 +2105,18 @@
                 init: () => {
                     App.loadTheme();
                     App.bindEvents();
+                    
+                    // Check if user has completed setup before - skip intro for returning users
+                    const setupCompleted = localStorage.getItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed');
+                    if (setupCompleted === 'true') {
+                        const introLayer = document.getElementById('intro-layer');
+                        if (introLayer) {
+                            introLayer.style.display = 'none';
+                            introLayer.style.opacity = '0';
+                            introLayer.style.pointerEvents = 'none';
+                        }
+                    }
+                    
                     App.calculatePlan();
                     App.ensureTableBottomSpace();
                     window.addEventListener('resize', Utils.debounce(() => {
@@ -2034,24 +2178,30 @@
                     }
 
                     // Chart Display Toggles
-                    const chartDataIndividual = document.getElementById('chart-data-individual');
-                    const chartDataCumulative = document.getElementById('chart-data-cumulative');
+                    const chartShowBars = document.getElementById('chart-show-bars');
+                    const chartShowCumulative = document.getElementById('chart-show-cumulative');
                     const chartUnitVolume = document.getElementById('chart-unit-volume');
                     const chartUnitValue = document.getElementById('chart-unit-value');
 
-                    const updateChartDataType = (type) => {
-                        State.chartDataType = type;
-                        if (type === 'individual') {
-                            chartDataIndividual.classList.add('active');
-                            chartDataCumulative.classList.remove('active');
-                        } else {
-                            chartDataCumulative.classList.add('active');
-                            chartDataIndividual.classList.remove('active');
-                        }
+                    const redrawChart = () => {
                         if (State.currentPlanData) {
                             App.drawDepthChart('#depth-chart', State.currentPlanData.buyLadder, State.currentPlanData.sellLadder);
                         }
                     };
+
+                    if (chartShowBars) {
+                        chartShowBars.addEventListener('change', () => {
+                            State.chartShowBars = chartShowBars.checked;
+                            redrawChart();
+                        });
+                    }
+
+                    if (chartShowCumulative) {
+                        chartShowCumulative.addEventListener('change', () => {
+                            State.chartShowCumulative = chartShowCumulative.checked;
+                            redrawChart();
+                        });
+                    }
 
                     const updateChartUnitType = (type) => {
                         State.chartUnitType = type;
@@ -2062,15 +2212,22 @@
                             chartUnitValue.classList.add('active');
                             chartUnitVolume.classList.remove('active');
                         }
-                        if (State.currentPlanData) {
-                            App.drawDepthChart('#depth-chart', State.currentPlanData.buyLadder, State.currentPlanData.sellLadder);
-                        }
+                        redrawChart();
                     };
 
-                    if (chartDataIndividual) chartDataIndividual.addEventListener('click', () => updateChartDataType('individual'));
-                    if (chartDataCumulative) chartDataCumulative.addEventListener('click', () => updateChartDataType('cumulative'));
                     if (chartUnitVolume) chartUnitVolume.addEventListener('click', () => updateChartUnitType('volume'));
                     if (chartUnitValue) chartUnitValue.addEventListener('click', () => updateChartUnitType('value'));
+
+                    // How It Works Modal
+                    const howItWorksBtn = document.getElementById('intro-how-it-works');
+                    const howItWorksModal = document.getElementById('how-it-works-modal');
+                    const howItWorksBackdrop = document.getElementById('how-it-works-backdrop');
+                    const howItWorksClose = document.getElementById('how-it-works-close');
+                    
+                    const toggleHowItWorks = (show) => howItWorksModal?.classList.toggle('open', show);
+                    if (howItWorksBtn) howItWorksBtn.addEventListener('click', () => toggleHowItWorks(true));
+                    if (howItWorksBackdrop) howItWorksBackdrop.addEventListener('click', () => toggleHowItWorks(false));
+                    if (howItWorksClose) howItWorksClose.addEventListener('click', () => toggleHowItWorks(false));
 
                     // Handle Intro Page
                     const enterBtn = document.getElementById('enter-app-btn');
@@ -2083,25 +2240,55 @@
                             SetupWizard.prepare();
                             
                             // Make wizard background visible instantly to cover screen immediately
-                            // This happens synchronously before any transitions, ensuring no gap
                             wizard.style.opacity = '1';
                             wizard.style.pointerEvents = 'auto';
                             
                             // Start both transitions simultaneously for seamless effect
-                            // Intro layer fades out while wizard content fades in
                             requestAnimationFrame(() => {
-                                // Trigger wizard content setup and fade-in
                                 SetupWizard.show();
-                                
-                                // Trigger intro layer fade-out simultaneously
                                 introLayer.style.opacity = '0';
                                 introLayer.style.pointerEvents = 'none';
-                                
-                                // Hide intro layer completely after transition completes
                                 setTimeout(() => {
                                     introLayer.style.display = 'none';
-                                }, 500); // Match transition duration
+                                }, 500);
                             });
+                        });
+                    }
+
+                    // Quick Start Button - Skip wizard and use defaults
+                    const quickStartBtn = document.getElementById('quick-start-btn');
+                    if (quickStartBtn) {
+                        quickStartBtn.addEventListener('click', () => {
+                            const introLayer = document.getElementById('intro-layer');
+                            
+                            // Set example values directly
+                            els.startCap.value = '10,000';
+                            els.currPrice.value = '100';
+                            els.depth.value = '25';
+                            els.depthInput.value = '25';
+                            els.rungs.value = '10';
+                            els.rungsInput.value = '10';
+                            els.rungsDisplay.textContent = '10';
+                            els.skew.value = '50';
+                            
+                            // Hide intro and skip wizard
+                            introLayer.style.opacity = '0';
+                            introLayer.style.pointerEvents = 'none';
+                            setTimeout(() => {
+                                introLayer.style.display = 'none';
+                            }, 500);
+                            
+                            // Mark setup as done
+                            localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed', 'true');
+                            
+                            // Calculate with defaults
+                            App.calculatePlan();
+                            
+                            // Show a helpful toast
+                            const toast = document.getElementById('toast');
+                            toast.textContent = '✨ Example plan loaded! Adjust values to customize.';
+                            toast.classList.add('show');
+                            setTimeout(() => toast.classList.remove('show'), 3000);
                         });
                     }
 
@@ -2289,18 +2476,71 @@
                     });
 
                     // Toggles
-                    // els.advCheck.addEventListener('change', () => { ... }); // Removed
+                    // Mode Selector Buttons (Buy vs Sell-Only)
+                    const modeBuyBtn = document.getElementById('mode-buy-btn');
+                    const modeSellBtn = document.getElementById('mode-sell-btn');
+                    const modeBuyCheck = document.getElementById('mode-buy-check');
+                    const modeSellCheck = document.getElementById('mode-sell-check');
+                    const buyModeInputs = document.getElementById('buy-mode-inputs');
+                    const sellModeInputs = document.getElementById('sell-mode-inputs');
+                    const currentPriceSell = document.getElementById('current_price_sell');
 
-                    els.sellOnlyCheck.addEventListener('change', () => {
-                        const isSellOnly = els.sellOnlyCheck.checked;
-                        els.sellOnlyInputs.classList.toggle('hidden', !isSellOnly);
-                        els.startCapLabel.textContent = isSellOnly ? 'Held Quantity' : 'Initial Capital ($)';
-                        // Combined chart always visible (shows both buys and sells)
-                        if(!isSellOnly) {
+                    const setSellOnlyMode = (isSellOnly) => {
+                        State.sellOnlyMode = isSellOnly;
+                        els.sellOnlyCheck.checked = isSellOnly;
+                        
+                        // Update mode cards
+                        if (isSellOnly) {
+                            modeBuyBtn.classList.remove('active', 'border-red-500/50', 'bg-red-500/10');
+                            modeBuyBtn.classList.add('border-[var(--color-border)]', 'bg-[var(--color-card-muted)]');
+                            modeBuyCheck.style.opacity = '0';
+                            
+                            modeSellBtn.classList.add('active', 'border-green-500/50', 'bg-green-500/10');
+                            modeSellBtn.classList.remove('border-[var(--color-border)]', 'bg-[var(--color-card-muted)]');
+                            modeSellCheck.style.opacity = '1';
+                            
+                            buyModeInputs.classList.add('hidden');
+                            sellModeInputs.classList.remove('hidden');
+                            document.body.classList.add('sell-mode-active');
+                            
+                            // Auto-switch to sell tab
+                            App.switchTab('sell');
+                        } else {
+                            modeSellBtn.classList.remove('active', 'border-green-500/50', 'bg-green-500/10');
+                            modeSellBtn.classList.add('border-[var(--color-border)]', 'bg-[var(--color-card-muted)]');
+                            modeSellCheck.style.opacity = '0';
+                            
+                            modeBuyBtn.classList.add('active', 'border-red-500/50', 'bg-red-500/10');
+                            modeBuyBtn.classList.remove('border-[var(--color-border)]', 'bg-[var(--color-card-muted)]');
+                            modeBuyCheck.style.opacity = '1';
+                            
+                            sellModeInputs.classList.add('hidden');
+                            buyModeInputs.classList.remove('hidden');
+                            document.body.classList.remove('sell-mode-active');
+                            
                             State.sellOnlyHighestExecuted = null;
                         }
-                        if(isSellOnly) App.switchTab('sell');
+                        
                         App.calculatePlan();
+                    };
+
+                    if (modeBuyBtn) modeBuyBtn.addEventListener('click', () => setSellOnlyMode(false));
+                    if (modeSellBtn) modeSellBtn.addEventListener('click', () => setSellOnlyMode(true));
+                    
+                    // Sync price inputs between modes
+                    if (currentPriceSell) {
+                        currentPriceSell.addEventListener('input', () => {
+                            els.currPrice.value = currentPriceSell.value;
+                            App.debouncedCalc();
+                        });
+                        els.currPrice.addEventListener('input', () => {
+                            currentPriceSell.value = els.currPrice.value;
+                        });
+                    }
+
+                    // Legacy checkbox handler (for compatibility)
+                    els.sellOnlyCheck.addEventListener('change', () => {
+                        setSellOnlyMode(els.sellOnlyCheck.checked);
                     });
 
                     els.equalQtyCheck.addEventListener('change', () => {
@@ -2318,22 +2558,23 @@
                     document.getElementById('save-config-btn').addEventListener('click', App.saveConfig);
                     document.getElementById('load-config-file').addEventListener('change', App.loadConfig);
                     
-                    // Modal
+                    // Modal (QR/Donate)
                     const toggleModal = (show) => els.qrModal.classList.toggle('open', show);
                     els.solBtn.addEventListener('click', () => toggleModal(true));
                     els.qrBackdrop.addEventListener('click', () => toggleModal(false));
                     els.qrClose.addEventListener('click', () => toggleModal(false));
 
-                    // Video Modal
+                    // Video Modal - lazy load iframe to improve page performance
                     const videoIframe = els.videoModal.querySelector('iframe');
-                    const videoSrc = videoIframe ? videoIframe.src : '';
+                    const videoSrc = videoIframe ? (videoIframe.dataset.src || videoIframe.src) : '';
                     
                     const toggleVideo = (show) => {
                         els.videoModal.classList.toggle('open', show);
                         if (!show && videoIframe) {
                              // Stop video by resetting src
                              videoIframe.src = '';
-                        } else if (show && videoIframe && !videoIframe.src) {
+                        } else if (show && videoIframe && videoSrc) {
+                             // Lazy load iframe only when modal opens
                              videoIframe.src = videoSrc;
                         }
                     };
@@ -2348,6 +2589,15 @@
                     if (introVideoLink) {
                         introVideoLink.addEventListener('click', () => toggleVideo(true));
                     }
+
+                    // Global Escape key handler for all modals (better UX)
+                    document.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') {
+                            if (els.qrModal.classList.contains('open')) toggleModal(false);
+                            if (els.videoModal.classList.contains('open')) toggleVideo(false);
+                            if (howItWorksModal?.classList.contains('open')) toggleHowItWorks(false);
+                        }
+                    });
 
                     // Sections (Removed)
                     // const toggleSection = (btn, section, chevron) => ...
@@ -2651,17 +2901,6 @@
                     const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
                     const setCls = (id, cls) => { const el = document.getElementById(id); if(el) el.className = cls; };
                     
-                    setTxt('summary-net-profit', Utils.fmtCurr(s.netProfit));
-                    setCls('summary-net-profit', `text-2xl font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);
-                    setTxt('summary-roi', Utils.fmtPct(s.roi));
-                    setCls('summary-roi', `text-2xl font-bold ${s.roi >= 0 ? 'text-green-600' : 'text-red-500'}`);
-                    setTxt('summary-avg-buy', Utils.fmtCurr(s.avgBuy));
-                    setTxt('summary-avg-sell', Utils.fmtCurr(s.avgSell));
-                    setTxt('summary-total-fees', Utils.fmtCurr(s.totalFees));
-                    setTxt('summary-total-quantity', Utils.fmtNum(s.totalQuantity));
-                    setTxt('summary-buy-floor', Utils.fmtCurr(s.lowestBuy));
-                    setTxt('summary-sell-ceiling', Utils.fmtCurr(s.highestSell));
-
                     // Update chart overlay summary
                     setTxt('chart-summary-net-profit', Utils.fmtCurr(s.netProfit));
                     setCls('chart-summary-net-profit', `text-lg font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);
@@ -2729,11 +2968,11 @@
 
                 // --- CHARTS ---
                 /**
-                 * Vertical bar chart showing buy/sell orders:
-                 *  - Horizontal bars for each order
-                 *  - Buy orders (red) on bottom, Sell orders (green) on top
-                 *  - Price on Y-axis (vertical), size on X-axis (horizontal)
-                 *  - Supports individual/cumulative and volume/value display modes
+                 * Combined bar chart with cumulative line overlay:
+                 *  - Horizontal bars for each individual order
+                 *  - Cumulative line showing running total
+                 *  - Both layers can be toggled on/off
+                 *  - In sell-only mode, only shows sell orders
                  */
                 drawDepthChart: (selector, buys, sells) => {
                     const svgSel = d3.select(selector);
@@ -2754,11 +2993,13 @@
                         .attr("height", height);
 
                     // Get display modes
-                    const isCumulative = State.chartDataType === 'cumulative';
+                    const showBars = State.chartShowBars;
+                    const showCumulative = State.chartShowCumulative;
                     const isValue = State.chartUnitType === 'value';
+                    const isSellOnly = State.sellOnlyMode;
 
                     // Prepare data - buys sorted by price descending (highest first), sells ascending
-                    const buySeries  = (buys || []).slice().sort((a, b) => b.price - a.price);
+                    const buySeries  = isSellOnly ? [] : (buys || []).slice().sort((a, b) => b.price - a.price);
                     const sellSeries = (sells || []).slice().sort((a, b) => a.price - b.price);
 
                     // Compute cumulative values
@@ -2786,14 +3027,9 @@
                         d.cumulativeVal = cumVal;
                     });
 
-                    // Get the value accessor based on display mode
-                    const getValue = (d) => {
-                        if (isCumulative) {
-                            return isValue ? d.cumulativeVal : d.cumulativeQty;
-                        } else {
-                            return isValue ? d.individualVal : d.individualQty;
-                        }
-                    };
+                    // Value accessors
+                    const getIndividualValue = (d) => isValue ? d.individualVal : d.individualQty;
+                    const getCumulativeValue = (d) => isValue ? d.cumulativeVal : d.cumulativeQty;
 
                     const allData = [...buySeries, ...sellSeries];
                     if (!allData.length) return;
@@ -2807,12 +3043,11 @@
                     // Calculate bar heights based on number of orders and available space
                     const chartHeight = height - margin.top - margin.bottom;
                     const totalBars = buySeries.length + sellSeries.length;
-                    const barPadding = 0.15; // 15% padding between bars
+                    const barPadding = 0.15;
                     const barHeight = Math.min(chartHeight / (totalBars + 1), 25);
                     const effectiveBarHeight = barHeight * (1 - barPadding);
 
-                    // Build price scale with band-like positioning
-                    // Create positions for each bar centered on its price
+                    // Build price scale
                     const priceExtent = yMax - yMin || 1;
                     const paddedMin = yMin - priceExtent * 0.05;
                     const paddedMax = yMax + priceExtent * 0.05;
@@ -2821,8 +3056,11 @@
                         .domain([paddedMin, paddedMax])
                         .range([height - margin.bottom, margin.top]);
 
-                    // X scale for bar widths
-                    const maxValue = d3.max(allData, getValue) || 1;
+                    // X scale - account for both individual and cumulative max
+                    const maxIndividual = d3.max(allData, getIndividualValue) || 1;
+                    const maxCumulative = d3.max(allData, getCumulativeValue) || 1;
+                    const maxValue = Math.max(maxIndividual, showCumulative ? maxCumulative : 0);
+
                     const x = d3.scaleLinear()
                         .domain([0, maxValue * 1.1])
                         .range([margin.left, width - margin.right]);
@@ -2830,49 +3068,112 @@
                     // Mid price label
                     const midLabel = document.getElementById("mid-price-label");
                     if (midLabel) {
-                        midLabel.textContent = `Mid ≈ ${Utils.fmtCurr(mid)}`;
+                        midLabel.textContent = isSellOnly ? `Sell Ladder` : `Mid ≈ ${Utils.fmtCurr(mid)}`;
                     }
 
-                    // Create groups for each side
-                    const barsGroup = svg.append("g").attr("class", "bars");
+                    // Create layer groups
+                    const barsGroup = svg.append("g").attr("class", "bars-layer");
+                    const lineGroup = svg.append("g").attr("class", "cumulative-layer");
 
-                    // Draw buy bars (red)
-                    const buyBars = barsGroup.selectAll(".buy-bar")
-                        .data(buySeries)
-                        .enter()
-                        .append("rect")
-                        .attr("class", "buy-bar")
-                        .attr("x", margin.left)
-                        .attr("y", d => y(d.price) - effectiveBarHeight / 2)
-                        .attr("width", 0)
-                        .attr("height", effectiveBarHeight)
-                        .attr("fill", getComputedStyle(document.body).getPropertyValue("--color-chart-buy-start").trim())
-                        .attr("opacity", 0.8)
-                        .attr("rx", 2);
+                    // Draw bars if enabled
+                    if (showBars) {
+                        // Buy bars (red)
+                        if (buySeries.length > 0) {
+                            barsGroup.selectAll(".buy-bar")
+                                .data(buySeries)
+                                .enter()
+                                .append("rect")
+                                .attr("class", "buy-bar")
+                                .attr("x", margin.left)
+                                .attr("y", d => y(d.price) - effectiveBarHeight / 2)
+                                .attr("width", 0)
+                                .attr("height", effectiveBarHeight)
+                                .attr("fill", getComputedStyle(document.body).getPropertyValue("--color-chart-buy-start").trim())
+                                .attr("opacity", 0.7)
+                                .attr("rx", 2)
+                                .transition()
+                                .duration(600)
+                                .attr("width", d => Math.max(0, x(getIndividualValue(d)) - margin.left));
+                        }
 
-                    buyBars.transition()
-                        .duration(600)
-                        .attr("width", d => x(getValue(d)) - margin.left);
+                        // Sell bars (green)
+                        barsGroup.selectAll(".sell-bar")
+                            .data(sellSeries)
+                            .enter()
+                            .append("rect")
+                            .attr("class", "sell-bar")
+                            .attr("x", margin.left)
+                            .attr("y", d => y(d.price) - effectiveBarHeight / 2)
+                            .attr("width", 0)
+                            .attr("height", effectiveBarHeight)
+                            .attr("fill", getComputedStyle(document.body).getPropertyValue("--color-chart-sell-start").trim())
+                            .attr("opacity", 0.7)
+                            .attr("rx", 2)
+                            .transition()
+                            .duration(600)
+                            .attr("width", d => Math.max(0, x(getIndividualValue(d)) - margin.left));
+                    }
 
-                    // Draw sell bars (green)
-                    const sellBars = barsGroup.selectAll(".sell-bar")
-                        .data(sellSeries)
-                        .enter()
-                        .append("rect")
-                        .attr("class", "sell-bar")
-                        .attr("x", margin.left)
-                        .attr("y", d => y(d.price) - effectiveBarHeight / 2)
-                        .attr("width", 0)
-                        .attr("height", effectiveBarHeight)
-                        .attr("fill", getComputedStyle(document.body).getPropertyValue("--color-chart-sell-start").trim())
-                        .attr("opacity", 0.8)
-                        .attr("rx", 2);
+                    // Draw cumulative lines if enabled
+                    if (showCumulative) {
+                        const lineGenerator = d3.line()
+                            .x(d => x(getCumulativeValue(d)))
+                        .y(d => y(d.price))
+                        .curve(d3.curveStepAfter);
 
-                    sellBars.transition()
-                        .duration(600)
-                        .attr("width", d => x(getValue(d)) - margin.left);
+                        // Buy cumulative line (red dashed)
+                        if (buySeries.length > 0) {
+                            lineGroup.append("path")
+                            .datum(buySeries)
+                                .attr("fill", "none")
+                                .attr("stroke", getComputedStyle(document.body).getPropertyValue("--color-chart-buy-start").trim())
+                                .attr("stroke-width", 2.5)
+                                .attr("stroke-dasharray", "6 3")
+                                .attr("opacity", 0.9)
+                                .attr("d", lineGenerator);
+                            
+                            // Cumulative dots for buy
+                            lineGroup.selectAll(".buy-cum-dot")
+                                .data(buySeries)
+                                .enter()
+                                .append("circle")
+                                .attr("class", "buy-cum-dot")
+                                .attr("cx", d => x(getCumulativeValue(d)))
+                                .attr("cy", d => y(d.price))
+                                .attr("r", 4)
+                                .attr("fill", getComputedStyle(document.body).getPropertyValue("--color-chart-buy-start").trim())
+                                .attr("stroke", "white")
+                                .attr("stroke-width", 1.5);
+                        }
 
-                    // Mid price line
+                        // Sell cumulative line (green dashed)
+                        if (sellSeries.length > 0) {
+                            lineGroup.append("path")
+                            .datum(sellSeries)
+                                .attr("fill", "none")
+                                .attr("stroke", getComputedStyle(document.body).getPropertyValue("--color-chart-sell-start").trim())
+                                .attr("stroke-width", 2.5)
+                                .attr("stroke-dasharray", "6 3")
+                                .attr("opacity", 0.9)
+                                .attr("d", lineGenerator);
+                            
+                            // Cumulative dots for sell
+                            lineGroup.selectAll(".sell-cum-dot")
+                                .data(sellSeries)
+                                .enter()
+                                .append("circle")
+                                .attr("class", "sell-cum-dot")
+                                .attr("cx", d => x(getCumulativeValue(d)))
+                                .attr("cy", d => y(d.price))
+                                .attr("r", 4)
+                                .attr("fill", getComputedStyle(document.body).getPropertyValue("--color-chart-sell-start").trim())
+                                .attr("stroke", "white")
+                                .attr("stroke-width", 1.5);
+                        }
+                    }
+
+                    // Mid price line (only show in buy mode)
+                    if (!isSellOnly) {
                     svg.append("line")
                         .attr("x1", margin.left)
                         .attr("x2", width - margin.right)
@@ -2880,8 +3181,9 @@
                         .attr("y2", y(mid))
                         .attr("stroke", "currentColor")
                         .attr("stroke-width", 1)
-                        .attr("stroke-dasharray", "4 2")
+                            .attr("stroke-dasharray", "4 2")
                         .attr("opacity", 0.3);
+                    }
 
                     // Y-axis (Price)
                     const yAxis = d3.axisLeft(y)
@@ -2908,10 +3210,7 @@
                         .call(g => g.selectAll("line").remove());
 
                     // X-axis label
-                    const unitLabel = isCumulative 
-                        ? (isValue ? "Cumulative Value ($)" : "Cumulative Volume")
-                        : (isValue ? "Order Value ($)" : "Order Volume");
-                    
+                    const unitLabel = isValue ? "Value ($)" : "Volume";
                     svg.append("text")
                         .attr("x", (width + margin.left - margin.right) / 2)
                         .attr("y", height - 5)
@@ -2921,16 +3220,13 @@
                         .attr("class", "opacity-50")
                         .text(unitLabel);
 
-                    // Tooltip
+                    // Tooltip and hover zones
                     const tooltip = d3.select("#tooltip");
-
-                    // Interactive overlay - one rect per bar for precise hover
                     const allBarsData = [
                         ...buySeries.map(d => ({ ...d, isBuy: true })),
                         ...sellSeries.map(d => ({ ...d, isBuy: false }))
                     ];
 
-                    // Create invisible hover zones for each bar
                     svg.selectAll(".hover-zone")
                         .data(allBarsData)
                         .enter()
@@ -2943,42 +3239,50 @@
                         .attr("fill", "transparent")
                         .style("cursor", "crosshair")
                         .on("mouseenter", function(event, d) {
-                            // Highlight the bar
-                            const barClass = d.isBuy ? ".buy-bar" : ".sell-bar";
-                            barsGroup.selectAll(barClass)
-                                .filter(bd => bd.price === d.price)
-                                .attr("opacity", 1)
-                                .attr("stroke", d.isBuy ? "#dc2626" : "#16a34a")
-                                .attr("stroke-width", 2);
+                            // Highlight bar
+                            if (showBars) {
+                                const barClass = d.isBuy ? ".buy-bar" : ".sell-bar";
+                                barsGroup.selectAll(barClass)
+                                    .filter(bd => bd.price === d.price)
+                                    .attr("opacity", 1)
+                                    .attr("stroke", d.isBuy ? "#dc2626" : "#16a34a")
+                                    .attr("stroke-width", 2);
+                            }
+
+                            // Highlight cumulative dot
+                            if (showCumulative) {
+                                const dotClass = d.isBuy ? ".buy-cum-dot" : ".sell-cum-dot";
+                                lineGroup.selectAll(dotClass)
+                                    .filter(bd => bd.price === d.price)
+                                    .attr("r", 6);
+                            }
 
                             // Show tooltip
-                            const value = getValue(d);
                             const html = `
                                 <div class="font-bold ${d.isBuy ? "text-red-400" : "text-green-400"}">
                                     ${d.isBuy ? "Buy" : "Sell"} Order #${d.rung}
                                 </div>
                                 <div>Price: ${Utils.fmtCurr(d.price)}</div>
-                                <div>Volume: ${Utils.fmtNum(d.individualQty, 4)}</div>
-                                <div>Value: ${Utils.fmtCurr(d.individualVal)}</div>
-                                ${isCumulative ? `<div class="border-t border-gray-600 mt-1 pt-1">Cum Vol: ${Utils.fmtNum(d.cumulativeQty, 4)}</div><div>Cum Val: ${Utils.fmtCurr(d.cumulativeVal)}</div>` : ''}
+                                <div class="border-t border-gray-600 mt-1 pt-1">
+                                    <div class="text-gray-400 text-[10px] mb-1">Individual:</div>
+                                    <div>Vol: ${Utils.fmtNum(d.individualQty, 4)}</div>
+                                    <div>Val: ${Utils.fmtCurr(d.individualVal)}</div>
+                                </div>
+                                <div class="border-t border-gray-600 mt-1 pt-1">
+                                    <div class="text-gray-400 text-[10px] mb-1">Cumulative:</div>
+                                    <div>Vol: ${Utils.fmtNum(d.cumulativeQty, 4)}</div>
+                                    <div>Val: ${Utils.fmtCurr(d.cumulativeVal)}</div>
+                                </div>
                             `;
 
-                            tooltip
-                                .classed("hidden", false)
-                                .style("opacity", 1)
-                                .html(html);
+                            tooltip.classed("hidden", false).style("opacity", 1).html(html);
 
-                            // Position tooltip
                             const box = tooltip.node().getBoundingClientRect();
                             let left = event.pageX + 15;
-                            if (left + box.width > window.innerWidth) {
-                                left = event.pageX - box.width - 15;
-                            }
-                            tooltip
-                                .style("left", left + "px")
-                                .style("top", (event.pageY - 40) + "px");
+                            if (left + box.width > window.innerWidth) left = event.pageX - box.width - 15;
+                            tooltip.style("left", left + "px").style("top", (event.pageY - 40) + "px");
 
-                            // Draw cursor line at bar center (mid-line)
+                            // Cursor line
                             svg.selectAll(".cursor-line").remove();
                             svg.append("line")
                                 .attr("class", "cursor-line")
@@ -2991,26 +3295,26 @@
                                 .attr("stroke-dasharray", "4 4")
                                 .attr("opacity", 0.8);
                         })
-                        .on("mousemove", function(event, d) {
-                            // Update tooltip position on move
+                        .on("mousemove", function(event) {
                             const box = tooltip.node().getBoundingClientRect();
                             let left = event.pageX + 15;
-                            if (left + box.width > window.innerWidth) {
-                                left = event.pageX - box.width - 15;
-                            }
-                            tooltip
-                                .style("left", left + "px")
-                                .style("top", (event.pageY - 40) + "px");
+                            if (left + box.width > window.innerWidth) left = event.pageX - box.width - 15;
+                            tooltip.style("left", left + "px").style("top", (event.pageY - 40) + "px");
                         })
                         .on("mouseleave", function(event, d) {
-                            // Reset bar style
-                            const barClass = d.isBuy ? ".buy-bar" : ".sell-bar";
-                            barsGroup.selectAll(barClass)
-                                .filter(bd => bd.price === d.price)
-                                .attr("opacity", 0.8)
-                                .attr("stroke", "none");
-
-                            // Hide tooltip
+                            if (showBars) {
+                                const barClass = d.isBuy ? ".buy-bar" : ".sell-bar";
+                                barsGroup.selectAll(barClass)
+                                    .filter(bd => bd.price === d.price)
+                                    .attr("opacity", 0.7)
+                                    .attr("stroke", "none");
+                            }
+                            if (showCumulative) {
+                                const dotClass = d.isBuy ? ".buy-cum-dot" : ".sell-cum-dot";
+                                lineGroup.selectAll(dotClass)
+                                    .filter(bd => bd.price === d.price)
+                                    .attr("r", 4);
+                            }
                             tooltip.classed("hidden", true).style("opacity", 0);
                             svg.selectAll(".cursor-line").remove();
                         });
