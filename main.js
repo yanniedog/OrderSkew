@@ -328,6 +328,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (introHowItWorks) introHowItWorks.addEventListener('click', () => toggleHowItWorks(true));
             if (howItWorksBackdrop) howItWorksBackdrop.addEventListener('click', () => toggleHowItWorks(false));
             if (howItWorksClose) howItWorksClose.addEventListener('click', () => toggleHowItWorks(false));
+            
+            // How It Works button in header
+            const howItWorksBtn = document.getElementById('how-it-works-btn');
+            const howItWorksBtnMobile = document.getElementById('how-it-works-btn-mobile');
+            if (howItWorksBtn) howItWorksBtn.addEventListener('click', () => toggleHowItWorks(true));
+            if (howItWorksBtnMobile) howItWorksBtnMobile.addEventListener('click', () => toggleHowItWorks(true));
 
             // Handle Intro Page
             const enterBtn = document.getElementById('enter-app-btn');
@@ -361,6 +367,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const logoHeader = document.getElementById('logo-header');
             if (logoHeader) {
                 logoHeader.addEventListener('click', () => {
+                    const introLayer = document.getElementById('intro-layer');
+                    if (introLayer) {
+                        introLayer.style.display = 'flex';
+                        introLayer.style.opacity = '1';
+                        introLayer.style.pointerEvents = 'auto';
+                    }
+                });
+            }
+
+            // Handle Start Over Button - Return to Welcome Screen
+            const startOverBtn = document.getElementById('start-over-btn');
+            if (startOverBtn) {
+                startOverBtn.addEventListener('click', () => {
                     const introLayer = document.getElementById('intro-layer');
                     if (introLayer) {
                         introLayer.style.display = 'flex';
