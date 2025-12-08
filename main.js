@@ -435,8 +435,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 els.videoModal?.classList.toggle('open', show);
                 if (videoIframe) videoIframe.src = show ? videoSrc : '';
             };
-            [els.videoBtn, els.videoBtnMobile, document.getElementById('intro-video-link')].forEach(btn => btn?.addEventListener('click', () => toggleVideo(true)));
-            [els.videoBackdrop, els.videoClose].forEach(el => el?.addEventListener('click', () => toggleVideo(false)));
+            const introVideoLink = document.getElementById('intro-video-link');
+            const openVideo = (e) => {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (els.videoModal) {
+                    toggleVideo(true);
+                }
+            };
+            if (els.videoBtn) els.videoBtn.addEventListener('click', openVideo);
+            if (els.videoBtnMobile) els.videoBtnMobile.addEventListener('click', openVideo);
+            if (introVideoLink) introVideoLink.addEventListener('click', openVideo);
+            [els.videoBackdrop, els.videoClose].forEach(el => {
+                if (el) {
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleVideo(false);
+                    });
+                }
+            });
 
             // Global Escape key handler
             document.addEventListener('keydown', (e) => {
