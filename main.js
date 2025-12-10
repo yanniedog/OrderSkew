@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const modeToggleContainer = document.getElementById('mode-toggle-container');
             const chartDisplayOptions = document.getElementById('chart-display-options');
             const tableOptions = document.getElementById('table-options');
-            const exportMenu = document.getElementById('export-menu');
+            const exportMenuItems = document.getElementById('export-menu-items');
             
             // Update toggle switch state
             if (advancedToggle) {
@@ -293,9 +293,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     tableOptions.classList.remove('hidden');
                     tableOptions.style.display = '';
                 }
-                if (exportMenu) {
-                    exportMenu.classList.remove('hidden');
-                    exportMenu.style.display = '';
+                if (exportMenuItems) {
+                    exportMenuItems.classList.remove('hidden');
+                    exportMenuItems.style.display = '';
                 }
                 if (advancedHint) {
                     advancedHint.style.display = 'none';
@@ -325,9 +325,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     tableOptions.classList.add('hidden');
                     tableOptions.style.display = 'none';
                 }
-                if (exportMenu) {
-                    exportMenu.classList.add('hidden');
-                    exportMenu.style.display = 'none';
+                if (exportMenuItems) {
+                    exportMenuItems.classList.add('hidden');
+                    exportMenuItems.style.display = 'none';
                 }
                 if (advancedHint) {
                     advancedHint.style.display = 'block';
@@ -754,54 +754,74 @@ document.addEventListener('DOMContentLoaded', function () {
             if (els.tabSell) els.tabSell.addEventListener('click', () => App.switchTab('sell'));
             if (els.themeBtn) els.themeBtn.addEventListener('click', App.toggleTheme);
             
-            // Hamburger Menu Toggle
-            const menuToggleBtn = document.getElementById('menu-toggle-btn');
-            const menuDropdown = document.getElementById('menu-dropdown');
-            const menuIcon = document.getElementById('menu-icon');
-            const menuCloseIcon = document.getElementById('menu-close-icon');
+            // Actions Menu Toggle
+            const actionsMenuBtn = document.getElementById('actions-menu-btn');
+            const actionsMenuDropdown = document.getElementById('actions-menu-dropdown');
             
-            if (menuToggleBtn && menuDropdown) {
-                const toggleMenu = () => {
-                    const isOpen = menuDropdown.classList.contains('opacity-100');
-                    if (isOpen) {
-                        menuDropdown.classList.remove('opacity-100', 'visible');
-                        menuDropdown.classList.add('opacity-0', 'invisible');
-                        menuIcon.classList.remove('hidden');
-                        menuCloseIcon.classList.add('hidden');
+            if (actionsMenuBtn && actionsMenuDropdown) {
+                const toggleActionsMenu = (open) => {
+                    if (open) {
+                        actionsMenuDropdown.classList.remove('opacity-0', 'invisible');
+                        actionsMenuDropdown.classList.add('opacity-100', 'visible');
                     } else {
-                        menuDropdown.classList.remove('opacity-0', 'invisible');
-                        menuDropdown.classList.add('opacity-100', 'visible');
-                        menuIcon.classList.add('hidden');
-                        menuCloseIcon.classList.remove('hidden');
+                        actionsMenuDropdown.classList.add('opacity-0', 'invisible');
+                        actionsMenuDropdown.classList.remove('opacity-100', 'visible');
                     }
                 };
                 
-                menuToggleBtn.addEventListener('click', (e) => {
+                actionsMenuBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    toggleMenu();
-                });
-                
-                // Close menu when clicking outside
-                document.addEventListener('click', (e) => {
-                    if (!menuDropdown.contains(e.target) && !menuToggleBtn.contains(e.target)) {
-                        if (menuDropdown.classList.contains('opacity-100')) {
-                            toggleMenu();
-                        }
-                    }
-                });
-                
-                // Close menu when clicking on menu items (except theme toggle which needs to stay open)
-                const menuItems = menuDropdown.querySelectorAll('a, button');
-                menuItems.forEach(item => {
-                    if (item.id !== 'theme-toggle-btn' && item.id !== 'sol-btn') {
-                        item.addEventListener('click', () => {
-                            if (menuDropdown.classList.contains('opacity-100')) {
-                                toggleMenu();
-                            }
-                        });
+                    const isOpen = actionsMenuDropdown.classList.contains('opacity-100');
+                    toggleActionsMenu(!isOpen);
+                    // Close links menu if open
+                    const linksDropdown = document.getElementById('links-menu-dropdown');
+                    if (linksDropdown) {
+                        linksDropdown.classList.add('opacity-0', 'invisible');
+                        linksDropdown.classList.remove('opacity-100', 'visible');
                     }
                 });
             }
+            
+            // Links Menu Toggle
+            const linksMenuBtn = document.getElementById('links-menu-btn');
+            const linksMenuDropdown = document.getElementById('links-menu-dropdown');
+            
+            if (linksMenuBtn && linksMenuDropdown) {
+                const toggleLinksMenu = (open) => {
+                    if (open) {
+                        linksMenuDropdown.classList.remove('opacity-0', 'invisible');
+                        linksMenuDropdown.classList.add('opacity-100', 'visible');
+                    } else {
+                        linksMenuDropdown.classList.add('opacity-0', 'invisible');
+                        linksMenuDropdown.classList.remove('opacity-100', 'visible');
+                    }
+                };
+                
+                linksMenuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = linksMenuDropdown.classList.contains('opacity-100');
+                    toggleLinksMenu(!isOpen);
+                    // Close actions menu if open
+                    if (actionsMenuDropdown) {
+                        actionsMenuDropdown.classList.add('opacity-0', 'invisible');
+                        actionsMenuDropdown.classList.remove('opacity-100', 'visible');
+                    }
+                });
+            }
+            
+            // Close menus when clicking outside
+            document.addEventListener('click', (e) => {
+                if (actionsMenuDropdown && actionsMenuBtn && 
+                    !actionsMenuDropdown.contains(e.target) && !actionsMenuBtn.contains(e.target)) {
+                    actionsMenuDropdown.classList.add('opacity-0', 'invisible');
+                    actionsMenuDropdown.classList.remove('opacity-100', 'visible');
+                }
+                if (linksMenuDropdown && linksMenuBtn && 
+                    !linksMenuDropdown.contains(e.target) && !linksMenuBtn.contains(e.target)) {
+                    linksMenuDropdown.classList.add('opacity-0', 'invisible');
+                    linksMenuDropdown.classList.remove('opacity-100', 'visible');
+                }
+            });
             
             // Advanced Mode Toggle (checkbox switch)
             const advancedModeToggle = document.getElementById('advanced-mode-toggle');
@@ -1226,7 +1246,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 'sticky-fees': Utils.fmtCurr(s.totalFees), 
                 'sticky-vol': Utils.fmtNum(s.totalQuantity),
                 'sticky-floor': Utils.fmtCurr(s.lowestBuy), 
-                'sticky-ceiling': Utils.fmtCurr(s.highestSell)
+                'sticky-ceiling': Utils.fmtCurr(s.highestSell),
+                'legend-buy-summary': `${Utils.fmtNum(s.buyTotalVolume)} @ ${Utils.fmtCurr(s.avgBuy)} avg`,
+                'legend-sell-summary': `${Utils.fmtNum(s.sellTotalVolume)} @ ${Utils.fmtCurr(s.avgSell)} avg`
             };
             Object.entries(summaryMap).forEach(([id, val]) => setTxt(id, val));
             setCls('chart-summary-net-profit', `text-lg font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);

@@ -90,18 +90,60 @@
                     <!-- Visual Diagram: Volume vs Value -->
                     <div class="grid grid-cols-2 gap-4 mt-4">
                         <div class="p-4 rounded-lg bg-[var(--color-card-muted)] border border-[var(--color-border)]">
-                            <p class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Volume (Symmetrical)</p>
-                            <div class="h-40 w-full" id="how-it-works-volume-chart">
-                                <svg width="100%" height="100%"></svg>
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Volume</p>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-border)] text-[var(--color-text-muted)]">Symmetrical</span>
                             </div>
-                            <p class="text-[10px] text-[var(--color-text-muted)] mt-2 text-center">Same qty bought = same qty sold</p>
+                            <div class="h-36 w-full relative" id="how-it-works-volume-chart">
+                                <svg width="100%" height="100%"></svg>
+                                <!-- Annotation arrow pointing to larger bars -->
+                                <div class="absolute right-0 top-1/4 text-[8px] text-[var(--color-text-muted)] flex items-center gap-0.5 pointer-events-none">
+                                    <span class="hidden sm:inline">←</span>
+                                    <span class="hidden sm:inline">Larger far from price</span>
+                                </div>
+                            </div>
+                            <!-- Chart Legend -->
+                            <div class="flex items-center justify-center gap-4 mt-2 pt-2 border-t border-[var(--color-border)]">
+                                <div class="flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-sm bg-red-500/70"></span>
+                                    <span class="text-[9px] text-red-400">Buy</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="w-2 h-2 rounded-sm bg-green-500/70"></span>
+                                    <span class="text-[9px] text-green-400">Sell</span>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-[var(--color-text-muted)] mt-2 text-center">Equal quantity on both sides</p>
                         </div>
-                        <div class="p-4 rounded-lg bg-[var(--color-card-muted)] border border-[var(--color-border)]">
-                            <p class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Value (Asymmetrical)</p>
-                            <div class="h-40 w-full" id="how-it-works-value-chart">
-                                <svg width="100%" height="100%"></svg>
+                        <div class="p-4 rounded-lg bg-[var(--color-card-muted)] border border-[var(--color-border)] relative overflow-hidden">
+                            <!-- Profit highlight glow -->
+                            <div class="absolute inset-0 bg-gradient-to-t from-green-500/5 to-transparent pointer-events-none"></div>
+                            <div class="relative z-10">
+                                <div class="flex items-center justify-between mb-3">
+                                    <p class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Value ($)</p>
+                                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 font-medium">Asymmetrical</span>
+                                </div>
+                                <div class="h-36 w-full relative" id="how-it-works-value-chart">
+                                    <svg width="100%" height="100%"></svg>
+                                    <!-- Annotation for value difference -->
+                                    <div class="absolute right-0 bottom-1/4 text-[8px] text-green-400 flex items-center gap-0.5 pointer-events-none">
+                                        <span class="hidden sm:inline">←</span>
+                                        <span class="hidden sm:inline font-medium">More $</span>
+                                    </div>
+                                </div>
+                                <!-- Chart Legend -->
+                                <div class="flex items-center justify-center gap-4 mt-2 pt-2 border-t border-[var(--color-border)]">
+                                    <div class="flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-sm bg-red-500/70"></span>
+                                        <span class="text-[9px] text-red-400">Buy $</span>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <span class="w-2 h-2 rounded-sm bg-green-500/70"></span>
+                                        <span class="text-[9px] text-green-400">Sell $</span>
+                                    </div>
+                                </div>
+                                <p class="text-[10px] text-green-400 mt-2 text-center font-medium">Sell value > Buy value = Profit ↗</p>
                             </div>
-                            <p class="text-[10px] text-green-400 mt-2 text-center font-medium">Sell value > Buy value = Profit</p>
                         </div>
                     </div>
                 </div>
@@ -299,23 +341,20 @@
                 <p class="text-sm text-[var(--color-text-secondary)] mt-1">Plan your trades.<br><span class="text-xs">Buy <span class="bg-red-500/30 text-white px-1.5 py-0.5 rounded text-[10px]">low</span>, sell <span class="bg-green-500/30 text-white px-1.5 py-0.5 rounded text-[10px]">high</span>.</span></p>
             </div>
 
-            <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-                <!-- Video Tutorial -->
-                <button id="video-btn" class="p-2.5 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] active:scale-90 transition-all" title="Watch Tutorial">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </button>
-
-                <!-- How It Works Button -->
-                <button id="how-it-works-btn" class="p-2.5 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] active:scale-90 transition-all" title="How It Works">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                </button>
-
-                <!-- Start Over Button -->
-                <button id="start-over-btn" class="p-2.5 rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-text)] active:scale-90 transition-all" aria-label="Start Over" title="Start Over">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                    </svg>
-                </button>
+            <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-2.5">
+                
+                <!-- Help Group (Pill Container) -->
+                <div class="flex items-center bg-[var(--color-card-alt)] rounded-full border border-[var(--color-border)] overflow-hidden">
+                    <button id="how-it-works-btn" class="flex items-center gap-1.5 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" title="How It Works">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="hidden sm:inline">Guide</span>
+                    </button>
+                    <div class="w-px h-5 bg-[var(--color-border)]"></div>
+                    <button id="video-btn" class="flex items-center gap-1.5 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" title="Watch Tutorial">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="hidden sm:inline">Video</span>
+                    </button>
+                </div>
 
                 <!-- Advanced Mode Toggle Switch -->
                 <label class="advanced-toggle" title="Toggle Advanced Mode">
@@ -326,55 +365,81 @@
                     <span class="toggle-label">Pro</span>
                 </label>
 
-                <!-- Hamburger Menu -->
+                <!-- Actions Menu (Settings/Export/Reset) -->
                 <div class="relative z-50">
-                    <button id="menu-toggle-btn" class="p-2.5 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-90 transition-all" aria-label="Toggle Menu" title="Menu">
-                        <svg id="menu-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+                    <button id="actions-menu-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[var(--color-card-alt)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" aria-label="Actions Menu" title="Actions">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
-                        <svg id="menu-close-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
+                        <span class="hidden sm:inline">Actions</span>
+                        <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
-                    <div id="menu-dropdown" class="absolute right-0 mt-2 w-48 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible transition-all duration-200 z-50 transform origin-top-right">
+                    <div id="actions-menu-dropdown" class="absolute right-0 mt-2 w-52 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible transition-all duration-200 z-50 transform origin-top-right">
+                        <div class="py-1">
+                            <!-- Theme Toggle -->
+                            <button id="theme-toggle-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" aria-label="Toggle Theme">
+                                <svg id="icon-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                                <svg id="icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                                <span id="theme-toggle-text">Dark Mode</span>
+                            </button>
+                            <div class="border-t border-[var(--color-border)] my-1"></div>
+                            <!-- Start Over -->
+                            <button id="start-over-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" title="Start Over">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                <span>Start Over</span>
+                            </button>
+                            <div id="export-menu-items" class="hidden">
+                                <div class="border-t border-[var(--color-border)] my-1"></div>
+                                <div class="px-4 py-1.5">
+                                    <span class="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Export</span>
+                                </div>
+                                <button type="button" id="download-csv-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    <span>Download CSV</span>
+                                </button>
+                                <button type="button" id="save-config-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                                    <span>Save Config</span>
+                                </button>
+                                <label class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                    <span>Load Config</span>
+                                    <input type="file" id="load-config-file" accept=".json" class="hidden">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Links Menu (External) -->
+                <div class="relative z-50">
+                    <button id="links-menu-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[var(--color-card-alt)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" aria-label="Links Menu" title="Links & Support">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                        </svg>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="links-menu-dropdown" class="absolute right-0 mt-2 w-48 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible transition-all duration-200 z-50 transform origin-top-right">
                         <div class="py-1">
                             <!-- GitHub -->
                             <a href="https://github.com/yanniedog/OrderSkew" target="_blank" rel="noopener" class="flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors">
-                                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                                <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                                 <span>GitHub</span>
                             </a>
                             <!-- Discord -->
                             <a href="https://discord.gg/Vv39PvPDkp" target="_blank" rel="noopener" class="flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors">
-                                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928-1.793 6.4-1.793 10.299 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                                <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928-1.793 6.4-1.793 10.299 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
                                 <span>Discord</span>
                             </a>
-                            <!-- Theme Toggle -->
-                            <button id="theme-toggle-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" aria-label="Toggle Theme">
-                                <svg id="icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
-                                <svg id="icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                                <span id="theme-toggle-text">Dark Mode</span>
-                            </button>
+                            <div class="border-t border-[var(--color-border)] my-1"></div>
                             <!-- Solana Donation -->
                             <button id="sol-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" title="Donate SOL">
-                                <svg viewBox="0 0 397.7 311.7" class="w-5 h-5" fill="currentColor"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7 4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>
+                                <svg viewBox="0 0 397.7 311.7" class="w-4 h-4" fill="currentColor"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7 4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>
                                 <span>Donate SOL</span>
                             </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Export/Actions Menu -->
-                <div id="export-menu" class="hidden relative group z-50">
-                    <button class="p-2.5 rounded-full bg-[var(--color-card-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-90 transition-all" title="Save/Export">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                    </button>
-                    <div class="absolute right-0 mt-2 w-48 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right">
-                        <div class="py-1">
-                            <button type="button" id="download-csv-btn" class="block w-full text-left px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)]">Download CSV</button>
-                            <button type="button" id="save-config-btn" class="block w-full text-left px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)]">Save Config</button>
-                            <label class="block w-full text-left px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] cursor-pointer">
-                                Load Config <input type="file" id="load-config-file" accept=".json" class="hidden">
-                            </label>
                         </div>
                     </div>
                 </div>
@@ -724,13 +789,34 @@
                 <!-- Combined Depth Chart -->
                 <div id="depth-chart-card" class="card p-4 h-[600px] flex flex-col animate-fade-in relative z-0" style="animation-delay: 0.3s;">
                     <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
-                        <div id="chart-legend" class="flex items-center gap-3 text-xs">
-                            <span id="chart-buy-legend" class="chart-buy-legend buy-only-content inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
-                                <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span> Buy
-                            </span>
-                            <span class="chart-sell-legend sell-only-content inline-flex items-center gap-1 text-[var(--color-text-secondary)]">
-                                <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span> Sell
-                            </span>
+                        <div id="chart-legend" class="flex items-center gap-4 text-xs">
+                            <!-- Buy Legend -->
+                            <div id="chart-buy-legend" class="chart-buy-legend buy-only-content flex items-center gap-2">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="inline-block w-3 h-3 rounded bg-red-500/70 border border-red-500"></span>
+                                    <span class="text-red-500 font-semibold">Buy</span>
+                                </div>
+                                <span id="legend-buy-summary" class="text-[10px] text-[var(--color-text-muted)] hidden sm:inline"></span>
+                            </div>
+                            <!-- Sell Legend -->
+                            <div class="chart-sell-legend sell-only-content flex items-center gap-2">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="inline-block w-3 h-3 rounded bg-green-500/70 border border-green-500"></span>
+                                    <span class="text-green-500 font-semibold">Sell</span>
+                                </div>
+                                <span id="legend-sell-summary" class="text-[10px] text-[var(--color-text-muted)] hidden sm:inline"></span>
+                            </div>
+                            <!-- Visual Key Separator -->
+                            <div class="hidden sm:flex items-center gap-3 pl-3 border-l border-[var(--color-border)]">
+                                <div class="flex items-center gap-1.5" title="Individual order sizes">
+                                    <span class="inline-block w-4 h-2 rounded-sm bg-[var(--color-text-muted)]/60"></span>
+                                    <span class="text-[10px] text-[var(--color-text-muted)]">Bars</span>
+                                </div>
+                                <div class="flex items-center gap-1.5" title="Cumulative running total">
+                                    <span class="inline-block w-4 h-2 rounded-sm bg-[var(--color-text-muted)]/25 border border-[var(--color-text-muted)]/40"></span>
+                                    <span class="text-[10px] text-[var(--color-text-muted)]">Cumulative</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- Chart Display Options -->

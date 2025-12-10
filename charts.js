@@ -539,6 +539,43 @@ function drawHowItWorksChart(selector, currentPrice = 100, showValue = false) {
         .attr("font-size", "9px")
         .attr("class", "opacity-50")
         .text(unitLabel);
+
+    // Add current price annotation line with label
+    const priceLineGroup = svg.append("g").attr("class", "price-annotation");
+    
+    priceLineGroup.append("text")
+        .attr("x", margin.left + 3)
+        .attr("y", y(currentPrice) - 4)
+        .attr("fill", "var(--color-text-muted)")
+        .attr("font-size", "8px")
+        .attr("opacity", 0.7)
+        .text("Current");
+
+    // Add subtle skew indicator arrows for the bars
+    if (!showValue) {
+        // Volume mode - show arrows indicating bar size increases away from price
+        const arrowGroup = svg.append("g").attr("class", "skew-arrows opacity-40");
+        
+        // Arrow pointing to larger buy bars at bottom
+        if (sortedBuyData.length > 0) {
+            const lastBuyBar = sortedBuyData[sortedBuyData.length - 1];
+            const arrowY = y(lastBuyBar.price);
+            arrowGroup.append("path")
+                .attr("d", `M${width - margin.right - 5},${arrowY} l-8,4 l0,-8 z`)
+                .attr("fill", buyColor)
+                .attr("opacity", 0.5);
+        }
+        
+        // Arrow pointing to larger sell bars at top
+        if (sortedSellData.length > 0) {
+            const lastSellBar = sortedSellData[sortedSellData.length - 1];
+            const arrowY = y(lastSellBar.price);
+            arrowGroup.append("path")
+                .attr("d", `M${width - margin.right - 5},${arrowY} l-8,4 l0,-8 z`)
+                .attr("fill", sellColor)
+                .attr("opacity", 0.5);
+        }
+    }
 }
 
 // Expose to global scope
