@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Advanced
         sellOnlyCheck: document.getElementById('sell_only_mode'),
-        sellOnlyInputs: document.getElementById('sell-only-inputs'),
+        sellOnlyInputs: document.getElementById('sell-mode-inputs'),
         existQty: document.getElementById('existing_quantity'),
         existAvg: document.getElementById('existing_avg_price'),
         feeType: document.getElementById('fee_type'),
@@ -79,6 +79,32 @@ document.addEventListener('DOMContentLoaded', function () {
     // Expose elements for wizard
     window.OrderSkewEls = els;
 
+    // Capture initial UI defaults so the refresh/start-over control can truly reset the app
+    const DEFAULTS = {
+        startCap: els.startCap?.value || '10,000',
+        currPrice: els.currPrice?.value || '100',
+        currentPriceSell: document.getElementById('current_price_sell')?.value || els.currPrice?.value || '',
+        rungs: els.rungs?.value || '10',
+        depth: els.depth?.value || '20',
+        skew: els.skew?.value || '50',
+        priceRangeMode: els.priceRangeMode?.value || 'width',
+        buyFloor: els.buyFloor?.value || '',
+        sellCeiling: els.sellCeiling?.value || '',
+        feeType: els.feeType?.value || 'percent',
+        feeValue: els.feeValue?.value || '0.1',
+        feeSettlement: els.feeSettlement?.value || 'netted',
+        spacingMode: els.spacingMode?.value || 'absolute',
+        equalQty: false,
+        showFees: false,
+        chartShowBars: true,
+        chartShowCumulative: true,
+        chartUnitType: 'volume',
+        tradingMode: State.tradingMode,
+        advancedMode: false,
+        activeTab: 'buy',
+        mode: 'simple'
+    };
+
     // --- APP LOGIC ---
     const App = {
         init: () => {
@@ -124,6 +150,73 @@ document.addEventListener('DOMContentLoaded', function () {
             
             const isMobile = window.innerWidth < 1024;
             tableContainer.style.marginBottom = isMobile ? '24px' : '48px';
+        },
+
+        resetApp: () => {
+            // Clear persisted state
+            localStorage.removeItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed');
+            localStorage.removeItem(CONSTANTS.STORAGE_PREFIX + 'advanced_mode');
+
+            // Reset runtime state
+            State.currentPlanData = null;
+            State.baselineBuySnapshot = null;
+            State.sellOnlyHighestExecuted = null;
+            State.activeTab = DEFAULTS.activeTab;
+            State.showFees = DEFAULTS.showFees;
+            State.chartShowBars = DEFAULTS.chartShowBars;
+            State.chartShowCumulative = DEFAULTS.chartShowCumulative;
+            State.chartUnitType = DEFAULTS.chartUnitType;
+            State.sellOnlyMode = false;
+            State.buyOnlyMode = true;
+            State.tradingMode = DEFAULTS.tradingMode;
+            State.mode = DEFAULTS.mode;
+            State.advancedMode = DEFAULTS.advancedMode;
+
+            // Reset form controls
+            const setVal = (el, val) => { if (el) el.value = val; };
+            setVal(els.startCap, DEFAULTS.startCap);
+            setVal(els.currPrice, DEFAULTS.currPrice);
+            const currentPriceSell = document.getElementById('current_price_sell');
+            setVal(currentPriceSell, DEFAULTS.currentPriceSell);
+            setVal(els.rungs, DEFAULTS.rungs);
+            setVal(els.rungsInput, DEFAULTS.rungs);
+            if (els.rungsDisplay) els.rungsDisplay.textContent = DEFAULTS.rungs;
+            setVal(els.depth, DEFAULTS.depth);
+            setVal(els.depthInput, DEFAULTS.depth);
+            setVal(els.skew, DEFAULTS.skew);
+            if (els.skewLabel) els.skewLabel.textContent = Utils.getSkewLabel(parseInt(DEFAULTS.skew, 10) || 0);
+            setVal(els.priceRangeMode, DEFAULTS.priceRangeMode);
+            setVal(els.buyFloor, DEFAULTS.buyFloor);
+            setVal(els.sellCeiling, DEFAULTS.sellCeiling);
+            setVal(els.feeType, DEFAULTS.feeType);
+            setVal(els.feeValue, DEFAULTS.feeValue);
+            setVal(els.feeSettlement, DEFAULTS.feeSettlement);
+            setVal(els.spacingMode, DEFAULTS.spacingMode);
+
+            if (els.equalQtyCheck) els.equalQtyCheck.checked = DEFAULTS.equalQty;
+            if (els.showFeesToggle) els.showFeesToggle.checked = DEFAULTS.showFees;
+
+            // Reset chart/table toggle controls
+            const chartShowBars = document.getElementById('chart-show-bars');
+            const chartShowCumulative = document.getElementById('chart-show-cumulative');
+            const chartUnitVolume = document.getElementById('chart-unit-volume');
+            const chartUnitValue = document.getElementById('chart-unit-value');
+            if (chartShowBars) chartShowBars.checked = DEFAULTS.chartShowBars;
+            if (chartShowCumulative) chartShowCumulative.checked = DEFAULTS.chartShowCumulative;
+            if (chartUnitVolume && chartUnitValue) {
+                chartUnitVolume.classList.add('active');
+                chartUnitValue.classList.remove('active');
+            }
+
+            // Ensure layout/visibility reflects defaults
+            App.setMode(DEFAULTS.mode);
+            App.applyAdvancedMode();
+            if (typeof App.setTradingMode === 'function') {
+                App.setTradingMode(DEFAULTS.tradingMode);
+            }
+            App.switchTab(DEFAULTS.activeTab);
+            App.togglePriceMode();
+            App.calculatePlan();
         },
 
         loadTheme: () => {
@@ -175,18 +268,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const tableOptions = document.getElementById('table-options');
             const exportMenu = document.getElementById('export-menu');
             
+            // Update toggle switch state
             if (advancedToggle) {
-                if (State.advancedMode) {
-                    advancedToggle.classList.add('bg-[var(--color-primary)]/20', 'text-[var(--color-primary)]');
-                    advancedToggle.classList.remove('text-[var(--color-text-muted)]');
-                    advancedToggle.setAttribute('title', 'Advanced Mode: On - Click to hide options');
-                    advancedToggle.setAttribute('aria-label', 'Advanced Mode: On');
-                } else {
-                    advancedToggle.classList.remove('bg-[var(--color-primary)]/20', 'text-[var(--color-primary)]');
-                    advancedToggle.classList.add('text-[var(--color-text-muted)]');
-                    advancedToggle.setAttribute('title', 'Advanced Mode: Off - Click to show advanced features');
-                    advancedToggle.setAttribute('aria-label', 'Advanced Mode: Off');
-                }
+                advancedToggle.checked = State.advancedMode;
             }
 
             const advancedHint = document.getElementById('advanced-hint');
@@ -722,10 +806,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
             
-            // Advanced Mode Toggle
+            // Advanced Mode Toggle (checkbox switch)
             const advancedModeToggle = document.getElementById('advanced-mode-toggle');
             if (advancedModeToggle) {
-                advancedModeToggle.addEventListener('click', App.toggleAdvancedMode);
+                advancedModeToggle.addEventListener('change', App.toggleAdvancedMode);
             }
             
             const downloadBtn = document.getElementById('download-csv-btn');
@@ -1308,6 +1392,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             // Return to welcome screen
+            App.resetApp();
             introLayer.style.display = 'flex';
             introLayer.style.opacity = '1';
             introLayer.style.pointerEvents = 'auto';
@@ -1360,6 +1445,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             // Show welcome screen
+            App.resetApp();
             introLayer.style.display = 'flex';
             introLayer.style.opacity = '1';
             introLayer.style.pointerEvents = 'auto';

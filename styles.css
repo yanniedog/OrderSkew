@@ -28,8 +28,10 @@
     --color-slider-thumb: #00424a;
     --color-chart-buy-start: #ef4444;
     --color-chart-buy-end: #ef4444;
+    --color-chart-buy-area: rgba(239, 68, 68, 0.3);
     --color-chart-sell-start: #22c55e;
     --color-chart-sell-end: #22c55e;
+    --color-chart-sell-area: rgba(34, 197, 94, 0.3);
     --focus-ring-color: rgba(0, 66, 74, 0.2);
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -63,8 +65,10 @@ body.theme-dark {
     --color-slider-thumb: #38bdf8;
     --color-chart-buy-start: #f87171;
     --color-chart-buy-end: #f87171;
+    --color-chart-buy-area: rgba(248, 113, 113, 0.3);
     --color-chart-sell-start: #4ade80;
     --color-chart-sell-end: #4ade80;
+    --color-chart-sell-area: rgba(74, 222, 128, 0.3);
     --focus-ring-color: rgba(56, 189, 248, 0.35);
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
