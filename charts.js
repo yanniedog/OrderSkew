@@ -186,9 +186,26 @@ function drawDepthChart(selector, buys, sells) {
             .attr("opacity", 0.3);
     }
 
-    // Y-axis (Price) - use evenly spaced ticks for clean labels
+    // Y-axis (Price) - use actual bar prices so ticks align with bar centers
+    const allPrices = allData.map(d => d.price).sort((a, b) => a - b);
+    // Remove duplicates
+    const uniquePrices = [...new Set(allPrices)];
+    
+    // If too many prices, show every Nth one but always include first and last
+    const maxTicks = 10;
+    let tickValues;
+    if (uniquePrices.length <= maxTicks) {
+        tickValues = uniquePrices;
+    } else {
+        const step = Math.ceil(uniquePrices.length / maxTicks);
+        tickValues = uniquePrices.filter((_, i) => i % step === 0);
+        // Ensure first and last are included
+        if (!tickValues.includes(uniquePrices[0])) tickValues.unshift(uniquePrices[0]);
+        if (!tickValues.includes(uniquePrices[uniquePrices.length - 1])) tickValues.push(uniquePrices[uniquePrices.length - 1]);
+    }
+    
     const yAxis = d3.axisLeft(y)
-        .ticks(8)
+        .tickValues(tickValues)
         .tickFormat(d => "$" + d3.format(",.0f")(d));
 
     svg.append("g")
