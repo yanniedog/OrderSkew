@@ -83,7 +83,7 @@ const SetupWizard = {
             type: "currency",
             field: "starting_capital",
             placeholder: "10,000",
-            default: 10000
+            default: undefined
         },
         {
             question: "What's the current price?",
@@ -92,7 +92,7 @@ const SetupWizard = {
             type: "currency",
             field: "current_price",
             placeholder: "100",
-            default: 100
+            default: undefined
         },
         {
             question: "What's your target?",
@@ -246,8 +246,7 @@ const SetupWizard = {
                     hint: "Quantity you hold",
                     type: "number",
                     field: "existing_quantity",
-                    placeholder: "50",
-                    default: 50
+                    placeholder: "50"
                 };
             } else if (isBuyOnly) {
                 question = {
@@ -256,8 +255,7 @@ const SetupWizard = {
                     hint: "Total capital available for buying",
                     type: "currency",
                     field: "starting_capital",
-                    placeholder: "10,000",
-                    default: 10000
+                    placeholder: "10,000"
                 };
             } else if (isBuySell) {
                 question = {
@@ -266,8 +264,7 @@ const SetupWizard = {
                     hint: "Total capital available for buying",
                     type: "currency",
                     field: "starting_capital",
-                    placeholder: "10,000",
-                    default: 10000
+                    placeholder: "10,000"
                 };
             }
         }
@@ -866,7 +863,6 @@ const SetupWizard = {
 
 // Expose to global scope
 window.SetupWizard = SetupWizard;
-
 
 
 

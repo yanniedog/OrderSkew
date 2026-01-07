@@ -159,7 +159,7 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
     border: 1px solid var(--color-border-strong);
     color: var(--color-text-muted);
     border-radius: 50%;
-    width: 16px; height: 16px;
+    width: 20px; height: 20px;
     font-size: .7rem;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
@@ -618,4 +618,3 @@ button, .btn-primary, .btn-secondary, .mode-card, .fee-type-btn, .chart-toggle-b
 .advanced-toggle:hover .toggle-label {
     color: var(--color-text);
 }
-
