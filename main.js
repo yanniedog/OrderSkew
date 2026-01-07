@@ -693,6 +693,73 @@ document.addEventListener('DOMContentLoaded', function () {
             if (els.tabBuy) els.tabBuy.addEventListener('click', () => App.switchTab('buy'));
             if (els.tabSell) els.tabSell.addEventListener('click', () => App.switchTab('sell'));
             if (els.themeBtn) els.themeBtn.addEventListener('click', App.toggleTheme);
+
+            const setupMenuToggle = ({ buttonEl, dropdownEl, itemSelector }) => {
+                if (!buttonEl || !dropdownEl) return;
+
+                const openClasses = ['opacity-100', 'visible'];
+                const closedClasses = ['opacity-0', 'invisible'];
+
+                const isOpen = () => dropdownEl.classList.contains('opacity-100');
+
+                const open = () => {
+                    dropdownEl.classList.remove(...closedClasses);
+                    dropdownEl.classList.add(...openClasses);
+                    buttonEl.setAttribute('aria-expanded', 'true');
+                };
+
+                const close = () => {
+                    dropdownEl.classList.remove(...openClasses);
+                    dropdownEl.classList.add(...closedClasses);
+                    buttonEl.setAttribute('aria-expanded', 'false');
+                };
+
+                const toggle = () => {
+                    if (isOpen()) {
+                        close();
+                    } else {
+                        open();
+                    }
+                };
+
+                buttonEl.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    toggle();
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!dropdownEl.contains(event.target) && !buttonEl.contains(event.target) && isOpen()) {
+                        close();
+                    }
+                });
+
+                if (itemSelector) {
+                    dropdownEl.addEventListener('click', (event) => {
+                        const item = event.target.closest(itemSelector);
+                        if (item && isOpen()) {
+                            close();
+                        }
+                    });
+                }
+            };
+
+            // Actions Menu Toggle
+            const actionsMenuBtn = document.getElementById('actions-menu-btn');
+            const actionsMenuDropdown = document.getElementById('actions-menu-dropdown');
+            setupMenuToggle({
+                buttonEl: actionsMenuBtn,
+                dropdownEl: actionsMenuDropdown,
+                itemSelector: '[data-menu-close-on-click]',
+            });
+
+            // Links Menu Toggle
+            const linksMenuBtn = document.getElementById('links-menu-btn');
+            const linksMenuDropdown = document.getElementById('links-menu-dropdown');
+            setupMenuToggle({
+                buttonEl: linksMenuBtn,
+                dropdownEl: linksMenuDropdown,
+                itemSelector: '[data-menu-close-on-click]',
+            });
             
             // Hamburger Menu Toggle
             const menuToggleBtn = document.getElementById('menu-toggle-btn');
