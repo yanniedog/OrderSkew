@@ -973,7 +973,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const feeRate = feeType === 'percent' ? feeValue / 100 : 0;
             const isFeeNetted = feeSettlement !== 'external';
-            const isRelativeSpacing = spacingMode === 'relative';
+            const hasValidCurrentPrice = Number.isFinite(currentPrice) && currentPrice > 0;
+            const isRelativeSpacing = spacingMode === 'relative' && hasValidCurrentPrice;
 
             let buyPriceEnd, sellPriceEnd;
             const useFloor = State.mode === 'pro' && els.priceRangeMode?.value === 'floor';
