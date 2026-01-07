@@ -178,6 +178,17 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
     display: none;
 }
 
+.input-helper-text {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.input-helper-text--compact {
+    font-size: 0.6875rem;
+    margin-top: 0.25rem;
+}
+
 .fee-type-btn, .chart-toggle-btn {
     border: none;
     outline: none;

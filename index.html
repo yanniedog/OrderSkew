@@ -602,9 +602,9 @@
                                     </div>
                                     <div class="relative flex items-center">
                                         <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                        <input type="text" id="starting_capital" placeholder="e.g., 10,000" class="form-input w-full rounded-lg p-3.5 text-base font-mono pl-9">
+                                        <input type="text" id="starting_capital" placeholder="e.g., 10,000" class="form-input w-full rounded-lg p-3.5 text-base font-mono pl-9" aria-describedby="starting_capital_help">
                                     </div>
-                                    <p class="text-xs text-[var(--color-text-muted)] mt-2">The total amount you want to allocate to this plan.</p>
+                                    <p id="starting_capital_help" class="input-helper-text">The total amount you want to allocate to this plan.</p>
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-1.5 mb-2">
@@ -613,9 +613,9 @@
                                     </div>
                                     <div class="relative flex items-center">
                                         <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                        <input type="text" id="current_price" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3.5 text-base font-mono pl-9">
+                                        <input type="text" id="current_price" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3.5 text-base font-mono pl-9" aria-describedby="current_price_help">
                                     </div>
-                                    <p class="text-xs text-[var(--color-text-muted)] mt-2">Used as the reference price for your ladder.</p>
+                                    <p id="current_price_help" class="input-helper-text">Used as the reference price for your ladder.</p>
                                 </div>
                             </div>
                             
@@ -633,8 +633,8 @@
                                             <label class="text-xs font-medium text-[var(--color-text-secondary)]">Held Quantity</label>
                                             <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
                                         </div>
-                                        <input type="number" id="existing_quantity" placeholder="e.g., 50" class="form-input w-full rounded-lg p-2.5 font-mono">
-                                        <p class="text-[11px] text-[var(--color-text-muted)] mt-1">How many units you plan to exit.</p>
+                                        <input type="number" id="existing_quantity" placeholder="e.g., 50" class="form-input w-full rounded-lg p-2.5 font-mono" aria-describedby="existing_quantity_help">
+                                        <p id="existing_quantity_help" class="input-helper-text input-helper-text--compact">The quantity you currently hold.</p>
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-1 mb-1.5">
@@ -643,9 +643,9 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
-                                            <input type="text" id="current_price_sell" placeholder="e.g., 100" class="form-input w-full rounded-lg p-2.5 font-mono pl-7">
+                                            <input type="text" id="current_price_sell" placeholder="e.g., 100" class="form-input w-full rounded-lg p-2.5 font-mono pl-7" aria-describedby="current_price_sell_help">
                                         </div>
-                                        <p class="text-[11px] text-[var(--color-text-muted)] mt-1">Current price used to anchor the ladder.</p>
+                                        <p id="current_price_sell_help" class="input-helper-text input-helper-text--compact">Current price used to anchor the ladder.</p>
                                     </div>
                                 </div>
                                 <div>
@@ -655,9 +655,9 @@
                                     </div>
                                     <div class="relative flex items-center">
                                         <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
-                                        <input type="number" id="existing_avg_price" placeholder="e.g., 80" class="form-input w-full rounded-lg p-2.5 font-mono pl-7">
+                                        <input type="number" id="existing_avg_price" placeholder="e.g., 80" class="form-input w-full rounded-lg p-2.5 font-mono pl-7" aria-describedby="existing_avg_price_help">
                                     </div>
-                                    <p class="text-[11px] text-[var(--color-text-muted)] mt-1">Optional: used to calculate profit projections.</p>
+                                    <p id="existing_avg_price_help" class="input-helper-text input-helper-text--compact">Optional: used to calculate profit projections.</p>
                                 </div>
                             </div>
                         
