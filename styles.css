@@ -3,6 +3,8 @@
 /* --- VARIABLES --- */
 :root {
     --color-bg: #cde7ec;
+    --color-bg-accent: #f5fbfc;
+    --color-bg-glow: rgba(14, 165, 233, 0.15);
     --color-card: #edfcff;
     --color-card-alt: #dbf6fa;
     --color-card-muted: #f0f7f8;
@@ -32,6 +34,9 @@
     --color-chart-sell-start: #22c55e;
     --color-chart-sell-end: #22c55e;
     --color-chart-sell-area: rgba(34, 197, 94, 0.3);
+    --color-shell: rgba(255, 255, 255, 0.78);
+    --color-shell-border: rgba(148, 163, 184, 0.35);
+    --color-shell-shadow: 0 24px 50px -36px rgba(15, 23, 42, 0.4);
     --focus-ring-color: rgba(0, 66, 74, 0.2);
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -40,6 +45,8 @@
 
 body.theme-dark {
     --color-bg: #0f172a;
+    --color-bg-accent: #111827;
+    --color-bg-glow: rgba(56, 189, 248, 0.2);
     --color-card: #1e293b;
     --color-card-alt: #334155;
     --color-card-muted: #253146;
@@ -69,6 +76,9 @@ body.theme-dark {
     --color-chart-sell-start: #4ade80;
     --color-chart-sell-end: #4ade80;
     --color-chart-sell-area: rgba(74, 222, 128, 0.3);
+    --color-shell: rgba(15, 23, 42, 0.7);
+    --color-shell-border: rgba(71, 85, 105, 0.5);
+    --color-shell-shadow: 0 24px 60px -36px rgba(15, 23, 42, 0.85);
     --focus-ring-color: rgba(56, 189, 248, 0.35);
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
@@ -79,6 +89,10 @@ body.theme-dark {
 body {
     font-family: 'Inter', sans-serif;
     background-color: var(--color-bg);
+    background-image: radial-gradient(circle at top right, var(--color-bg-glow), transparent 45%),
+        radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.08), transparent 42%),
+        linear-gradient(180deg, var(--color-bg), var(--color-bg-accent));
+    background-attachment: fixed;
     color: var(--color-text);
     transition: background-color .3s ease, color .3s ease;
     -webkit-font-smoothing: antialiased;
@@ -94,6 +108,20 @@ body {
 @media (max-width: 1023px) { #panel-buy, #panel-sell { padding-bottom: 0.5rem; } #buy-ladder-body, #sell-ladder-body { padding-bottom: 1rem; } }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* --- APP SHELL --- */
+.app-shell {
+    background: var(--color-shell);
+    border: 1px solid var(--color-shell-border);
+    border-radius: 1.75rem;
+    padding: 1.25rem;
+    box-shadow: var(--color-shell-shadow);
+    backdrop-filter: blur(18px);
+}
+
+@media (min-width: 768px) {
+    .app-shell { padding: 1.75rem; }
+}
 
 /* --- FORM ELEMENTS --- */
 .form-input, select.form-input {
@@ -262,8 +290,8 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
 /* --- CARDS --- */
 .card {
-    background-color: var(--color-card);
-    border: 1px solid var(--color-border);
+    background: linear-gradient(180deg, var(--color-card), var(--color-card-alt));
+    border: 1px solid var(--color-border-strong);
     border-radius: 1rem;
     box-shadow: var(--shadow-sm);
     transition: all .3s ease;
@@ -308,6 +336,14 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
     z-index: 100;
     transition: opacity 0.15s ease, transform 0.15s ease;
     white-space: nowrap;
+}
+
+/* --- MENUS --- */
+#actions-menu-dropdown,
+#links-menu-dropdown {
+    border: 1px solid var(--color-border-strong);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 18px 36px -24px rgba(15, 23, 42, 0.4);
 }
 
 /* --- STICKY MOBILE FOOTER --- */
