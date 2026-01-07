@@ -693,6 +693,88 @@ document.addEventListener('DOMContentLoaded', function () {
             if (els.tabBuy) els.tabBuy.addEventListener('click', () => App.switchTab('buy'));
             if (els.tabSell) els.tabSell.addEventListener('click', () => App.switchTab('sell'));
             if (els.themeBtn) els.themeBtn.addEventListener('click', App.toggleTheme);
+
+            // Actions Menu Toggle
+            const actionsMenuBtn = document.getElementById('actions-menu-btn');
+            const actionsMenuDropdown = document.getElementById('actions-menu-dropdown');
+            if (actionsMenuBtn && actionsMenuDropdown) {
+                const toggleActionsMenu = () => {
+                    const isOpen = actionsMenuDropdown.classList.contains('opacity-100');
+                    if (isOpen) {
+                        actionsMenuDropdown.classList.remove('opacity-100', 'visible');
+                        actionsMenuDropdown.classList.add('opacity-0', 'invisible');
+                        actionsMenuBtn.setAttribute('aria-expanded', 'false');
+                    } else {
+                        actionsMenuDropdown.classList.remove('opacity-0', 'invisible');
+                        actionsMenuDropdown.classList.add('opacity-100', 'visible');
+                        actionsMenuBtn.setAttribute('aria-expanded', 'true');
+                    }
+                };
+
+                actionsMenuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleActionsMenu();
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!actionsMenuDropdown.contains(e.target) && !actionsMenuBtn.contains(e.target)) {
+                        if (actionsMenuDropdown.classList.contains('opacity-100')) {
+                            toggleActionsMenu();
+                        }
+                    }
+                });
+
+                const actionsMenuItems = actionsMenuDropdown.querySelectorAll('a, button, label');
+                actionsMenuItems.forEach(item => {
+                    if (!['theme-toggle-btn', 'advanced-mode-toggle', 'load-config-file'].includes(item.id)) {
+                        item.addEventListener('click', () => {
+                            if (actionsMenuDropdown.classList.contains('opacity-100')) {
+                                toggleActionsMenu();
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Links Menu Toggle
+            const linksMenuBtn = document.getElementById('links-menu-btn');
+            const linksMenuDropdown = document.getElementById('links-menu-dropdown');
+            if (linksMenuBtn && linksMenuDropdown) {
+                const toggleLinksMenu = () => {
+                    const isOpen = linksMenuDropdown.classList.contains('opacity-100');
+                    if (isOpen) {
+                        linksMenuDropdown.classList.remove('opacity-100', 'visible');
+                        linksMenuDropdown.classList.add('opacity-0', 'invisible');
+                        linksMenuBtn.setAttribute('aria-expanded', 'false');
+                    } else {
+                        linksMenuDropdown.classList.remove('opacity-0', 'invisible');
+                        linksMenuDropdown.classList.add('opacity-100', 'visible');
+                        linksMenuBtn.setAttribute('aria-expanded', 'true');
+                    }
+                };
+
+                linksMenuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleLinksMenu();
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!linksMenuDropdown.contains(e.target) && !linksMenuBtn.contains(e.target)) {
+                        if (linksMenuDropdown.classList.contains('opacity-100')) {
+                            toggleLinksMenu();
+                        }
+                    }
+                });
+
+                const linksMenuItems = linksMenuDropdown.querySelectorAll('a, button');
+                linksMenuItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        if (linksMenuDropdown.classList.contains('opacity-100')) {
+                            toggleLinksMenu();
+                        }
+                    });
+                });
+            }
             
             // Hamburger Menu Toggle
             const menuToggleBtn = document.getElementById('menu-toggle-btn');
