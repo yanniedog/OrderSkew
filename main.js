@@ -174,6 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const chartDisplayOptions = document.getElementById('chart-display-options');
             const tableOptions = document.getElementById('table-options');
             const exportMenu = document.getElementById('export-menu');
+            const advancedModeOptions = document.querySelectorAll('.mode-dropdown-advanced');
             
             if (advancedToggle) {
                 // Sync checkbox checked state with State.advancedMode
@@ -219,6 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (advancedHint) {
                     advancedHint.style.display = 'none';
                 }
+                advancedModeOptions.forEach(option => option.classList.remove('hidden'));
                 // Set mode to pro to show all customization options
                 if (State.mode !== 'pro') {
                     App.setMode('pro');
@@ -250,6 +252,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 if (advancedHint) {
                     advancedHint.style.display = 'block';
+                }
+                advancedModeOptions.forEach(option => option.classList.add('hidden'));
+                if (State.tradingMode === 'short-sell') {
+                    App.setTradingMode('buy-sell');
                 }
                 // Keep mode as is - don't force simple mode, but hide advanced controls
             }
@@ -491,6 +497,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     icon: '<svg class="w-3.5 h-3.5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>',
                     iconBg: 'bg-cyan-500/20',
                     color: 'cyan'
+                },
+                'short-sell': {
+                    text: 'Short Sell',
+                    icon: '<svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18m0 0l-4-4m4 4l4-4M6 7h12"></path></svg>',
+                    iconBg: 'bg-purple-500/20',
+                    color: 'purple'
                 }
             };
 
@@ -514,6 +526,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 State.tradingMode = mode;
                 State.sellOnlyMode = mode === 'sell-only';
                 State.buyOnlyMode = mode === 'buy-only';
+                State.shortSellMode = mode === 'short-sell';
                 if (els.sellOnlyCheck) els.sellOnlyCheck.checked = mode === 'sell-only';
                 
                 // Update label based on mode
@@ -522,6 +535,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         els.startCapLabel.textContent = 'Initial Capital';
                     } else if (mode === 'sell-only') {
                         els.startCapLabel.textContent = 'Held Quantity';
+                    } else if (mode === 'short-sell') {
+                        els.startCapLabel.textContent = 'Shorting Capital';
                     } else if (mode === 'buy-sell') {
                         els.startCapLabel.textContent = 'Initial Capital';
                     }
@@ -556,11 +571,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 sellModeInputs?.classList.toggle('hidden', mode !== 'sell-only');
                 document.body.classList.toggle('sell-mode-active', mode === 'sell-only');
                 document.body.classList.toggle('buy-only-mode-active', mode === 'buy-only');
+                document.body.classList.toggle('short-sell-mode-active', mode === 'short-sell');
                 
                 if (mode === 'sell-only') App.switchTab('sell');
                 else if (mode === 'buy-only') App.switchTab('buy');
+                else if (mode === 'short-sell') App.switchTab('sell');
                 else State.sellOnlyHighestExecuted = null;
                 
+                App.updateModeLabels();
                 App.calculatePlan();
             };
 
@@ -881,10 +899,46 @@ document.addEventListener('DOMContentLoaded', function () {
             els.panelSell?.classList.toggle('hidden', tab !== 'sell');
         },
 
+        updateModeLabels: () => {
+            const isShortSell = State.tradingMode === 'short-sell';
+            const buyLabel = isShortSell ? 'Cover Orders' : 'Buy Orders';
+            const sellLabel = isShortSell ? 'Short Sell Orders' : 'Sell Orders';
+
+            const tabBuyLabel = document.getElementById('tab-buy-label');
+            const tabSellLabel = document.getElementById('tab-sell-label');
+            if (tabBuyLabel) tabBuyLabel.textContent = buyLabel;
+            if (tabSellLabel) tabSellLabel.textContent = sellLabel;
+
+            const legendBuy = document.getElementById('legend-buy-label');
+            const legendSell = document.getElementById('legend-sell-label');
+            if (legendBuy) legendBuy.textContent = isShortSell ? 'Cover (orders)' : 'Buy (orders)';
+            if (legendSell) legendSell.textContent = isShortSell ? 'Short (orders)' : 'Sell (orders)';
+
+            const labelBuySide = document.getElementById('label-buy-side');
+            const labelSellSide = document.getElementById('label-sell-side');
+            if (labelBuySide) labelBuySide.textContent = isShortSell ? 'Cover Side' : 'Buy Side';
+            if (labelSellSide) labelSellSide.textContent = isShortSell ? 'Short Side' : 'Sell Side';
+
+            const labelAvgBuy = document.getElementById('label-avg-buy');
+            const labelAvgSell = document.getElementById('label-avg-sell');
+            const stickyLabelAvgBuy = document.getElementById('sticky-label-avg-buy');
+            const stickyLabelAvgSell = document.getElementById('sticky-label-avg-sell');
+            if (labelAvgBuy) labelAvgBuy.textContent = isShortSell ? 'Avg Cover' : 'Avg Buy';
+            if (labelAvgSell) labelAvgSell.textContent = isShortSell ? 'Avg Short' : 'Avg Sell';
+            if (stickyLabelAvgBuy) stickyLabelAvgBuy.textContent = isShortSell ? 'Avg Cover:' : 'Avg Buy:';
+            if (stickyLabelAvgSell) stickyLabelAvgSell.textContent = isShortSell ? 'Avg Short:' : 'Avg Sell:';
+
+            const buyTableLastCol = document.getElementById('buy-table-last-col');
+            const sellTableLastCol = document.getElementById('sell-table-last-col');
+            if (buyTableLastCol) buyTableLastCol.textContent = isShortSell ? 'Avg Cover' : 'Avg Price';
+            if (sellTableLastCol) sellTableLastCol.textContent = 'Profit';
+        },
+
         // --- CORE CALCULATION ---
         calculatePlan: () => {
             const C = parseFloat(Utils.stripCommas(els.startCap?.value)) || 0;
             const currentPrice = parseFloat(Utils.stripCommas(els.currPrice?.value)) || 0;
+            const isShortSell = State.tradingMode === 'short-sell';
             
             let N, S, depth, feeType, feeValue, feeSettlement, spacingMode, sellOnly, buyOnly, equalQty;
 
@@ -910,6 +964,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 sellOnly = els.sellOnlyCheck?.checked || false;
                 buyOnly = State.buyOnlyMode || false;
                 equalQty = els.equalQtyCheck?.checked || false;
+            }
+
+            if (isShortSell) {
+                sellOnly = false;
+                buyOnly = false;
             }
 
             const feeRate = feeType === 'percent' ? feeValue / 100 : 0;
@@ -944,152 +1003,238 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             let buyLadder = [];
+            let sellLadder = [];
             let totalAssetBought = 0;
             let totalNetCapitalSpent = 0;
             let totalBuyFees = 0;
-
-            const reuseSnapshot = sellOnly && State.baselineBuySnapshot && State.baselineBuySnapshot.buyLadder.length > 0;
-
-            if (reuseSnapshot) {
-                buyLadder = State.baselineBuySnapshot.buyLadder.map(r => ({...r}));
-                totalAssetBought = State.baselineBuySnapshot.totalAssetBought;
-                totalNetCapitalSpent = State.baselineBuySnapshot.totalNetCapitalSpent;
-                totalBuyFees = State.baselineBuySnapshot.totalBuyFees;
-            } else {
-                if (equalQty) {
-                    const activePrices = buyPrices.filter(p => p > 0);
-                    const sumPrices = activePrices.reduce((a, b) => a + b, 0);
-                    let sharedQty = 0;
-                    
-                    if (activePrices.length > 0 && C > 0) {
-                        if (feeValue > 0 && isFeeNetted && feeType !== 'percent') {
-                            sharedQty = (C - (activePrices.length * feeValue)) / sumPrices;
-                        } else if (feeValue > 0 && feeType === 'percent' && isFeeNetted) {
-                            sharedQty = C / (sumPrices * (1 + feeRate));
-                        } else {
-                            sharedQty = C / sumPrices;
-                        }
-                    }
-                    sharedQty = Math.max(sharedQty, 0);
-
-                    buyLadder = buyPrices.map((price, i) => {
-                        const assetSize = price > 0 ? sharedQty : 0;
-                        const netCapital = assetSize * price;
-                        let fee = 0;
-                        if (assetSize > 0 && feeValue > 0) {
-                            fee = feeType === 'percent' ? netCapital * feeRate : feeValue;
-                        }
-                        totalAssetBought += assetSize;
-                        totalNetCapitalSpent += netCapital;
-                        totalBuyFees += fee;
-                        return { rung: i+1, price, capital: netCapital + (isFeeNetted?fee:0), netCapital, assetSize, fee };
-                    });
-
-                } else {
-                    const rawWeights = Calculator.buildSkewWeights(N, S);
-                    const totalWeight = rawWeights.reduce((a,b) => a+b, 0);
-                    
-                    buyLadder = rawWeights.map((w, i) => {
-                        const alloc = (C * w) / totalWeight;
-                        const price = buyPrices[i];
-                        let net = alloc, fee = 0, gross = alloc;
-
-                        if (feeValue > 0) {
-                            if (isFeeNetted) {
-                                if (feeType === 'percent') { net = alloc / (1+feeRate); fee = alloc - net; }
-                                else { fee = Math.min(feeValue, alloc); net = alloc - fee; }
-                                gross = alloc;
-                            } else {
-                                fee = feeType === 'percent' ? alloc * feeRate : (alloc > 0 ? feeValue : 0);
-                                gross = alloc + fee;
-                                net = alloc;
-                            }
-                        }
-                        const assetSize = (price > 0 && net > 0) ? net / price : 0;
-                        totalAssetBought += assetSize;
-                        totalNetCapitalSpent += net;
-                        totalBuyFees += fee;
-                        return { rung: i+1, price, capital: gross, netCapital: net, assetSize, fee };
-                    });
-                }
-            }
-
-            let cumNet = 0, cumAsset = 0;
-            buyLadder.forEach(r => {
-                cumNet += r.netCapital; cumAsset += r.assetSize;
-                r.avg = cumAsset > 0 ? cumNet / cumAsset : 0;
-                r.cumQty = cumAsset;
-            });
-
-            let effectiveAsset = totalAssetBought;
-            let effectiveSpent = totalNetCapitalSpent;
-            let effectiveFees = totalBuyFees;
-
-            if (sellOnly) {
-                const exQty = parseFloat(els.existQty?.value || 0);
-                const exAvg = parseFloat(els.existAvg?.value || 0);
-                
-                if (State.sellOnlyHighestExecuted !== null) {
-                    const dt = Calculator.deriveExecutedBuyTotals(buyLadder, State.sellOnlyHighestExecuted);
-                    if (dt.quantity > 0) {
-                        effectiveAsset = dt.quantity;
-                        effectiveSpent = dt.netCapital;
-                        effectiveFees = dt.fees;
-                    }
-                } else if (exQty > 0) {
-                    effectiveAsset = exQty;
-                    effectiveSpent = exQty * exAvg;
-                    effectiveFees = 0;
-                }
-            }
-
-            const avgBuyPrice = effectiveAsset > 0 ? effectiveSpent / effectiveAsset : 0;
-            let assetAllocations = [];
-            if (sellOnly && effectiveAsset <= 0) {
-                assetAllocations = Array(N).fill(0);
-            } else if (equalQty) {
-                 assetAllocations = Calculator.computeEqualGrossAllocations(effectiveAsset, sellPrices).allocations;
-            } else if (sellOnly) {
-                 const w = Calculator.buildSkewWeights(N, S);
-                 const tw = w.reduce((a,b) => a+b, 0);
-                 assetAllocations = tw > 0 ? w.map(val => (effectiveAsset * val) / tw) : Array(N).fill(0);
-            } else {
-                 assetAllocations = buyLadder.map(r => r.assetSize);
-            }
-
             let totalSellRev = 0;
             let totalSellFees = 0;
-            let cumSold = 0;
-            let cumProfit = 0;
-            
-            const sellLadder = assetAllocations.map((qty, i) => {
-                const price = sellPrices[i];
-                const grossRev = qty * price;
-                let netRev = grossRev, fee = 0;
+            let effectiveAsset = 0;
+            let effectiveSpent = 0;
+            let effectiveFees = 0;
+            let avgBuyPrice = 0;
+            let avgSell = 0;
 
-                if (feeValue > 0) {
-                     const rawFee = feeType === 'percent' ? grossRev * feeRate : (grossRev > 0 ? feeValue : 0);
-                     fee = isFeeNetted ? Math.min(rawFee, grossRev) : rawFee;
-                     netRev = isFeeNetted ? Math.max(grossRev - fee, 0) : grossRev;
+            if (isShortSell) {
+                const buildShortSellLadder = () => {
+                    const ladder = [];
+                    const activePrices = sellPrices.filter(p => p > 0);
+                    const sumPrices = activePrices.reduce((a, b) => a + b, 0);
+                    let sharedQty = 0;
+
+                    if (equalQty && activePrices.length > 0 && C > 0) {
+                        sharedQty = C / sumPrices;
+                    }
+
+                    const rawWeights = equalQty ? [] : Calculator.buildSkewWeights(N, S);
+                    const totalWeight = equalQty ? 0 : rawWeights.reduce((a, b) => a + b, 0);
+
+                    sellPrices.forEach((price, i) => {
+                        const grossRev = equalQty
+                            ? (price > 0 ? sharedQty * price : 0)
+                            : (totalWeight > 0 ? (C * rawWeights[i]) / totalWeight : 0);
+                        let fee = 0;
+                        if (grossRev > 0 && feeValue > 0) {
+                            fee = feeType === 'percent' ? grossRev * feeRate : feeValue;
+                            fee = isFeeNetted ? Math.min(fee, grossRev) : fee;
+                        }
+                        const netRev = isFeeNetted ? Math.max(grossRev - fee, 0) : grossRev;
+                        const assetSize = price > 0 ? grossRev / price : 0;
+
+                        totalAssetBought += assetSize;
+                        totalSellRev += netRev;
+                        totalSellFees += fee;
+                        ladder.push({ rung: i + 1, price, assetSize, capital: grossRev, fee, netRevenue: netRev });
+                    });
+
+                    return ladder;
+                };
+
+                sellLadder = buildShortSellLadder();
+
+                buyLadder = sellLadder.map((rung, i) => {
+                    const price = buyPrices[i];
+                    const assetSize = rung.assetSize;
+                    const netCapital = assetSize * price;
+                    let fee = 0;
+                    if (assetSize > 0 && feeValue > 0) {
+                        fee = feeType === 'percent' ? netCapital * feeRate : feeValue;
+                        if (feeType !== 'percent') fee = Math.min(fee, netCapital);
+                    }
+                    totalNetCapitalSpent += netCapital;
+                    totalBuyFees += fee;
+                    return { rung: i + 1, price, capital: netCapital + fee, netCapital, assetSize, fee };
+                });
+
+                let cumNet = 0;
+                let cumAsset = 0;
+                buyLadder.forEach(r => {
+                    cumNet += r.netCapital + r.fee;
+                    cumAsset += r.assetSize;
+                    r.avg = cumAsset > 0 ? cumNet / cumAsset : 0;
+                    r.cumQty = cumAsset;
+                });
+
+                effectiveAsset = totalAssetBought;
+                effectiveSpent = totalNetCapitalSpent + totalBuyFees;
+                effectiveFees = totalBuyFees;
+
+                avgBuyPrice = effectiveAsset > 0 ? effectiveSpent / effectiveAsset : 0;
+                avgSell = effectiveAsset > 0 ? totalSellRev / effectiveAsset : 0;
+
+                let cumSold = 0;
+                let cumProfit = 0;
+                sellLadder = sellLadder.map(r => {
+                    const costBasis = avgBuyPrice * r.assetSize;
+                    const profit = r.netRevenue - costBasis;
+                    cumSold += r.assetSize;
+                    cumProfit += profit;
+                    return { ...r, profit, cumSold, cumProfit };
+                });
+            } else {
+                const reuseSnapshot = sellOnly && State.baselineBuySnapshot && State.baselineBuySnapshot.buyLadder.length > 0;
+
+                if (reuseSnapshot) {
+                    buyLadder = State.baselineBuySnapshot.buyLadder.map(r => ({...r}));
+                    totalAssetBought = State.baselineBuySnapshot.totalAssetBought;
+                    totalNetCapitalSpent = State.baselineBuySnapshot.totalNetCapitalSpent;
+                    totalBuyFees = State.baselineBuySnapshot.totalBuyFees;
+                } else {
+                    if (equalQty) {
+                        const activePrices = buyPrices.filter(p => p > 0);
+                        const sumPrices = activePrices.reduce((a, b) => a + b, 0);
+                        let sharedQty = 0;
+                        
+                        if (activePrices.length > 0 && C > 0) {
+                            if (feeValue > 0 && isFeeNetted && feeType !== 'percent') {
+                                sharedQty = (C - (activePrices.length * feeValue)) / sumPrices;
+                            } else if (feeValue > 0 && feeType === 'percent' && isFeeNetted) {
+                                sharedQty = C / (sumPrices * (1 + feeRate));
+                            } else {
+                                sharedQty = C / sumPrices;
+                            }
+                        }
+                        sharedQty = Math.max(sharedQty, 0);
+
+                        buyLadder = buyPrices.map((price, i) => {
+                            const assetSize = price > 0 ? sharedQty : 0;
+                            const netCapital = assetSize * price;
+                            let fee = 0;
+                            if (assetSize > 0 && feeValue > 0) {
+                                fee = feeType === 'percent' ? netCapital * feeRate : feeValue;
+                            }
+                            totalAssetBought += assetSize;
+                            totalNetCapitalSpent += netCapital;
+                            totalBuyFees += fee;
+                            return { rung: i+1, price, capital: netCapital + (isFeeNetted?fee:0), netCapital, assetSize, fee };
+                        });
+
+                    } else {
+                        const rawWeights = Calculator.buildSkewWeights(N, S);
+                        const totalWeight = rawWeights.reduce((a,b) => a+b, 0);
+                        
+                        buyLadder = rawWeights.map((w, i) => {
+                            const alloc = (C * w) / totalWeight;
+                            const price = buyPrices[i];
+                            let net = alloc, fee = 0, gross = alloc;
+
+                            if (feeValue > 0) {
+                                if (isFeeNetted) {
+                                    if (feeType === 'percent') { net = alloc / (1+feeRate); fee = alloc - net; }
+                                    else { fee = Math.min(feeValue, alloc); net = alloc - fee; }
+                                    gross = alloc;
+                                } else {
+                                    fee = feeType === 'percent' ? alloc * feeRate : (alloc > 0 ? feeValue : 0);
+                                    gross = alloc + fee;
+                                    net = alloc;
+                                }
+                            }
+                            const assetSize = (price > 0 && net > 0) ? net / price : 0;
+                            totalAssetBought += assetSize;
+                            totalNetCapitalSpent += net;
+                            totalBuyFees += fee;
+                            return { rung: i+1, price, capital: gross, netCapital: net, assetSize, fee };
+                        });
+                    }
                 }
 
-                const costBasis = avgBuyPrice * qty;
-                const profit = netRev - costBasis;
-                
-                totalSellRev += netRev;
-                totalSellFees += fee;
-                
-                cumSold += qty;
-                cumProfit += profit;
+                let cumNet = 0, cumAsset = 0;
+                buyLadder.forEach(r => {
+                    cumNet += r.netCapital; cumAsset += r.assetSize;
+                    r.avg = cumAsset > 0 ? cumNet / cumAsset : 0;
+                    r.cumQty = cumAsset;
+                });
 
-                return { rung: i+1, price, assetSize: qty, capital: grossRev, fee, netRevenue: netRev, profit, cumSold, cumProfit };
-            });
+                effectiveAsset = totalAssetBought;
+                effectiveSpent = totalNetCapitalSpent;
+                effectiveFees = totalBuyFees;
 
-            const totalFees = (sellOnly ? effectiveFees : totalBuyFees) + totalSellFees;
-            const finalCostBasis = sellOnly ? effectiveSpent : (totalNetCapitalSpent + totalBuyFees);
+                if (sellOnly) {
+                    const exQty = parseFloat(els.existQty?.value || 0);
+                    const exAvg = parseFloat(els.existAvg?.value || 0);
+                    
+                    if (State.sellOnlyHighestExecuted !== null) {
+                        const dt = Calculator.deriveExecutedBuyTotals(buyLadder, State.sellOnlyHighestExecuted);
+                        if (dt.quantity > 0) {
+                            effectiveAsset = dt.quantity;
+                            effectiveSpent = dt.netCapital;
+                            effectiveFees = dt.fees;
+                        }
+                    } else if (exQty > 0) {
+                        effectiveAsset = exQty;
+                        effectiveSpent = exQty * exAvg;
+                        effectiveFees = 0;
+                    }
+                }
+
+                avgBuyPrice = effectiveAsset > 0 ? effectiveSpent / effectiveAsset : 0;
+                let assetAllocations = [];
+                if (sellOnly && effectiveAsset <= 0) {
+                    assetAllocations = Array(N).fill(0);
+                } else if (equalQty) {
+                     assetAllocations = Calculator.computeEqualGrossAllocations(effectiveAsset, sellPrices).allocations;
+                } else if (sellOnly) {
+                     const w = Calculator.buildSkewWeights(N, S);
+                     const tw = w.reduce((a,b) => a+b, 0);
+                     assetAllocations = tw > 0 ? w.map(val => (effectiveAsset * val) / tw) : Array(N).fill(0);
+                } else {
+                     assetAllocations = buyLadder.map(r => r.assetSize);
+                }
+
+                let cumSold = 0;
+                let cumProfit = 0;
+                
+                sellLadder = assetAllocations.map((qty, i) => {
+                    const price = sellPrices[i];
+                    const grossRev = qty * price;
+                    let netRev = grossRev, fee = 0;
+
+                    if (feeValue > 0) {
+                         const rawFee = feeType === 'percent' ? grossRev * feeRate : (grossRev > 0 ? feeValue : 0);
+                         fee = isFeeNetted ? Math.min(rawFee, grossRev) : rawFee;
+                         netRev = isFeeNetted ? Math.max(grossRev - fee, 0) : grossRev;
+                    }
+
+                    const costBasis = avgBuyPrice * qty;
+                    const profit = netRev - costBasis;
+                    
+                    totalSellRev += netRev;
+                    totalSellFees += fee;
+                    
+                    cumSold += qty;
+                    cumProfit += profit;
+
+                    return { rung: i+1, price, assetSize: qty, capital: grossRev, fee, netRevenue: netRev, profit, cumSold, cumProfit };
+                });
+
+                avgSell = effectiveAsset > 0 ? totalSellRev / effectiveAsset : 0;
+            }
+
+            const totalFees = isShortSell ? (totalBuyFees + totalSellFees) : (sellOnly ? effectiveFees : totalBuyFees) + totalSellFees;
+            const finalCostBasis = isShortSell ? (totalNetCapitalSpent + totalBuyFees) : (sellOnly ? effectiveSpent : (totalNetCapitalSpent + totalBuyFees));
             const netProfit = buyOnly ? 0 : (totalSellRev - finalCostBasis - (isFeeNetted ? 0 : totalSellFees));
             const roi = finalCostBasis > 0 && !buyOnly ? (netProfit / finalCostBasis) * 100 : 0;
-            const avgSell = effectiveAsset > 0 ? totalSellRev / effectiveAsset : 0;
+            const avgSellValue = isShortSell ? avgSell : (effectiveAsset > 0 ? totalSellRev / effectiveAsset : 0);
 
             const lowestBuy = buyLadder.length > 0 ? buyLadder[buyLadder.length - 1].price : 0;
             const highestSell = sellLadder.length > 0 ? sellLadder[sellLadder.length - 1].price : 0;
@@ -1107,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     netProfit, 
                     roi, 
                     avgBuy: avgBuyPrice, 
-                    avgSell, 
+                    avgSell: avgSellValue, 
                     totalFees, 
                     totalQuantity: effectiveAsset, 
                     lowestBuy, 
@@ -1119,7 +1264,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } 
             };
             
-            if (!sellOnly && buyLadder.length > 0) {
+            if (!sellOnly && !isShortSell && buyLadder.length > 0) {
                 State.baselineBuySnapshot = { buyLadder: [...buyLadder], totalAssetBought, totalNetCapitalSpent, totalBuyFees };
             }
             App.updateUI(State.currentPlanData);
@@ -1158,8 +1303,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             document.querySelectorAll('.fee-col').forEach(el => el.classList.toggle('hidden', !State.showFees));
 
-            const renderRow = (r, isSell) => `
-                <td class="px-4 py-3 font-mono text-xs text-[var(--color-text-muted)]">${isSell?'':`<input type="checkbox" class="mr-2" ${State.sellOnlyHighestExecuted===r.rung?'checked':''} onclick="App.toggleExecuted(${r.rung})">`}${r.rung}</td>
+            const renderRow = (r, isSell) => {
+                const showExecuted = els.sellOnlyCheck?.checked;
+                return `
+                <td class="px-4 py-3 font-mono text-xs text-[var(--color-text-muted)]">${isSell || !showExecuted ? '' : `<input type="checkbox" class="mr-2" ${State.sellOnlyHighestExecuted===r.rung?'checked':''} onclick="App.toggleExecuted(${r.rung})">`}${r.rung}</td>
                 <td class="px-4 py-3 text-right font-mono copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.price}')">${Utils.fmtSigFig(r.price)}</td>
                 <td class="px-4 py-3 text-right font-mono text-[var(--color-text)] copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.assetSize}')">${Utils.fmtSigFig(r.assetSize)}</td>
                 <td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtSigFig(r.capital)}</td>
@@ -1168,6 +1315,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${Utils.fmtSigFig(isSell ? r.profit : r.avg)}
                 </td>
             `;
+            };
 
             const updateTable = (id, data, isSell) => {
                 const tbody = document.getElementById(id);
@@ -1203,10 +1351,13 @@ document.addEventListener('DOMContentLoaded', function () {
         exportCSV: () => {
             if (!State.currentPlanData) return;
             const p = State.currentPlanData;
+            const isShortSell = State.tradingMode === 'short-sell';
+            const buyLabel = isShortSell ? 'Cover' : 'Buy';
+            const sellLabel = isShortSell ? 'Short' : 'Sell';
             const rows = [
                 ['Type', 'Rung', 'Price', 'Size', 'Value', 'Profit/Avg'],
-                ...p.buyLadder.map(r => ['Buy', r.rung, r.price, r.assetSize, r.capital, r.avg]),
-                ...p.sellLadder.map(r => ['Sell', r.rung, r.price, r.assetSize, r.capital, r.profit])
+                ...p.buyLadder.map(r => [buyLabel, r.rung, r.price, r.assetSize, r.capital, r.avg]),
+                ...p.sellLadder.map(r => [sellLabel, r.rung, r.price, r.assetSize, r.capital, r.profit])
             ];
             const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
             const link = document.createElement("a");
@@ -1383,7 +1534,3 @@ document.addEventListener('DOMContentLoaded', function () {
 
     App.init();
 });
-
-
-
-
