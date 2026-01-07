@@ -151,18 +151,22 @@
                         <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </summary>
                     <div class="p-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                             <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
                                 <p class="font-medium text-red-400 text-sm">Buy Only</p>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Stack positions (DCA). First rung can start below current price.</p>
+                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Accumulate with staggered bids below the market.</p>
                             </div>
                             <div class="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
                                 <p class="font-medium text-green-400 text-sm">Sell Only</p>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Take profit ladder. First rung can start above current price.</p>
+                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Scale out of an existing position above the market.</p>
                             </div>
                             <div class="p-3 rounded-lg bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30">
                                 <p class="font-medium text-cyan-400 text-sm">Buy + Sell</p>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Full round-trip: buy below, sell above with continuous spacing.</p>
+                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Plan entries and exits around a mid price.</p>
+                            </div>
+                            <div class="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                                <p class="font-medium text-purple-400 text-sm">Short Sell <span class="text-[9px] uppercase ml-1">Pro</span></p>
+                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Sell above, buy back lower using a fixed margin budget.</p>
                             </div>
                         </div>
                     </div>
@@ -178,7 +182,7 @@
                     </summary>
                     <div class="p-4 text-sm text-[var(--color-text-secondary)] space-y-2">
                         <ol class="list-decimal pl-5 space-y-1">
-                            <li>Pick a trading mode (Buy only, Sell only, or Buy + Sell).</li>
+                            <li>Pick a trading mode (Buy, Sell, Buy + Sell, or Short Sell in Pro).</li>
                             <li>Set your first rung start (percent or exact price) so the nearest order is where you expect action.</li>
                             <li>Choose spacing: <em>Absolute</em> = equal dollar gaps, <em>Relative</em> = geometric % gaps.</li>
                             <li>Set range (percentage or fixed floor/ceiling). The app spreads rungs from the first rung to your range ends.</li>
@@ -342,8 +346,8 @@
         
         <!-- Expanded Details -->
         <div id="sticky-details" class="hidden w-full pt-3 mt-2 border-t border-[var(--color-border)] grid grid-cols-2 gap-y-3 gap-x-4 text-xs animate-fade-in">
-            <div><span class="text-[var(--color-text-muted)]">Avg Buy:</span><span id="sticky-avg-buy" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
-            <div class="avg-sell-section"><span class="text-[var(--color-text-muted)]">Avg Sell:</span><span id="sticky-avg-sell" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+            <div><span id="sticky-label-avg-buy" class="text-[var(--color-text-muted)]">Avg Buy:</span><span id="sticky-avg-buy" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+            <div class="avg-sell-section"><span id="sticky-label-avg-sell" class="text-[var(--color-text-muted)]">Avg Sell:</span><span id="sticky-avg-sell" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
             <div><span class="text-[var(--color-text-muted)]">Fees:</span><span id="sticky-fees" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
             <div><span class="text-[var(--color-text-muted)]">Vol:</span><span id="sticky-vol" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
             <div><span class="text-[var(--color-text-muted)]">Floor:</span><span id="sticky-floor" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
@@ -379,15 +383,6 @@
                     </button>
                 </div>
 
-                <!-- Advanced Mode Toggle Switch -->
-                <label class="advanced-toggle" title="Toggle Advanced Mode">
-                    <input type="checkbox" id="advanced-mode-toggle">
-                    <span class="toggle-track">
-                        <span class="toggle-thumb"></span>
-                    </span>
-                    <span class="toggle-label">Pro</span>
-                </label>
-
                 <!-- Actions Menu (Settings/Export/Reset) -->
                 <div class="relative z-50">
                     <button id="actions-menu-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[var(--color-card-alt)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" aria-label="Actions Menu" title="Actions">
@@ -406,6 +401,20 @@
                                 <svg id="icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                                 <span id="theme-toggle-text">Dark Mode</span>
                             </button>
+                            <div class="border-t border-[var(--color-border)] my-1"></div>
+                            <div class="px-4 py-2.5 sm:py-2 flex items-center justify-between gap-3 text-sm text-[var(--color-text)]">
+                                <div class="flex flex-col">
+                                    <span class="font-medium">Advanced settings</span>
+                                    <span class="text-[10px] text-[var(--color-text-muted)]">Show pro controls</span>
+                                </div>
+                                <label class="advanced-toggle" title="Toggle Advanced Mode">
+                                    <input type="checkbox" id="advanced-mode-toggle">
+                                    <span class="toggle-track">
+                                        <span class="toggle-thumb"></span>
+                                    </span>
+                                    <span class="toggle-label">Pro</span>
+                                </label>
+                            </div>
                             <div class="border-t border-[var(--color-border)] my-1"></div>
                             <!-- Start Over -->
                             <button id="start-over-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" title="Start Over">
@@ -562,6 +571,22 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     </button>
+                                    <button 
+                                        type="button" 
+                                        data-mode="short-sell" 
+                                        class="mode-dropdown-option mode-dropdown-advanced hidden w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--color-card-alt)] transition-colors first:rounded-t-lg last:rounded-b-lg focus:outline-none focus:bg-[var(--color-card-alt)]"
+                                        role="option"
+                                        aria-selected="false"
+                                    >
+                                        <div class="w-5 h-5 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18m0 0l-4-4m4 4l4-4M6 7h12"></path></svg>
+                                        </div>
+                                        <span class="font-medium text-sm text-[var(--color-text)]">Short Sell</span>
+                                        <span class="text-[10px] font-semibold text-purple-500/70 ml-auto uppercase tracking-wider">Pro</span>
+                                        <svg class="w-4 h-4 text-[var(--color-primary)] ml-2 opacity-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -594,7 +619,7 @@
                             
                             <!-- Subtle hint for advanced options -->
                             <div id="advanced-hint" class="text-xs text-[var(--color-text-muted)] text-center pt-2 opacity-60">
-                                Want more control? Click the <svg class="inline w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> icon above
+                                Advanced controls live in <span class="font-medium">Actions</span> → <span class="font-medium">Advanced settings</span>.
                             </div>
                         </div>
                             
@@ -849,7 +874,7 @@
                             <div id="chart-buy-legend" class="chart-buy-legend buy-only-content flex items-center gap-2">
                                 <div class="flex items-center gap-1.5">
                                     <span class="inline-block w-3 h-3 rounded bg-red-500/70 border border-red-500"></span>
-                                    <span class="text-red-500 font-semibold">Buy (orders)</span>
+                                    <span id="legend-buy-label" class="text-red-500 font-semibold">Buy (orders)</span>
                                 </div>
                                 <span id="legend-buy-summary" class="text-[10px] text-[var(--color-text-muted)] hidden sm:inline"></span>
                             </div>
@@ -857,7 +882,7 @@
                             <div class="chart-sell-legend sell-only-content flex items-center gap-2">
                                 <div class="flex items-center gap-1.5">
                                     <span class="inline-block w-3 h-3 rounded bg-green-500/70 border border-green-500"></span>
-                                    <span class="text-green-500 font-semibold">Sell (orders)</span>
+                                    <span id="legend-sell-label" class="text-green-500 font-semibold">Sell (orders)</span>
                                 </div>
                                 <span id="legend-sell-summary" class="text-[10px] text-[var(--color-text-muted)] hidden sm:inline"></span>
                             </div>
@@ -926,7 +951,7 @@
                                     
                                     <!-- Buy Side Subtotals -->
                                     <div class="pt-2 border-t border-[var(--color-border)] buy-only-content">
-                                        <p class="text-[9px] font-semibold text-red-400 uppercase tracking-wider mb-1">Buy Side</p>
+                                        <p id="label-buy-side" class="text-[9px] font-semibold text-red-400 uppercase tracking-wider mb-1">Buy Side</p>
                                         <div class="grid grid-cols-2 gap-1 text-[9px]">
                                             <div>
                                                 <span class="text-[var(--color-text-muted)]">Value:</span>
@@ -941,7 +966,7 @@
                                     
                                     <!-- Sell Side Subtotals -->
                                     <div class="pt-2 border-t border-[var(--color-border)] sell-only-content">
-                                        <p class="text-[9px] font-semibold text-green-400 uppercase tracking-wider mb-1">Sell Side</p>
+                                        <p id="label-sell-side" class="text-[9px] font-semibold text-green-400 uppercase tracking-wider mb-1">Sell Side</p>
                                         <div class="grid grid-cols-2 gap-1 text-[9px]">
                                             <div>
                                                 <span class="text-[var(--color-text-muted)]">Value:</span>
@@ -957,11 +982,11 @@
                                     <div class="pt-2 border-t border-[var(--color-border)]">
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
-                                                <p class="text-[9px] text-[var(--color-text-secondary)]">Avg Buy</p>
+                                                <p id="label-avg-buy" class="text-[9px] text-[var(--color-text-secondary)]">Avg Buy</p>
                                                 <p id="chart-summary-avg-buy" class="text-sm font-semibold text-[var(--color-text)]">-</p>
                                             </div>
                                             <div class="avg-sell-section">
-                                                <p class="text-[9px] text-[var(--color-text-secondary)]">Avg Sell</p>
+                                                <p id="label-avg-sell" class="text-[9px] text-[var(--color-text-secondary)]">Avg Sell</p>
                                                 <p id="chart-summary-avg-sell" class="text-sm font-semibold text-[var(--color-text)]">-</p>
                                             </div>
                                         </div>
@@ -986,8 +1011,8 @@
                 <div id="data-tables-card" class="card overflow-hidden animate-fade-in mb-48 lg:mb-8" style="animation-delay: 0.5s;">
                     <div class="border-b border-[var(--color-border)] flex flex-col sm:flex-row justify-between items-stretch sm:items-center bg-[var(--color-card-alt)]">
                         <div id="table-tabs" class="flex flex-1">
-                            <button id="tab-buy" class="buy-only-content flex-1 py-3.5 sm:py-3 text-xs sm:text-sm font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] bg-[var(--color-card-alt)] active:opacity-80 transition-opacity">Buy Orders</button>
-                            <button id="tab-sell" class="sell-only-content flex-1 py-3.5 sm:py-3 text-xs sm:text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] active:opacity-80 transition-opacity">Sell Orders</button>
+                            <button id="tab-buy" class="buy-only-content flex-1 py-3.5 sm:py-3 text-xs sm:text-sm font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] bg-[var(--color-card-alt)] active:opacity-80 transition-opacity"><span id="tab-buy-label">Buy Orders</span></button>
+                            <button id="tab-sell" class="sell-only-content flex-1 py-3.5 sm:py-3 text-xs sm:text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] active:opacity-80 transition-opacity"><span id="tab-sell-label">Sell Orders</span></button>
                         </div>
                         <div id="table-options" class="hidden px-3 sm:px-4 py-2 sm:py-0 flex items-center justify-center sm:justify-end gap-2 border-t sm:border-t-0 border-[var(--color-border)]">
                             <input type="checkbox" id="show-fees-toggle" class="w-4 h-4 sm:w-3.5 sm:h-3.5 rounded border-[var(--color-border-strong)] text-[var(--color-primary)] focus:ring-[var(--focus-ring-color)]">
@@ -1005,7 +1030,7 @@
                                         <th class="px-4 py-3 text-right">Vol</th>
                                         <th class="px-4 py-3 text-right">Value ($)</th>
                                         <th class="hidden fee-col px-4 py-3 text-right">Fee</th>
-                                        <th class="px-4 py-3 text-right">Avg Price</th>
+                                        <th id="buy-table-last-col" class="px-4 py-3 text-right">Avg Price</th>
                                     </tr>
                                 </thead>
                                 <tbody id="buy-ladder-body" class="divide-y divide-[var(--color-border)]"></tbody>
@@ -1020,7 +1045,7 @@
                                         <th class="px-4 py-3 text-right">Vol</th>
                                         <th class="px-4 py-3 text-right">Value ($)</th>
                                         <th class="hidden fee-col px-4 py-3 text-right">Fee</th>
-                                        <th class="px-4 py-3 text-right text-green-600">Profit</th>
+                                        <th id="sell-table-last-col" class="px-4 py-3 text-right text-green-600">Profit</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sell-ladder-body" class="divide-y divide-[var(--color-border)]"></tbody>

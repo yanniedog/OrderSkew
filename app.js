@@ -120,7 +120,8 @@ const State = {
     chartUnitType: 'volume',
     sellOnlyMode: false,
     buyOnlyMode: true,
-    tradingMode: 'buy-only', // 'buy-sell', 'buy-only', 'sell-only'
+    shortSellMode: false,
+    tradingMode: 'buy-only', // 'buy-sell', 'buy-only', 'sell-only', 'short-sell'
     advancedMode: false
 };
 
@@ -171,7 +172,6 @@ window.CONSTANTS = CONSTANTS;
 window.Utils = Utils;
 window.State = State;
 window.Calculator = Calculator;
-
 
 
 
