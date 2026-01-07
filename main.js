@@ -694,24 +694,35 @@ document.addEventListener('DOMContentLoaded', function () {
             if (els.tabSell) els.tabSell.addEventListener('click', () => App.switchTab('sell'));
             if (els.themeBtn) els.themeBtn.addEventListener('click', App.toggleTheme);
 
+            const menuToggles = [];
             const setupMenuToggle = ({ buttonEl, dropdownEl, itemSelector }) => {
                 if (!buttonEl || !dropdownEl) return;
 
                 const openClasses = ['opacity-100', 'visible'];
                 const closedClasses = ['opacity-0', 'invisible'];
+                const activeButtonClasses = ['bg-[var(--color-border)]', 'text-[var(--color-text)]'];
 
                 const isOpen = () => dropdownEl.classList.contains('opacity-100');
+
+                const updateButtonState = (expanded) => {
+                    buttonEl.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                    if (expanded) {
+                        buttonEl.classList.add(...activeButtonClasses);
+                    } else {
+                        buttonEl.classList.remove(...activeButtonClasses);
+                    }
+                };
 
                 const open = () => {
                     dropdownEl.classList.remove(...closedClasses);
                     dropdownEl.classList.add(...openClasses);
-                    buttonEl.setAttribute('aria-expanded', 'true');
+                    updateButtonState(true);
                 };
 
                 const close = () => {
                     dropdownEl.classList.remove(...openClasses);
                     dropdownEl.classList.add(...closedClasses);
-                    buttonEl.setAttribute('aria-expanded', 'false');
+                    updateButtonState(false);
                 };
 
                 const toggle = () => {
@@ -722,8 +733,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 };
 
+                updateButtonState(false);
+
+                const api = { close, isOpen };
+                menuToggles.push(api);
+
                 buttonEl.addEventListener('click', (event) => {
                     event.stopPropagation();
+                    menuToggles.forEach((toggleItem) => {
+                        if (toggleItem !== api && toggleItem.isOpen()) {
+                            toggleItem.close();
+                        }
+                    });
                     toggle();
                 });
 
