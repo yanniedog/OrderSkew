@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
         rungsDisplay: document.getElementById('number_of_rungs_display'),
         depth: document.getElementById('depth'),
         depthInput: document.getElementById('depth_input'),
+        depthDisplayLabel: document.getElementById('depth_display_label'),
         skew: document.getElementById('skew_value'),
         skewLabel: document.getElementById('skew_label'),
         priceRangeMode: document.getElementById('price_range_mode'),
@@ -68,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Fees
         showFeesToggle: document.getElementById('show-fees-toggle'),
+        copyDecimalPlaces: document.getElementById('copy-decimal-places'),
 
         // Sticky Extended
         stickyBtn: document.getElementById('sticky-expand-btn'),
@@ -83,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function () {
         init: () => {
             App.loadTheme();
             App.loadAdvancedMode();
+            App.loadCopyDecimalPlaces();
             App.bindEvents();
             
             // Show intro only if the user hasn't already seen it
@@ -203,6 +206,13 @@ document.addEventListener('DOMContentLoaded', function () {
             App.applyAdvancedMode();
         },
 
+        loadCopyDecimalPlaces: () => {
+            const saved = localStorage.getItem(CONSTANTS.STORAGE_PREFIX + 'copy_decimal_places');
+            const parsed = saved !== null ? parseInt(saved, 10) : 8;
+            State.copyDecimalPlaces = Number.isFinite(parsed) ? Math.min(32, Math.max(0, parsed)) : 8;
+            if (els.copyDecimalPlaces) els.copyDecimalPlaces.value = State.copyDecimalPlaces;
+        },
+
         toggleAdvancedMode: () => {
             State.advancedMode = !State.advancedMode;
             localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'advanced_mode', State.advancedMode.toString());
@@ -312,6 +322,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 els.showFeesToggle.addEventListener('change', () => {
                     State.showFees = els.showFeesToggle.checked;
                     App.updateUI(State.currentPlanData);
+                });
+            }
+
+            // Copy decimal places
+            if (els.copyDecimalPlaces) {
+                els.copyDecimalPlaces.addEventListener('input', () => {
+                    const v = parseInt(els.copyDecimalPlaces.value, 10);
+                    State.copyDecimalPlaces = Number.isFinite(v) ? Math.min(32, Math.max(0, v)) : 8;
+                    els.copyDecimalPlaces.value = State.copyDecimalPlaces;
+                    localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'copy_decimal_places', String(State.copyDecimalPlaces));
                 });
             }
 
@@ -457,10 +477,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     if(display) display.textContent = input.value;
                     App.debouncedCalc();
                 });
+                if(display) display.textContent = slider.value;
             };
 
             syncSlider(els.rungs, els.rungsInput, els.rungsDisplay);
-            syncSlider(els.depth, els.depthInput);
+            syncSlider(els.depth, els.depthInput, els.depthDisplayLabel);
             
             // Skew Sync
             if (els.skew) {
@@ -503,10 +524,44 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateFeeType('percent');
             }
 
+            // Spacing Mode Toggle Buttons
+            const spacingModeAbsolute = document.getElementById('spacing_mode_absolute');
+            const spacingModeRelative = document.getElementById('spacing_mode_relative');
+            const updateSpacingModeUI = (value) => {
+                if (spacingModeAbsolute) spacingModeAbsolute.classList.toggle('active', value === 'absolute');
+                if (spacingModeRelative) spacingModeRelative.classList.toggle('active', value === 'relative');
+            };
+            if (spacingModeAbsolute) spacingModeAbsolute.addEventListener('click', () => {
+                if (els.spacingMode) { els.spacingMode.value = 'absolute'; els.spacingMode.dispatchEvent(new Event('change')); }
+            });
+            if (spacingModeRelative) spacingModeRelative.addEventListener('click', () => {
+                if (els.spacingMode) { els.spacingMode.value = 'relative'; els.spacingMode.dispatchEvent(new Event('change')); }
+            });
+            updateSpacingModeUI(els.spacingMode?.value || 'absolute');
+
+            // Range Type Toggle Buttons
+            const priceRangeWidth = document.getElementById('price_range_width');
+            const priceRangeFloor = document.getElementById('price_range_floor');
+            const updateRangeTypeUI = (value) => {
+                if (priceRangeWidth) priceRangeWidth.classList.toggle('active', value === 'width');
+                if (priceRangeFloor) priceRangeFloor.classList.toggle('active', value === 'floor');
+            };
+            if (priceRangeWidth) priceRangeWidth.addEventListener('click', () => {
+                if (els.priceRangeMode) { els.priceRangeMode.value = 'width'; els.priceRangeMode.dispatchEvent(new Event('change')); }
+            });
+            if (priceRangeFloor) priceRangeFloor.addEventListener('click', () => {
+                if (els.priceRangeMode) { els.priceRangeMode.value = 'floor'; els.priceRangeMode.dispatchEvent(new Event('change')); }
+            });
+            updateRangeTypeUI(els.priceRangeMode?.value || 'width');
+
             // Selects
             [els.priceRangeMode, els.feeSettlement, els.spacingMode].forEach(el => {
                 if(el) el.addEventListener('change', (e) => {
-                    if (e.target === els.priceRangeMode) App.togglePriceMode();
+                    if (e.target === els.priceRangeMode) {
+                        App.togglePriceMode();
+                        updateRangeTypeUI(els.priceRangeMode.value);
+                    }
+                    if (e.target === els.spacingMode) updateSpacingModeUI(els.spacingMode.value);
                     App.calculatePlan();
                 });
             });
@@ -996,11 +1051,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         switchTab: (tab) => {
             State.activeTab = tab;
-            const activeClass = "flex-1 py-3 text-sm font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] bg-[var(--color-card-alt)]";
-            const inactiveClass = "flex-1 py-3 text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)]";
+            const activeClass = "buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors";
+            const inactiveClass = "sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors";
+            const activeClassSell = "sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors";
+            const inactiveClassBuy = "buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors";
             
-            if (els.tabBuy) els.tabBuy.className = tab === 'buy' ? activeClass : inactiveClass;
-            if (els.tabSell) els.tabSell.className = tab === 'sell' ? activeClass : inactiveClass;
+            if (els.tabBuy) els.tabBuy.className = tab === 'buy' ? activeClass : inactiveClassBuy;
+            if (els.tabSell) els.tabSell.className = tab === 'sell' ? activeClassSell : inactiveClass;
             els.panelBuy?.classList.toggle('hidden', tab !== 'buy');
             els.panelSell?.classList.toggle('hidden', tab !== 'sell');
         },
@@ -1017,8 +1074,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const legendBuy = document.getElementById('legend-buy-label');
             const legendSell = document.getElementById('legend-sell-label');
-            if (legendBuy) legendBuy.textContent = isShortSell ? 'Cover (orders)' : 'Buy (orders)';
-            if (legendSell) legendSell.textContent = isShortSell ? 'Short (orders)' : 'Sell (orders)';
+            if (legendBuy) legendBuy.textContent = isShortSell ? 'Cover' : 'Buy';
+            if (legendSell) legendSell.textContent = isShortSell ? 'Short' : 'Sell';
 
             const labelBuySide = document.getElementById('label-buy-side');
             const labelSellSide = document.getElementById('label-sell-side');
@@ -1415,7 +1472,10 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         copy: (val) => {
-            Utils.copyToClipboard(val);
+            const n = parseFloat(String(val));
+            const decimals = State.copyDecimalPlaces ?? 8;
+            const formatted = Number.isFinite(n) ? n.toFixed(Math.min(32, Math.max(0, decimals))) : String(val);
+            Utils.copyToClipboard(formatted);
         },
         
         exportCSV: () => {

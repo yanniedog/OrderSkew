@@ -130,7 +130,8 @@ const State = {
     buyOnlyMode: true,
     shortSellMode: false,
     tradingMode: 'buy-only', // 'buy-sell', 'buy-only', 'sell-only', 'short-sell'
-    advancedMode: false
+    advancedMode: false,
+    copyDecimalPlaces: 8
 };
 
 // --- CALCULATOR ENGINE ---

@@ -184,11 +184,11 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
 .helper-tooltip {
     background-color: transparent;
-    border: 1px solid var(--color-border-strong);
+    border: 1px solid var(--color-border);
     color: var(--color-text-muted);
     border-radius: 50%;
-    width: 20px; height: 20px;
-    font-size: .7rem;
+    width: 16px; height: 16px;
+    font-size: 0.625rem;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     transition: all .2s;
@@ -208,13 +208,13 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
 .input-helper-text {
     color: var(--color-text-muted);
-    font-size: 0.75rem;
-    margin-top: 0.5rem;
+    font-size: 0.6875rem;
+    margin-top: 0.25rem;
 }
 
 .input-helper-text--compact {
-    font-size: 0.6875rem;
-    margin-top: 0.25rem;
+    font-size: 0.625rem;
+    margin-top: 0.125rem;
 }
 
 .fee-type-btn, .chart-toggle-btn {
@@ -290,20 +290,50 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
 
 /* --- CARDS --- */
 .card {
-    background: linear-gradient(180deg, var(--color-card), var(--color-card-alt));
-    border: 1px solid var(--color-border-strong);
-    border-radius: 1rem;
-    box-shadow: var(--shadow-sm);
-    transition: all .3s ease;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s ease;
 }
-.card:hover { box-shadow: var(--shadow-md); border-color: var(--color-border-strong); }
+body.theme-dark .card { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
+.card:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); }
+
+.card-section {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    border-top: 1px solid var(--color-border);
+}
+.card-section:first-child { border-top: none; padding-top: 0; }
+
+/* Lightweight accordion for collapsible sections */
+.accordion-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 0.5rem 0 0.625rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-text);
+    transition: color 0.15s ease;
+}
+.accordion-summary:hover { color: var(--color-primary); }
+.accordion-summary svg {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    transition: transform 0.2s ease;
+}
+details[open] .accordion-summary svg { transform: rotate(180deg); }
+.accordion-content { padding-top: 0.5rem; padding-bottom: 0.25rem; }
 
 /* --- TABLES --- */
 .table-header th { 
-    background-color: var(--color-card-alt); 
+    background-color: var(--color-card-muted); 
     color: var(--color-text-secondary);
-    font-weight: 600;
-    letter-spacing: 0.05em;
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
 }
 
 .table-row-odd td { background-color: var(--color-table-row-odd); }
@@ -513,7 +543,7 @@ button, .btn-primary, .btn-secondary, .mode-card, .fee-type-btn, .chart-toggle-b
     .fee-type-btn, .chart-toggle-btn { padding: 0.625rem 0.75rem; font-size: 0.6875rem; min-height: 36px; }
     #wizard-back, #wizard-next { padding: 0.875rem 1.5rem; font-size: 0.875rem; min-width: 100px; }
     #wizard-skip { padding: 0.5rem 0.75rem; }
-    .helper-tooltip { width: 24px; height: 24px; font-size: 0.75rem; }
+    .helper-tooltip { width: 18px; height: 18px; font-size: 0.625rem; }
     #qr-close, #video-close, #how-it-works-close { padding: 0.875rem; font-size: 0.875rem; }
     details summary { padding: 0.875rem 1rem; }
     .wizard-option { padding: 1rem 1.25rem; font-size: 0.9375rem; }
@@ -586,6 +616,10 @@ button, .btn-primary, .btn-secondary, .mode-card, .fee-type-btn, .chart-toggle-b
 #depth-chart-card {
     margin-bottom: 1.5rem;
 }
+
+#chart-summary-overlay details summary::-webkit-details-marker { display: none; }
+#chart-summary-overlay details summary::marker { display: none; }
+#chart-summary-overlay details[open] .chart-overlay-chevron { transform: rotate(180deg); }
 
 #data-tables-card {
     margin-top: 0;
