@@ -62,7 +62,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Video
         videoBtn: document.getElementById('video-btn'),
-        videoBtnMobile: document.getElementById('video-btn-mobile'),
         videoModal: document.getElementById('video-modal'),
         videoBackdrop: document.getElementById('video-backdrop'),
         videoClose: document.getElementById('video-close'),
@@ -119,41 +118,6 @@ document.addEventListener('DOMContentLoaded', function () {
             
             App.calculatePlan();
             App.ensureTableBottomSpace();
-            // #region agent log
-            (function logLayout() {
-                const mainGrid = document.getElementById('main-content-grid');
-                const configCol = document.getElementById('config-column');
-                const graphCol = document.getElementById('graph-column');
-                const chartCard = document.getElementById('depth-chart-card');
-                const header = document.querySelector('header');
-                const app = document.getElementById('app');
-                const dataTables = document.getElementById('data-tables-card');
-                const tableEl = document.querySelector('#panel-buy table');
-                const data = {
-                    viewportW: window.innerWidth,
-                    viewportH: window.innerHeight,
-                    mainGridClass: mainGrid?.className || '',
-                    mainGridDisplay: mainGrid ? getComputedStyle(mainGrid).display : '',
-                    mainGridGridTemplate: mainGrid ? getComputedStyle(mainGrid).gridTemplateColumns : '',
-                    configRect: configCol ? { w: configCol.offsetWidth, h: configCol.offsetHeight } : null,
-                    graphRect: graphCol ? { w: graphCol.offsetWidth, h: graphCol.offsetHeight } : null,
-                    chartCardRect: chartCard ? { w: chartCard.offsetWidth, h: chartCard.offsetHeight } : null,
-                    headerRect: header ? { w: header.offsetWidth, h: header.offsetHeight } : null,
-                    appRect: app ? { w: app.offsetWidth } : null,
-                    mainRect: mainGrid?.parentElement ? { w: mainGrid.parentElement.offsetWidth } : null,
-                    dataTablesW: dataTables?.offsetWidth ?? null,
-                    tableW: tableEl?.offsetWidth ?? null,
-                    isLg: window.innerWidth >= 1024
-                };
-                fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:init',message:'Layout state',data:data,timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'layout'})}).catch(()=>{});
-            })();
-            setTimeout(function() {
-                const configCol = document.getElementById('config-column');
-                const graphCol = document.getElementById('graph-column');
-                const chartCard = document.getElementById('depth-chart-card');
-                fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:init:delayed',message:'Layout after paint',data:{configW:configCol?.offsetWidth,graphW:graphCol?.offsetWidth,chartW:chartCard?.offsetWidth},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'layout'})}).catch(()=>{});
-            }, 500);
-            // #endregion
             window.addEventListener('resize', Utils.debounce(() => {
                 App.calculatePlan();
                 App.ensureTableBottomSpace();
@@ -924,26 +888,21 @@ document.addEventListener('DOMContentLoaded', function () {
             // QR Modal
             const toggleModal = Utils.bindModal(els.qrModal, [els.solBtn], [els.qrBackdrop, els.qrClose]);
 
-            // Video Modal with lazy loading
+            // Video Modal with lazy loading (accessible from main screen header)
             const videoIframe = els.videoModal?.querySelector('iframe');
             const videoSrc = videoIframe?.dataset.src || videoIframe?.src || '';
             const toggleVideo = (show) => {
                 els.videoModal?.classList.toggle('open', show);
                 if (videoIframe) videoIframe.src = show ? videoSrc : '';
             };
-            const introVideoLink = document.getElementById('intro-video-link');
             const openVideo = (e) => {
                 if (e) {
                     e.preventDefault();
                     e.stopPropagation();
                 }
-                if (els.videoModal) {
-                    toggleVideo(true);
-                }
+                if (els.videoModal) toggleVideo(true);
             };
             if (els.videoBtn) els.videoBtn.addEventListener('click', openVideo);
-            if (els.videoBtnMobile) els.videoBtnMobile.addEventListener('click', openVideo);
-            if (introVideoLink) introVideoLink.addEventListener('click', openVideo);
             [els.videoBackdrop, els.videoClose].forEach(el => {
                 if (el) {
                     el.addEventListener('click', (e) => {

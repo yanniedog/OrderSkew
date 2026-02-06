@@ -536,9 +536,9 @@ button, .btn-primary, .btn-secondary, .mode-card, .fee-type-btn, .chart-toggle-b
 @media (max-width: 639px) {
     #enter-app-btn { width: 100%; max-width: 320px; padding: 1rem 1.5rem; font-size: 0.875rem; }
     #quick-start-btn { padding: 0.75rem; font-size: 0.8125rem; }
-    #intro-video-link, #intro-how-it-works, #skip-to-customize-btn { padding: 0.5rem; font-size: 0.75rem; }
+    #intro-how-it-works, #skip-to-customize-btn { padding: 0.5rem; font-size: 0.75rem; }
     header .flex.items-center.gap-3 { flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
-    #sol-btn, #theme-toggle-btn, #video-btn-mobile, #sticky-expand-btn { padding: 0.75rem; min-width: 44px; min-height: 44px; }
+    #sol-btn, #theme-toggle-btn, #sticky-expand-btn { padding: 0.75rem; min-width: 44px; min-height: 44px; }
     #sticky-expand-btn { padding: 0.5rem; }
     .btn-secondary.flex.items-center.gap-2 { padding: 0.625rem 0.875rem; font-size: 0.8125rem; }
     #mode-buy-btn, #mode-sell-btn, #mode-buy-only-btn { padding: 0.75rem; }
