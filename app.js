@@ -80,6 +80,14 @@ const Utils = {
         closeSelectors.forEach(el => el?.addEventListener('click', () => toggle(false)));
         return toggle;
     },
+    setCookie: (name, value, days = 365) => {
+        const maxAge = Math.max(0, Math.floor(days * 86400));
+        document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+    },
+    getCookie: (name) => {
+        const match = document.cookie.match(new RegExp('(?:^|; )' + encodeURIComponent(name) + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : '';
+    },
     hideIntro: (introLayer) => {
         if (!introLayer) return;
         introLayer.style.opacity = '0';
@@ -142,6 +150,108 @@ const Calculator = {
             const curveValue = Math.pow(targetRatio, shapedIndex);
             return Math.max(curveValue - 1 + minWeight, Number.EPSILON);
         });
+    },
+    skewDensity: (x, skewValue) => {
+        if (skewValue <= 0) return 1;
+        const normalizedSkew = Utils.clamp(skewValue, 0, 100) / 100;
+        const targetRatio = 1 + Math.pow(normalizedSkew, 1.2) * (CONSTANTS.MAX_SKEW_RATIO - 1);
+        const minWeight = 1 / targetRatio;
+        const curvature = 1 + normalizedSkew;
+        const shapedIndex = Math.pow(Utils.clamp(x, 0, 1), curvature);
+        const curveValue = Math.pow(targetRatio, shapedIndex);
+        return Math.max(curveValue - 1 + minWeight, Number.EPSILON);
+    },
+    integrateSkewWeights: (count, skewValue, steps = 6) => {
+        if (count <= 0) return [];
+        if (skewValue <= 0) return Array(count).fill(1);
+        const n = steps % 2 === 0 ? steps : steps + 1;
+        const weights = [];
+        for (let i = 0; i < count; i++) {
+            const a = i / count;
+            const b = (i + 1) / count;
+            const h = (b - a) / n;
+            let sum = Calculator.skewDensity(a, skewValue) + Calculator.skewDensity(b, skewValue);
+            for (let j = 1; j < n; j++) {
+                const x = a + h * j;
+                sum += (j % 2 === 0 ? 2 : 4) * Calculator.skewDensity(x, skewValue);
+            }
+            weights.push((h / 3) * sum);
+        }
+        return weights;
+    },
+    computeTargetAvgBuy: ({ skewValue, currentPrice, buyPriceEnd, spacingMode }) => {
+        if (!Number.isFinite(currentPrice) || !Number.isFinite(buyPriceEnd) || currentPrice <= 0 || buyPriceEnd <= 0) {
+            return 0;
+        }
+        const ratio = buyPriceEnd / currentPrice;
+        if (spacingMode === 'relative' && ratio <= 0) return 0;
+        const steps = 600;
+        const n = steps % 2 === 0 ? steps : steps + 1;
+        const h = 1 / n;
+        let sumF = 0;
+        let sumFOverP = 0;
+        for (let i = 0; i <= n; i++) {
+            const x = i * h;
+            const weight = (i === 0 || i === n) ? 1 : (i % 2 === 0 ? 2 : 4);
+            const f = Calculator.skewDensity(x, skewValue);
+            const price = spacingMode === 'relative'
+                ? currentPrice * Math.pow(ratio, x)
+                : currentPrice - (currentPrice - buyPriceEnd) * x;
+            if (price > 0) {
+                sumF += weight * f;
+                sumFOverP += weight * (f / price);
+            }
+        }
+        const intF = (h / 3) * sumF;
+        const intFOverP = (h / 3) * sumFOverP;
+        return intFOverP > 0 ? (intF / intFOverP) : 0;
+    },
+    adjustWeightsToTargetAvg: (weights, prices, targetAvg) => {
+        if (!Array.isArray(weights) || !Array.isArray(prices) || weights.length !== prices.length) {
+            return weights;
+        }
+        if (!Number.isFinite(targetAvg) || targetAvg <= 0) return weights;
+        if (!prices.every(p => Number.isFinite(p) && p > 0)) return weights;
+
+        const avgForAlpha = (alpha) => {
+            let sumW = 0;
+            let sumWOverP = 0;
+            for (let i = 0; i < weights.length; i++) {
+                const w = weights[i];
+                const p = prices[i];
+                if (w <= 0 || p <= 0) continue;
+                const wp = w * Math.pow(p, alpha);
+                sumW += wp;
+                sumWOverP += wp / p;
+            }
+            return sumWOverP > 0 ? (sumW / sumWOverP) : 0;
+        };
+
+        let low = -6;
+        let high = 6;
+        let avgLow = avgForAlpha(low);
+        let avgHigh = avgForAlpha(high);
+        if (!Number.isFinite(avgLow) || !Number.isFinite(avgHigh) || avgLow === 0 || avgHigh === 0) {
+            return weights;
+        }
+        if (targetAvg <= avgLow) {
+            return weights.map((w, i) => w * Math.pow(prices[i], low));
+        }
+        if (targetAvg >= avgHigh) {
+            return weights.map((w, i) => w * Math.pow(prices[i], high));
+        }
+
+        for (let i = 0; i < 32; i++) {
+            const mid = (low + high) / 2;
+            const avgMid = avgForAlpha(mid);
+            if (avgMid < targetAvg) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+        const alpha = (low + high) / 2;
+        return weights.map((w, i) => w * Math.pow(prices[i], alpha));
     },
 
     computeEqualGrossAllocations: (totalQuantity, prices) => {

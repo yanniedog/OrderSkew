@@ -314,6 +314,11 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
             }
 
             // Show tooltip
+            const cumulativeLabel = d.isBuy ? "If Filled To This Rung:" : "Cumulative:";
+            const qtyLabel = d.isBuy ? "Qty" : "Vol";
+            const avgBuyLine = d.isBuy && Number.isFinite(d.avg) && d.avg > 0
+                ? `<div>Avg Buy: ${Utils.fmtCurr(d.avg)}</div>`
+                : '';
             const html = `
                 <div class="font-bold ${d.isBuy ? "text-red-400" : "text-green-400"}">
                     ${d.isBuy ? "Buy" : "Sell"} Order #${d.rung}
@@ -325,9 +330,10 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
                     <div>Val: ${Utils.fmtCurr(d.individualVal)}</div>
                 </div>
                 <div class="border-t border-gray-600 mt-1 pt-1">
-                    <div class="text-gray-400 text-[10px] mb-1">Cumulative:</div>
-                    <div>Vol: ${Utils.fmtNum(d.cumulativeQty, 4)}</div>
+                    <div class="text-gray-400 text-[10px] mb-1">${cumulativeLabel}</div>
+                    <div>${qtyLabel}: ${Utils.fmtNum(d.cumulativeQty, 4)}</div>
                     <div>Val: ${Utils.fmtCurr(d.cumulativeVal)}</div>
+                    ${avgBuyLine}
                 </div>
             `;
 

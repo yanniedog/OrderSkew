@@ -35,7 +35,6 @@ document.addEventListener('DOMContentLoaded', function () {
         feeValue: document.getElementById('fee_value'),
         feeSettlement: document.getElementById('fee_settlement'),
         spacingMode: document.getElementById('spacing_mode'),
-        equalQtyCheck: document.getElementById('equal_quantity_mode'),
 
         // Containers
         depthChartCard: document.getElementById('depth-chart-card'),
@@ -86,12 +85,19 @@ document.addEventListener('DOMContentLoaded', function () {
             App.loadAdvancedMode();
             App.bindEvents();
             
-            // Always show welcome screen on initial load
+            // Show intro only if the user hasn't already seen it
             const introLayer = document.getElementById('intro-layer');
+            const introSeen = Utils.getCookie('os_intro_seen') === 'true';
             if (introLayer) {
-                introLayer.style.display = 'flex';
-                introLayer.style.opacity = '1';
-                introLayer.style.pointerEvents = 'auto';
+                if (introSeen) {
+                    introLayer.style.display = 'none';
+                    introLayer.style.opacity = '0';
+                    introLayer.style.pointerEvents = 'none';
+                } else {
+                    introLayer.style.display = 'flex';
+                    introLayer.style.opacity = '1';
+                    introLayer.style.pointerEvents = 'auto';
+                }
             }
             
             // Ensure minimal interface is applied on init
@@ -99,7 +105,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Initialize history state
             if (!history.state || !history.state.introVisible) {
-                history.replaceState({ introVisible: true }, '');
+                history.replaceState({ introVisible: !introSeen }, '');
             }
             
             // Handle browser back button - consolidated handler
@@ -365,6 +371,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     wizard.style.pointerEvents = 'auto';
                     requestAnimationFrame(() => {
                         SetupWizard.show();
+                        Utils.setCookie('os_intro_seen', 'true');
                         Utils.hideIntro(document.getElementById('intro-layer'));
                         history.pushState({ introVisible: false }, '');
                     });
@@ -376,6 +383,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const skipToCustomizeBtn = document.getElementById('skip-to-customize-btn');
             if (skipToCustomizeBtn) {
                 skipToCustomizeBtn.addEventListener('click', () => {
+                    Utils.setCookie('os_intro_seen', 'true');
                     Utils.hideIntro(document.getElementById('intro-layer'));
                     localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed', 'true');
                     App.setMode('pro');
@@ -678,17 +686,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             }
 
-            if (els.equalQtyCheck) {
-                els.equalQtyCheck.addEventListener('change', () => {
-                    if (els.skew) {
-                        els.skew.disabled = els.equalQtyCheck.checked;
-                        if(els.equalQtyCheck.checked) els.skew.classList.add('opacity-50');
-                        else els.skew.classList.remove('opacity-50');
-                    }
-                    App.calculatePlan();
-                });
-            }
-
             // Tabs & Buttons
             if (els.tabBuy) els.tabBuy.addEventListener('click', () => App.switchTab('buy'));
             if (els.tabSell) els.tabSell.addEventListener('click', () => App.switchTab('sell'));
@@ -749,6 +746,15 @@ document.addEventListener('DOMContentLoaded', function () {
             setupMenuToggle({
                 buttonEl: actionsMenuBtn,
                 dropdownEl: actionsMenuDropdown,
+                itemSelector: '[data-menu-close-on-click]',
+            });
+
+            // Quick Save Menu Toggle
+            const quickSaveMenuBtn = document.getElementById('quick-save-menu-btn');
+            const quickSaveMenuDropdown = document.getElementById('quick-save-menu-dropdown');
+            setupMenuToggle({
+                buttonEl: quickSaveMenuBtn,
+                dropdownEl: quickSaveMenuDropdown,
                 itemSelector: '[data-menu-close-on-click]',
             });
 
@@ -822,6 +828,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (downloadBtn) downloadBtn.addEventListener('click', App.exportCSV);
             if (saveConfigBtn) saveConfigBtn.addEventListener('click', App.saveConfig);
             if (loadConfigFile) loadConfigFile.addEventListener('change', App.loadConfig);
+
+            const quickSaveConfigBtn = document.getElementById('quick-save-config-btn');
+            const quickLoadConfigFile = document.getElementById('quick-load-config-file');
+            if (quickSaveConfigBtn) quickSaveConfigBtn.addEventListener('click', App.saveConfig);
+            if (quickLoadConfigFile) quickLoadConfigFile.addEventListener('change', App.loadConfig);
             
             // QR Modal
             const toggleModal = Utils.bindModal(els.qrModal, [els.solBtn], [els.qrBackdrop, els.qrClose]);
@@ -1007,7 +1018,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const currentPrice = parseFloat(Utils.stripCommas(els.currPrice?.value)) || 0;
             const isShortSell = State.tradingMode === 'short-sell';
             
-            let N, S, depth, feeType, feeValue, feeSettlement, spacingMode, sellOnly, buyOnly, equalQty;
+            let N, S, depth, feeType, feeValue, feeSettlement, spacingMode, sellOnly, buyOnly;
 
             if (State.mode === 'simple') {
                 N = 10;
@@ -1019,7 +1030,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 spacingMode = 'absolute';
                 sellOnly = false;
                 buyOnly = false;
-                equalQty = false;
             } else {
                 N = parseInt(els.rungs?.value) || 2;
                 S = parseInt(els.skew?.value) || 0;
@@ -1030,7 +1040,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 spacingMode = els.spacingMode?.value || 'absolute';
                 sellOnly = els.sellOnlyCheck?.checked || false;
                 buyOnly = State.buyOnlyMode || false;
-                equalQty = els.equalQtyCheck?.checked || false;
             }
 
             if (isShortSell) {
@@ -1057,18 +1066,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 sellPriceEnd = currentPrice * (1 + depth/100);
             }
 
-            const buyStep = (!isRelativeSpacing && N > 0) ? (currentPrice - buyPriceEnd) / N : 0;
-            const sellStep = (!isRelativeSpacing && N > 0) ? (sellPriceEnd - currentPrice) / N : 0;
-            const buyRatio = (isRelativeSpacing && N > 0) ? Math.pow(Math.max(buyPriceEnd/currentPrice, 0), 1/N) : 1;
-            const sellRatio = (isRelativeSpacing && N > 0) ? Math.pow(sellPriceEnd/currentPrice, 1/N) : 1;
+            const rungDivisor = N > 0 ? N : 1;
+            const buyStep = (!isRelativeSpacing && N > 0) ? (currentPrice - buyPriceEnd) / rungDivisor : 0;
+            const sellStep = (!isRelativeSpacing && N > 0) ? (sellPriceEnd - currentPrice) / rungDivisor : 0;
+            const buyRatio = (isRelativeSpacing && N > 0) ? Math.pow(Math.max(buyPriceEnd/currentPrice, 0), 1/rungDivisor) : 1;
+            const sellRatio = (isRelativeSpacing && N > 0) ? Math.pow(sellPriceEnd/currentPrice, 1/rungDivisor) : 1;
 
-            let buyPrices = Array.from({length: N}, (_, i) => isRelativeSpacing ? currentPrice * Math.pow(buyRatio, i+1) : currentPrice - ((i+1)*buyStep));
-            let sellPrices = Array.from({length: N}, (_, i) => isRelativeSpacing ? currentPrice * Math.pow(sellRatio, i+1) : currentPrice + ((i+1)*sellStep));
+            let buyPrices = Array.from({length: N}, (_, i) => isRelativeSpacing ? currentPrice * Math.pow(buyRatio, i + 0.5) : currentPrice - ((i + 0.5) * buyStep));
+            let sellPrices = Array.from({length: N}, (_, i) => isRelativeSpacing ? currentPrice * Math.pow(sellRatio, i + 0.5) : currentPrice + ((i + 0.5) * sellStep));
             
-            if (N > 0) {
-                buyPrices[N-1] = buyPriceEnd;
-                sellPrices[N-1] = sellPriceEnd;
-            }
+            // Leave range endpoints as boundaries (no orders placed exactly at the edges)
+            const baseSkewWeights = Calculator.integrateSkewWeights(N, S);
+            const targetAvgBuy = Calculator.computeTargetAvgBuy({
+                skewValue: S,
+                currentPrice,
+                buyPriceEnd,
+                spacingMode: isRelativeSpacing ? 'relative' : 'absolute'
+            });
+            const adjustedBuyWeights = Calculator.adjustWeightsToTargetAvg(baseSkewWeights, buyPrices, targetAvgBuy);
+            const buyWeightsTotal = adjustedBuyWeights.reduce((a, b) => a + b, 0);
+            const sellWeightsTotal = baseSkewWeights.reduce((a, b) => a + b, 0);
 
             let buyLadder = [];
             let sellLadder = [];
@@ -1086,21 +1103,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (isShortSell) {
                 const buildShortSellLadder = () => {
                     const ladder = [];
-                    const activePrices = sellPrices.filter(p => p > 0);
-                    const sumPrices = activePrices.reduce((a, b) => a + b, 0);
-                    let sharedQty = 0;
-
-                    if (equalQty && activePrices.length > 0 && C > 0) {
-                        sharedQty = C / sumPrices;
-                    }
-
-                    const rawWeights = equalQty ? [] : Calculator.buildSkewWeights(N, S);
-                    const totalWeight = equalQty ? 0 : rawWeights.reduce((a, b) => a + b, 0);
+                    const rawWeights = baseSkewWeights;
+                    const totalWeight = sellWeightsTotal;
 
                     sellPrices.forEach((price, i) => {
-                        const grossRev = equalQty
-                            ? (price > 0 ? sharedQty * price : 0)
-                            : (totalWeight > 0 ? (C * rawWeights[i]) / totalWeight : 0);
+                        const grossRev = totalWeight > 0 ? (C * rawWeights[i]) / totalWeight : 0;
                         let fee = 0;
                         if (grossRev > 0 && feeValue > 0) {
                             fee = feeType === 'percent' ? grossRev * feeRate : feeValue;
@@ -1168,62 +1175,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     totalNetCapitalSpent = State.baselineBuySnapshot.totalNetCapitalSpent;
                     totalBuyFees = State.baselineBuySnapshot.totalBuyFees;
                 } else {
-                    if (equalQty) {
-                        const activePrices = buyPrices.filter(p => p > 0);
-                        const sumPrices = activePrices.reduce((a, b) => a + b, 0);
-                        let sharedQty = 0;
-                        
-                        if (activePrices.length > 0 && C > 0) {
-                            if (feeValue > 0 && isFeeNetted && feeType !== 'percent') {
-                                sharedQty = (C - (activePrices.length * feeValue)) / sumPrices;
-                            } else if (feeValue > 0 && feeType === 'percent' && isFeeNetted) {
-                                sharedQty = C / (sumPrices * (1 + feeRate));
+                    const rawWeights = buyWeightsTotal > 0 ? adjustedBuyWeights : baseSkewWeights;
+                    const totalWeight = rawWeights.reduce((a, b) => a + b, 0);
+                    
+                    buyLadder = rawWeights.map((w, i) => {
+                        const alloc = (totalWeight > 0) ? (C * w) / totalWeight : 0;
+                        const price = buyPrices[i];
+                        let net = alloc, fee = 0, gross = alloc;
+
+                        if (feeValue > 0) {
+                            if (isFeeNetted) {
+                                if (feeType === 'percent') { net = alloc / (1+feeRate); fee = alloc - net; }
+                                else { fee = Math.min(feeValue, alloc); net = alloc - fee; }
+                                gross = alloc;
                             } else {
-                                sharedQty = C / sumPrices;
+                                fee = feeType === 'percent' ? alloc * feeRate : (alloc > 0 ? feeValue : 0);
+                                gross = alloc + fee;
+                                net = alloc;
                             }
                         }
-                        sharedQty = Math.max(sharedQty, 0);
-
-                        buyLadder = buyPrices.map((price, i) => {
-                            const assetSize = price > 0 ? sharedQty : 0;
-                            const netCapital = assetSize * price;
-                            let fee = 0;
-                            if (assetSize > 0 && feeValue > 0) {
-                                fee = feeType === 'percent' ? netCapital * feeRate : feeValue;
-                            }
-                            totalAssetBought += assetSize;
-                            totalNetCapitalSpent += netCapital;
-                            totalBuyFees += fee;
-                            return { rung: i+1, price, capital: netCapital + (isFeeNetted?fee:0), netCapital, assetSize, fee };
-                        });
-
-                    } else {
-                        const rawWeights = Calculator.buildSkewWeights(N, S);
-                        const totalWeight = rawWeights.reduce((a,b) => a+b, 0);
-                        
-                        buyLadder = rawWeights.map((w, i) => {
-                            const alloc = (C * w) / totalWeight;
-                            const price = buyPrices[i];
-                            let net = alloc, fee = 0, gross = alloc;
-
-                            if (feeValue > 0) {
-                                if (isFeeNetted) {
-                                    if (feeType === 'percent') { net = alloc / (1+feeRate); fee = alloc - net; }
-                                    else { fee = Math.min(feeValue, alloc); net = alloc - fee; }
-                                    gross = alloc;
-                                } else {
-                                    fee = feeType === 'percent' ? alloc * feeRate : (alloc > 0 ? feeValue : 0);
-                                    gross = alloc + fee;
-                                    net = alloc;
-                                }
-                            }
-                            const assetSize = (price > 0 && net > 0) ? net / price : 0;
-                            totalAssetBought += assetSize;
-                            totalNetCapitalSpent += net;
-                            totalBuyFees += fee;
-                            return { rung: i+1, price, capital: gross, netCapital: net, assetSize, fee };
-                        });
-                    }
+                        const assetSize = (price > 0 && net > 0) ? net / price : 0;
+                        totalAssetBought += assetSize;
+                        totalNetCapitalSpent += net;
+                        totalBuyFees += fee;
+                        return { rung: i+1, price, capital: gross, netCapital: net, assetSize, fee };
+                    });
                 }
 
                 let cumNet = 0, cumAsset = 0;
@@ -1259,12 +1235,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 let assetAllocations = [];
                 if (sellOnly && effectiveAsset <= 0) {
                     assetAllocations = Array(N).fill(0);
-                } else if (equalQty) {
-                     assetAllocations = Calculator.computeEqualGrossAllocations(effectiveAsset, sellPrices).allocations;
                 } else if (sellOnly) {
-                     const w = Calculator.buildSkewWeights(N, S);
-                     const tw = w.reduce((a,b) => a+b, 0);
-                     assetAllocations = tw > 0 ? w.map(val => (effectiveAsset * val) / tw) : Array(N).fill(0);
+                     const tw = sellWeightsTotal;
+                     assetAllocations = tw > 0 ? baseSkewWeights.map(val => (effectiveAsset * val) / tw) : Array(N).fill(0);
                 } else {
                      assetAllocations = buyLadder.map(r => r.assetSize);
                 }
@@ -1304,8 +1277,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const roi = finalCostBasis > 0 && !buyOnly ? (netProfit / finalCostBasis) * 100 : 0;
             const avgSellValue = isShortSell ? avgSell : (effectiveAsset > 0 ? totalSellRev / effectiveAsset : 0);
 
-            const lowestBuy = buyLadder.length > 0 ? buyLadder[buyLadder.length - 1].price : 0;
-            const highestSell = sellLadder.length > 0 ? sellLadder[sellLadder.length - 1].price : 0;
+            const rangeLow = Number.isFinite(buyPriceEnd) ? buyPriceEnd : 0;
+            const rangeHigh = Number.isFinite(sellPriceEnd) ? sellPriceEnd : 0;
 
             // Calculate subtotals
             const buyTotalValue = buyLadder.reduce((sum, r) => sum + r.netCapital, 0);
@@ -1323,8 +1296,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     avgSell: avgSellValue, 
                     totalFees, 
                     totalQuantity: effectiveAsset, 
-                    lowestBuy, 
-                    highestSell,
+                    rangeLow,
+                    rangeHigh,
                     buyTotalValue,
                     buyTotalVolume,
                     sellTotalValue,
@@ -1361,8 +1334,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 'sticky-avg-sell': Utils.fmtCurr(s.avgSell),
                 'sticky-fees': Utils.fmtCurr(s.totalFees), 
                 'sticky-vol': Utils.fmtNum(s.totalQuantity),
-                'sticky-floor': Utils.fmtCurr(s.lowestBuy), 
-                'sticky-ceiling': Utils.fmtCurr(s.highestSell)
+                'sticky-floor': Utils.fmtCurr(s.rangeLow), 
+                'sticky-ceiling': Utils.fmtCurr(s.rangeHigh)
             };
             Object.entries(summaryMap).forEach(([id, val]) => setTxt(id, val));
             setCls('chart-summary-net-profit', `text-lg font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);
