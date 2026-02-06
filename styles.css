@@ -621,9 +621,23 @@ button, .btn-primary, .btn-secondary, .mode-card, .fee-type-btn, .chart-toggle-b
     margin-bottom: 1.5rem;
 }
 
-#chart-summary-overlay details summary::-webkit-details-marker { display: none; }
-#chart-summary-overlay details summary::marker { display: none; }
-#chart-summary-overlay details[open] .chart-overlay-chevron { transform: rotate(180deg); }
+/* Pill toggle switch style for spacing and range type */
+.pill-toggle-btn {
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    outline: none;
+}
+.pill-toggle-btn:hover {
+    color: var(--color-text);
+}
+.pill-toggle-btn.active {
+    background: var(--color-card);
+    color: var(--color-primary);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
+}
 
 #data-tables-card {
     margin-top: 0;

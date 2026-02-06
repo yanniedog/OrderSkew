@@ -322,6 +322,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     State.copyDecimalPlaces = Number.isFinite(v) ? Math.min(32, Math.max(0, v)) : 8;
                     els.copyDecimalPlaces.value = State.copyDecimalPlaces;
                     localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'copy_decimal_places', String(State.copyDecimalPlaces));
+                    if (State.currentPlanData) {
+                        App.updateUI(State.currentPlanData);
+                        const s = State.currentPlanData.summary;
+                        if (typeof drawDepthChart === 'function') {
+                            drawDepthChart('#depth-chart', State.currentPlanData.buyLadder, State.currentPlanData.sellLadder, s?.avgBuy, s?.avgSell);
+                        }
+                    }
                 });
             }
 
@@ -1396,26 +1403,27 @@ document.addEventListener('DOMContentLoaded', function () {
             const s = plan.summary;
             const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
             const setCls = (id, cls) => { const el = document.getElementById(id); if(el) el.className = cls; };
+            const dec = State.copyDecimalPlaces ?? 8;
             
             const summaryMap = {
-                'chart-summary-net-profit': Utils.fmtCurr(s.netProfit), 
+                'chart-summary-net-profit': Utils.fmtCurr(s.netProfit, dec), 
                 'chart-summary-roi': Utils.fmtPct(s.roi),
-                'chart-summary-avg-buy': Utils.fmtCurr(s.avgBuy), 
-                'chart-summary-avg-sell': Utils.fmtCurr(s.avgSell),
-                'chart-summary-total-fees': Utils.fmtCurr(s.totalFees), 
-                'chart-summary-total-quantity': Utils.fmtNum(s.totalQuantity),
-                'chart-summary-buy-value': Utils.fmtCurr(s.buyTotalValue),
-                'chart-summary-buy-volume': Utils.fmtNum(s.buyTotalVolume),
-                'chart-summary-sell-value': Utils.fmtCurr(s.sellTotalValue),
-                'chart-summary-sell-volume': Utils.fmtNum(s.sellTotalVolume),
-                'sticky-net-profit': Utils.fmtCurr(s.netProfit), 
+                'chart-summary-avg-buy': Utils.fmtCurr(s.avgBuy, dec), 
+                'chart-summary-avg-sell': Utils.fmtCurr(s.avgSell, dec),
+                'chart-summary-total-fees': Utils.fmtCurr(s.totalFees, dec), 
+                'chart-summary-total-quantity': Utils.fmtNum(s.totalQuantity, dec),
+                'chart-summary-buy-value': Utils.fmtCurr(s.buyTotalValue, dec),
+                'chart-summary-buy-volume': Utils.fmtNum(s.buyTotalVolume, dec),
+                'chart-summary-sell-value': Utils.fmtCurr(s.sellTotalValue, dec),
+                'chart-summary-sell-volume': Utils.fmtNum(s.sellTotalVolume, dec),
+                'sticky-net-profit': Utils.fmtCurr(s.netProfit, dec), 
                 'sticky-roi': Utils.fmtPct(s.roi),
-                'sticky-avg-buy': Utils.fmtCurr(s.avgBuy), 
-                'sticky-avg-sell': Utils.fmtCurr(s.avgSell),
-                'sticky-fees': Utils.fmtCurr(s.totalFees), 
-                'sticky-vol': Utils.fmtNum(s.totalQuantity),
-                'sticky-floor': Utils.fmtCurr(s.rangeLow), 
-                'sticky-ceiling': Utils.fmtCurr(s.rangeHigh)
+                'sticky-avg-buy': Utils.fmtCurr(s.avgBuy, dec), 
+                'sticky-avg-sell': Utils.fmtCurr(s.avgSell, dec),
+                'sticky-fees': Utils.fmtCurr(s.totalFees, dec), 
+                'sticky-vol': Utils.fmtNum(s.totalQuantity, dec),
+                'sticky-floor': Utils.fmtCurr(s.rangeLow, dec), 
+                'sticky-ceiling': Utils.fmtCurr(s.rangeHigh, dec)
             };
             Object.entries(summaryMap).forEach(([id, val]) => setTxt(id, val));
             setCls('chart-summary-net-profit', `text-lg font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);

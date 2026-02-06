@@ -15,7 +15,10 @@ const Utils = {
             timeout = setTimeout(() => func.apply(this, args), wait);
         };
     },
-    fmtCurr: (n) => new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'}).format(Number.isFinite(n) ? n : 0),
+    fmtCurr: (n, d) => {
+        const dec = Number.isFinite(d) && d >= 0 ? Math.min(32, Math.round(d)) : 2;
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: dec, maximumFractionDigits: dec }).format(Number.isFinite(n) ? n : 0);
+    },
     fmtNum: (n, d=4) => Number.isFinite(n) ? n.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:d}) : '0',
     fmtSigFig: (n) => {
         if (!Number.isFinite(n) || n === 0) return '0';
