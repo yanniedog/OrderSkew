@@ -115,6 +115,41 @@ document.addEventListener('DOMContentLoaded', function () {
             
             App.calculatePlan();
             App.ensureTableBottomSpace();
+            // #region agent log
+            (function logLayout() {
+                const mainGrid = document.getElementById('main-content-grid');
+                const configCol = document.getElementById('config-column');
+                const graphCol = document.getElementById('graph-column');
+                const chartCard = document.getElementById('depth-chart-card');
+                const header = document.querySelector('header');
+                const app = document.getElementById('app');
+                const dataTables = document.getElementById('data-tables-card');
+                const tableEl = document.querySelector('#panel-buy table');
+                const data = {
+                    viewportW: window.innerWidth,
+                    viewportH: window.innerHeight,
+                    mainGridClass: mainGrid?.className || '',
+                    mainGridDisplay: mainGrid ? getComputedStyle(mainGrid).display : '',
+                    mainGridGridTemplate: mainGrid ? getComputedStyle(mainGrid).gridTemplateColumns : '',
+                    configRect: configCol ? { w: configCol.offsetWidth, h: configCol.offsetHeight } : null,
+                    graphRect: graphCol ? { w: graphCol.offsetWidth, h: graphCol.offsetHeight } : null,
+                    chartCardRect: chartCard ? { w: chartCard.offsetWidth, h: chartCard.offsetHeight } : null,
+                    headerRect: header ? { w: header.offsetWidth, h: header.offsetHeight } : null,
+                    appRect: app ? { w: app.offsetWidth } : null,
+                    mainRect: mainGrid?.parentElement ? { w: mainGrid.parentElement.offsetWidth } : null,
+                    dataTablesW: dataTables?.offsetWidth ?? null,
+                    tableW: tableEl?.offsetWidth ?? null,
+                    isLg: window.innerWidth >= 1024
+                };
+                fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:init',message:'Layout state',data:data,timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'layout'})}).catch(()=>{});
+            })();
+            setTimeout(function() {
+                const configCol = document.getElementById('config-column');
+                const graphCol = document.getElementById('graph-column');
+                const chartCard = document.getElementById('depth-chart-card');
+                fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:init:delayed',message:'Layout after paint',data:{configW:configCol?.offsetWidth,graphW:graphCol?.offsetWidth,chartW:chartCard?.offsetWidth},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'layout'})}).catch(()=>{});
+            }, 500);
+            // #endregion
             window.addEventListener('resize', Utils.debounce(() => {
                 App.calculatePlan();
                 App.ensureTableBottomSpace();
@@ -944,17 +979,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const configColumn = document.getElementById('config-column');
             const graphColumn = document.getElementById('graph-column');
             
-            // Layout: Use side-by-side only when advanced mode is on AND mode is pro
-            if (State.advancedMode && mode === 'pro') {
-                if (mainGrid) mainGrid.className = 'grid grid-cols-1 lg:grid-cols-12 gap-6';
-                if (configColumn) configColumn.className = 'lg:col-span-5 space-y-6';
-                if (graphColumn) graphColumn.className = 'lg:col-span-7 space-y-6';
-            } else {
-                // Minimal mode: single column for cleaner, focused view
-                if (mainGrid) mainGrid.className = 'grid grid-cols-1 gap-6';
-                if (configColumn) configColumn.className = 'space-y-6';
-                if (graphColumn) graphColumn.className = 'space-y-6';
-            }
+            // Layout: Always use two columns on desktop (lg) to fill space; single column on mobile
+            if (mainGrid) mainGrid.className = 'grid grid-cols-1 lg:grid-cols-12 gap-6';
+            if (configColumn) configColumn.className = 'lg:col-span-5 space-y-6 min-w-0';
+            if (graphColumn) graphColumn.className = 'lg:col-span-7 space-y-6 min-w-0';
             
             App.calculatePlan();
         },

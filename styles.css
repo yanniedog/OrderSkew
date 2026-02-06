@@ -591,6 +591,40 @@ button, .btn-primary, .btn-secondary, .mode-card, .fee-type-btn, .chart-toggle-b
     margin-top: 0;
 }
 
+/* Prevent blank space: constrain grid and table so layout fills correctly */
+#app {
+    overflow-x: hidden;
+    width: 100%;
+}
+#app > main {
+    width: 100%;
+}
+#main-content-grid {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+@media (min-width: 1024px) {
+    #main-content-grid {
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+}
+#config-column,
+#graph-column {
+    min-width: 0 !important;
+    overflow: hidden;
+    max-width: 100%;
+}
+/* Table (1923px) was forcing graph column to 1925px - break the cycle */
+#data-tables-card,
+#data-tables-card .relative {
+    min-width: 0;
+}
+#depth-wrapper {
+    flex: 1 1 0;
+    overflow: hidden;
+}
+
 /* --- ADVANCED MODE TOGGLE --- */
 .advanced-toggle {
     display: flex;
