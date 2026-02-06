@@ -1231,7 +1231,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                avgBuyPrice = effectiveAsset > 0 ? effectiveSpent / effectiveAsset : 0;
+                const ladderAvgBuy = effectiveAsset > 0 ? effectiveSpent / effectiveAsset : 0;
+                avgBuyPrice = !reuseSnapshot && Number.isFinite(targetAvgBuy) && targetAvgBuy > 0 ? targetAvgBuy : ladderAvgBuy;
                 let assetAllocations = [];
                 if (sellOnly && effectiveAsset <= 0) {
                     assetAllocations = Array(N).fill(0);

@@ -161,7 +161,7 @@ const Calculator = {
         const curveValue = Math.pow(targetRatio, shapedIndex);
         return Math.max(curveValue - 1 + minWeight, Number.EPSILON);
     },
-    integrateSkewWeights: (count, skewValue, steps = 6) => {
+    integrateSkewWeights: (count, skewValue, steps = 24) => {
         if (count <= 0) return [];
         if (skewValue <= 0) return Array(count).fill(1);
         const n = steps % 2 === 0 ? steps : steps + 1;
@@ -227,8 +227,8 @@ const Calculator = {
             return sumWOverP > 0 ? (sumW / sumWOverP) : 0;
         };
 
-        let low = -6;
-        let high = 6;
+        let low = -12;
+        let high = 12;
         let avgLow = avgForAlpha(low);
         let avgHigh = avgForAlpha(high);
         if (!Number.isFinite(avgLow) || !Number.isFinite(avgHigh) || avgLow === 0 || avgHigh === 0) {
@@ -241,7 +241,7 @@ const Calculator = {
             return weights.map((w, i) => w * Math.pow(prices[i], high));
         }
 
-        for (let i = 0; i < 32; i++) {
+        for (let i = 0; i < 64; i++) {
             const mid = (low + high) / 2;
             const avgMid = avgForAlpha(mid);
             if (avgMid < targetAvg) {
