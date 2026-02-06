@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
             App.loadAdvancedMode();
             App.loadCopyDecimalPlaces();
             App.bindEvents();
+            App.togglePriceMode();
             
             // Show intro only if the user hasn't already seen it
             const introLayer = document.getElementById('intro-layer');
@@ -243,15 +244,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            const advancedHint = document.getElementById('advanced-hint');
-            
-            // Progressive disclosure: Advanced mode shows all controls, beginner mode shows minimal
+            // Progressive disclosure: Advanced mode expands Price Range & Allocation, beginner mode keeps them collapsed
             if (State.advancedMode) {
                 // Show all advanced elements
-                if (els.proControls) {
-                    els.proControls.classList.remove('hidden');
-                    els.proControls.style.display = '';
-                }
+                const priceRangeDetails = document.getElementById('price-range-details');
+                const allocationDetails = document.getElementById('allocation-details');
+                if (priceRangeDetails) priceRangeDetails.setAttribute('open', '');
+                if (allocationDetails) allocationDetails.setAttribute('open', '');
                 if (modeToggleContainer) {
                     modeToggleContainer.classList.remove('hidden');
                     modeToggleContainer.style.display = '';
@@ -268,23 +267,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     exportMenu.classList.remove('hidden');
                     exportMenu.style.display = '';
                 }
-                if (advancedHint) {
-                    advancedHint.style.display = 'none';
-                }
                 advancedModeOptions.forEach(option => option.classList.remove('hidden'));
                 // Set mode to pro to show all customization options
                 if (State.mode !== 'pro') {
                     App.setMode('pro');
                 }
-                // Expand all collapsible sections for easy access
-                const details = document.querySelectorAll('#pro-controls details');
-                details.forEach(detail => detail.setAttribute('open', ''));
             } else {
-                // Hide all advanced elements for minimal beginner view
-                if (els.proControls) {
-                    els.proControls.classList.add('hidden');
-                    els.proControls.style.display = 'none';
-                }
+                // Hide all advanced elements for minimal beginner view; collapse Price Range & Allocation
+                const priceRangeDetails = document.getElementById('price-range-details');
+                const allocationDetails = document.getElementById('allocation-details');
+                if (priceRangeDetails) priceRangeDetails.removeAttribute('open');
+                if (allocationDetails) allocationDetails.removeAttribute('open');
                 if (modeToggleContainer) {
                     modeToggleContainer.classList.add('hidden');
                     modeToggleContainer.style.display = 'none';
@@ -300,9 +293,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (exportMenu) {
                     exportMenu.classList.add('hidden');
                     exportMenu.style.display = 'none';
-                }
-                if (advancedHint) {
-                    advancedHint.style.display = 'block';
                 }
                 advancedModeOptions.forEach(option => option.classList.add('hidden'));
                 if (State.tradingMode === 'short-sell') {
@@ -552,7 +542,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (priceRangeFloor) priceRangeFloor.addEventListener('click', () => {
                 if (els.priceRangeMode) { els.priceRangeMode.value = 'floor'; els.priceRangeMode.dispatchEvent(new Event('change')); }
             });
-            updateRangeTypeUI(els.priceRangeMode?.value || 'width');
+            updateRangeTypeUI(els.priceRangeMode?.value || 'floor');
 
             // Selects
             [els.priceRangeMode, els.feeSettlement, els.spacingMode].forEach(el => {
@@ -1023,12 +1013,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (els.modeSimple) els.modeSimple.className = `px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='simple'?activeClass:inactiveClass}`;
             if (els.modePro) els.modePro.className = `px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='pro'?activeClass:inactiveClass}`;
             
-            // Pro controls visibility is handled by applyAdvancedMode
-            // Only toggle here if advanced mode is on
-            if (State.advancedMode && els.proControls) {
-                els.proControls.classList.toggle('hidden', mode === 'simple');
-                els.proControls.style.display = mode === 'simple' ? 'none' : '';
-            }
             
             const mainGrid = document.getElementById('main-content-grid');
             const configColumn = document.getElementById('config-column');
@@ -1138,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const isRelativeSpacing = spacingMode === 'relative' && hasValidCurrentPrice;
 
             let buyPriceEnd, sellPriceEnd;
-            const useFloor = State.mode === 'pro' && els.priceRangeMode?.value === 'floor';
+            const useFloor = els.priceRangeMode?.value === 'floor';
             
             if (useFloor) {
                 const buyFloorValue = parseFloat(els.buyFloor?.value);
@@ -1244,12 +1228,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 let cumSold = 0;
                 let cumProfit = 0;
+                let cumNetRev = 0, cumQty = 0;
                 sellLadder = sellLadder.map(r => {
                     const costBasis = avgBuyPrice * r.assetSize;
                     const profit = r.netRevenue - costBasis;
                     cumSold += r.assetSize;
                     cumProfit += profit;
-                    return { ...r, profit, cumSold, cumProfit };
+                    cumNetRev += r.netRevenue;
+                    cumQty += r.assetSize;
+                    const avg = cumQty > 0 ? cumNetRev / cumQty : 0;
+                    return { ...r, profit, cumSold, cumProfit, avg };
                 });
             } else {
                 const reuseSnapshot = sellOnly && State.baselineBuySnapshot && State.baselineBuySnapshot.buyLadder.length > 0;
@@ -1352,6 +1340,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     cumProfit += profit;
 
                     return { rung: i+1, price, assetSize: qty, capital: grossRev, fee, netRevenue: netRev, profit, cumSold, cumProfit };
+                });
+                let cumNetRev = 0, cumQty = 0;
+                sellLadder.forEach(r => {
+                    cumNetRev += r.netRevenue;
+                    cumQty += r.assetSize;
+                    r.avg = cumQty > 0 ? cumNetRev / cumQty : 0;
                 });
 
                 avgSell = effectiveAsset > 0 ? totalSellRev / effectiveAsset : 0;

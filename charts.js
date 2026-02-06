@@ -319,6 +319,9 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
             const avgBuyLine = d.isBuy && Number.isFinite(d.avg) && d.avg > 0
                 ? `<div>Avg Buy: ${Utils.fmtCurr(d.avg)}</div>`
                 : '';
+            const avgSellLine = !d.isBuy && Number.isFinite(d.avg) && d.avg > 0
+                ? `<div>Avg Sell: ${Utils.fmtCurr(d.avg)}</div>`
+                : '';
             const html = `
                 <div class="font-bold ${d.isBuy ? "text-red-400" : "text-green-400"}">
                     ${d.isBuy ? "Buy" : "Sell"} Order #${d.rung}
@@ -334,6 +337,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
                     <div>${qtyLabel}: ${Utils.fmtNum(d.cumulativeQty, 4)}</div>
                     <div>Val: ${Utils.fmtCurr(d.cumulativeVal)}</div>
                     ${avgBuyLine}
+                    ${avgSellLine}
                 </div>
             `;
 

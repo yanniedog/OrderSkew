@@ -714,14 +714,11 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Right section: Price Range & Allocation -->
+                            <!-- Right section: Price Range & Allocation (always visible, collapsed in non-advanced) -->
                             <div class="space-y-4">
                                 <h3 class="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Price Range & Allocation</h3>
-                                <div id="advanced-hint" class="text-xs text-[var(--color-text-muted)] text-center py-4 opacity-60">
-                                    Advanced controls live in <span class="font-medium">Actions</span> â†’ <span class="font-medium">Advanced settings</span>.
-                                </div>
-                                <div id="pro-controls" class="hidden space-y-4" style="display: none;">
-                                    <details class="mt-2" open>
+                                <div id="price-range-allocation-controls" class="space-y-4">
+                                    <details id="price-range-details" class="mt-2">
                                         <summary class="accordion-summary">
                                             <span>Price Range</span>
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -740,29 +737,25 @@
                                                     <input type="number" id="number_of_rungs_input" value="10" min="2" max="50" class="form-input w-14 rounded-md p-1 text-center text-xs">
                                                 </div>
                                             </div>
-                                            <div>
-                                                <div class="flex items-center gap-1 mb-1.5">
-                                                    <label class="text-xs font-medium text-[var(--color-text-secondary)]">Spacing Mode</label>
-                                                    <button type="button" class="helper-tooltip" title="'Absolute' means equal dollar distance between orders. 'Relative' means geometric progression (percentage distance).">?</button>
+                                            <div class="flex flex-wrap items-end gap-3">
+                                                <div class="flex-1 min-w-[100px]">
+                                                    <label class="text-[10px] font-medium text-[var(--color-text-secondary)] mb-1 block">Spacing</label>
+                                                    <div class="flex rounded border border-[var(--color-border)] overflow-hidden bg-[var(--color-card-muted)]">
+                                                        <button type="button" id="spacing_mode_absolute" class="spacing-mode-btn fee-type-btn active px-2 py-1.5 text-[10px] font-medium transition-all active:scale-95" data-value="absolute">Abs</button>
+                                                        <button type="button" id="spacing_mode_relative" class="spacing-mode-btn fee-type-btn px-2 py-1.5 text-[10px] font-medium transition-all active:scale-95" data-value="relative">Rel</button>
+                                                    </div>
                                                 </div>
-                                                <div class="flex rounded-lg border border-[var(--color-border)] overflow-hidden bg-[var(--color-card)]">
-                                                    <button type="button" id="spacing_mode_absolute" class="spacing-mode-btn fee-type-btn active px-3 py-2 text-xs font-medium transition-all active:scale-95" data-value="absolute">Absolute</button>
-                                                    <button type="button" id="spacing_mode_relative" class="spacing-mode-btn fee-type-btn px-3 py-2 text-xs font-medium transition-all active:scale-95" data-value="relative">Relative</button>
+                                                <div class="flex-1 min-w-[100px]">
+                                                    <label class="text-[10px] font-medium text-[var(--color-text-secondary)] mb-1 block">Range</label>
+                                                    <div class="flex rounded border border-[var(--color-border)] overflow-hidden bg-[var(--color-card-muted)]">
+                                                        <button type="button" id="price_range_width" class="range-type-btn fee-type-btn px-2 py-1.5 text-[10px] font-medium transition-all active:scale-95" data-value="width">%</button>
+                                                        <button type="button" id="price_range_floor" class="range-type-btn fee-type-btn active px-2 py-1.5 text-[10px] font-medium transition-all active:scale-95" data-value="floor">Fixed</button>
+                                                    </div>
                                                 </div>
                                                 <input type="hidden" id="spacing_mode" value="absolute">
+                                                <input type="hidden" id="price_range_mode" value="floor">
                                             </div>
-                                            <div class="border-t border-[var(--color-border)]"></div>
-                                            <div>
-                                                <div class="flex items-center gap-1 mb-1.5">
-                                                    <label class="text-xs font-medium text-[var(--color-text-secondary)]">Range Type</label>
-                                                </div>
-                                                <div class="flex rounded-lg border border-[var(--color-border)] overflow-hidden bg-[var(--color-card)]">
-                                                    <button type="button" id="price_range_width" class="range-type-btn fee-type-btn active px-3 py-2 text-xs font-medium transition-all active:scale-95" data-value="width">Percentage (%)</button>
-                                                    <button type="button" id="price_range_floor" class="range-type-btn fee-type-btn px-3 py-2 text-xs font-medium transition-all active:scale-95" data-value="floor">Fixed Range</button>
-                                                </div>
-                                                <input type="hidden" id="price_range_mode" value="width">
-                                            </div>
-                                            <div id="width-mode-container">
+                                            <div id="width-mode-container" class="hidden">
                                                 <div class="flex items-center gap-2 mb-1">
                                                     <span class="text-[10px] font-mono text-[var(--color-text-muted)]">0.1%</span>
                                                     <span class="flex-1"></span>
@@ -777,8 +770,8 @@
                                                 </div>
                                                 <div class="text-[10px] text-[var(--color-text-muted)] mt-0.5">Range: <span id="depth_display_label" class="font-mono font-medium text-[var(--color-primary)]">20</span>% each side</div>
                                             </div>
-                                            <div id="floor-mode-container" class="hidden grid grid-cols-2 gap-3">
-                                                <div>
+                                            <div id="floor-mode-container" class="grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));">
+                                                <div class="floor-buy-field">
                                                     <div class="flex items-center gap-1 mb-1">
                                                         <label class="text-[10px] text-[var(--color-text-muted)]">Buy Range Low</label>
                                                         <button type="button" class="helper-tooltip" title="The lowest price boundary for the buy ladder.">?</button>
@@ -788,7 +781,7 @@
                                                         <input type="number" id="buy_floor" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="Low">
                                                     </div>
                                                 </div>
-                                                <div>
+                                                <div class="floor-sell-field">
                                                     <div class="flex items-center gap-1 mb-1">
                                                         <label class="text-[10px] text-[var(--color-text-muted)]">Sell Range High</label>
                                                         <button type="button" class="helper-tooltip" title="The highest price boundary for the sell ladder.">?</button>
@@ -801,7 +794,7 @@
                                             </div>
                                         </div>
                                     </details>
-                                    <details class="mt-2" open>
+                                    <details id="allocation-details" class="mt-2">
                                         <summary class="accordion-summary">
                                             <span>Allocation</span>
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>

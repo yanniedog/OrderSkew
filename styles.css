@@ -288,6 +288,10 @@ input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
     display: none !important;
 }
 
+/* Fixed range fields: show only relevant field per trading mode */
+.sell-mode-active .floor-buy-field { display: none !important; }
+.buy-only-mode-active .floor-sell-field { display: none !important; }
+
 /* --- CARDS --- */
 .card {
     background: var(--color-card);
