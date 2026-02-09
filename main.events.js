@@ -5,6 +5,13 @@
     window.OrderSkewModules.attachEventMethods = (App, els) => {
         Object.assign(App, {
         bindEvents: () => {
+            const menuCloseRegistry = [];
+            const closeAllMenusExcept = (keepOpenFn) => {
+                menuCloseRegistry.forEach((closeFn) => {
+                    if (closeFn !== keepOpenFn) closeFn();
+                });
+            };
+
             // Mode Switch
             if (els.modeSimple) els.modeSimple.addEventListener('click', () => App.setMode('simple'));
             if (els.modePro) els.modePro.addEventListener('click', () => App.setMode('pro'));
@@ -372,12 +379,32 @@
             // Expose setTradingMode for wizard
             App.setTradingMode = setTradingMode;
 
-            // Dropdown button click
+            // Dropdown button click and keyboard - close other menus when opening mode selector
             if (modeSelectorBtn) {
+                const modeSelectorClose = () => toggleDropdown(false);
+                menuCloseRegistry.push(modeSelectorClose);
                 modeSelectorBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const isOpen = modeSelectorDropdown?.classList.contains('opacity-100');
+                    if (!isOpen) closeAllMenusExcept(modeSelectorClose);
                     toggleDropdown(!isOpen);
+                });
+                modeSelectorBtn.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const isOpen = modeSelectorDropdown?.classList.contains('opacity-100');
+                        toggleDropdown(!isOpen);
+                    } else if (e.key === 'Escape') {
+                        toggleDropdown(false);
+                    } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (!modeSelectorDropdown?.classList.contains('opacity-100')) {
+                            closeAllMenusExcept(modeSelectorClose);
+                        }
+                        toggleDropdown(true);
+                        const firstOption = modeDropdownOptions[0];
+                        if (firstOption) firstOption.focus();
+                    }
                 });
             }
 
@@ -401,24 +428,6 @@
                     toggleDropdown(false);
                 }
             });
-
-            // Keyboard navigation
-            if (modeSelectorBtn) {
-                modeSelectorBtn.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        const isOpen = modeSelectorDropdown?.classList.contains('opacity-100');
-                        toggleDropdown(!isOpen);
-                    } else if (e.key === 'Escape') {
-                        toggleDropdown(false);
-                    } else if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        toggleDropdown(true);
-                        const firstOption = modeDropdownOptions[0];
-                        if (firstOption) firstOption.focus();
-                    }
-                });
-            }
 
             modeDropdownOptions.forEach((option, index) => {
                 option.addEventListener('keydown', (e) => {
@@ -478,16 +487,17 @@
 
                 const isOpen = () => dropdownEl.classList.contains('opacity-100');
 
-                const open = () => {
-                    dropdownEl.classList.remove(...closedClasses);
-                    dropdownEl.classList.add(...openClasses);
-                    buttonEl.setAttribute('aria-expanded', 'true');
-                };
-
                 const close = () => {
                     dropdownEl.classList.remove(...openClasses);
                     dropdownEl.classList.add(...closedClasses);
                     buttonEl.setAttribute('aria-expanded', 'false');
+                };
+
+                const open = () => {
+                    closeAllMenusExcept(close);
+                    dropdownEl.classList.remove(...closedClasses);
+                    dropdownEl.classList.add(...openClasses);
+                    buttonEl.setAttribute('aria-expanded', 'true');
                 };
 
                 const toggle = () => {
@@ -497,6 +507,8 @@
                         open();
                     }
                 };
+
+                menuCloseRegistry.push(close);
 
                 buttonEl.addEventListener('click', (event) => {
                     event.stopPropagation();
@@ -613,8 +625,54 @@
             if (quickSaveConfigBtn) quickSaveConfigBtn.addEventListener('click', App.saveConfig);
             if (quickLoadConfigFile) quickLoadConfigFile.addEventListener('change', App.loadConfig);
             
-            // QR Modal
+            // QR Modal and donation addresses
+            const DONATION_ADDRESSES = {
+                sol: 'F6mjNXKBKzjmKTK1Z9cWabFHZYtxMg8rojuNuppX2EG1',
+                ada: '',
+                bnb: '',
+                doge: '',
+                xmr: ''
+            };
+            const DONATION_LABELS = { sol: 'SOL wallet', ada: 'ADA wallet', bnb: 'BNB wallet', doge: 'DOGE wallet', xmr: 'XMR wallet' };
+            const donationChain = document.getElementById('donation-chain');
+            const donationAddress = document.getElementById('donation-address');
+            const donationCopy = document.getElementById('donation-copy');
+            const donationQr = document.getElementById('donation-qr');
+            const donationNetworkLabel = document.getElementById('donation-network-label');
+            const updateDonationUI = (chain) => {
+                const addr = DONATION_ADDRESSES[chain] || '';
+                if (donationAddress) {
+                    donationAddress.textContent = addr || 'Address not configured';
+                    donationAddress.dataset.address = addr;
+                }
+                if (donationNetworkLabel) donationNetworkLabel.textContent = DONATION_LABELS[chain] || 'Wallet';
+                if (donationQr && typeof QRCode !== 'undefined') {
+                    donationQr.innerHTML = '';
+                    if (addr) new QRCode(donationQr, { text: addr, width: 160, height: 160 });
+                }
+            };
+            if (donationChain) {
+                donationChain.addEventListener('change', () => updateDonationUI(donationChain.value));
+            }
+            if (donationCopy && donationAddress) {
+                donationCopy.addEventListener('click', () => {
+                    const addr = donationAddress.dataset.address;
+                    if (addr) Utils.copyToClipboard(addr);
+                });
+            }
+            if (donationAddress) {
+                donationAddress.addEventListener('click', () => {
+                    const addr = donationAddress.dataset.address;
+                    if (addr) Utils.copyToClipboard(addr);
+                });
+            }
             const toggleModal = Utils.bindModal(els.qrModal, [els.solBtn], [els.qrBackdrop, els.qrClose]);
+            if (els.qrModal && els.solBtn) {
+                els.solBtn.addEventListener('click', () => {
+                    const chain = donationChain?.value || 'sol';
+                    updateDonationUI(chain);
+                });
+            }
 
             // Video Modal with lazy loading (accessible from main screen header)
             const videoIframe = els.videoModal?.querySelector('iframe');

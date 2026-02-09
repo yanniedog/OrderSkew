@@ -144,8 +144,8 @@
             const activeClass = "shadow-sm bg-[var(--color-card)] text-[var(--color-primary)]";
             const inactiveClass = "text-[var(--color-text-secondary)] hover:text-[var(--color-text)]";
             
-            if (els.modeSimple) els.modeSimple.className = `px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='simple'?activeClass:inactiveClass}`;
-            if (els.modePro) els.modePro.className = `px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='pro'?activeClass:inactiveClass}`;
+            if (els.modeSimple) els.modeSimple.className = `mode-switch-pill px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='simple'?activeClass:inactiveClass}`;
+            if (els.modePro) els.modePro.className = `mode-switch-pill px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='pro'?activeClass:inactiveClass}`;
             
             
             const mainGrid = document.getElementById('main-content-grid');
@@ -153,9 +153,9 @@
             const graphColumn = document.getElementById('graph-column');
             
             // Layout: Always use two columns on desktop (lg) to fill space; single column on mobile
-            if (mainGrid) mainGrid.className = 'grid grid-cols-1 lg:grid-cols-12 gap-6';
-            if (configColumn) configColumn.className = 'lg:col-span-5 space-y-6 min-w-0';
-            if (graphColumn) graphColumn.className = 'lg:col-span-7 space-y-6 min-w-0';
+            if (mainGrid) mainGrid.className = 'app-layout-grid grid grid-cols-1 lg:grid-cols-12 gap-6';
+            if (configColumn) configColumn.className = 'controls-column lg:col-span-5 space-y-6 min-w-0';
+            if (graphColumn) graphColumn.className = 'viz-column lg:col-span-7 space-y-6 min-w-0 overflow-hidden';
             
             App.calculatePlan();
         },
@@ -171,10 +171,10 @@
 
         switchTab: (tab) => {
             State.activeTab = tab;
-            const activeClass = "buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors";
-            const inactiveClass = "sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors";
-            const activeClassSell = "sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors";
-            const inactiveClassBuy = "buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors";
+            const activeClass = "table-tab-btn buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors";
+            const inactiveClass = "table-tab-btn sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors";
+            const activeClassSell = "table-tab-btn sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors";
+            const inactiveClassBuy = "table-tab-btn buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors";
             
             if (els.tabBuy) els.tabBuy.className = tab === 'buy' ? activeClass : inactiveClassBuy;
             if (els.tabSell) els.tabSell.className = tab === 'sell' ? activeClassSell : inactiveClass;
