@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
         loadCopyDecimalPlaces: () => {
             const saved = localStorage.getItem(CONSTANTS.STORAGE_PREFIX + 'copy_decimal_places');
             const parsed = saved !== null ? parseInt(saved, 10) : 8;
-            State.copyDecimalPlaces = Number.isFinite(parsed) ? Math.min(32, Math.max(0, parsed)) : 8;
+            State.copyDecimalPlaces = Number.isFinite(parsed) ? Math.min(CONSTANTS.MAX_COPY_DECIMALS, Math.max(0, parsed)) : CONSTANTS.MAX_COPY_DECIMALS;
             if (els.copyDecimalPlaces) els.copyDecimalPlaces.value = State.copyDecimalPlaces;
         },
 
@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (els.copyDecimalPlaces) {
                 els.copyDecimalPlaces.addEventListener('input', () => {
                     const v = parseInt(els.copyDecimalPlaces.value, 10);
-                    State.copyDecimalPlaces = Number.isFinite(v) ? Math.min(32, Math.max(0, v)) : 8;
+                    State.copyDecimalPlaces = Number.isFinite(v) ? Math.min(CONSTANTS.MAX_COPY_DECIMALS, Math.max(0, v)) : CONSTANTS.MAX_COPY_DECIMALS;
                     els.copyDecimalPlaces.value = State.copyDecimalPlaces;
                     localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'copy_decimal_places', String(State.copyDecimalPlaces));
                     if (State.currentPlanData) {
@@ -1362,27 +1362,26 @@ document.addEventListener('DOMContentLoaded', function () {
             const s = plan.summary;
             const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
             const setCls = (id, cls) => { const el = document.getElementById(id); if(el) el.className = cls; };
-            const dec = State.copyDecimalPlaces ?? 8;
             
             const summaryMap = {
-                'chart-summary-net-profit': Utils.fmtCurr(s.netProfit, dec), 
+                'chart-summary-net-profit': Utils.fmtCurrDisplay(s.netProfit), 
                 'chart-summary-roi': Utils.fmtPct(s.roi),
-                'chart-summary-avg-buy': Utils.fmtCurr(s.avgBuy, dec), 
-                'chart-summary-avg-sell': Utils.fmtCurr(s.avgSell, dec),
-                'chart-summary-total-fees': Utils.fmtCurr(s.totalFees, dec), 
-                'chart-summary-total-quantity': Utils.fmtNum(s.totalQuantity, dec),
-                'chart-summary-buy-value': Utils.fmtCurr(s.buyTotalValue, dec),
-                'chart-summary-buy-volume': Utils.fmtNum(s.buyTotalVolume, dec),
-                'chart-summary-sell-value': Utils.fmtCurr(s.sellTotalValue, dec),
-                'chart-summary-sell-volume': Utils.fmtNum(s.sellTotalVolume, dec),
-                'sticky-net-profit': Utils.fmtCurr(s.netProfit, dec), 
+                'chart-summary-avg-buy': Utils.fmtCurrDisplay(s.avgBuy), 
+                'chart-summary-avg-sell': Utils.fmtCurrDisplay(s.avgSell),
+                'chart-summary-total-fees': Utils.fmtCurrDisplay(s.totalFees), 
+                'chart-summary-total-quantity': Utils.fmtNumDisplay(s.totalQuantity),
+                'chart-summary-buy-value': Utils.fmtCurrDisplay(s.buyTotalValue),
+                'chart-summary-buy-volume': Utils.fmtNumDisplay(s.buyTotalVolume),
+                'chart-summary-sell-value': Utils.fmtCurrDisplay(s.sellTotalValue),
+                'chart-summary-sell-volume': Utils.fmtNumDisplay(s.sellTotalVolume),
+                'sticky-net-profit': Utils.fmtCurrDisplay(s.netProfit), 
                 'sticky-roi': Utils.fmtPct(s.roi),
-                'sticky-avg-buy': Utils.fmtCurr(s.avgBuy, dec), 
-                'sticky-avg-sell': Utils.fmtCurr(s.avgSell, dec),
-                'sticky-fees': Utils.fmtCurr(s.totalFees, dec), 
-                'sticky-vol': Utils.fmtNum(s.totalQuantity, dec),
-                'sticky-floor': Utils.fmtCurr(s.rangeLow, dec), 
-                'sticky-ceiling': Utils.fmtCurr(s.rangeHigh, dec)
+                'sticky-avg-buy': Utils.fmtCurrDisplay(s.avgBuy), 
+                'sticky-avg-sell': Utils.fmtCurrDisplay(s.avgSell),
+                'sticky-fees': Utils.fmtCurrDisplay(s.totalFees), 
+                'sticky-vol': Utils.fmtNumDisplay(s.totalQuantity),
+                'sticky-floor': Utils.fmtCurrDisplay(s.rangeLow), 
+                'sticky-ceiling': Utils.fmtCurrDisplay(s.rangeHigh)
             };
             Object.entries(summaryMap).forEach(([id, val]) => setTxt(id, val));
             setCls('chart-summary-net-profit', `text-lg font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);
@@ -1395,12 +1394,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 const showExecuted = els.sellOnlyCheck?.checked;
                 return `
                 <td class="px-4 py-3 font-mono text-xs text-[var(--color-text-muted)]">${isSell || !showExecuted ? '' : `<input type="checkbox" class="mr-2" ${State.sellOnlyHighestExecuted===r.rung?'checked':''} onclick="App.toggleExecuted(${r.rung})">`}${r.rung}</td>
-                <td class="px-4 py-3 text-right font-mono copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.price}')">${Utils.fmtSigFig(r.price)}</td>
-                <td class="px-4 py-3 text-right font-mono text-[var(--color-text)] copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.assetSize}')">${Utils.fmtSigFig(r.assetSize)}</td>
-                <td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtSigFig(r.capital)}</td>
-                ${State.showFees ? `<td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtSigFig(r.fee)}</td>` : ''}
+                <td class="px-4 py-3 text-right font-mono copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.price}')">${Utils.fmtNumDisplay(r.price)}</td>
+                <td class="px-4 py-3 text-right font-mono text-[var(--color-text)] copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.assetSize}')">${Utils.fmtNumDisplay(r.assetSize)}</td>
+                <td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtNumDisplay(r.capital)}</td>
+                ${State.showFees ? `<td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtNumDisplay(r.fee)}</td>` : ''}
                 <td class="px-4 py-3 text-right font-mono font-medium ${isSell ? 'text-green-600' : 'text-[var(--color-text-secondary)]'}">
-                    ${Utils.fmtSigFig(isSell ? r.profit : r.avg)}
+                    ${Utils.fmtNumDisplay(isSell ? r.profit : r.avg)}
                 </td>
             `;
             };
@@ -1433,9 +1432,8 @@ document.addEventListener('DOMContentLoaded', function () {
         },
 
         copy: (val) => {
-            const n = parseFloat(String(val));
-            const decimals = State.copyDecimalPlaces ?? 8;
-            const formatted = Number.isFinite(n) ? n.toFixed(Math.min(32, Math.max(0, decimals))) : String(val);
+            const decimals = Number.isFinite(State.copyDecimalPlaces) ? State.copyDecimalPlaces : CONSTANTS.MAX_COPY_DECIMALS;
+            const formatted = Utils.formatForCopy(val, decimals);
             Utils.copyToClipboard(formatted);
         },
         

@@ -32,8 +32,8 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
     const isValue = State.chartUnitType === 'value';
     const isSellOnly = State.tradingMode === 'sell-only';
     const isBuyOnly = State.tradingMode === 'buy-only';
-    const dec = (typeof State !== 'undefined' && State.copyDecimalPlaces != null) ? State.copyDecimalPlaces : 8;
-    const fmtDec = d3.format(`,.${dec}f`);
+    const fmtPrice = (n) => Utils.fmtCurrDisplay(n);
+    const fmtAmount = (n) => Utils.fmtNumDisplay(n);
 
     // Prepare data and compute cumulative values
     const computeCumulatives = (series, valKey) => {
@@ -98,7 +98,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
         } else if (isBuyOnly) {
             midLabel.textContent = 'Buy Ladder';
         } else {
-            midLabel.textContent = `Mid ≈ ${Utils.fmtCurr(mid, dec)}`;
+            midLabel.textContent = `Mid ≈ ${fmtPrice(mid)}`;
         }
     }
 
@@ -245,7 +245,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
     
     const yAxis = d3.axisLeft(y)
         .tickValues(tickValues)
-        .tickFormat(d => "$" + fmtDec(d));
+        .tickFormat(d => fmtPrice(d));
 
     svg.append("g")
         .attr("transform", `translate(${margin.left},0)`)
@@ -258,7 +258,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
     // X-axis
     const xAxis = d3.axisBottom(x)
         .ticks(6)
-        .tickFormat(d => isValue ? "$" + fmtDec(d) : fmtDec(d));
+        .tickFormat(d => isValue ? fmtPrice(d) : fmtAmount(d));
 
     svg.append("g")
         .attr("transform", `translate(0,${height - margin.bottom})`)
@@ -319,25 +319,25 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
             const cumulativeLabel = d.isBuy ? "If Filled To This Rung:" : "Cumulative:";
             const qtyLabel = d.isBuy ? "Qty" : "Vol";
             const avgBuyLine = d.isBuy && Number.isFinite(d.avg) && d.avg > 0
-                ? `<div>Avg Buy: ${Utils.fmtCurr(d.avg, dec)}</div>`
+                ? `<div>Avg Buy: ${fmtPrice(d.avg)}</div>`
                 : '';
             const avgSellLine = !d.isBuy && Number.isFinite(d.avg) && d.avg > 0
-                ? `<div>Avg Sell: ${Utils.fmtCurr(d.avg, dec)}</div>`
+                ? `<div>Avg Sell: ${fmtPrice(d.avg)}</div>`
                 : '';
             const html = `
                 <div class="font-bold ${d.isBuy ? "text-red-400" : "text-green-400"}">
                     ${d.isBuy ? "Buy" : "Sell"} Order #${d.rung}
                 </div>
-                <div>Price: ${Utils.fmtCurr(d.price, dec)}</div>
+                <div>Price: ${fmtPrice(d.price)}</div>
                 <div class="border-t border-gray-600 mt-1 pt-1">
                     <div class="text-gray-400 text-[10px] mb-1">Individual:</div>
-                    <div>Vol: ${Utils.fmtNum(d.individualQty, dec)}</div>
-                    <div>Val: ${Utils.fmtCurr(d.individualVal, dec)}</div>
+                    <div>Vol: ${fmtAmount(d.individualQty)}</div>
+                    <div>Val: ${fmtPrice(d.individualVal)}</div>
                 </div>
                 <div class="border-t border-gray-600 mt-1 pt-1">
                     <div class="text-gray-400 text-[10px] mb-1">${cumulativeLabel}</div>
-                    <div>${qtyLabel}: ${Utils.fmtNum(d.cumulativeQty, dec)}</div>
-                    <div>Val: ${Utils.fmtCurr(d.cumulativeVal, dec)}</div>
+                    <div>${qtyLabel}: ${fmtAmount(d.cumulativeQty)}</div>
+                    <div>Val: ${fmtPrice(d.cumulativeVal)}</div>
                     ${avgBuyLine}
                     ${avgSellLine}
                 </div>

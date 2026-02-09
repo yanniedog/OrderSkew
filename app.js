@@ -3,7 +3,9 @@
 // --- CONSTANTS & UTILS ---
 const CONSTANTS = {
     STORAGE_PREFIX: 'orderskew_v2_',
-    MAX_SKEW_RATIO: 10
+    MAX_SKEW_RATIO: 10,
+    MAX_COPY_DECIMALS: 8,
+    MAX_DISPLAY_DECIMALS: 6
 };
 
 const Utils = {
@@ -19,12 +21,35 @@ const Utils = {
         const dec = Number.isFinite(d) && d >= 0 ? Math.min(32, Math.round(d)) : 2;
         return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: dec, maximumFractionDigits: dec }).format(Number.isFinite(n) ? n : 0);
     },
+    fmtCurrCompact: (n, d = 2) => {
+        const dec = Number.isFinite(d) && d >= 0 ? Math.min(CONSTANTS.MAX_DISPLAY_DECIMALS, Math.round(d)) : 2;
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: dec }).format(Number.isFinite(n) ? n : 0);
+    },
     fmtNum: (n, d=4) => Number.isFinite(n) ? n.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:d}) : '0',
     fmtSigFig: (n) => {
         if (!Number.isFinite(n) || n === 0) return '0';
         return new Intl.NumberFormat('en-US', { minimumSignificantDigits: 5, maximumSignificantDigits: 5 }).format(n);
     },
     fmtPct: (n) => Number.isFinite(n) ? n.toFixed(2) + '%' : '0.00%',
+    getDisplayDecimals: (n, isCurrency = false) => {
+        if (!Number.isFinite(n)) return isCurrency ? 2 : 0;
+        const abs = Math.abs(n);
+        if (abs === 0) return isCurrency ? 2 : 0;
+        if (abs >= 1000) return isCurrency ? 2 : 2;
+        if (abs >= 1) return isCurrency ? 2 : 4;
+        if (abs >= 0.01) return isCurrency ? 4 : 6;
+        return CONSTANTS.MAX_DISPLAY_DECIMALS;
+    },
+    fmtCurrDisplay: (n) => Utils.fmtCurrCompact(n, Utils.getDisplayDecimals(n, true)),
+    fmtNumDisplay: (n) => Utils.fmtNum(n, Utils.getDisplayDecimals(n, false)),
+    formatForCopy: (value, decimals = CONSTANTS.MAX_COPY_DECIMALS) => {
+        const n = typeof value === 'number' ? value : parseFloat(String(value));
+        if (!Number.isFinite(n)) return String(value);
+        const dec = Number.isFinite(decimals) ? Utils.clamp(Math.round(decimals), 0, CONSTANTS.MAX_COPY_DECIMALS) : CONSTANTS.MAX_COPY_DECIMALS;
+        let out = n.toFixed(dec).replace(/(\.\d*?[1-9])0+$/u, '$1').replace(/\.0+$/u, '');
+        if (out === '-0') out = '0';
+        return out;
+    },
     formatNumberWithCommas: (value) => {
         if (value === null || value === undefined) return '';
         const strValue = value.toString();
@@ -286,7 +311,6 @@ window.CONSTANTS = CONSTANTS;
 window.Utils = Utils;
 window.State = State;
 window.Calculator = Calculator;
-
 
 
 
