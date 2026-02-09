@@ -26,8 +26,9 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - PDF export captures the on-screen layout (configuration, charts, and tables) for quick sharing.
 
 ## Architecture Notes
-- `index.html` contains the full application: Tailwind CSS (CDN), D3.js (v7), `html2canvas`, and `jsPDF` are loaded from trusted CDNs.
-- The script maintains a single source of truth for ladder calculations, ensuring charts, tables, and exports share consistent data.
+- `index.html` hosts the static app shell and loads CDN dependencies (Tailwind CSS, D3.js v7, `html2canvas`, and `jsPDF`).
+- Core logic is split across focused scripts: `app.js` (shared constants/state/calculator primitives), `main.navigation.js`, `main.ui.js`, `main.calculator.js`, `main.events.js`, and `main.js` (bootstrap/composition).
+- `State.currentPlanData` remains the single source of truth so charts, tables, exports, and summaries stay consistent.
 - Sell-only workflows clone baseline buy ladders, track executed rungs, and derive existing positions for accurate profit and fee calculations.
 
 ## Development Tips
