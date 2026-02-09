@@ -61,155 +61,114 @@
             </div>
         </div>
     </div>
-    
+
     <!-- How It Works Modal -->
     <div id="how-it-works-modal" class="qr-modal" style="z-index: 10001;">
         <div class="qr-backdrop" id="how-it-works-backdrop"></div>
-        <div class="qr-content w-full max-w-2xl p-0 bg-[var(--color-card)] rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 p-6 border-b border-[var(--color-border)]">
-                <h3 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400 font-solana text-center">How Order Skew Works</h3>
-                <p class="text-center text-[var(--color-text-secondary)] text-sm mt-2">Strategic order placement made simple</p>
+        <div class="qr-content guide-shell w-full max-w-4xl p-0 bg-[var(--color-card)] rounded-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div class="guide-header">
+                <p class="guide-kicker">How It Works</p>
+                <h3 class="guide-title">Build a Ladder in Under 2 Minutes</h3>
+                <p class="guide-subtitle">Order Skew helps you map entries, exits, and expected outcomes before placing a single order.</p>
+                <div class="guide-chip-row">
+                    <span class="guide-chip">Mode</span>
+                    <span class="guide-chip">Range</span>
+                    <span class="guide-chip">Spacing</span>
+                    <span class="guide-chip">Skew</span>
+                    <span class="guide-chip">Review</span>
+                </div>
             </div>
-            
-            <div class="p-6 space-y-4">
-                <details class="group bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] overflow-hidden" open>
-                    <summary class="flex items-center justify-between cursor-pointer px-4 py-3 bg-[var(--color-card-alt)] hover:bg-[var(--color-border)] transition-colors">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span class="text-sm font-semibold text-[var(--color-text)]">Beginner walk-through</span>
-                        </div>
-                        <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <div class="p-4 space-y-2 text-sm text-[var(--color-text-secondary)]">
-                        <p>Order Skew uses <strong class="text-[var(--color-text)]">limit orders</strong> placed in a ladder. Each rung is a pre-set buy or sell at a specific price, so you donâ€™t chase the market.</p>
-                        <ul class="list-disc pl-5 space-y-1">
-                            <li>Buy ladder: rungs below the current price to accumulate cheaper.</li>
-                            <li>Sell ladder: rungs above the current price to take profit gradually.</li>
-                            <li>Rungs are spaced across your chosen range for consistent entries.</li>
-                            <li>Spacing: even (absolute) or geometric (percentage) steps between rungs.</li>
-                        </ul>
-                    </div>
-                </details>
 
-                <details class="group bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] overflow-hidden" open>
-                    <summary class="flex items-center justify-between cursor-pointer px-4 py-3 bg-[var(--color-card-alt)] hover:bg-[var(--color-border)] transition-colors">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span class="text-sm font-semibold text-[var(--color-text)]">Volume vs Value (what the charts show)</span>
-                        </div>
-                        <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <div class="guide-body">
+                <section class="guide-sequence">
+                    <h4 class="guide-section-title">Quick Setup Sequence</h4>
+                    <ol class="guide-step-list">
+                        <li><span>1</span><p>Choose a trading mode: buy-only, sell-only, buy + sell, or short-sell (Pro).</p></li>
+                        <li><span>2</span><p>Set your range using percentage width or fixed floor/ceiling targets.</p></li>
+                        <li><span>3</span><p>Select order count and spacing type: absolute for equal gaps or relative for geometric gaps.</p></li>
+                        <li><span>4</span><p>Adjust capital skew to control how aggressively capital is weighted across rungs.</p></li>
+                        <li><span>5</span><p>Check projected outcomes in the chart and then validate each rung in the table.</p></li>
+                    </ol>
+                </section>
+
+                <details class="guide-detail" open>
+                    <summary>
+                        <span>Read The Chart Correctly</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </summary>
-                    <div class="p-4 space-y-3 text-sm text-[var(--color-text-secondary)]">
-                        <p>Bars = individual rungs. Shaded columns = cumulative size. Volume is units of the asset; Value is dollars.</p>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                            <div class="p-4 rounded-lg bg-[var(--color-card-muted)] border border-[var(--color-border)]">
-                                <div class="flex items-center justify-between mb-3">
-                                    <div class="flex items-center gap-2">
-                                        <p class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Volume</p>
-                                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-border)] text-[var(--color-text-muted)]">Units</span>
-                                    </div>
-                                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text-muted)]">Bars + cumulative</span>
-                                </div>
-                                <div class="h-40 w-full relative" id="how-it-works-volume-chart">
+                    <div class="guide-detail-content">
+                        <p class="guide-note">Bars represent individual rungs. The shaded area shows cumulative exposure.</p>
+                        <div class="guide-chart-grid">
+                            <article class="guide-chart-card">
+                                <header>
+                                    <p>Volume View</p>
+                                    <span>Asset units</span>
+                                </header>
+                                <div id="how-it-works-volume-chart" class="guide-chart-stage">
                                     <svg width="100%" height="100%"></svg>
-                                    <div class="absolute left-2 top-2 text-[10px] text-[var(--color-text-muted)] bg-[var(--color-card)]/80 px-2 py-0.5 rounded">Volume = asset units</div>
                                 </div>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-2 text-center">Even quantities on each side</p>
-                            </div>
-                            <div class="p-4 rounded-lg bg-[var(--color-card-muted)] border border-[var(--color-border)] relative overflow-hidden">
-                                <div class="absolute inset-0 bg-gradient-to-t from-green-500/5 to-transparent pointer-events-none"></div>
-                                <div class="relative z-10">
-                                    <div class="flex items-center justify-between mb-3">
-                                        <div class="flex items-center gap-2">
-                                            <p class="text-xs font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Value</p>
-                                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-500">Dollars</span>
-                                        </div>
-                                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-card)] border border-[var(--color-border)] text-[var(--color-text-muted)]">Bars + cumulative</span>
-                                    </div>
-                                    <div class="h-40 w-full relative" id="how-it-works-value-chart">
-                                        <svg width="100%" height="100%"></svg>
-                                        <div class="absolute left-2 top-2 text-[10px] text-green-400 bg-[var(--color-card)]/80 px-2 py-0.5 rounded">Value = dollars per rung</div>
-                                    </div>
-                                    <p class="text-[10px] text-green-400 mt-2 text-center font-medium">Sells accumulate more $ than buys â†’ profit</p>
+                                <p class="guide-caption">Use this to see position size across the ladder.</p>
+                            </article>
+                            <article class="guide-chart-card guide-chart-card--value">
+                                <header>
+                                    <p>Value View</p>
+                                    <span>Dollar flow</span>
+                                </header>
+                                <div id="how-it-works-value-chart" class="guide-chart-stage">
+                                    <svg width="100%" height="100%"></svg>
                                 </div>
-                            </div>
+                                <p class="guide-caption">Use this to compare capital deployment and expected realized value.</p>
+                            </article>
                         </div>
                     </div>
                 </details>
 
-                <details class="group bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] overflow-hidden" open>
-                    <summary class="flex items-center justify-between cursor-pointer px-4 py-3 bg-[var(--color-card-alt)] hover:bg-[var(--color-border)] transition-colors">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                            <span class="text-sm font-semibold text-[var(--color-text)]">Trading modes</span>
-                        </div>
-                        <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                <details class="guide-detail" open>
+                    <summary>
+                        <span>Trading Modes Cheat Sheet</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </summary>
-                    <div class="p-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                            <div class="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                                <p class="font-medium text-red-400 text-sm">Buy Only</p>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Accumulate with staggered bids below the market.</p>
-                            </div>
-                            <div class="p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-                                <p class="font-medium text-green-400 text-sm">Sell Only</p>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Scale out of an existing position above the market.</p>
-                            </div>
-                            <div class="p-3 rounded-lg bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border border-cyan-500/30">
-                                <p class="font-medium text-cyan-400 text-sm">Buy + Sell</p>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Plan entries and exits around a mid price.</p>
-                            </div>
-                            <div class="p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
-                                <p class="font-medium text-purple-400 text-sm">Short Sell <span class="text-[9px] uppercase ml-1">Pro</span></p>
-                                <p class="text-[10px] text-[var(--color-text-muted)] mt-1">Sell above, buy back lower using a fixed margin budget.</p>
-                            </div>
+                    <div class="guide-detail-content">
+                        <div class="guide-mode-grid">
+                            <article class="guide-mode-card guide-mode-card--buy">
+                                <h5>Buy Only</h5>
+                                <p>Accumulate below market with pre-defined staggered bids.</p>
+                            </article>
+                            <article class="guide-mode-card guide-mode-card--sell">
+                                <h5>Sell Only</h5>
+                                <p>Scale out above market when you already hold inventory.</p>
+                            </article>
+                            <article class="guide-mode-card guide-mode-card--both">
+                                <h5>Buy + Sell</h5>
+                                <p>Bracket both sides to structure a full cycle around a mid price.</p>
+                            </article>
+                            <article class="guide-mode-card guide-mode-card--short">
+                                <h5>Short Sell (Pro)</h5>
+                                <p>Distribute entries above, then cover lower against a margin budget.</p>
+                            </article>
                         </div>
                     </div>
                 </details>
 
-                <details class="group bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] overflow-hidden">
-                    <summary class="flex items-center justify-between cursor-pointer px-4 py-3 bg-[var(--color-card-alt)] hover:bg-[var(--color-border)] transition-colors">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span class="text-sm font-semibold text-[var(--color-text)]">Step-by-step</span>
-                        </div>
-                        <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                <details class="guide-detail">
+                    <summary>
+                        <span>Risk Checklist Before Executing</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </summary>
-                    <div class="p-4 text-sm text-[var(--color-text-secondary)] space-y-2">
-                        <ol class="list-decimal pl-5 space-y-1">
-                            <li>Pick a trading mode (Buy, Sell, Buy + Sell, or Short Sell in Pro).</li>
-                            <li>Set your range (percentage or fixed price) so the ladder spans where you expect action.</li>
-                            <li>Choose spacing: <em>Absolute</em> = equal dollar gaps, <em>Relative</em> = geometric % gaps.</li>
-                            <li>Set range (percentage or fixed floor/ceiling). The app spreads rungs across your range.</li>
-                            <li>Review volume/value charts. Bars are individual rungs; shaded areas show cumulative totals.</li>
-                        </ol>
-                    </div>
-                </details>
-
-                <details class="group bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] overflow-hidden">
-                    <summary class="flex items-center justify-between cursor-pointer px-4 py-3 bg-[var(--color-card-alt)] hover:bg-[var(--color-border)] transition-colors">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span class="text-sm font-semibold text-[var(--color-text)]">Tips for newcomers</span>
-                        </div>
-                        <svg class="w-4 h-4 text-[var(--color-text-muted)] transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </summary>
-                    <div class="p-4 text-sm text-[var(--color-text-secondary)] space-y-2">
-                        <ul class="list-disc pl-5 space-y-1">
-                            <li>Use small position sizes while learning. Laddering reduces timing risk.</li>
-                            <li>Fees matter: enable â€œShow Feesâ€ to see impact on each rung.</li>
-                            <li>Geometric spacing widens faster the further you go from the current price.</li>
-                            <li>Always double-check your range and total capital before placing orders at your broker/exchange.</li>
+                    <div class="guide-detail-content">
+                        <ul class="guide-risk-list">
+                            <li>Confirm total capital and fees before sizing up.</li>
+                            <li>Validate floor/ceiling so no rung sits outside your thesis.</li>
+                            <li>Check spacing mode because geometric spacing widens quickly.</li>
+                            <li>Use smaller size while testing and refine after real fills.</li>
                         </ul>
                     </div>
                 </details>
             </div>
 
-            <!-- Footer -->
-            <div class="p-6 border-t border-[var(--color-border)] bg-[var(--color-card-muted)]">
-                <button id="how-it-works-close" class="btn-primary w-full py-3.5 sm:py-3 rounded-lg text-sm font-semibold bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 active:scale-[0.98] transition-all">
-                    Got It - Let's Plan!
+            <div class="guide-footer">
+                <button id="how-it-works-close" class="btn-primary w-full py-3.5 sm:py-3 rounded-lg text-sm font-semibold">
+                    Start Building My Plan
                 </button>
             </div>
         </div>
@@ -499,14 +458,14 @@
         </header>
 
         <!-- Main Content Grid -->
-        <main id="main-content-grid" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <main id="main-content-grid" class="app-layout-grid grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             <!-- Left Column: Controls -->
-            <div id="config-column" class="lg:col-span-5 space-y-6 min-w-0">
+            <div id="config-column" class="controls-column lg:col-span-5 space-y-6 min-w-0">
                 
                 <!-- Input Form Card -->
-                <div class="card p-4 sm:p-5 animate-fade-in" style="animation-delay: 0.1s;">
-                    <div class="flex justify-between items-center mb-4">
+                <div class="card card-panel strategy-card p-4 sm:p-5 animate-fade-in" style="animation-delay: 0.1s;">
+                    <div class="card-masthead flex justify-between items-center mb-4">
                         <h2 class="text-base font-semibold text-[var(--color-text)]">
                             Strategy
                         </h2>
@@ -611,9 +570,9 @@
                         </div>
                         
                         <!-- Two-section layout: Capital+Fees (left) | Price Range+Allocation (right) -->
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2 border-t border-[var(--color-border)]">
+                        <div class="strategy-grid grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2 border-t border-[var(--color-border)]">
                             <!-- Left section: Capital & Fees -->
-                            <div class="space-y-4">
+                            <div class="strategy-panel strategy-panel-primary space-y-4">
                                 <h3 class="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Capital & Fees</h3>
                                 <div id="buy-mode-inputs" class="grid grid-cols-1 gap-4">
                                     <div>
@@ -711,7 +670,7 @@
                                 </div>
                             </div>
                             <!-- Right section: Price Range & Allocation (always visible, collapsed in non-advanced) -->
-                            <div class="space-y-4">
+                            <div class="strategy-panel strategy-panel-secondary space-y-4">
                                 <h3 class="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Price Range & Allocation</h3>
                                 <div id="price-range-allocation-controls" class="space-y-4">
                                     <details id="price-range-details" class="mt-2">
@@ -826,11 +785,11 @@
             </div>
 
             <!-- Right Column: Visualization -->
-            <div id="graph-column" class="lg:col-span-7 space-y-6 min-w-0 overflow-hidden">
+            <div id="graph-column" class="viz-column lg:col-span-7 space-y-6 min-w-0 overflow-hidden">
                 
                 <!-- Combined Depth Chart -->
-                <div id="depth-chart-card" class="card p-4 min-h-[280px] h-[320px] sm:h-[420px] lg:h-[520px] xl:h-[600px] flex flex-col animate-fade-in relative z-0" style="animation-delay: 0.3s;">
-                    <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+                <div id="depth-chart-card" class="card card-panel chart-card p-4 min-h-[280px] h-[320px] sm:h-[420px] lg:h-[520px] xl:h-[600px] flex flex-col animate-fade-in relative z-0" style="animation-delay: 0.3s;">
+                    <div class="chart-card-head flex flex-wrap justify-between items-center gap-2 mb-2">
                         <div id="chart-legend" class="flex flex-wrap items-center gap-2 text-[10px]">
                             <!-- Buy Legend -->
                             <div id="chart-buy-legend" class="chart-buy-legend buy-only-content flex items-center gap-1.5">
@@ -910,9 +869,9 @@
                 </div>
 
                 <!-- Data Tables -->
-                <div id="data-tables-card" class="card overflow-hidden animate-fade-in mb-48 lg:mb-8" style="animation-delay: 0.5s;">
-                    <div class="border-b border-[var(--color-border)] flex flex-col sm:flex-row justify-between items-stretch sm:items-center">
-                        <div id="table-tabs" class="flex flex-1">
+                <div id="data-tables-card" class="card card-panel table-card overflow-hidden animate-fade-in mb-48 lg:mb-8" style="animation-delay: 0.5s;">
+                    <div class="table-card-head border-b border-[var(--color-border)] flex flex-col sm:flex-row justify-between items-stretch sm:items-center">
+                        <div id="table-tabs" class="table-tab-strip flex flex-1">
                             <button id="tab-buy" class="buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors"><span id="tab-buy-label">Buy Orders</span></button>
                             <button id="tab-sell" class="sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors"><span id="tab-sell-label">Sell Orders</span></button>
                         </div>
@@ -981,6 +940,7 @@
     <script src="main.js"></script>
 </body>
 </html>
+
 
 
 
