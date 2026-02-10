@@ -48,12 +48,6 @@
         analyzedProjectedSavings: document.getElementById('analyzedProjectedSavings'),
         analyzedAccounts: document.getElementById('analyzedAccounts')
     };
-    // #region agent log
-    (function () {
-        const missing = Object.keys(els).filter(function (k) { return els[k] == null; });
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'app.js:els', message: 'DOM elements check', data: { missingCount: missing.length, missing: missing.slice(0, 5), hasForm: !!els.form, hasStartDate: !!els.startDate, hasChartCanvas: !!els.chartCanvas }, timestamp: Date.now(), hypothesisId: 'H2' }) }).catch(function () {});
-    })();
-    // #endregion
 
     const FREQ = {
         monthly: { periodsPerYear: 12, dayStep: 30 },
@@ -128,28 +122,45 @@
         return Number.isFinite(x) ? x : null;
     }
 
+    function colIndex(headers, name) {
+        const lower = name.toLowerCase();
+        const exact = headers.indexOf(name);
+        if (exact >= 0) return exact;
+        const i = headers.findIndex((h) => h.trim().toLowerCase() === lower);
+        return i >= 0 ? i : -1;
+    }
+
     function parsePocketsmithCsv(text) {
         const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter((l) => l.trim().length > 0);
         if (lines.length < 2) throw new Error('CSV appears empty.');
         const headers = splitCsvLine(lines[0]).map((h) => h.trim());
-        if (!headers.includes('Date')) throw new Error("CSV missing 'Date' column.");
-        const idx = {};
-        headers.forEach((h, i) => { idx[h] = i; });
+        const idxDate = colIndex(headers, 'Date');
+        if (idxDate < 0) throw new Error("CSV missing 'Date' column.");
+        const idxAmount = colIndex(headers, 'Amount');
+        if (idxAmount < 0) throw new Error("CSV missing 'Amount' column.");
+        const idxAccount = colIndex(headers, 'Account');
+        if (idxAccount < 0) throw new Error("CSV missing 'Account' column.");
+        const idxClosingBalance = colIndex(headers, 'Closing Balance');
+        const idxMerchant = colIndex(headers, 'Merchant');
+        const idxMemo = colIndex(headers, 'Memo');
+        const idxCategory = colIndex(headers, 'Category');
         const rows = [];
         for (let i = 1; i < lines.length; i += 1) {
             const cols = splitCsvLine(lines[i]);
-            const date = parseDate(cols[idx.Date] || '');
+            const date = parseDate(cols[idxDate] || '');
             if (!date) continue;
-            const amount = parseAmount(cols[idx.Amount]);
-            const balance = parseAmount(cols[idx['Closing Balance']]);
-            const account = htmlDecode((cols[idx.Account] || '').trim());
+            const amount = parseAmount(idxAmount >= 0 ? cols[idxAmount] : undefined);
+            const balance = parseAmount(idxClosingBalance >= 0 ? cols[idxClosingBalance] : undefined);
+            const account = htmlDecode((idxAccount >= 0 ? cols[idxAccount] : '').trim());
             if (!account || amount === null) continue;
+            const descCol = idxMerchant >= 0 ? cols[idxMerchant] : (idxMemo >= 0 ? cols[idxMemo] : '');
+            const catCol = idxCategory >= 0 ? cols[idxCategory] : '';
             rows.push({
                 date,
                 amount,
                 account,
-                description: htmlDecode((cols[idx.Merchant] || cols[idx.Memo] || '').trim()),
-                category: (cols[idx.Category] || '').trim(),
+                description: htmlDecode(descCol.trim()),
+                category: catCol.trim(),
                 closing_balance: balance,
                 row_index: i + 1
             });
@@ -187,9 +198,6 @@
         const { loan, offset } = classifyAccounts(rows);
         if (!loan.length) throw new Error('No loan accounts detected in this file.');
         const relevant = rows.filter((r) => loan.includes(r.account) || offset.includes(r.account));
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'app.js:summarize', message: 'summarize pre minDate', data: { rowsLen: rows.length, loanLen: loan.length, offsetLen: offset.length, relevantLen: relevant.length }, timestamp: Date.now(), hypothesisId: 'H5' }) }).catch(function () {});
-        // #endregion
         let minDate = cloneDate(relevant[0].date);
         let maxDate = cloneDate(relevant[0].date);
         const byAccDate = {};
@@ -403,9 +411,6 @@
 
     function drawChart(baseline, optimized, principal) {
         const c = els.chartCanvas;
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'app.js:drawChart', message: 'drawChart entry', data: { hasCanvas: !!c, principal: principal, baselineLen: (baseline && baseline.length) || 0, optimizedLen: (optimized && optimized.length) || 0 }, timestamp: Date.now(), hypothesisId: 'H4' }) }).catch(function () {});
-        // #endregion
         if (!c) return;
         const ctx = c.getContext('2d');
         if (!ctx || principal <= 0) return;
@@ -459,9 +464,6 @@
             extraRepayment: n(els.extraRepayment.value),
             startDate: parseDate(startDateRaw)
         };
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'app.js:recalcLoanModel', message: 'recalcLoanModel inputs', data: { startDateRaw: startDateRaw, startDateValid: vals.startDate instanceof Date, loanAmount: vals.loanAmount, interestRate: vals.interestRate }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(function () {});
-        // #endregion
         if (!(vals.loanAmount > 0)) return showError('Loan amount must be greater than 0.');
         if (!(vals.interestRate >= 0 && vals.interestRate <= 100)) return showError('Interest rate must be between 0 and 100.');
         if (!(vals.loanTermYears > 0)) return showError('Loan term must be greater than 0.');
@@ -471,9 +473,6 @@
 
         const baseline = simulateLoan({ principal: vals.loanAmount, annualRatePct: vals.interestRate, termYears: vals.loanTermYears, frequency: vals.frequency, offsetBalance: 0, extraRepayment: 0, startDate: vals.startDate });
         const optimized = simulateLoan({ principal: vals.loanAmount, annualRatePct: vals.interestRate, termYears: vals.loanTermYears, frequency: vals.frequency, offsetBalance: vals.offsetBalance, extraRepayment: vals.extraRepayment, startDate: vals.startDate });
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'app.js:simulateLoan', message: 'simulate result', data: { baselineSuccess: baseline.success, optimizedSuccess: optimized.success, baselineReason: baseline.failureReason || null, optimizedReason: optimized.failureReason || null }, timestamp: Date.now(), hypothesisId: 'H3' }) }).catch(function () {});
-        // #endregion
         if (!baseline.success || !optimized.success) return showError((optimized.failureReason || baseline.failureReason || 'Unable to calculate schedule.'));
 
         els.minimumRepayment.textContent = money(optimized.minimumRepayment);
@@ -484,7 +483,15 @@
         els.interestSaved.textContent = money(baseline.totalInterest - optimized.totalInterest);
         const ppy = FREQ[vals.frequency].periodsPerYear;
         const termDiff = Math.max(0, baseline.schedule.length - optimized.schedule.length);
-        els.termReduction.textContent = `${Math.floor(termDiff / ppy)}y ${termDiff % ppy}`;
+        let termReductionText = '0';
+        if (termDiff > 0) {
+            const years = Math.floor(termDiff / ppy);
+            const remainder = termDiff % ppy;
+            const months = ppy === 12 ? remainder : Math.round((remainder / ppy) * 12);
+            if (months > 0) termReductionText = `${years}y ${months}mo`;
+            else termReductionText = `${years}y`;
+        }
+        els.termReduction.textContent = termReductionText;
         els.totalPaid.textContent = money(optimized.totalPaid);
         state.lastBaselineSchedule = baseline.schedule;
         state.lastOptimizedSchedule = optimized.schedule;
@@ -569,6 +576,7 @@
 
     els.form.addEventListener('submit', (e) => { e.preventDefault(); recalcLoanModel(); });
     els.resetBtn.addEventListener('click', () => {
+        hideError();
         els.loanAmount.value = '650000';
         els.interestRate.value = '6.19';
         els.loanTermYears.value = '30';
