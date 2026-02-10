@@ -84,7 +84,7 @@
                     <p id="analyzedCurrentRate">-</p>
                 </article>
                 <article class="metric-card">
-                    <h3>Margin above cash rate</h3>
+                    <h3>Current offset balance</h3>
                     <p id="analyzedCurrentMargin">-</p>
                 </article>
                 <article class="metric-card">
@@ -155,7 +155,7 @@
                 </div>
             </form>
             <p class="helper-text">
-                Assumption: rate is fixed and interest is approximated per repayment period.
+                Assumption: rate is fixed and interest is accrued daily using actual day counts.
             </p>
         </section>
 
@@ -217,6 +217,7 @@
                         <tr>
                             <th>Period</th>
                             <th>Date</th>
+                            <th>Days</th>
                             <th>Payment</th>
                             <th>Interest</th>
                             <th>Principal</th>
