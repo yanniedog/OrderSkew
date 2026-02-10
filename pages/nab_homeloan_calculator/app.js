@@ -500,6 +500,43 @@
         };
     }
 
+    function detectRecurringRepayment(rows, loanAccounts, explicitScheduled) {
+        if (Number.isFinite(explicitScheduled) && explicitScheduled > 0) return explicitScheduled;
+        if (!Array.isArray(rows) || !rows.length || !Array.isArray(loanAccounts) || !loanAccounts.length) return null;
+
+        const preferred = [];
+        const fallback = [];
+        rows.forEach((r) => {
+            if (!loanAccounts.includes(r.account)) return;
+            if (isInterestTxn(r)) return;
+            const descLower = String(r.description || '').toLowerCase();
+            if (descLower.includes('fee') || descLower.includes('refund')) return;
+
+            const normalized = -r.amount;
+            if (!(normalized < 0)) return;
+            const payment = Math.round(Math.abs(normalized) * 100) / 100;
+            if (!(payment > 0)) return;
+
+            if (descLower.startsWith('loan repayment')) preferred.push(payment);
+            fallback.push(payment);
+        });
+
+        const sample = preferred.length >= 2 ? preferred : fallback;
+        if (!sample.length) return null;
+
+        const bins = new Map();
+        sample.forEach((v) => {
+            const key = v.toFixed(2);
+            bins.set(key, (bins.get(key) || 0) + 1);
+        });
+
+        const ranked = [...bins.entries()].sort((a, b) => {
+            if (b[1] !== a[1]) return b[1] - a[1];
+            return Number(b[0]) - Number(a[0]);
+        });
+        return ranked.length ? Number(ranked[0][0]) : null;
+    }
+
     function projectPayoffDate(monthly, currentBalance, currentRate) {
         if (!(currentBalance > 0)) return new Date();
         if (!monthly.length) return addDays(new Date(), 365);
@@ -606,6 +643,7 @@
             periods.push(buildInterestPeriod(partialStart, lastDailyDate, null, dailyMap, lastRatePa, getRateNoticeForDate(rateNotices, lastDailyDate)));
         }
 
+        const detectedScheduledRepayment = detectRecurringRepayment(rows, loan, gt.scheduled_monthly_repayment);
         const out = periods.sort((a, b) => dateCmp(a.period_end, b.period_end)).map((period) => {
             const txSummary = summarizeLoanTransactions(rows, loan, period.period_start, period.period_end, gt.scheduled_monthly_repayment);
             const startBal = (dailyMap[dateKey(period.period_start)] || {}).loan_balance || 0;
@@ -680,6 +718,7 @@
             offsetAccounts: offset,
             ignoredAccounts: ignored,
             classificationWarning: warning,
+            detectedScheduledRepayment,
             avgVoluntaryMonthly: out.length ? out.reduce((s, m) => s + m.voluntary_repayments, 0) / out.length : 0,
             asOfDate: cloneDate(lastDailyDate),
             periodCount: out.length
@@ -1002,19 +1041,31 @@
         const ignoredText = s.ignoredAccounts && s.ignoredAccounts.length
             ? ` | Ignored accounts: ${s.ignoredAccounts.join(', ')}`
             : '';
+        const repaymentText = Number.isFinite(s.detectedScheduledRepayment) && s.detectedScheduledRepayment > 0
+            ? ` | Detected recurring repayment: ${money(s.detectedScheduledRepayment)}`
+            : '';
         const warningText = s.classificationWarning ? ` | ${s.classificationWarning}` : '';
-        els.analyzedAccounts.textContent = `Detected loan accounts: ${s.loanAccounts.join(', ') || 'None'} | Detected offset accounts: ${s.offsetAccounts.join(', ') || 'None'}${ignoredText} | Interest periods analyzed: ${s.periodCount}${warningText}`;
+        els.analyzedAccounts.textContent = `Detected loan accounts: ${s.loanAccounts.join(', ') || 'None'} | Detected offset accounts: ${s.offsetAccounts.join(', ') || 'None'}${ignoredText}${repaymentText} | Interest periods analyzed: ${s.periodCount}${warningText}`;
         els.analysisSummary.classList.remove('hidden');
     }
 
     function applySummaryToCalculator(s, gt) {
         const last = s.monthly[s.monthly.length - 1];
         if (!last) return;
-        els.loanAmount.value = Math.max(0, last.end_balance).toFixed(2);
-        els.interestRate.value = Math.max(0, gt.current_interest_rate || s.currentAnnualRate || 0).toFixed(2);
+        const principal = Math.max(0, last.end_balance);
+        const annualRate = Math.max(0, gt.current_interest_rate || s.currentAnnualRate || 0);
+        els.loanAmount.value = principal.toFixed(2);
+        els.interestRate.value = annualRate.toFixed(2);
         els.offsetBalance.value = Math.max(0, s.currentOffsetBalance || s.averageOffset).toFixed(2);
-        els.extraRepayment.value = Math.max(0, s.avgVoluntaryMonthly).toFixed(2);
         els.repaymentFrequency.value = 'monthly';
+        const minRepay = calculateMinimumRepayment(principal, annualRate, n(els.loanTermYears.value), 'monthly');
+        const recurring = Number.isFinite(gt.scheduled_monthly_repayment) && gt.scheduled_monthly_repayment > 0
+            ? gt.scheduled_monthly_repayment
+            : s.detectedScheduledRepayment;
+        const inferredExtra = Number.isFinite(recurring) && recurring > 0 && Number.isFinite(minRepay)
+            ? Math.max(0, recurring - minRepay)
+            : Math.max(0, s.avgVoluntaryMonthly);
+        els.extraRepayment.value = inferredExtra.toFixed(2);
         els.startDate.value = dateKey(new Date());
         recalcLoanModel();
     }
