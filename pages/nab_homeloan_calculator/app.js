@@ -409,6 +409,40 @@
         els.scheduleNote.textContent = schedule.length > 60 ? `Showing first 60 of ${schedule.length} rows.` : `${schedule.length} repayment periods shown.`;
     }
 
+    function clearChart() {
+        const c = els.chartCanvas;
+        if (!c) return;
+        const ctx = c.getContext('2d');
+        if (!ctx) return;
+        const dpr = window.devicePixelRatio || 1;
+        const r = c.getBoundingClientRect();
+        const w = Math.max(300, Math.floor(r.width));
+        const h = Math.max(220, Math.floor(r.height));
+        c.width = Math.floor(w * dpr);
+        c.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, w, h);
+    }
+
+    function clearResults() {
+        const dash = '-';
+        els.minimumRepayment.textContent = dash;
+        els.plannedRepayment.textContent = dash;
+        els.payoffDate.textContent = dash;
+        els.baselineInterest.textContent = dash;
+        els.optimizedInterest.textContent = dash;
+        els.interestSaved.textContent = dash;
+        els.termReduction.textContent = dash;
+        els.totalPaid.textContent = dash;
+        state.lastBaselineSchedule = [];
+        state.lastOptimizedSchedule = [];
+        els.scheduleBody.innerHTML = '';
+        els.scheduleNote.textContent = '';
+        clearChart();
+    }
+
     function drawChart(baseline, optimized, principal) {
         const c = els.chartCanvas;
         if (!c) return;
@@ -584,7 +618,7 @@
         els.offsetBalance.value = '0';
         els.extraRepayment.value = '0';
         setDefaultDate();
-        recalcLoanModel();
+        clearResults();
     });
     els.downloadCsvBtn.addEventListener('click', () => {
         if (!state.lastOptimizedSchedule.length) return showError('Run a calculation first before downloading CSV.');
@@ -623,5 +657,5 @@
 
     setDefaultDate();
     setUploadStatus('No file selected. Processing is local-only and ephemeral.', 'info');
-    recalcLoanModel();
+    clearResults();
 })();
