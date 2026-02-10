@@ -525,7 +525,13 @@
                     dropdownEl.addEventListener('click', (event) => {
                         const item = event.target.closest(itemSelector);
                         if (item && isOpen()) {
-                            close();
+                            // Defer close for links so navigation isn't cancelled when dropdown hides
+                            const isLink = item.tagName === 'A' && item.getAttribute('href');
+                            if (isLink) {
+                                setTimeout(close, 0);
+                            } else {
+                                close();
+                            }
                         }
                     });
                 }
