@@ -151,11 +151,12 @@
                 });
             }
 
-            // Handle Start Over Button - Return to Welcome Screen
+            // Handle Start Over Button - restart setup wizard in-place
             const startOverBtn = document.getElementById('start-over-btn');
             if (startOverBtn) {
                 startOverBtn.addEventListener('click', () => {
-                    App.returnToWelcome();
+                    SetupWizard.prepare();
+                    SetupWizard.show();
                 });
             }
             

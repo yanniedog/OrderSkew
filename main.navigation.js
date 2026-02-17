@@ -58,26 +58,22 @@
 
 
         handleBackNavigation: () => {
-            const isMainScreen = App.isMainScreenVisible();
-
             if (App.closeOpenOverlays()) {
-                history.pushState({ introVisible: !isMainScreen }, '');
-                return;
-            }
-
-            if (isMainScreen && !App.confirmLeaveMainScreen()) {
                 history.pushState({ introVisible: false }, '');
                 return;
             }
 
-            App.setIntroVisible(true);
-            history.replaceState({ introVisible: true }, '');
+            // Back navigation should not open welcome automatically.
+            App.setIntroVisible(false);
+            history.replaceState({ introVisible: false }, '');
         },
         
 
         returnToWelcome: (fromBackButton = false) => {
-            if (App.isMainScreenVisible() && !fromBackButton) {
-                if (!App.confirmLeaveMainScreen()) return;
+            // Optional save when leaving from main screen; do not block showing welcome
+            if (App.isMainScreenVisible() && !fromBackButton && State.currentPlanData) {
+                const saveNow = confirm('Save your current plan before leaving?');
+                if (saveNow) App.saveConfig();
             }
 
             App.closeOpenOverlays();

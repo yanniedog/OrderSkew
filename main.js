@@ -90,16 +90,15 @@ document.addEventListener('DOMContentLoaded', function () {
             App.bindEvents();
             App.togglePriceMode();
 
-            // Show intro only if the user hasn't already seen it
-            const introSeen = Utils.getCookie('os_intro_seen') === 'true';
-            App.setIntroVisible(!introSeen);
+            // Default to main screen on load; welcome is opened explicitly via title click
+            App.setIntroVisible(false);
 
             // Ensure minimal interface is applied on init
             App.applyAdvancedMode();
 
             // Initialize history state
             if (!history.state || typeof history.state.introVisible !== 'boolean') {
-                history.replaceState({ introVisible: !introSeen }, '');
+                history.replaceState({ introVisible: false }, '');
             }
 
             // Handle browser back button - consolidated handler
