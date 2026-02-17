@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
         startCap: document.getElementById('starting_capital'),
         startCapLabel: document.getElementById('starting_capital_label'),
         currPrice: document.getElementById('current_price'),
+        currPriceSell: document.getElementById('current_price_sell'),
         rungs: document.getElementById('number_of_rungs'),
         rungsInput: document.getElementById('number_of_rungs_input'),
         rungsDisplay: document.getElementById('number_of_rungs_display'),

@@ -190,6 +190,7 @@
             // Format currency inputs with commas
             Utils.bindCurrencyInput(els.startCap, App.debouncedCalc);
             Utils.bindCurrencyInput(els.currPrice, App.debouncedCalc);
+            Utils.bindCurrencyInput(els.currPriceSell, App.debouncedCalc);
 
             // Standard Inputs
             const inputs = [els.buyFloor, els.sellCeiling, els.existQty, els.existAvg, els.feeValue];
@@ -291,12 +292,6 @@
                     icon: '<svg class="w-3.5 h-3.5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>',
                     iconBg: 'bg-cyan-500/20',
                     color: 'cyan'
-                },
-                'short-sell': {
-                    text: 'Short Sell',
-                    icon: '<svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18m0 0l-4-4m4 4l4-4M6 7h12"></path></svg>',
-                    iconBg: 'bg-purple-500/20',
-                    color: 'purple'
                 }
             };
 
@@ -320,7 +315,6 @@
                 State.tradingMode = mode;
                 State.sellOnlyMode = mode === 'sell-only';
                 State.buyOnlyMode = mode === 'buy-only';
-                State.shortSellMode = mode === 'short-sell';
                 if (els.sellOnlyCheck) els.sellOnlyCheck.checked = mode === 'sell-only';
                 
                 // Update label based on mode
@@ -329,8 +323,6 @@
                         els.startCapLabel.textContent = 'Initial Capital';
                     } else if (mode === 'sell-only') {
                         els.startCapLabel.textContent = 'Held Quantity';
-                    } else if (mode === 'short-sell') {
-                        els.startCapLabel.textContent = 'Shorting Capital';
                     } else if (mode === 'buy-sell') {
                         els.startCapLabel.textContent = 'Initial Capital';
                     }
@@ -365,11 +357,9 @@
                 sellModeInputs?.classList.toggle('hidden', mode !== 'sell-only');
                 document.body.classList.toggle('sell-mode-active', mode === 'sell-only');
                 document.body.classList.toggle('buy-only-mode-active', mode === 'buy-only');
-                document.body.classList.toggle('short-sell-mode-active', mode === 'short-sell');
                 
                 if (mode === 'sell-only') App.switchTab('sell');
                 else if (mode === 'buy-only') App.switchTab('buy');
-                else if (mode === 'short-sell') App.switchTab('sell');
                 else State.sellOnlyHighestExecuted = null;
                 
                 App.updateModeLabels();

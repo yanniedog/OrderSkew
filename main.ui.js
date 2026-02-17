@@ -95,7 +95,6 @@
             const chartDisplayOptions = document.getElementById('chart-display-options');
             const tableOptions = document.getElementById('table-options');
             const exportMenu = document.getElementById('export-menu');
-            const advancedModeOptions = document.querySelectorAll('.mode-dropdown-advanced');
             const priceRangeDetails = document.getElementById('price-range-details');
             const allocationDetails = document.getElementById('allocation-details');
             const advancedPanels = [modeToggleContainer, chartDisplayOptions, tableOptions, exportMenu];
@@ -121,7 +120,6 @@
                 App.setDetailExpanded(priceRangeDetails, true);
                 App.setDetailExpanded(allocationDetails, true);
                 advancedPanels.forEach(panel => App.setElementVisible(panel, true));
-                advancedModeOptions.forEach(option => option.classList.remove('hidden'));
                 // Set mode to pro to show all customization options
                 if (State.mode !== 'pro') {
                     App.setMode('pro');
@@ -130,10 +128,6 @@
                 App.setDetailExpanded(priceRangeDetails, false);
                 App.setDetailExpanded(allocationDetails, false);
                 advancedPanels.forEach(panel => App.setElementVisible(panel, false));
-                advancedModeOptions.forEach(option => option.classList.add('hidden'));
-                if (State.tradingMode === 'short-sell' && typeof App.setTradingMode === 'function') {
-                    App.setTradingMode('buy-sell');
-                }
                 // Keep mode as is - don't force simple mode, but hide advanced controls
             }
         },
@@ -184,9 +178,8 @@
 
 
         updateModeLabels: () => {
-            const isShortSell = State.tradingMode === 'short-sell';
-            const buyLabel = isShortSell ? 'Cover Orders' : 'Buy Orders';
-            const sellLabel = isShortSell ? 'Short Sell Orders' : 'Sell Orders';
+            const buyLabel = 'Buy Orders';
+            const sellLabel = 'Sell Orders';
 
             const tabBuyLabel = document.getElementById('tab-buy-label');
             const tabSellLabel = document.getElementById('tab-sell-label');
@@ -195,32 +188,136 @@
 
             const legendBuy = document.getElementById('legend-buy-label');
             const legendSell = document.getElementById('legend-sell-label');
-            if (legendBuy) legendBuy.textContent = isShortSell ? 'Cover' : 'Buy';
-            if (legendSell) legendSell.textContent = isShortSell ? 'Short' : 'Sell';
+            if (legendBuy) legendBuy.textContent = 'Buy';
+            if (legendSell) legendSell.textContent = 'Sell';
 
             const labelBuySide = document.getElementById('label-buy-side');
             const labelSellSide = document.getElementById('label-sell-side');
-            if (labelBuySide) labelBuySide.textContent = isShortSell ? 'Cover Side' : 'Buy Side';
-            if (labelSellSide) labelSellSide.textContent = isShortSell ? 'Short Side' : 'Sell Side';
+            if (labelBuySide) labelBuySide.textContent = 'Buy Side';
+            if (labelSellSide) labelSellSide.textContent = 'Sell Side';
 
             const labelAvgBuy = document.getElementById('label-avg-buy');
             const labelAvgSell = document.getElementById('label-avg-sell');
             const stickyLabelAvgBuy = document.getElementById('sticky-label-avg-buy');
             const stickyLabelAvgSell = document.getElementById('sticky-label-avg-sell');
-            if (labelAvgBuy) labelAvgBuy.textContent = isShortSell ? 'Avg Cover' : 'Avg Buy';
-            if (labelAvgSell) labelAvgSell.textContent = isShortSell ? 'Avg Short' : 'Avg Sell';
-            if (stickyLabelAvgBuy) stickyLabelAvgBuy.textContent = isShortSell ? 'Avg Cover:' : 'Avg Buy:';
-            if (stickyLabelAvgSell) stickyLabelAvgSell.textContent = isShortSell ? 'Avg Short:' : 'Avg Sell:';
+            if (labelAvgBuy) labelAvgBuy.textContent = 'Avg Buy';
+            if (labelAvgSell) labelAvgSell.textContent = 'Avg Sell';
+            if (stickyLabelAvgBuy) stickyLabelAvgBuy.textContent = 'Avg Buy:';
+            if (stickyLabelAvgSell) stickyLabelAvgSell.textContent = 'Avg Sell:';
 
             const buyTableLastCol = document.getElementById('buy-table-last-col');
             const sellTableLastCol = document.getElementById('sell-table-last-col');
-            if (buyTableLastCol) buyTableLastCol.textContent = isShortSell ? 'Avg Cover' : 'Avg Price';
+            if (buyTableLastCol) buyTableLastCol.textContent = 'Avg Price';
             if (sellTableLastCol) sellTableLastCol.textContent = 'Profit';
+
+            const buyRangeLabel = document.getElementById('buy-range-label');
+            const sellRangeLabel = document.getElementById('sell-range-label');
+            if (buyRangeLabel) buyRangeLabel.textContent = 'Buy Range Low';
+            if (sellRangeLabel) sellRangeLabel.textContent = 'Sell Range High';
+        },
+
+        updateCopyCellHighlight: () => {
+            document.querySelectorAll('[data-copy-cell-id]').forEach((cell) => {
+                const cellId = cell.getAttribute('data-copy-cell-id');
+                cell.classList.toggle('copy-cell-selected', cellId === State.selectedCopyCellId);
+                cell.classList.toggle('copy-cell-copied', State.copiedCellIds?.has(cellId));
+            });
+        },
+
+        setFieldValidationState: (missingFieldIds = []) => {
+            const ids = new Set(missingFieldIds);
+            const fields = [
+                els.startCap,
+                els.currPrice,
+                els.currPriceSell,
+                els.buyFloor,
+                els.sellCeiling,
+                els.existQty
+            ];
+            fields.forEach((field) => {
+                if (!field || !field.id) return;
+                field.classList.toggle('input-required-missing', ids.has(field.id));
+            });
+        },
+
+        setPendingOutputs: (validation) => {
+            const missingIds = Array.isArray(validation?.missingIds) ? validation.missingIds : [];
+            const invalidIds = Array.isArray(validation?.invalidIds) ? validation.invalidIds : [];
+            const invalidMessages = Array.isArray(validation?.invalidMessages) ? validation.invalidMessages : [];
+            const hasMultiple = [...new Set([...missingIds, ...invalidIds])].length > 1;
+            const simpleMessage = hasMultiple
+                ? 'Fix the fields highlighted in red.'
+                : 'Fix the field highlighted in red.';
+            const detailMessage = invalidMessages.length ? ` ${invalidMessages.join(' ')}` : '';
+
+            App.setFieldValidationState([...new Set([...missingIds, ...invalidIds])]);
+            const chartSummaryOverlay = document.getElementById('chart-summary-overlay');
+            if (chartSummaryOverlay) chartSummaryOverlay.classList.add('hidden');
+            const sticky = els.stickyFooter;
+            if (sticky) sticky.classList.remove('visible');
+
+            const summaryIds = [
+                'chart-summary-net-profit',
+                'chart-summary-roi',
+                'chart-summary-avg-buy',
+                'chart-summary-avg-sell',
+                'chart-summary-total-fees',
+                'chart-summary-total-quantity',
+                'chart-summary-buy-value',
+                'chart-summary-buy-volume',
+                'chart-summary-sell-value',
+                'chart-summary-sell-volume',
+                'sticky-net-profit',
+                'sticky-roi',
+                'sticky-avg-buy',
+                'sticky-avg-sell',
+                'sticky-fees',
+                'sticky-vol',
+                'sticky-floor',
+                'sticky-ceiling'
+            ];
+            summaryIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '-';
+            });
+
+            const midPriceLabel = document.getElementById('mid-price-label');
+            if (midPriceLabel) midPriceLabel.textContent = 'Complete required inputs to generate projections.';
+
+            const chart = document.getElementById('depth-chart');
+            if (chart) chart.innerHTML = '';
+
+            const chartEmptyState = document.getElementById('chart-empty-state');
+            if (chartEmptyState) {
+                chartEmptyState.classList.remove('hidden');
+                chartEmptyState.innerHTML = `<div class="outputs-empty-panel"><p class="outputs-empty-title">${simpleMessage}</p><p class="outputs-empty-subtitle">Chart and ladder values will appear once corrected.${detailMessage}</p></div>`;
+            }
+
+            const buyTbody = document.getElementById('buy-ladder-body');
+            const sellTbody = document.getElementById('sell-ladder-body');
+            const colSpan = State.showFees ? 6 : 5;
+            const row = `
+                <tr>
+                    <td colspan="${colSpan}" class="px-4 py-5">
+                        <div class="outputs-table-empty">
+                            <p class="outputs-table-empty-title">${simpleMessage}</p>
+                            <p class="outputs-table-empty-note">Table rows will appear once corrected.${detailMessage}</p>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            if (buyTbody) buyTbody.innerHTML = row;
+            if (sellTbody) sellTbody.innerHTML = row;
         },
 
 
         updateUI: (plan) => {
             if (!plan) return;
+            App.setFieldValidationState([]);
+            const chartSummaryOverlay = document.getElementById('chart-summary-overlay');
+            if (chartSummaryOverlay) chartSummaryOverlay.classList.remove('hidden');
+            const chartEmptyState = document.getElementById('chart-empty-state');
+            if (chartEmptyState) chartEmptyState.classList.add('hidden');
             const s = plan.summary;
             const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
             const setCls = (id, cls) => { const el = document.getElementById(id); if(el) el.className = cls; };
@@ -254,10 +351,17 @@
 
             const renderRow = (r, isSell) => {
                 const showExecuted = els.sellOnlyCheck?.checked;
+                const side = isSell ? 'sell' : 'buy';
+                const priceCellId = `${side}-${r.rung}-price`;
+                const sizeCellId = `${side}-${r.rung}-size`;
+                const selectedPriceClass = State.selectedCopyCellId === priceCellId ? 'copy-cell-selected' : '';
+                const selectedSizeClass = State.selectedCopyCellId === sizeCellId ? 'copy-cell-selected' : '';
+                const copiedPriceClass = State.copiedCellIds?.has(priceCellId) ? 'copy-cell-copied' : '';
+                const copiedSizeClass = State.copiedCellIds?.has(sizeCellId) ? 'copy-cell-copied' : '';
                 return `
                 <td class="px-4 py-3 font-mono text-xs text-[var(--color-text-muted)]">${isSell || !showExecuted ? '' : `<input type="checkbox" class="mr-2" ${State.sellOnlyHighestExecuted===r.rung?'checked':''} onclick="App.toggleExecuted(${r.rung})">`}${r.rung}</td>
-                <td class="px-4 py-3 text-right font-mono copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.price}')">${Utils.fmtNumDisplay(r.price)}</td>
-                <td class="px-4 py-3 text-right font-mono text-[var(--color-text)] copy-cursor hover:bg-[var(--color-border)] transition-colors" onclick="App.copy('${r.assetSize}')">${Utils.fmtNumDisplay(r.assetSize)}</td>
+                <td data-copy-cell-id="${priceCellId}" class="px-4 py-3 text-right font-mono copy-cursor hover:bg-[var(--color-border)] transition-colors ${copiedPriceClass} ${selectedPriceClass}" onclick="App.copy('${r.price}', '${priceCellId}')">${Utils.fmtNumDisplay(r.price)}</td>
+                <td data-copy-cell-id="${sizeCellId}" class="px-4 py-3 text-right font-mono text-[var(--color-text)] copy-cursor hover:bg-[var(--color-border)] transition-colors ${copiedSizeClass} ${selectedSizeClass}" onclick="App.copy('${r.assetSize}', '${sizeCellId}')">${Utils.fmtNumDisplay(r.assetSize)}</td>
                 <td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtNumDisplay(r.capital)}</td>
                 ${State.showFees ? `<td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtNumDisplay(r.fee)}</td>` : ''}
                 <td class="px-4 py-3 text-right font-mono font-medium ${isSell ? 'text-green-600' : 'text-[var(--color-text-secondary)]'}">
@@ -293,23 +397,23 @@
         },
 
 
-        copy: (val) => {
+        copy: (val, cellId = null) => {
+            State.selectedCopyCellId = cellId || null;
+            if (cellId) State.copiedCellIds.add(cellId);
             const decimals = Number.isFinite(State.copyDecimalPlaces) ? State.copyDecimalPlaces : CONSTANTS.MAX_COPY_DECIMALS;
             const formatted = Utils.formatForCopy(val, decimals);
             Utils.copyToClipboard(formatted);
+            App.updateCopyCellHighlight();
         },
         
 
         exportCSV: () => {
             if (!State.currentPlanData) return;
             const p = State.currentPlanData;
-            const isShortSell = State.tradingMode === 'short-sell';
-            const buyLabel = isShortSell ? 'Cover' : 'Buy';
-            const sellLabel = isShortSell ? 'Short' : 'Sell';
             const rows = [
                 ['Type', 'Rung', 'Price', 'Size', 'Value', 'Profit/Avg'],
-                ...p.buyLadder.map(r => [buyLabel, r.rung, r.price, r.assetSize, r.capital, r.avg]),
-                ...p.sellLadder.map(r => [sellLabel, r.rung, r.price, r.assetSize, r.capital, r.profit])
+                ...p.buyLadder.map(r => ['Buy', r.rung, r.price, r.assetSize, r.capital, r.avg]),
+                ...p.sellLadder.map(r => ['Sell', r.rung, r.price, r.assetSize, r.capital, r.profit])
             ];
             const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
             const link = document.createElement("a");

@@ -12,9 +12,13 @@
 
 
         resolvePlanSettings: () => {
-            const C = parseFloat(Utils.stripCommas(els.startCap?.value)) || 0;
-            const currentPrice = parseFloat(Utils.stripCommas(els.currPrice?.value)) || 0;
-            const isShortSell = State.tradingMode === 'short-sell';
+            const mode = State.tradingMode;
+            const isSellOnly = mode === 'sell-only';
+            const capitalSource = isSellOnly ? els.existQty?.value : els.startCap?.value;
+            const priceSource = isSellOnly ? els.currPriceSell?.value : els.currPrice?.value;
+            const C = parseFloat(Utils.stripCommas(capitalSource)) || 0;
+            const currentPrice = parseFloat(Utils.stripCommas(priceSource)) || 0;
+            const isShortSell = false;
             const simpleSettings = {
                 N: 10,
                 S: 50,
@@ -62,6 +66,44 @@
             };
         },
 
+        getRequiredInputState: ({ C, currentPrice }) => {
+            const mode = State.tradingMode;
+            const isBuyOnly = mode === 'buy-only';
+            const isSellOnly = mode === 'sell-only';
+            const useFloor = els.priceRangeMode?.value === 'floor';
+            const buyFloor = parseFloat(els.buyFloor?.value);
+            const sellCeiling = parseFloat(els.sellCeiling?.value);
+            const missing = [];
+            const invalid = [];
+            const invalidIds = [];
+
+            if (!(Number.isFinite(C) && C > 0)) {
+                const capLabel = isSellOnly ? 'Held Quantity' : 'Initial Capital';
+                missing.push({ id: isSellOnly ? 'existing_quantity' : 'starting_capital', label: capLabel });
+            }
+            if (!(Number.isFinite(currentPrice) && currentPrice > 0)) {
+                missing.push({ id: isSellOnly ? 'current_price_sell' : 'current_price', label: 'Initial Asset Price' });
+            }
+            if (useFloor && Number.isFinite(currentPrice) && currentPrice > 0) {
+                if (!isSellOnly && Number.isFinite(buyFloor) && buyFloor > 0 && buyFloor >= currentPrice) {
+                    invalid.push('Buy Range Low must be below Initial Asset Price.');
+                    invalidIds.push('buy_floor');
+                }
+                if (!isBuyOnly && Number.isFinite(sellCeiling) && sellCeiling > 0 && sellCeiling <= currentPrice) {
+                    invalid.push('Sell Range High must be above Initial Asset Price.');
+                    invalidIds.push('sell_ceiling');
+                }
+            }
+
+            return {
+                isReady: missing.length === 0 && invalid.length === 0,
+                missingIds: missing.map((f) => f.id),
+                missingLabels: missing.map((f) => f.label),
+                invalidIds,
+                invalidMessages: invalid
+            };
+        },
+
         // --- CORE CALCULATION ---
 
         calculatePlan: () => {
@@ -79,6 +121,12 @@
                 sellOnly,
                 buyOnly
             } = App.resolvePlanSettings();
+            const inputState = App.getRequiredInputState({ C, currentPrice });
+            if (!inputState.isReady) {
+                State.currentPlanData = null;
+                App.setPendingOutputs(inputState);
+                return;
+            }
 
             const feeRate = feeType === 'percent' ? feeValue / 100 : 0;
             const isFeeNetted = feeSettlement !== 'external';

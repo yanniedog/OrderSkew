@@ -83,7 +83,7 @@
                 <section class="guide-sequence">
                     <h4 class="guide-section-title">Quick Setup Sequence</h4>
                     <ol class="guide-step-list">
-                        <li><span>1</span><p>Choose a trading mode: buy-only, sell-only, buy + sell, or short-sell (Pro).</p></li>
+                        <li><span>1</span><p>Choose a trading mode: buy-only, sell-only, or buy + sell.</p></li>
                         <li><span>2</span><p>Set your range using percentage width or fixed floor/ceiling targets.</p></li>
                         <li><span>3</span><p>Select order count and spacing type: absolute for equal gaps or relative for geometric gaps.</p></li>
                         <li><span>4</span><p>Adjust capital skew to control how aggressively capital is weighted across rungs.</p></li>
@@ -141,10 +141,6 @@
                             <article class="guide-mode-card guide-mode-card--both">
                                 <h5>Buy + Sell</h5>
                                 <p>Bracket both sides to structure a full cycle around a mid price.</p>
-                            </article>
-                            <article class="guide-mode-card guide-mode-card--short">
-                                <h5>Short Sell (Pro)</h5>
-                                <p>Distribute entries above, then cover lower against a margin budget.</p>
                             </article>
                         </div>
                     </div>
@@ -557,22 +553,6 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                                         </svg>
                                     </button>
-                                    <button 
-                                        type="button" 
-                                        data-mode="short-sell" 
-                                        class="mode-dropdown-option mode-dropdown-advanced hidden w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--color-card-alt)] transition-colors first:rounded-t-lg last:rounded-b-lg focus:outline-none focus:bg-[var(--color-card-alt)]"
-                                        role="option"
-                                        aria-selected="false"
-                                    >
-                                        <div class="w-5 h-5 rounded bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                                            <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18m0 0l-4-4m4 4l4-4M6 7h12"></path></svg>
-                                        </div>
-                                        <span class="font-medium text-sm text-[var(--color-text)]">Short Sell</span>
-                                        <span class="text-[10px] font-semibold text-purple-500/70 ml-auto uppercase tracking-wider">Pro</span>
-                                        <svg class="w-4 h-4 text-[var(--color-primary)] ml-2 opacity-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -604,6 +584,39 @@
                                             <input type="text" id="current_price" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_help">
                                         </div>
                                         <p id="current_price_help" class="input-helper-text">Reference price for the ladder.</p>
+                                    </div>
+                                </div>
+                                <!-- Sell Mode Inputs (Hidden by default) -->
+                                <div id="sell-mode-inputs" class="hidden grid grid-cols-1 gap-4">
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text)]">Held Quantity</label>
+                                            <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
+                                        </div>
+                                        <input type="number" id="existing_quantity" placeholder="e.g., 50" class="form-input w-full rounded-lg p-3 text-sm font-mono" aria-describedby="existing_quantity_help">
+                                        <p id="existing_quantity_help" class="input-helper-text">Quantity you hold.</p>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text)]">Initial Asset Price</label>
+                                            <button type="button" class="helper-tooltip" title="Current market price of the asset.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
+                                            <input type="text" id="current_price_sell" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_sell_help">
+                                        </div>
+                                        <p id="current_price_sell_help" class="input-helper-text">Reference price for the ladder.</p>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text)]">Average Cost Basis ($)</label>
+                                            <button type="button" class="helper-tooltip" title="Your average buy price for the assets you hold.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
+                                            <input type="number" id="existing_avg_price" placeholder="e.g., 80" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="existing_avg_price_help">
+                                        </div>
+                                        <p id="existing_avg_price_help" class="input-helper-text">Optional for profit projections.</p>
                                     </div>
                                 </div>
                                 <details class="mt-3">
@@ -641,41 +654,6 @@
                                         </div>
                                     </div>
                                 </details>
-                                <!-- Sell Mode Inputs (Hidden by default) -->
-                                <div id="sell-mode-inputs" class="hidden space-y-4">
-                                    <div class="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <div class="flex items-center gap-1 mb-1.5">
-                                                <label class="text-xs font-medium text-[var(--color-text-secondary)]">Held Quantity</label>
-                                                <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
-                                            </div>
-                                            <input type="number" id="existing_quantity" placeholder="e.g., 50" class="form-input w-full rounded-lg p-2.5 font-mono" aria-describedby="existing_quantity_help">
-                                            <p id="existing_quantity_help" class="input-helper-text input-helper-text--compact">Quantity you hold.</p>
-                                        </div>
-                                        <div>
-                                            <div class="flex items-center gap-1 mb-1.5">
-                                                <label class="text-xs font-medium text-[var(--color-text-secondary)]">Asset Price ($)</label>
-                                                <button type="button" class="helper-tooltip" title="Current market price of the asset.">?</button>
-                                            </div>
-                                            <div class="relative flex items-center">
-                                                <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
-                                                <input type="text" id="current_price_sell" placeholder="e.g., 100" class="form-input w-full rounded-lg p-2.5 font-mono pl-7" aria-describedby="current_price_sell_help">
-                                            </div>
-                                            <p id="current_price_sell_help" class="input-helper-text input-helper-text--compact">Price to anchor the ladder.</p>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center gap-1 mb-1.5">
-                                            <label class="text-xs font-medium text-[var(--color-text-secondary)]">Average Cost Basis ($)</label>
-                                            <button type="button" class="helper-tooltip" title="Your average buy price for the assets you hold.">?</button>
-                                        </div>
-                                        <div class="relative flex items-center">
-                                            <span class="absolute left-3 text-[var(--color-text-secondary)] font-mono">$</span>
-                                            <input type="number" id="existing_avg_price" placeholder="e.g., 80" class="form-input w-full rounded-lg p-2.5 font-mono pl-7" aria-describedby="existing_avg_price_help">
-                                        </div>
-                                        <p id="existing_avg_price_help" class="input-helper-text input-helper-text--compact">Optional for profit projections.</p>
-                                    </div>
-                                </div>
                             </div>
                             <!-- Right section: Price Range & Allocation (always visible, collapsed in non-advanced) -->
                             <div class="strategy-panel strategy-panel-secondary space-y-4">
@@ -736,7 +714,7 @@
                                             <div id="floor-mode-container" class="grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));">
                                                 <div class="floor-buy-field">
                                                     <div class="flex items-center gap-1 mb-1">
-                                                        <label class="text-[10px] text-[var(--color-text-muted)]">Buy Range Low</label>
+                                                        <label id="buy-range-label" class="text-[10px] text-[var(--color-text-muted)]">Buy Range Low</label>
                                                         <button type="button" class="helper-tooltip" title="The lowest price boundary for the buy ladder.">?</button>
                                                     </div>
                                                     <div class="relative flex items-center">
@@ -746,7 +724,7 @@
                                                 </div>
                                                 <div class="floor-sell-field">
                                                     <div class="flex items-center gap-1 mb-1">
-                                                        <label class="text-[10px] text-[var(--color-text-muted)]">Sell Range High</label>
+                                                        <label id="sell-range-label" class="text-[10px] text-[var(--color-text-muted)]">Sell Range High</label>
                                                         <button type="button" class="helper-tooltip" title="The highest price boundary for the sell ladder.">?</button>
                                                     </div>
                                                     <div class="relative flex items-center">
@@ -834,6 +812,7 @@
                     </div>
                     <div id="depth-wrapper" class="d3-chart flex-1 w-full min-h-0 relative">
                         <svg id="depth-chart" width="100%" height="100%"></svg>
+                        <div id="chart-empty-state" class="outputs-empty-state hidden absolute inset-0 flex items-center justify-center text-center px-4"></div>
                         
                         <!-- Projected Results Overlay (always visible) -->
                         <div id="chart-summary-overlay" class="absolute top-1/2 right-2 sm:right-4 transform -translate-y-1/2 z-10 pointer-events-none">

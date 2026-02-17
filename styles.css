@@ -511,6 +511,59 @@ body.design-overhaul .executed-rung td {
 body.design-overhaul .copy-cursor { cursor: copy; transition: background-color 0.18s ease, transform 0.12s ease; }
 body.design-overhaul .copy-cursor:hover { background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
 body.design-overhaul .copy-cursor:active { transform: scale(0.99); }
+body.design-overhaul .copy-cell-copied {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card)) !important;
+}
+body.design-overhaul .copy-cell-selected {
+    background: color-mix(in srgb, var(--color-primary) 24%, var(--color-card)) !important;
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-primary) 70%, white 10%);
+    font-weight: 700;
+}
+body.design-overhaul .outputs-empty-state {
+    padding: 1rem;
+}
+body.design-overhaul .outputs-empty-panel {
+    width: min(460px, 100%);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--color-card) 94%, transparent);
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    padding: 0.75rem 0.85rem;
+    text-align: center;
+}
+body.design-overhaul .outputs-empty-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+body.design-overhaul .outputs-empty-subtitle {
+    font-size: 0.74rem;
+    margin-top: 0.16rem;
+    color: var(--color-text-muted);
+}
+body.design-overhaul .outputs-table-empty {
+    border: 1px solid var(--color-border);
+    border-radius: 0.62rem;
+    background: color-mix(in srgb, var(--color-card) 96%, transparent);
+    padding: 0.62rem 0.7rem;
+    text-align: center;
+}
+body.design-overhaul .outputs-table-empty-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+body.design-overhaul .outputs-table-empty-note {
+    margin-top: 0.2rem;
+    font-size: 0.69rem;
+    color: var(--color-text-muted);
+}
+body.design-overhaul .input-required-missing {
+    border-color: var(--color-invalid) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-invalid) 20%, transparent);
+    background: color-mix(in srgb, var(--color-invalid) 8%, var(--color-card));
+}
 body.design-overhaul #tooltip {
     position: absolute;
     z-index: 120;
@@ -666,7 +719,6 @@ body.design-overhaul .guide-mode-card p { font-size: 0.67rem; color: var(--color
 body.design-overhaul .guide-mode-card--buy { border-left: 4px solid #ef4444; }
 body.design-overhaul .guide-mode-card--sell { border-left: 4px solid #22c55e; }
 body.design-overhaul .guide-mode-card--both { border-left: 4px solid #0ea5e9; }
-body.design-overhaul .guide-mode-card--short { border-left: 4px solid #f97316; }
 body.design-overhaul .guide-risk-list { margin: 0; padding-left: 1rem; display: grid; gap: 0.34rem; color: var(--color-text-secondary); font-size: 0.74rem; }
 body.design-overhaul .guide-footer { border-top: 1px solid var(--color-border); background: linear-gradient(180deg, color-mix(in srgb, var(--color-card-alt) 84%, transparent), color-mix(in srgb, var(--color-card) 90%, transparent)); padding: 0.82rem 1rem 0.94rem; }
 body.design-overhaul #setup-wizard { transition: opacity 0.25s ease; }

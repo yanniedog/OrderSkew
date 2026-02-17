@@ -147,6 +147,8 @@ const State = {
     currentPlanData: null,
     baselineBuySnapshot: null,
     sellOnlyHighestExecuted: null,
+    selectedCopyCellId: null,
+    copiedCellIds: new Set(),
     activeTab: 'buy',
     theme: 'light',
     mode: 'simple',
@@ -156,8 +158,7 @@ const State = {
     chartUnitType: 'volume',
     sellOnlyMode: false,
     buyOnlyMode: true,
-    shortSellMode: false,
-    tradingMode: 'buy-only', // 'buy-sell', 'buy-only', 'sell-only', 'short-sell'
+    tradingMode: 'buy-only', // 'buy-sell', 'buy-only', 'sell-only'
     advancedMode: false,
     copyDecimalPlaces: 8
 };
@@ -311,6 +312,3 @@ window.CONSTANTS = CONSTANTS;
 window.Utils = Utils;
 window.State = State;
 window.Calculator = Calculator;
-
-
-
