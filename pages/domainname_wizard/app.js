@@ -31,6 +31,7 @@
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
+  const ENGINE_WORKER_VERSION = '2026-02-18-2';
 
   const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
   const BACKEND_URL = (function () {
@@ -1042,7 +1043,7 @@
 
   function createEngineBridge() {
     try {
-      return new Worker('engine.worker.js');
+      return new Worker(`engine.worker.js?v=${encodeURIComponent(ENGINE_WORKER_VERSION)}`);
     } catch (error) {
       showFormError('Web Worker is required (no simulation). Use a browser that supports Web Workers.');
       return {

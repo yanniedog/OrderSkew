@@ -460,6 +460,7 @@ function progress(totalLoops, currentLoop, fraction) {
 
 const AVAILABILITY_CHUNK = 100;
 const RDAP_DELAY_MS = 1200;
+const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
 
 async function fetchAvailability(apiBaseUrl, domains) {
   const base = String(apiBaseUrl).replace(/\/+$/, '');
@@ -487,7 +488,8 @@ async function fetchAvailability(apiBaseUrl, domains) {
     }
     const data = await res.json().catch(function () { return {}; });
     if (!res.ok) {
-      const msg = data.message || data.code || res.statusText || 'Availability request failed.';
+      const statusMsg = String(res.status || 0) + (res.statusText ? ` ${res.statusText}` : '');
+      const msg = data.message || data.code || statusMsg || 'Availability request failed.';
       emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API non-OK response', {
         url,
         chunkSize: chunk.length,
@@ -496,7 +498,7 @@ async function fetchAvailability(apiBaseUrl, domains) {
         statusText: res.statusText,
         errorMessage: msg,
       });
-      throw new Error(msg);
+      throw new Error('Availability API error (' + statusMsg + '): ' + msg);
     }
     const results = data.results || {};
     if (!results || typeof results !== 'object') {
@@ -623,12 +625,33 @@ async function run(job) {
         try {
           availabilityByDomain = await fetchAvailability(backendBaseUrl, domainList);
         } catch (error) {
-          useBackend = false;
-          availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
-          emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP', {
-            backendBaseUrl,
-            error: error instanceof Error ? error.message : String(error || 'unknown'),
-          });
+          const primaryError = error instanceof Error ? error.message : String(error || 'unknown');
+          if (backendBaseUrl && backendBaseUrl !== LEGACY_VERCEL_BACKEND_URL) {
+            try {
+              availabilityByDomain = await fetchAvailability(LEGACY_VERCEL_BACKEND_URL, domainList);
+              emitDebugLog('engine.worker.js:run', 'Primary backend unavailable, switched to Vercel backend', {
+                backendBaseUrl,
+                fallbackBackendBaseUrl: LEGACY_VERCEL_BACKEND_URL,
+                error: primaryError,
+              });
+            } catch (fallbackError) {
+              useBackend = false;
+              availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+              emitDebugLog('engine.worker.js:run', 'Both backends unavailable, switched to RDAP', {
+                backendBaseUrl,
+                fallbackBackendBaseUrl: LEGACY_VERCEL_BACKEND_URL,
+                primaryError,
+                fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError || 'unknown'),
+              });
+            }
+          } else {
+            useBackend = false;
+            availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+            emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP', {
+              backendBaseUrl,
+              error: primaryError,
+            });
+          }
         }
       } else {
         availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
