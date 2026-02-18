@@ -15,8 +15,6 @@ let dbPromise = null;
 const PREFIX = ['neo', 'prime', 'terra', 'ultra', 'atlas', 'delta', 'signal', 'lumen', 'forge', 'orbit'];
 const SUFFIX = ['labs', 'works', 'base', 'flow', 'stack', 'hub', 'gen', 'pilot', 'ly', 'io'];
 const DICT = ['horizon', 'ember', 'vector', 'harbor', 'beacon', 'origin', 'summit', 'apex'];
-const TLD_BASE = { com: 13, net: 14, org: 13, io: 36, ai: 82, co: 26, app: 20, dev: 18 };
-
 function now() { return Date.now(); }
 function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
 function round(v, d = 2) { return Number(v.toFixed(d)); }
@@ -106,6 +104,7 @@ function parseInput(raw) {
     maxNames: clamp(Math.round(Number(input.maxNames) || 100), 1, 250),
     yearlyBudget: clamp(Number(input.yearlyBudget) || 50, 1, 100000),
     loopCount: clamp(Math.round(Number(input.loopCount) || 10), 1, 25),
+    apiBaseUrl: text(input.apiBaseUrl),
   };
 }
 
@@ -441,41 +440,69 @@ function makeBatch(plan, seed, target, seen) {
   return out;
 }
 
-function simulate(candidate, plan, loop, batch, seed) {
-  const domain = candidate.domain;
-  const label = domain.split('.')[0] || '';
-  const tld = domain.split('.').slice(1).join('.') || plan.tld;
-  const e = hash(`${domain}|${loop}|${batch}|${seed}`);
-  const randomPenalty = plan.randomness === 'high' ? 0.08 : plan.randomness === 'medium' ? 0.03 : 0;
-  const lengthPenalty = Math.max(0, label.length - 12) * 0.012;
-  const premiumBoost = candidate.isNamelixPremium ? 0.05 : 0;
-  const available = ((e % 10000) / 10000) < clamp(0.72 - randomPenalty - lengthPenalty + premiumBoost, 0.2, 0.92);
-
-  const base = TLD_BASE[tld] || 18;
-  const shortPremium = Math.max(0, 10 - label.length) * 8.2;
-  const longDiscount = Math.max(0, label.length - 12) * 1.25;
-  const styleMod = plan.style === 'brandable' ? 6 : plan.style === 'dictionary' ? -1.5 : 0;
-  const premiumMod = candidate.isNamelixPremium ? 35 + ((e >>> 8) % 90) : 0;
-  const jitter = ((e >>> 16) % 1500) / 100;
-  const price = clamp(base + shortPremium - longDiscount + styleMod + premiumMod + jitter, base * 0.75, 4500);
-
-  return {
-    domain: candidate.domain,
-    sourceName: candidate.sourceName,
-    isNamelixPremium: candidate.isNamelixPremium,
-    available,
-    definitive: true,
-    priceMicros: Math.round(price * 1000000),
-    currency: 'USD',
-    period: 1,
-    reason: available ? 'Likely available (browser heuristic scan).' : 'Likely unavailable (heuristic lexical collision pressure).',
-  };
-}
-
 function progress(totalLoops, currentLoop, fraction) {
   if (totalLoops <= 0) return 100;
   const norm = (Math.max(0, currentLoop - 1) + clamp(fraction, 0, 1)) / totalLoops;
   return Math.round(5 + norm * 90);
+}
+
+const AVAILABILITY_CHUNK = 100;
+const RDAP_DELAY_MS = 1200;
+
+async function fetchAvailability(apiBaseUrl, domains) {
+  const base = String(apiBaseUrl).replace(/\/+$/, '');
+  const url = base + '/api/domains/availability';
+  const out = {};
+  for (let i = 0; i < domains.length; i += AVAILABILITY_CHUNK) {
+    const chunk = domains.slice(i, i + AVAILABILITY_CHUNK);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domains: chunk }),
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      const msg = data.message || data.code || res.statusText || 'Availability request failed.';
+      throw new Error(msg);
+    }
+    const results = data.results || {};
+    for (const key of Object.keys(results)) Object.assign(out, { [key]: results[key] });
+  }
+  return out;
+}
+
+async function fetchRdapAvailability(domains, jobId) {
+  const out = {};
+  for (let i = 0; i < domains.length; i += 1) {
+    if (jobId && canceled.has(jobId)) break;
+    const domain = domains[i];
+    const key = domain.toLowerCase();
+    const url = 'https://rdap.org/domain/' + encodeURIComponent(domain);
+    let res;
+    try {
+      res = await fetch(url, { method: 'GET', headers: { Accept: 'application/rdap+json, application/json' } });
+    } catch (e) {
+      out[key] = { available: false, definitive: false, reason: (e && e.message) || 'RDAP request failed.' };
+      await new Promise(function (r) { setTimeout(r, RDAP_DELAY_MS); });
+      continue;
+    }
+    if (res.status === 429) {
+      await new Promise(function (r) { setTimeout(r, 11000); });
+      i -= 1;
+      continue;
+    }
+    const body = await res.text();
+    let parsed = null;
+    try { parsed = body ? JSON.parse(body) : null; } catch (_) {}
+    const registered = res.status === 200 && parsed && parsed.objectClassName === 'domain';
+    out[key] = {
+      available: !registered,
+      definitive: res.status === 200 || res.status === 404,
+      reason: registered ? 'Registered (RDAP).' : (res.status === 404 ? 'No registration (RDAP).' : 'Unknown (RDAP).'),
+    };
+    if (i < domains.length - 1) await new Promise(function (r) { setTimeout(r, RDAP_DELAY_MS); });
+  }
+  return out;
 }
 
 function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory) {
@@ -498,6 +525,7 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
 
 async function run(job) {
   const input = job.input;
+  const useBackend = Boolean(input.apiBaseUrl && String(input.apiBaseUrl).trim());
   const availableMap = new Map();
   const overBudgetMap = new Map();
   const unavailableMap = new Map();
@@ -540,15 +568,64 @@ async function run(job) {
       patch(job, { status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount });
 
       let got = 0;
-      let simLogCount = 0;
+      let logCount = 0;
+      const domainList = cands.map(function (c) { return c.domain; });
+      const availabilityByDomain = useBackend
+        ? await fetchAvailability(input.apiBaseUrl, domainList)
+        : await fetchRdapAvailability(domainList, job.id);
+
       for (const cand of cands) {
-        const raw = simulate(cand, plan.input, loop, batches, seed);
-        const result = { ...raw, price: raw.priceMicros ? round(raw.priceMicros / 1000000, 2) : undefined };
-        result.overBudget = result.available && typeof result.price === 'number' ? result.price > plan.input.yearlyBudget : false;
+        let result;
+        const key = cand.domain.toLowerCase();
+        const res = availabilityByDomain[key] || {};
+        if (useBackend && (typeof res.price === 'number' && Number.isFinite(res.price))) {
+          const price = round(res.price, 2);
+          const isNamelixPremium = price > plan.input.yearlyBudget || price > 500;
+          result = {
+            domain: cand.domain,
+            sourceName: cand.sourceName,
+            isNamelixPremium,
+            available: Boolean(res.available),
+            definitive: Boolean(res.definitive),
+            price,
+            currency: res.currency || 'USD',
+            period: res.period != null ? res.period : 1,
+            reason: res.reason || (res.available ? 'Available (GoDaddy).' : 'Unavailable (GoDaddy).'),
+            overBudget: res.available ? price > plan.input.yearlyBudget : false,
+          };
+        } else if (res && typeof res.available === 'boolean') {
+          const price = useBackend && typeof res.price === 'number' && Number.isFinite(res.price) ? round(res.price, 2) : undefined;
+          const isNamelixPremium = typeof price === 'number' && (price > plan.input.yearlyBudget || price > 500);
+          result = {
+            domain: cand.domain,
+            sourceName: cand.sourceName,
+            isNamelixPremium: price != null ? isNamelixPremium : false,
+            available: res.available,
+            definitive: Boolean(res.definitive),
+            price,
+            currency: res.currency || 'USD',
+            period: res.period != null ? res.period : 1,
+            reason: res.reason || (res.available ? 'Available.' : 'Unavailable.'),
+            overBudget: res.available && typeof price === 'number' ? price > plan.input.yearlyBudget : false,
+          };
+        } else {
+          result = {
+            domain: cand.domain,
+            sourceName: cand.sourceName,
+            isNamelixPremium: false,
+            available: false,
+            definitive: false,
+            price: undefined,
+            currency: 'USD',
+            period: 1,
+            reason: 'No availability data (backend or RDAP).',
+            overBudget: false,
+          };
+        }
         // #region agent log
-        if (simLogCount < 2) {
-          simLogCount += 1;
-          self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:simulateResult', message: 'Result price/premium', data: { domain: result.domain, isNamelixPremium: result.isNamelixPremium, price: result.price, hypothesisId: 'H4' }, timestamp: Date.now() } });
+        if (logCount < 2) {
+          logCount += 1;
+          self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:resultRow', message: 'Result price/premium', data: { domain: result.domain, isNamelixPremium: result.isNamelixPremium, price: result.price, hypothesisId: 'H4' }, timestamp: Date.now() } });
         }
         // #endregion
         const ranked = { ...result, ...scoreDomain(result, plan.input), firstSeenLoop: loop, lastSeenLoop: loop, timesDiscovered: 1 };

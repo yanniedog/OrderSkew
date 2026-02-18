@@ -80,7 +80,7 @@
     if (status === 'queued') return 'Queued';
     if (status === 'running' && phase === 'looping') return 'Iterative tuning';
     if (status === 'running' && phase === 'namelix') return 'Generating candidates';
-    if (status === 'running' && phase === 'godaddy') return 'Availability + pricing heuristic';
+    if (status === 'running' && phase === 'godaddy') return 'Checking availability (GoDaddy or RDAP)';
     if (status === 'running' && phase === 'finalize') return 'Finalizing';
     if (status === 'done') return 'Done';
     if (status === 'failed') return 'Failed';
@@ -353,6 +353,7 @@
 
   function collectInput() {
     const data = new FormData(formEl);
+    const apiBaseUrl = String(data.get('apiBaseUrl') || '').trim().replace(/\/+$/, '');
 
     return {
       keywords: String(data.get('keywords') || '').trim(),
@@ -365,6 +366,7 @@
       maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 100)), 1, 250),
       yearlyBudget: clamp(parseNumber(data.get('yearlyBudget'), 50), 1, 100000),
       loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 10)), 1, 25),
+      apiBaseUrl: apiBaseUrl || undefined,
     };
   }
 
@@ -990,8 +992,16 @@
     try {
       return new Worker('engine.worker.js');
     } catch (error) {
-      showFormError('Web Worker unavailable in this context. Switching to in-page standalone engine.');
-      return createInPageEngine();
+      showFormError('Web Worker is required (no simulation). Use a browser that supports Web Workers.');
+      return {
+        postMessage: function (msg) {
+          if (msg && msg.type === 'start') {
+            showJobError('Start disabled: Web Worker unavailable.');
+          }
+        },
+        addEventListener: function () {},
+        removeEventListener: function () {},
+      };
     }
   }
 
@@ -1065,6 +1075,10 @@
     const input = collectInput();
     if (!input.keywords || input.keywords.length < 2) {
       showFormError('Keywords must be at least 2 characters.');
+      return;
+    }
+    if (input.apiBaseUrl && !/^https?:\/\/[^\s/]+/i.test(input.apiBaseUrl)) {
+      showFormError('Backend URL must be a valid http(s) URL.');
       return;
     }
 

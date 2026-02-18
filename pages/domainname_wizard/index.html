@@ -25,6 +25,9 @@
     <section class="card">
       <h2>Search Setup</h2>
       <form id="search-form" class="grid">
+        <label>Plan A: Backend URL (availability + price)
+          <input name="apiBaseUrl" type="url" placeholder="e.g. http://localhost:3000 — run source app with GoDaddy credentials" title="Recommended. Set to domainname-wizard source app URL for GoDaddy availability and real price.">
+        </label>
         <label>Keywords
           <input name="keywords" required placeholder="e.g. AI productivity" value="AI productivity">
         </label>
@@ -92,11 +95,14 @@
       </div>
       <p id="job-error" class="error" hidden></p>
       <p class="hint">
-        Processing runs in <code>engine.worker.js</code> in your browser. No backend API is required for this tool.
+        <strong>Plan A (recommended):</strong> Set Backend URL to the domainname-wizard source app (e.g. <code>npm run dev</code> in <code>source/</code> with <code>GODADDY_API_KEY</code> and <code>GODADDY_API_SECRET</code>) for availability and real price. <strong>Plan B:</strong> Leave Backend URL empty to use public RDAP for availability only (no price, no API key).
       </p>
     </section>
 
     <section class="card" id="results-panel" hidden>
+      <p class="hint" style="margin-bottom:1rem;">
+        Plan A: availability and price from GoDaddy. Plan B: availability from RDAP (no price; premium N/A).
+      </p>
       <div class="results-head">
         <h2>Results</h2>
         <label>Sort ranked domains
