@@ -1,15 +1,16 @@
-# Novel Indicator (Browser-Local + Cloudflare Auth/Profile)
+# Novel Indicator (Browser-Local + Optional Cloudflare Auth/Profile)
 
 Production architecture for the Novel Indicator web app:
 - Optimization, indicator search, telemetry generation, report export, and Pine export run in the end-user browser (Web Worker).
 - Binance market-data calls are made directly from the browser to Binance.
-- Cloudflare Worker + D1 handle authentication and user profile persistence only.
+- No login is required for local runs or exports.
+- Cloudflare Worker + D1 can be used for optional authentication and user profile persistence.
 
 No end user runs Python, localhost services, or local backend processes.
 
 ## Public Runtime Guarantees
 
-1. Users open the page and run optimization in-browser only.
+1. Users open the page and run optimization in-browser without logging in.
 2. Binance requests are never proxied by your site backend.
 3. If Binance rate limits occur, they apply to that user egress IP.
 4. Server stores account/profile data plus retained run summaries/plots only.

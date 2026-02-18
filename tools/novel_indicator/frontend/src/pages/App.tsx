@@ -1,39 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   cancelRun,
-  confirmEmailToken,
   createRun,
-  deleteStoredRun,
+  downloadRunBundle,
   exportPine,
-  forgotPassword,
   getBinanceDiagnostics,
   generateReport,
   getPlot,
-  getPreferences,
   getResults,
-  getRun,
-  getSession,
   getTelemetry,
   listRuns,
-  listStoredRuns,
-  loginUser,
-  logoutUser,
-  registerUser,
-  requestEmailVerification,
-  resetPassword,
-  saveRunToProfile,
-  setPreferences,
-  startGoogleLogin,
 } from '../api/client'
 import type {
   BinanceCallDiagnostic,
   PlotPayload,
   RunConfig,
   RunStatus,
-  SessionInfo,
-  StoredRunSummary,
   TelemetrySnapshot,
-  UserPreferences,
 } from '../api/types'
 import { PlotPanel } from '../components/PlotPanel'
 
@@ -48,7 +31,7 @@ const PRESET_CONFIGS = {
 
 type PresetKey = keyof typeof PRESET_CONFIGS | 'custom'
 
-type SyncState = 'idle' | 'pending' | 'synced' | 'error'
+const LOCAL_PREFS_KEY = 'novel_indicator_local_prefs_v1'
 
 function fmtSecs(value?: number | null): string {
   if (value == null || !Number.isFinite(value) || value < 0) return 'n/a'
@@ -69,159 +52,7 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
-function AuthGate({ onReady }: { onReady: (session: SessionInfo) => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
-  const [identity, setIdentity] = useState('')
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-  const [verifyTokenInput, setVerifyTokenInput] = useState('')
-  const [resetTokenInput, setResetTokenInput] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const verifyToken = params.get('verify_token')
-    const resetToken = params.get('reset_token')
-    if (verifyToken) setVerifyTokenInput(verifyToken)
-    if (resetToken) setResetTokenInput(resetToken)
-  }, [])
-
-  const onSubmit = async () => {
-    setLoading(true)
-    setError(null)
-    setMessage(null)
-    try {
-      const session =
-        mode === 'register'
-          ? await registerUser({ username, email, password, display_name: username })
-          : await loginUser(identity, password)
-      onReady(session)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="page-shell">
-      <div className="panel">
-        <h1>Novel Indicator Lab</h1>
-        <p>Login required. Optimization and Binance fetches run locally in your browser.</p>
-
-        <div className="run-config-grid">
-          <label>
-            Mode
-            <select value={mode} onChange={(e) => setMode(e.target.value as 'login' | 'register')}>
-              <option value="login">Login</option>
-              <option value="register">Register</option>
-            </select>
-          </label>
-          {mode === 'register' ? (
-            <>
-              <label>
-                Username
-                <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" />
-              </label>
-              <label>
-                Email
-                <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@example.com" />
-              </label>
-            </>
-          ) : (
-            <label>
-              Username or Email
-              <input value={identity} onChange={(e) => setIdentity(e.target.value)} placeholder="username or email" />
-            </label>
-          )}
-          <label>
-            Password
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="password" />
-          </label>
-        </div>
-
-        <div className="controls">
-          <button onClick={onSubmit} disabled={loading}>
-            {loading ? 'Working...' : mode === 'register' ? 'Create Account' : 'Login'}
-          </button>
-          <button className="secondary" onClick={() => startGoogleLogin()}>
-            Continue with Google
-          </button>
-          <button
-            className="secondary"
-            onClick={async () => {
-              setError(null)
-              setMessage(null)
-              try {
-                await forgotPassword(mode === 'register' ? email : identity)
-                setMessage('If the email exists, reset instructions were sent.')
-              } catch (e) {
-                setError((e as Error).message)
-              }
-            }}
-          >
-            Forgot Password
-          </button>
-        </div>
-
-        <div className="run-config-grid" style={{ marginTop: 12 }}>
-          <label>
-            Verify Token
-            <input value={verifyTokenInput} onChange={(e) => setVerifyTokenInput(e.target.value)} placeholder="email verification token" />
-          </label>
-          <label>
-            Reset Token
-            <input value={resetTokenInput} onChange={(e) => setResetTokenInput(e.target.value)} placeholder="password reset token" />
-          </label>
-          <label>
-            New Password
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="new password" />
-          </label>
-        </div>
-        <div className="controls">
-          <button
-            className="secondary"
-            onClick={async () => {
-              try {
-                await confirmEmailToken(verifyTokenInput)
-                setMessage('Email verified successfully.')
-              } catch (e) {
-                setError((e as Error).message)
-              }
-            }}
-          >
-            Confirm Email Token
-          </button>
-          <button
-            className="secondary"
-            onClick={async () => {
-              try {
-                await resetPassword(resetTokenInput, newPassword)
-                setMessage('Password reset completed.')
-              } catch (e) {
-                setError((e as Error).message)
-              }
-            }}
-          >
-            Confirm Password Reset
-          </button>
-        </div>
-
-        {error && <div className="error-banner">{error}</div>}
-        {message && <div className="telemetry-footnote">{message}</div>}
-      </div>
-    </div>
-  )
-}
-
 export function App() {
-  const [session, setSession] = useState<SessionInfo | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
-
   const [runs, setRuns] = useState<RunStatus[]>([])
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [summary, setSummary] = useState<any | null>(null)
@@ -233,11 +64,10 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [loadingCreate, setLoadingCreate] = useState(false)
   const [loadingPlots, setLoadingPlots] = useState(false)
+  const [downloadingBundle, setDownloadingBundle] = useState(false)
   const [ecoMode, setEcoMode] = useState(true)
   const [preset, setPreset] = useState<PresetKey>('balanced')
   const [runConfig, setRunConfig] = useState<RunConfig>(PRESET_CONFIGS.balanced)
-  const [syncState, setSyncState] = useState<Record<string, SyncState>>({})
-  const [storedRuns, setStoredRuns] = useState<StoredRunSummary[]>([])
 
   const savePreferenceTimer = useRef<number | null>(null)
 
@@ -246,50 +76,55 @@ export function App() {
   const plotsLoaded = plotsRunId === selectedRunId && Object.keys(plots).length > 0
 
   useEffect(() => {
-    getSession()
-      .then((sessionInfo) => {
-        setSession(sessionInfo)
-      })
-      .finally(() => setAuthLoading(false))
+    try {
+      const raw = window.localStorage.getItem(LOCAL_PREFS_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        top_n_symbols?: unknown
+        timeframes?: unknown
+        budget_minutes?: unknown
+        random_seed?: unknown
+        ecoMode?: unknown
+      }
+      const parsedTimeframes = Array.isArray(parsed.timeframes)
+        ? parsed.timeframes.filter((value): value is string => typeof value === 'string')
+        : []
+      const merged: RunConfig = {
+        top_n_symbols:
+          typeof parsed.top_n_symbols === 'number' ? clampInt(parsed.top_n_symbols, 1, 30) : PRESET_CONFIGS.balanced.top_n_symbols,
+        timeframes: parsedTimeframes.length > 0 ? TIMEFRAME_OPTIONS.filter((tf) => parsedTimeframes.includes(tf)) : PRESET_CONFIGS.balanced.timeframes,
+        budget_minutes:
+          typeof parsed.budget_minutes === 'number'
+            ? clampInt(parsed.budget_minutes, 5, 240)
+            : PRESET_CONFIGS.balanced.budget_minutes,
+        random_seed:
+          typeof parsed.random_seed === 'number' ? clampInt(parsed.random_seed, 1, 99999) : PRESET_CONFIGS.balanced.random_seed,
+      }
+      setRunConfig(merged.timeframes.length > 0 ? merged : { ...merged, timeframes: PRESET_CONFIGS.balanced.timeframes })
+      if (typeof parsed.ecoMode === 'boolean') {
+        setEcoMode(parsed.ecoMode)
+      }
+    } catch {
+      // ignore malformed local preference payloads
+    }
   }, [])
 
   useEffect(() => {
-    if (!session) return
-    getPreferences()
-      .then((prefs) => {
-        const merged: RunConfig = {
-          top_n_symbols: typeof prefs.top_n_symbols === 'number' ? prefs.top_n_symbols : PRESET_CONFIGS.balanced.top_n_symbols,
-          timeframes: Array.isArray(prefs.timeframes) ? (prefs.timeframes as string[]) : PRESET_CONFIGS.balanced.timeframes,
-          budget_minutes: typeof prefs.budget_minutes === 'number' ? prefs.budget_minutes : PRESET_CONFIGS.balanced.budget_minutes,
-          random_seed: typeof prefs.random_seed === 'number' ? prefs.random_seed : PRESET_CONFIGS.balanced.random_seed,
-        }
-        setRunConfig(merged)
-        if (typeof prefs.ecoMode === 'boolean') setEcoMode(prefs.ecoMode)
-      })
-      .catch(() => {})
-
-    listStoredRuns()
-      .then(setStoredRuns)
-      .catch(() => {})
-  }, [session])
-
-  useEffect(() => {
-    if (!session) return
     if (savePreferenceTimer.current !== null) window.clearTimeout(savePreferenceTimer.current)
     savePreferenceTimer.current = window.setTimeout(() => {
-      const prefs: UserPreferences = {
+      const prefs = {
         top_n_symbols: runConfig.top_n_symbols,
         timeframes: runConfig.timeframes,
         budget_minutes: runConfig.budget_minutes,
         random_seed: runConfig.random_seed,
         ecoMode,
       }
-      void setPreferences(prefs).catch(() => {})
+      window.localStorage.setItem(LOCAL_PREFS_KEY, JSON.stringify(prefs))
     }, 500)
     return () => {
       if (savePreferenceTimer.current !== null) window.clearTimeout(savePreferenceTimer.current)
     }
-  }, [session, runConfig, ecoMode])
+  }, [runConfig, ecoMode])
 
   const refreshRunsOnce = async (signal?: AbortSignal): Promise<void> => {
     try {
@@ -304,7 +139,6 @@ export function App() {
   }
 
   useEffect(() => {
-    if (!session) return
     let active = true
     let timer: number | null = null
 
@@ -321,10 +155,10 @@ export function App() {
       active = false
       if (timer !== null) window.clearTimeout(timer)
     }
-  }, [session, ecoMode, selectedRunId])
+  }, [ecoMode, selectedRunId])
 
   useEffect(() => {
-    if (!selectedRunId || !session) {
+    if (!selectedRunId) {
       setTelemetry([])
       setBinanceCalls([])
       return
@@ -356,10 +190,10 @@ export function App() {
       active = false
       if (timer !== null) window.clearTimeout(timer)
     }
-  }, [selectedRunId, session, ecoMode])
+  }, [selectedRunId, ecoMode])
 
   useEffect(() => {
-    if (!selectedRunId || !session) return
+    if (!selectedRunId) return
     const run = runs.find((r) => r.run_id === selectedRunId)
     if (!run || run.status !== 'completed') {
       setSummary(null)
@@ -377,22 +211,12 @@ export function App() {
         setSummaryRunId(selectedRunId)
         setPlots({})
         setPlotsRunId(null)
-
-        setSyncState((prev) => ({ ...prev, [selectedRunId]: 'pending' }))
-        try {
-          await saveRunToProfile(selectedRunId)
-          setSyncState((prev) => ({ ...prev, [selectedRunId]: 'synced' }))
-          const stored = await listStoredRuns()
-          setStoredRuns(stored)
-        } catch {
-          setSyncState((prev) => ({ ...prev, [selectedRunId]: 'error' }))
-        }
       } catch (e) {
         setError((e as Error).message)
       }
     }
     void load()
-  }, [runs, selectedRunId, summaryRunId, session])
+  }, [runs, selectedRunId, summaryRunId])
 
   const loadPlots = async (): Promise<void> => {
     if (!selectedRunId || !summary || loadingPlots) return
@@ -432,13 +256,16 @@ export function App() {
     }
   }
 
-  const onLogout = async () => {
+  const onDownloadBundle = async (): Promise<void> => {
+    if (!selectedRunId) return
+    setDownloadingBundle(true)
     try {
-      await logoutUser()
-    } catch {
-      // no-op
+      await downloadRunBundle(selectedRunId)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setDownloadingBundle(false)
     }
-    setSession(null)
   }
 
   const applyPreset = (nextPreset: Exclude<PresetKey, 'custom'>) => {
@@ -462,18 +289,6 @@ export function App() {
     })
   }
 
-  if (authLoading) {
-    return (
-      <div className="page-shell">
-        <div className="panel">Checking session...</div>
-      </div>
-    )
-  }
-
-  if (!session) {
-    return <AuthGate onReady={(s) => setSession(s)} />
-  }
-
   return (
     <div className="page-shell">
       <div className="aurora" />
@@ -481,18 +296,9 @@ export function App() {
         <div className="header-line">
           <div>
             <h1>Novel Indicator Lab</h1>
-            <p>Authenticated browser-local optimization. Binance fetches run from your browser IP.</p>
+            <p>Browser-local optimization with no login required. Binance fetches run from your browser IP.</p>
           </div>
-          <span className="status-pill online">{session.user.username}</span>
-        </div>
-
-        <div className="controls" style={{ marginTop: 10 }}>
-          <button className="secondary" onClick={onLogout}>
-            Logout
-          </button>
-          <button className="secondary" onClick={() => requestEmailVerification()}>
-            Send Verify Email
-          </button>
+          <span className="status-pill online">Guest Mode</span>
         </div>
 
         <div className="run-config-grid">
@@ -574,20 +380,8 @@ export function App() {
             </button>
           )}
           {selectedRunId && summary && (
-            <button
-              className="secondary"
-              onClick={async () => {
-                setSyncState((prev) => ({ ...prev, [selectedRunId]: 'pending' }))
-                try {
-                  await saveRunToProfile(selectedRunId)
-                  setSyncState((prev) => ({ ...prev, [selectedRunId]: 'synced' }))
-                  setStoredRuns(await listStoredRuns())
-                } catch {
-                  setSyncState((prev) => ({ ...prev, [selectedRunId]: 'error' }))
-                }
-              }}
-            >
-              Save to Profile
+            <button className="secondary" onClick={() => void onDownloadBundle()} disabled={downloadingBundle}>
+              {downloadingBundle ? 'Preparing Bundle...' : 'Download Full Results (.zip)'}
             </button>
           )}
         </div>
@@ -608,7 +402,6 @@ export function App() {
                 <small>{run.stage}</small>
                 <small>{Math.round(run.progress * 100)}%</small>
               </div>
-              <small>Sync: {syncState[run.run_id] ?? 'idle'}</small>
             </button>
           ))}
           {runs.length === 0 && <p className="inline-note">No local runs yet.</p>}
@@ -797,34 +590,6 @@ export function App() {
         ) : (
           <p>Plot payloads are not loaded yet.</p>
         )}
-      </section>
-
-      <section className="panel runs-panel">
-        <h2>Server-Saved Runs</h2>
-        <div className="run-list">
-          {storedRuns.map((stored) => (
-            <div key={stored.run_id} className="run-item">
-              <div>
-                <strong>{stored.run_id}</strong>
-                <span>{stored.sync_state}</span>
-              </div>
-              <div>
-                <small>{new Date(stored.updated_at).toLocaleString()}</small>
-                <small>{stored.source_version}</small>
-              </div>
-              <button
-                className="secondary"
-                onClick={async () => {
-                  await deleteStoredRun(stored.run_id)
-                  setStoredRuns(await listStoredRuns())
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          {storedRuns.length === 0 && <p className="inline-note">No server-synced runs yet.</p>}
-        </div>
       </section>
     </div>
   )

@@ -26,6 +26,18 @@ type RunBundle = {
   pineScripts: Record<string, string>
 }
 
+type RunExportFile = {
+  path: string
+  content: string
+  mime: string
+}
+
+type RunExportBundle = {
+  run_id: string
+  generated_at: string
+  files: RunExportFile[]
+}
+
 type OhlcvRow = { timestamp: number; high: number; low: number; close: number; volume: number }
 
 const DEFAULT_CONFIG: RunConfig = {
@@ -571,6 +583,134 @@ function buildReportHtml(bundle: RunBundle): string {
   return `<!doctype html><html><head><meta charset="utf-8"><title>Novel Indicator Report</title><style>body{font-family:Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>Novel Indicator Report</h1><p>Run ${bundle.summary.run_id}</p><p>Generated ${bundle.summary.generated_at}</p><table><thead><tr><th>Symbol</th><th>TF</th><th>Horizon</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
 }
 
+function csvCell(value: unknown): string {
+  if (value == null) return ''
+  const input = String(value)
+  if (!/[,"\n]/.test(input)) return input
+  return `"${input.replace(/"/g, '""')}"`
+}
+
+function buildRecommendationsCsv(summary: ResultSummary): string {
+  const header = [
+    'symbol',
+    'timeframe',
+    'best_horizon',
+    'composite_error',
+    'directional_hit_rate',
+    'pnl_total',
+    'max_drawdown',
+    'indicator_ids',
+    'indicator_expressions',
+  ]
+  const rows = summary.per_asset_recommendations.map((rec) => {
+    const ids = rec.indicator_combo.map((entry) => entry.indicator_id).join('|')
+    const expressions = rec.indicator_combo.map((entry) => entry.expression).join('|')
+    return [
+      rec.symbol,
+      rec.timeframe,
+      rec.best_horizon,
+      rec.score.composite_error,
+      rec.score.directional_hit_rate,
+      rec.score.pnl_total,
+      rec.score.max_drawdown,
+      ids,
+      expressions,
+    ]
+  })
+  return [header, ...rows].map((row) => row.map((value) => csvCell(value)).join(',')).join('\n')
+}
+
+function toJsonl(rows: unknown[]): string {
+  if (!rows.length) return ''
+  return `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`
+}
+
+function buildRunExportBundle(bundle: RunBundle): RunExportBundle {
+  if (!bundle.summary) {
+    throw new Error('Run not found')
+  }
+  const generatedAt = nowIso()
+  const files: RunExportFile[] = [
+    {
+      path: 'report/report.html',
+      content: buildReportHtml(bundle),
+      mime: 'text/html;charset=utf-8',
+    },
+    {
+      path: 'run/run_status.json',
+      content: JSON.stringify(bundle.run, null, 2),
+      mime: 'application/json;charset=utf-8',
+    },
+    {
+      path: 'run/config.json',
+      content: JSON.stringify(bundle.config, null, 2),
+      mime: 'application/json;charset=utf-8',
+    },
+    {
+      path: 'results/summary.json',
+      content: JSON.stringify(bundle.summary, null, 2),
+      mime: 'application/json;charset=utf-8',
+    },
+    {
+      path: 'results/per_asset_recommendations.csv',
+      content: buildRecommendationsCsv(bundle.summary),
+      mime: 'text/csv;charset=utf-8',
+    },
+  ]
+
+  const sortedPlots = Object.values(bundle.plots).sort((a, b) => a.plot_id.localeCompare(b.plot_id))
+  for (const plot of sortedPlots) {
+    files.push({
+      path: `plots/${plot.plot_id}.json`,
+      content: JSON.stringify({ run_id: plot.run_id, plot_id: plot.plot_id, title: plot.title, payload: plot.payload }, null, 2),
+      mime: 'application/json;charset=utf-8',
+    })
+  }
+
+  const sortedPine = Object.entries(bundle.pineScripts).sort(([a], [b]) => a.localeCompare(b))
+  for (const [name, content] of sortedPine) {
+    files.push({
+      path: `pine/${name}`,
+      content,
+      mime: 'text/plain;charset=utf-8',
+    })
+  }
+
+  if (bundle.telemetry.length > 0) {
+    files.push({
+      path: 'telemetry/telemetry.jsonl',
+      content: toJsonl(bundle.telemetry),
+      mime: 'application/x-ndjson;charset=utf-8',
+    })
+  }
+
+  if (bundle.binanceCalls.length > 0) {
+    files.push({
+      path: 'diagnostics/binance_calls.jsonl',
+      content: toJsonl(bundle.binanceCalls),
+      mime: 'application/x-ndjson;charset=utf-8',
+    })
+  }
+
+  const manifest = {
+    run_id: bundle.run.run_id,
+    generated_at: generatedAt,
+    file_count: files.length + 1,
+    files: files.map((file) => ({ path: file.path, mime: file.mime })),
+  }
+  files.unshift({
+    path: 'manifest.json',
+    content: JSON.stringify(manifest, null, 2),
+    mime: 'application/json;charset=utf-8',
+  })
+
+  return {
+    run_id: bundle.run.run_id,
+    generated_at: generatedAt,
+    files,
+  }
+}
+
 function storagePayload(bundle: RunBundle): Record<string, unknown> {
   return {
     run_id: bundle.run.run_id,
@@ -661,6 +801,12 @@ async function handle(req: RpcRequest): Promise<unknown> {
       const bundle = runs.get(id)
       if (!bundle?.summary) throw new Error('Run not found')
       return { files: bundle.pineScripts }
+    }
+    case 'exportRunBundle': {
+      const id = String(req.params?.runId ?? '')
+      const bundle = runs.get(id)
+      if (!bundle?.summary) throw new Error('Run not found')
+      return buildRunExportBundle(bundle)
     }
     case 'getRunStoragePayload': {
       const id = String(req.params?.runId ?? '')

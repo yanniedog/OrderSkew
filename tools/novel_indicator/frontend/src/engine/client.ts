@@ -1,3 +1,4 @@
+import { strToU8, zipSync } from 'fflate'
 import type {
   BinanceDiagnosticsFeed,
   PlotPayload,
@@ -14,6 +15,18 @@ type RpcResponse = { id: string; ok: boolean; result?: unknown; error?: string }
 type Pending = {
   resolve: (value: unknown) => void
   reject: (error: Error) => void
+}
+
+type RunExportFile = {
+  path: string
+  content: string
+  mime: string
+}
+
+type RunExportBundle = {
+  run_id: string
+  generated_at: string
+  files: RunExportFile[]
 }
 
 class LocalEngineClient {
@@ -124,6 +137,31 @@ class LocalEngineClient {
 
   async getRunStoragePayload(runId: string): Promise<Record<string, unknown>> {
     return this.rpc<Record<string, unknown>>('getRunStoragePayload', { runId })
+  }
+
+  async downloadRunBundle(runId: string): Promise<void> {
+    const bundle = await this.rpc<RunExportBundle>('exportRunBundle', { runId })
+    if (!bundle.files.length) {
+      throw new Error('No export files available for this run')
+    }
+
+    const archive: Record<string, Uint8Array> = {}
+    for (const file of bundle.files) {
+      const path = file.path.replace(/\\/g, '/').replace(/^\/+/, '')
+      if (!path) continue
+      archive[path] = strToU8(file.content ?? '')
+    }
+
+    const zipped = zipSync(archive, { level: 6 })
+    const zipBytes = Uint8Array.from(zipped)
+    const stamp = bundle.generated_at.replace(/[:.]/g, '-')
+    const blob = new Blob([zipBytes], { type: 'application/zip' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${runId}_results_${stamp}.zip`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 }
 

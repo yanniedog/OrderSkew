@@ -192,3 +192,7 @@ export async function generateReport(runId: string): Promise<void> {
 export async function exportPine(runId: string): Promise<void> {
   return localEngine.exportPine(runId)
 }
+
+export async function downloadRunBundle(runId: string): Promise<void> {
+  return localEngine.downloadRunBundle(runId)
+}
