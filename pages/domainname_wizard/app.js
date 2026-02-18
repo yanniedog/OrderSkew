@@ -1060,6 +1060,7 @@
   function handleStart() {
     showFormError('');
     showJobError('');
+    debugLogs.length = 0;
 
     const input = collectInput();
     if (!input.keywords || input.keywords.length < 2) {
