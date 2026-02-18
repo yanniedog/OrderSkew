@@ -1,6 +1,7 @@
 import { localEngine } from '../engine/client'
 import type {
   BinanceDiagnosticsFeed,
+  PlotOptions,
   PlotPayload,
   ResultSummary,
   RunConfig,
@@ -25,8 +26,8 @@ export async function getResults(runId: string): Promise<ResultSummary> {
   return localEngine.getResults(runId)
 }
 
-export async function getPlot(runId: string, plotId: string): Promise<PlotPayload> {
-  return localEngine.getPlot(runId, plotId)
+export async function getPlot(runId: string, plotId: string, options?: PlotOptions): Promise<PlotPayload> {
+  return localEngine.getPlot(runId, plotId, options)
 }
 
 export async function getTelemetry(runId: string, limit = 300): Promise<TelemetryFeed> {

@@ -27,6 +27,17 @@ class RunStageEnum(str, Enum):
     finished = "finished"
 
 
+class SeedModeEnum(str, Enum):
+    auto = "auto"
+    manual = "manual"
+
+
+class PerformanceProfileEnum(str, Enum):
+    fast = "fast"
+    balanced = "balanced"
+    deep = "deep"
+
+
 class HorizonConfig(BaseModel):
     min_bar: int = 3
     max_bar: int = 200
@@ -64,6 +75,32 @@ class SearchConfig(BaseModel):
     max_combo_size: int = 3
     novelty_similarity_threshold: float = 0.82
     collinearity_threshold: float = 0.94
+    min_novelty_score: float = 0.2
+
+
+class ValidationConfig(BaseModel):
+    folds: int = 4
+    embargo_bars: int = 8
+    purge_bars: int = 8
+    search_split: float = 0.58
+    model_select_split: float = 0.22
+    holdout_split: float = 0.2
+    baseline_margin: float = 0.015
+
+
+class ObjectiveWeights(BaseModel):
+    rmse: float = 0.37
+    mae: float = 0.3
+    calibration: float = 0.18
+    directional: float = 0.15
+
+
+class AdvancedRunConfig(BaseModel):
+    horizon: HorizonConfig = Field(default_factory=HorizonConfig)
+    search: SearchConfig = Field(default_factory=SearchConfig)
+    validation: ValidationConfig = Field(default_factory=ValidationConfig)
+    objective_weights: ObjectiveWeights = Field(default_factory=ObjectiveWeights)
+    performance_profile: PerformanceProfileEnum = PerformanceProfileEnum.fast
 
 
 class RunConfig(BaseModel):
@@ -76,7 +113,9 @@ class RunConfig(BaseModel):
     search: SearchConfig = Field(default_factory=SearchConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     budget_minutes: int = Field(default=120, ge=5, le=480)
+    seed_mode: SeedModeEnum = SeedModeEnum.auto
     random_seed: int = Field(default=42, ge=1, le=1_000_000)
+    advanced: AdvancedRunConfig | None = None
 
     @field_validator("timeframes")
     @classmethod
@@ -131,6 +170,7 @@ class IndicatorSpec(BaseModel):
 class ScoreCard(BaseModel):
     normalized_rmse: float
     normalized_mae: float
+    calibration_error: float | None = None
     composite_error: float
     directional_hit_rate: float
     pnl_total: float
@@ -143,14 +183,70 @@ class AssetRecommendation(BaseModel):
     symbol: str
     timeframe: str
     best_horizon: int
+    best_horizon_ms: int | None = None
+    best_horizon_label: str | None = None
     indicator_combo: list[IndicatorSpec]
     score: ScoreCard
 
 
+class ValidationReport(BaseModel):
+    leakage_checks_passed: bool
+    leakage_sentinel_triggered: bool
+    holdout_rows: int
+    holdout_pass_ratio: float
+    baseline_rejection_rate: float
+    warnings: list[str] = Field(default_factory=list)
+
+
+class HorizonMetadata(BaseModel):
+    timeframe_ms: dict[str, int] = Field(default_factory=dict)
+    note: str = ""
+
+
+class FrontierEntry(BaseModel):
+    symbol: str
+    timeframe: str
+    indicator_id: str
+    expression: str
+    family: str
+    complexity: int
+    novelty_score: float
+    best_horizon: int
+    best_horizon_ms: int
+    score: ScoreCard
+
+
+class IndicatorCubeRow(BaseModel):
+    symbol: str
+    timeframe: str
+    indicator_id: str
+    expression: str
+    family: str
+    complexity: int
+    novelty_score: float
+    horizon_bar: int
+    horizon_time_ms: int
+    normalized_rmse: float
+    normalized_mae: float
+    calibration_error: float
+    composite_error: float
+    directional_hit_rate: float
+    pnl_total: float
+    max_drawdown: float
+    turnover: float
+    stability_score: float
+    selected_metric_rank: int | None = None
+
+
 class ResultSummary(BaseModel):
+    schema_version: str | None = None
     run_id: str
     universal_recommendation: AssetRecommendation
     per_asset_recommendations: list[AssetRecommendation]
+    validation_report: ValidationReport | None = None
+    horizon_metadata: HorizonMetadata | None = None
+    per_indicator_frontier: list[FrontierEntry] | None = None
+    indicator_cube: list[IndicatorCubeRow] | None = None
     generated_at: datetime
 
 

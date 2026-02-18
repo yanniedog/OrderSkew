@@ -191,6 +191,34 @@ select:focus {
   font-family: 'Space Grotesk', sans-serif !important;
 }
 
+.seed-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.advanced-panel {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.74);
+  padding: 10px;
+}
+
+.advanced-panel summary {
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.advanced-panel .run-config-grid {
+  margin-top: 10px;
+}
+
 .controls {
   display: flex;
   gap: 10px;
@@ -351,7 +379,7 @@ td {
 
 .plot-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
   gap: 12px;
 }
 
@@ -372,6 +400,7 @@ td {
   gap: 10px;
   align-items: center;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .results-header h2 {
@@ -427,6 +456,24 @@ td {
   font-size: 0.84rem;
 }
 
+.slice-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  width: min(100%, 860px);
+}
+
+.slice-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
 .error-banner {
   background: #ffdcdc;
   border: 1px solid #f2a9a9;
@@ -466,6 +513,11 @@ td {
   }
 
   .plot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .slice-controls,
+  .seed-row {
     grid-template-columns: 1fr;
   }
 }

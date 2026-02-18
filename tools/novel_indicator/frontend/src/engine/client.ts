@@ -1,6 +1,7 @@
 import { strToU8, zipSync } from 'fflate'
 import type {
   BinanceDiagnosticsFeed,
+  PlotOptions,
   PlotPayload,
   ResultSummary,
   RunConfig,
@@ -94,8 +95,8 @@ class LocalEngineClient {
     return this.rpc<ResultSummary>('getResults', { runId })
   }
 
-  async getPlot(runId: string, plotId: string): Promise<PlotPayload> {
-    return this.rpc<PlotPayload>('getPlot', { runId, plotId })
+  async getPlot(runId: string, plotId: string, options?: PlotOptions): Promise<PlotPayload> {
+    return this.rpc<PlotPayload>('getPlot', { runId, plotId, options })
   }
 
   async getTelemetry(runId: string, limit: number): Promise<TelemetryFeed> {

@@ -3,8 +3,8 @@ import type { PlotPayload } from '../api/types'
 
 const MAX_LINE_POINTS = 1800
 const MAX_SCATTER_POINTS = 2400
-const MAX_HEATMAP_X = 120
-const MAX_HEATMAP_Y = 80
+const MAX_HEATMAP_X = 64
+const MAX_HEATMAP_Y = 72
 
 const Plot = lazy(async () => {
   const mod = await import('react-plotly.js')
@@ -13,15 +13,29 @@ const Plot = lazy(async () => {
 
 type HeatmapPayload = {
   type: 'heatmap'
-  x: number[]
+  x: Array<string | number>
   y: string[]
   z: number[][]
+  x_title?: string
+  y_title?: string
+  z_title?: string
+  lower_is_better?: boolean
 }
 
 type LinePayload = {
   type: 'line'
   x: number[]
   series: Array<{ name: string; values: number[] }>
+  x_title?: string
+  y_title?: string
+}
+
+type LineTimePayload = {
+  type: 'line_time'
+  x: number[]
+  series: Array<{ name: string; values: number[] }>
+  x_title?: string
+  y_title?: string
 }
 
 type ScatterPayload = {
@@ -70,6 +84,10 @@ function downsampleHeatmap(payload: HeatmapPayload): HeatmapPayload {
     x: xIndices.map((idx) => payload.x[idx]),
     y: yIndices.map((idx) => payload.y[idx]),
     z: yIndices.map((yIdx) => xIndices.map((xIdx) => payload.z[yIdx]?.[xIdx] ?? 0)),
+    x_title: payload.x_title,
+    y_title: payload.y_title,
+    z_title: payload.z_title,
+    lower_is_better: payload.lower_is_better,
   }
 }
 
@@ -82,6 +100,22 @@ function downsampleLine(payload: LinePayload): LinePayload {
       name: series.name,
       values: indices.map((idx) => series.values[idx]),
     })),
+    x_title: payload.x_title,
+    y_title: payload.y_title,
+  }
+}
+
+function downsampleLineTime(payload: LineTimePayload): LineTimePayload {
+  const indices = sampleIndices(payload.x.length, MAX_LINE_POINTS)
+  return {
+    type: 'line_time',
+    x: indices.map((idx) => payload.x[idx]),
+    series: payload.series.map((series) => ({
+      name: series.name,
+      values: indices.map((idx) => series.values[idx]),
+    })),
+    x_title: payload.x_title,
+    y_title: payload.y_title,
   }
 }
 
@@ -99,13 +133,15 @@ function Chart({ data, layout }: { data: Array<Record<string, unknown>>; layout?
       <Plot
         data={data as never}
         layout={{
-          margin: { t: 20, r: 12, b: 40, l: 46 },
+          margin: { t: 30, r: 22, b: 70, l: 74 },
           paper_bgcolor: '#fff',
           plot_bgcolor: '#fff',
-          hovermode: 'closest',
+          hovermode: 'x unified',
+          xaxis: { automargin: true },
+          yaxis: { automargin: true },
           ...(layout ?? {}),
         }}
-        style={{ width: '100%', height: '320px' }}
+        style={{ width: '100%', height: '360px' }}
         useResizeHandler
       />
     </Suspense>
@@ -129,12 +165,26 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
 
   if (kind === 'heatmap') {
     const p = downsampleHeatmap(payload as unknown as HeatmapPayload)
+    const colorscale = p.lower_is_better ? 'YlGnBu' : 'RdYlGn'
     return (
       <div className="plot-card">
         <h3>{plot.title}</h3>
         <Chart
-          data={[{ type: 'heatmap', x: p.x, y: p.y, z: p.z, colorscale: 'YlGnBu', reversescale: true }]}
-          layout={{ xaxis: { title: 'Horizon (bars)' }, yaxis: { title: 'Asset / Timeframe' } }}
+          data={[
+            {
+              type: 'heatmap',
+              x: p.x,
+              y: p.y,
+              z: p.z,
+              colorscale,
+              reversescale: p.lower_is_better ?? false,
+              colorbar: { title: p.z_title ?? 'Metric' },
+            },
+          ]}
+          layout={{
+            xaxis: { title: p.x_title ?? 'Indicator', tickangle: -35 },
+            yaxis: { title: p.y_title ?? 'Asset / Timeframe' },
+          }}
         />
       </div>
     )
@@ -147,7 +197,29 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
         <h3>{plot.title}</h3>
         <Chart
           data={p.series.map((s) => ({ type: 'scatter', mode: 'lines', name: s.name, x: p.x, y: s.values }))}
-          layout={{ xaxis: { title: 'Index' }, yaxis: { title: 'Value' } }}
+          layout={{ xaxis: { title: p.x_title ?? 'X' }, yaxis: { title: p.y_title ?? 'Value' } }}
+        />
+      </div>
+    )
+  }
+
+  if (kind === 'line_time') {
+    const p = downsampleLineTime(payload as unknown as LineTimePayload)
+    return (
+      <div className="plot-card">
+        <h3>{plot.title}</h3>
+        <Chart
+          data={p.series.map((s) => ({
+            type: 'scatter',
+            mode: 'lines',
+            name: s.name,
+            x: p.x.map((value) => new Date(value).toISOString()),
+            y: s.values,
+          }))}
+          layout={{
+            xaxis: { type: 'date', title: p.x_title ?? 'Timestamp' },
+            yaxis: { title: p.y_title ?? 'Value' },
+          }}
         />
       </div>
     )
@@ -194,7 +266,10 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
         <h3>{plot.title}</h3>
         <Chart
           data={[{ type: 'bar', x: p.categories, y: p.values, marker: { color: '#0b6bcb', opacity: 0.85 } }]}
-          layout={{ xaxis: { title: 'Category' }, yaxis: { title: 'Value' } }}
+          layout={{
+            xaxis: { title: (payload as unknown as { x_title?: string }).x_title ?? 'Category', tickangle: -25 },
+            yaxis: { title: (payload as unknown as { y_title?: string }).y_title ?? 'Value' },
+          }}
         />
       </div>
     )

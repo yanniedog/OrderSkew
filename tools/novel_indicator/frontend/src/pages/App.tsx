@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   cancelRun,
   createRun,
@@ -12,7 +12,9 @@ import {
   listRuns,
 } from '../api/client'
 import type {
+  AdvancedRunConfig,
   BinanceCallDiagnostic,
+  PlotOptions,
   PlotPayload,
   ResultSummary,
   RunConfig,
@@ -20,19 +22,153 @@ import type {
   TelemetrySnapshot,
 } from '../api/types'
 import { PlotPanel } from '../components/PlotPanel'
+import { barsToMs, formatDurationMs } from '../utils/timeframe'
 
-const PLOTS = ['horizon_heatmap', 'forecast_overlay', 'novelty_pareto', 'timeframe_error', 'leaderboard', 'equity_curve', 'residual_histogram']
+const PLOTS = [
+  'indicator_horizon_heatmap',
+  'horizon_slice_table',
+  'forecast_overlay',
+  'indicator_horizon_profile',
+  'calibration_curve',
+  'stability_folds',
+  'novelty_pareto',
+  'formula_inspector',
+  'leaderboard',
+]
 const TIMEFRAME_OPTIONS = ['5m', '1h', '4h'] as const
 
+const DEFAULT_ADVANCED: AdvancedRunConfig = {
+  performance_profile: 'fast',
+  horizon: {
+    min_bar: 3,
+    max_bar: 180,
+    coarse_step: 12,
+    refine_radius: 8,
+  },
+  search: {
+    candidate_pool_size: 140,
+    stage_a_keep: 60,
+    stage_b_keep: 20,
+    tuning_trials: 4,
+    max_combo_size: 3,
+    novelty_similarity_threshold: 0.8,
+    collinearity_threshold: 0.92,
+    min_novelty_score: 0.2,
+  },
+  validation: {
+    folds: 4,
+    embargo_bars: 8,
+    purge_bars: 8,
+    search_split: 0.58,
+    model_select_split: 0.22,
+    holdout_split: 0.2,
+    baseline_margin: 0.015,
+  },
+  objective_weights: {
+    rmse: 0.37,
+    mae: 0.3,
+    calibration: 0.18,
+    directional: 0.15,
+  },
+}
+
 const PRESET_CONFIGS = {
-  quick: { top_n_symbols: 3, timeframes: ['5m'], budget_minutes: 15, random_seed: 42 },
-  balanced: { top_n_symbols: 6, timeframes: ['5m', '1h'], budget_minutes: 35, random_seed: 42 },
-  deep: { top_n_symbols: 10, timeframes: ['5m', '1h', '4h'], budget_minutes: 90, random_seed: 42 },
+  fast: {
+    top_n_symbols: 4,
+    timeframes: ['5m', '1h'],
+    budget_minutes: 8,
+    seed_mode: 'auto',
+    random_seed: 42,
+    advanced: {
+      ...DEFAULT_ADVANCED,
+      performance_profile: 'fast',
+    },
+  },
+  balanced: {
+    top_n_symbols: 6,
+    timeframes: ['5m', '1h', '4h'],
+    budget_minutes: 24,
+    seed_mode: 'auto',
+    random_seed: 42,
+    advanced: {
+      ...DEFAULT_ADVANCED,
+      performance_profile: 'balanced',
+      search: {
+        ...DEFAULT_ADVANCED.search,
+        candidate_pool_size: 200,
+        stage_a_keep: 90,
+        stage_b_keep: 30,
+      },
+    },
+  },
+  deep: {
+    top_n_symbols: 10,
+    timeframes: ['5m', '1h', '4h'],
+    budget_minutes: 75,
+    seed_mode: 'auto',
+    random_seed: 42,
+    advanced: {
+      ...DEFAULT_ADVANCED,
+      performance_profile: 'deep',
+      horizon: {
+        ...DEFAULT_ADVANCED.horizon,
+        max_bar: 260,
+      },
+      search: {
+        ...DEFAULT_ADVANCED.search,
+        candidate_pool_size: 280,
+        stage_a_keep: 140,
+        stage_b_keep: 50,
+        tuning_trials: 8,
+      },
+    },
+  },
 } as const satisfies Record<string, RunConfig>
 
 type PresetKey = keyof typeof PRESET_CONFIGS | 'custom'
 
-const LOCAL_PREFS_KEY = 'novel_indicator_local_prefs_v1'
+const LOCAL_PREFS_KEY = 'novel_indicator_local_prefs_v2'
+
+function cloneConfig(config: RunConfig): RunConfig {
+  return JSON.parse(JSON.stringify(config)) as RunConfig
+}
+
+function withDefaults(input?: Partial<RunConfig>): RunConfig {
+  const base = cloneConfig(PRESET_CONFIGS.fast)
+  const merged: RunConfig = {
+    ...base,
+    ...input,
+    seed_mode: input?.seed_mode === 'manual' ? 'manual' : 'auto',
+    random_seed: clampInt(Number(input?.random_seed ?? base.random_seed ?? 42), 1, 1_000_000),
+    top_n_symbols: clampInt(Number(input?.top_n_symbols ?? base.top_n_symbols), 1, 30),
+    budget_minutes: clampInt(Number(input?.budget_minutes ?? base.budget_minutes), 5, 240),
+    timeframes: Array.isArray(input?.timeframes)
+      ? TIMEFRAME_OPTIONS.filter((tf) => (input?.timeframes ?? []).includes(tf))
+      : base.timeframes,
+    advanced: {
+      ...DEFAULT_ADVANCED,
+      ...(input?.advanced ?? {}),
+      horizon: {
+        ...DEFAULT_ADVANCED.horizon,
+        ...(input?.advanced?.horizon ?? {}),
+      },
+      search: {
+        ...DEFAULT_ADVANCED.search,
+        ...(input?.advanced?.search ?? {}),
+      },
+      validation: {
+        ...DEFAULT_ADVANCED.validation,
+        ...(input?.advanced?.validation ?? {}),
+      },
+      objective_weights: {
+        ...DEFAULT_ADVANCED.objective_weights,
+        ...(input?.advanced?.objective_weights ?? {}),
+      },
+    },
+  }
+  if (!merged.timeframes.length) merged.timeframes = ['5m']
+  return merged
+}
 
 function fmtSecs(value?: number | null): string {
   if (value == null || !Number.isFinite(value) || value < 0) return 'n/a'
@@ -49,6 +185,11 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)))
 }
 
+function clampFloat(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min
+  return Math.min(max, Math.max(min, value))
+}
+
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
@@ -61,6 +202,12 @@ function fmtNumber(value: number, digits = 4): string {
 function fmtPct(value: number): string {
   if (!Number.isFinite(value)) return 'n/a'
   return `${(value * 100).toFixed(2)}%`
+}
+
+function horizonLabel(row: { timeframe: string; best_horizon: number; best_horizon_ms?: number; best_horizon_label?: string }): string {
+  if (row.best_horizon_label) return row.best_horizon_label
+  const ms = row.best_horizon_ms ?? barsToMs(row.timeframe, row.best_horizon)
+  return `${row.best_horizon} bars (${formatDurationMs(ms)} @ ${row.timeframe})`
 }
 
 export function App() {
@@ -77,8 +224,11 @@ export function App() {
   const [loadingPlots, setLoadingPlots] = useState(false)
   const [downloadingBundle, setDownloadingBundle] = useState(false)
   const [ecoMode, setEcoMode] = useState(true)
-  const [preset, setPreset] = useState<PresetKey>('balanced')
-  const [runConfig, setRunConfig] = useState<RunConfig>(PRESET_CONFIGS.balanced)
+  const [preset, setPreset] = useState<PresetKey>('fast')
+  const [runConfig, setRunConfig] = useState<RunConfig>(withDefaults(PRESET_CONFIGS.fast))
+  const [horizonMinutes, setHorizonMinutes] = useState(120)
+  const [sliceMetric, setSliceMetric] = useState<NonNullable<PlotOptions['metric']>>('composite_error')
+  const [minNovelty, setMinNovelty] = useState(0.15)
 
   const savePreferenceTimer = useRef<number | null>(null)
 
@@ -91,6 +241,7 @@ export function App() {
     const avgError = rows.reduce((acc, row) => acc + row.score.composite_error, 0) / rows.length
     const avgHit = rows.reduce((acc, row) => acc + row.score.directional_hit_rate, 0) / rows.length
     const avgPnl = rows.reduce((acc, row) => acc + row.score.pnl_total, 0) / rows.length
+    const avgCal = rows.reduce((acc, row) => acc + (row.score.calibration_error ?? 0), 0) / rows.length
     const positivePnl = rows.filter((row) => row.score.pnl_total > 0).length
     const best = rows[0]
     const worst = rows[rows.length - 1]
@@ -102,6 +253,7 @@ export function App() {
       avgError,
       avgHit,
       avgPnl,
+      avgCal,
       positivePnlRatio: positivePnl / rows.length,
       best,
       worst,
@@ -114,30 +266,28 @@ export function App() {
       const raw = window.localStorage.getItem(LOCAL_PREFS_KEY)
       if (!raw) return
       const parsed = JSON.parse(raw) as {
-        top_n_symbols?: unknown
-        timeframes?: unknown
-        budget_minutes?: unknown
-        random_seed?: unknown
-        ecoMode?: unknown
+        runConfig?: Partial<RunConfig>
+        ecoMode?: boolean
+        horizonMinutes?: number
+        sliceMetric?: NonNullable<PlotOptions['metric']>
+        minNovelty?: number
       }
-      const parsedTimeframes = Array.isArray(parsed.timeframes)
-        ? parsed.timeframes.filter((value): value is string => typeof value === 'string')
-        : []
-      const merged: RunConfig = {
-        top_n_symbols:
-          typeof parsed.top_n_symbols === 'number' ? clampInt(parsed.top_n_symbols, 1, 30) : PRESET_CONFIGS.balanced.top_n_symbols,
-        timeframes: parsedTimeframes.length > 0 ? TIMEFRAME_OPTIONS.filter((tf) => parsedTimeframes.includes(tf)) : PRESET_CONFIGS.balanced.timeframes,
-        budget_minutes:
-          typeof parsed.budget_minutes === 'number'
-            ? clampInt(parsed.budget_minutes, 5, 240)
-            : PRESET_CONFIGS.balanced.budget_minutes,
-        random_seed:
-          typeof parsed.random_seed === 'number' ? clampInt(parsed.random_seed, 1, 99999) : PRESET_CONFIGS.balanced.random_seed,
+      if (parsed.runConfig) {
+        const merged = withDefaults(parsed.runConfig)
+        setRunConfig(merged)
+        const fast = JSON.stringify(withDefaults(PRESET_CONFIGS.fast))
+        const balanced = JSON.stringify(withDefaults(PRESET_CONFIGS.balanced))
+        const deep = JSON.stringify(withDefaults(PRESET_CONFIGS.deep))
+        const current = JSON.stringify(merged)
+        if (current === fast) setPreset('fast')
+        else if (current === balanced) setPreset('balanced')
+        else if (current === deep) setPreset('deep')
+        else setPreset('custom')
       }
-      setRunConfig(merged.timeframes.length > 0 ? merged : { ...merged, timeframes: PRESET_CONFIGS.balanced.timeframes })
-      if (typeof parsed.ecoMode === 'boolean') {
-        setEcoMode(parsed.ecoMode)
-      }
+      if (typeof parsed.ecoMode === 'boolean') setEcoMode(parsed.ecoMode)
+      if (typeof parsed.horizonMinutes === 'number') setHorizonMinutes(clampInt(parsed.horizonMinutes, 5, 10080))
+      if (parsed.sliceMetric) setSliceMetric(parsed.sliceMetric)
+      if (typeof parsed.minNovelty === 'number') setMinNovelty(clampFloat(parsed.minNovelty, 0, 1))
     } catch {
       // ignore malformed local preference payloads
     }
@@ -147,18 +297,18 @@ export function App() {
     if (savePreferenceTimer.current !== null) window.clearTimeout(savePreferenceTimer.current)
     savePreferenceTimer.current = window.setTimeout(() => {
       const prefs = {
-        top_n_symbols: runConfig.top_n_symbols,
-        timeframes: runConfig.timeframes,
-        budget_minutes: runConfig.budget_minutes,
-        random_seed: runConfig.random_seed,
+        runConfig,
         ecoMode,
+        horizonMinutes,
+        sliceMetric,
+        minNovelty,
       }
       window.localStorage.setItem(LOCAL_PREFS_KEY, JSON.stringify(prefs))
     }, 500)
     return () => {
       if (savePreferenceTimer.current !== null) window.clearTimeout(savePreferenceTimer.current)
     }
-  }, [runConfig, ecoMode])
+  }, [runConfig, ecoMode, horizonMinutes, sliceMetric, minNovelty])
 
   const refreshRunsOnce = async (signal?: AbortSignal): Promise<void> => {
     try {
@@ -252,29 +402,44 @@ export function App() {
     void load()
   }, [runs, selectedRunId, summaryRunId])
 
-  const loadPlots = async (): Promise<void> => {
-    if (!selectedRunId || !summary || loadingPlots) return
-    setLoadingPlots(true)
-    setError(null)
-    try {
-      const loaded: Record<string, PlotPayload> = {}
-      await Promise.all(
-        PLOTS.map(async (plotId) => {
-          try {
-            loaded[plotId] = await getPlot(selectedRunId, plotId)
-          } catch {
-            // optional
-          }
-        }),
-      )
-      setPlots(loaded)
-      setPlotsRunId(selectedRunId)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoadingPlots(false)
-    }
-  }
+  const loadPlots = useCallback(
+    async (forceRefresh = false): Promise<void> => {
+      if (!selectedRunId || !summary || (!forceRefresh && loadingPlots)) return
+      if (!forceRefresh) setLoadingPlots(true)
+      setError(null)
+      try {
+        const loaded: Record<string, PlotPayload> = {}
+        await Promise.all(
+          PLOTS.map(async (plotId) => {
+            try {
+              const options =
+                plotId === 'indicator_horizon_heatmap' || plotId === 'horizon_slice_table'
+                  ? ({ horizon_minutes: horizonMinutes, metric: sliceMetric, min_novelty: minNovelty } satisfies PlotOptions)
+                  : undefined
+              loaded[plotId] = await getPlot(selectedRunId, plotId, options)
+            } catch {
+              // optional
+            }
+          }),
+        )
+        setPlots(loaded)
+        setPlotsRunId(selectedRunId)
+      } catch (e) {
+        setError((e as Error).message)
+      } finally {
+        if (!forceRefresh) setLoadingPlots(false)
+      }
+    },
+    [selectedRunId, summary, loadingPlots, horizonMinutes, sliceMetric, minNovelty],
+  )
+
+  useEffect(() => {
+    if (!plotsLoaded || !selectedRunId || !summary) return
+    const timer = window.setTimeout(() => {
+      void loadPlots(true)
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [horizonMinutes, sliceMetric, minNovelty, plotsLoaded, selectedRunId, summary, loadPlots])
 
   const onCreate = async () => {
     setLoadingCreate(true)
@@ -304,12 +469,65 @@ export function App() {
 
   const applyPreset = (nextPreset: Exclude<PresetKey, 'custom'>) => {
     setPreset(nextPreset)
-    setRunConfig({ ...PRESET_CONFIGS[nextPreset] })
+    setRunConfig(withDefaults(PRESET_CONFIGS[nextPreset]))
   }
 
-  const updateConfigNumber = (key: keyof Pick<RunConfig, 'top_n_symbols' | 'budget_minutes' | 'random_seed'>, value: number) => {
+  const updateConfig = (patch: Partial<RunConfig>) => {
     setPreset('custom')
-    setRunConfig((prev) => ({ ...prev, [key]: value }))
+    setRunConfig((prev) => withDefaults({ ...prev, ...patch }))
+  }
+
+  const updateAdvanced = (patch: Partial<AdvancedRunConfig>) => {
+    setPreset('custom')
+    setRunConfig((prev) =>
+      withDefaults({
+        ...prev,
+        advanced: {
+          ...(prev.advanced ?? DEFAULT_ADVANCED),
+          ...patch,
+        },
+      }),
+    )
+  }
+
+  const updateHorizon = (key: keyof AdvancedRunConfig['horizon'], value: number) => {
+    const current = runConfig.advanced ?? DEFAULT_ADVANCED
+    updateAdvanced({
+      horizon: {
+        ...current.horizon,
+        [key]: value,
+      },
+    })
+  }
+
+  const updateSearch = (key: keyof AdvancedRunConfig['search'], value: number) => {
+    const current = runConfig.advanced ?? DEFAULT_ADVANCED
+    updateAdvanced({
+      search: {
+        ...current.search,
+        [key]: value,
+      },
+    })
+  }
+
+  const updateValidation = (key: keyof AdvancedRunConfig['validation'], value: number) => {
+    const current = runConfig.advanced ?? DEFAULT_ADVANCED
+    updateAdvanced({
+      validation: {
+        ...current.validation,
+        [key]: value,
+      },
+    })
+  }
+
+  const updateObjective = (key: keyof AdvancedRunConfig['objective_weights'], value: number) => {
+    const current = runConfig.advanced ?? DEFAULT_ADVANCED
+    updateAdvanced({
+      objective_weights: {
+        ...current.objective_weights,
+        [key]: value,
+      },
+    })
   }
 
   const toggleTimeframe = (timeframe: (typeof TIMEFRAME_OPTIONS)[number]) => {
@@ -319,7 +537,7 @@ export function App() {
       if (current.has(timeframe)) current.delete(timeframe)
       else current.add(timeframe)
       const next = TIMEFRAME_OPTIONS.filter((tf) => current.has(tf))
-      return { ...prev, timeframes: next.length > 0 ? next : [timeframe] }
+      return withDefaults({ ...prev, timeframes: next.length > 0 ? next : [timeframe] })
     })
   }
 
@@ -329,17 +547,17 @@ export function App() {
       <header className="top-header">
         <div className="header-line">
           <div>
-            <h1>Novel Indicator Lab</h1>
-            <p>Guest mode opens directly to optimization choices. Binance fetches run from your browser IP.</p>
+            <h1>Novel Indicator Lab V2</h1>
+            <p>Leakage-safe walk-forward search, horizon-to-time translation, and horizon-slice heatmap explorer.</p>
           </div>
-          <span className="status-pill online">Guest Mode</span>
+          <span className="status-pill online">Browser Compute</span>
         </div>
 
         <div className="run-config-grid">
           <label>
             Preset
             <select value={preset} onChange={(e) => applyPreset(e.target.value as Exclude<PresetKey, 'custom'>)}>
-              <option value="quick">Quick</option>
+              <option value="fast">Fast (&lt;8m target)</option>
               <option value="balanced">Balanced</option>
               <option value="deep">Deep</option>
               <option value="custom" disabled>
@@ -354,7 +572,7 @@ export function App() {
               min={1}
               max={30}
               value={runConfig.top_n_symbols}
-              onChange={(e) => updateConfigNumber('top_n_symbols', clampInt(Number(e.target.value), 1, 30))}
+              onChange={(e) => updateConfig({ top_n_symbols: clampInt(Number(e.target.value), 1, 30) })}
             />
           </label>
           <label>
@@ -364,20 +582,28 @@ export function App() {
               min={5}
               max={240}
               value={runConfig.budget_minutes}
-              onChange={(e) => updateConfigNumber('budget_minutes', clampInt(Number(e.target.value), 5, 240))}
+              onChange={(e) => updateConfig({ budget_minutes: clampInt(Number(e.target.value), 5, 240) })}
             />
           </label>
           <label>
-            Random seed
-            <input
-              type="number"
-              min={1}
-              max={99999}
-              value={runConfig.random_seed}
-              onChange={(e) => updateConfigNumber('random_seed', clampInt(Number(e.target.value), 1, 99999))}
-            />
+            Performance Profile
+            <select
+              value={runConfig.advanced?.performance_profile ?? 'fast'}
+              onChange={(e) =>
+                updateAdvanced({
+                  performance_profile: (e.target.value as AdvancedRunConfig['performance_profile']) ?? 'fast',
+                })
+              }
+            >
+              <option value="fast">Fast</option>
+              <option value="balanced">Balanced</option>
+              <option value="deep">Deep</option>
+            </select>
           </label>
         </div>
+        <p className="inline-note">
+          Fast default: 4 symbols, 5m+1h timeframes, 8-minute budget. Deep profiles expand candidate and horizon search.
+        </p>
 
         <div className="timeframe-row">
           <span>Timeframes</span>
@@ -388,11 +614,186 @@ export function App() {
               </button>
             ))}
           </div>
+          <div className="seed-row">
+            <label>
+              Seed Mode
+              <select
+                value={runConfig.seed_mode ?? 'auto'}
+                onChange={(e) => updateConfig({ seed_mode: e.target.value === 'manual' ? 'manual' : 'auto' })}
+              >
+                <option value="auto">Auto (deterministic)</option>
+                <option value="manual">Manual override</option>
+              </select>
+            </label>
+            {runConfig.seed_mode === 'manual' && (
+              <label>
+                Manual Seed
+                <input
+                  type="number"
+                  min={1}
+                  max={1000000}
+                  value={runConfig.random_seed ?? 42}
+                  onChange={(e) => updateConfig({ random_seed: clampInt(Number(e.target.value), 1, 1_000_000) })}
+                />
+              </label>
+            )}
+          </div>
           <label className="toggle">
             <input type="checkbox" checked={ecoMode} onChange={(e) => setEcoMode(e.target.checked)} />
             <span>Eco polling mode</span>
           </label>
+          <p className="inline-note">
+            Auto seed keeps runs deterministic from config and symbols. Manual seed is optional for explicit reproducibility experiments.
+          </p>
         </div>
+
+        <details className="advanced-panel">
+          <summary>Advanced Controls</summary>
+          <div className="run-config-grid">
+            <label>
+              Horizon Min (bars)
+              <input
+                type="number"
+                value={runConfig.advanced?.horizon.min_bar ?? DEFAULT_ADVANCED.horizon.min_bar}
+                onChange={(e) => updateHorizon('min_bar', clampInt(Number(e.target.value), 1, 400))}
+              />
+            </label>
+            <label>
+              Horizon Max (bars)
+              <input
+                type="number"
+                value={runConfig.advanced?.horizon.max_bar ?? DEFAULT_ADVANCED.horizon.max_bar}
+                onChange={(e) => updateHorizon('max_bar', clampInt(Number(e.target.value), 2, 600))}
+              />
+            </label>
+            <label>
+              Coarse Step
+              <input
+                type="number"
+                value={runConfig.advanced?.horizon.coarse_step ?? DEFAULT_ADVANCED.horizon.coarse_step}
+                onChange={(e) => updateHorizon('coarse_step', clampInt(Number(e.target.value), 1, 80))}
+              />
+            </label>
+            <label>
+              Refine Radius
+              <input
+                type="number"
+                value={runConfig.advanced?.horizon.refine_radius ?? DEFAULT_ADVANCED.horizon.refine_radius}
+                onChange={(e) => updateHorizon('refine_radius', clampInt(Number(e.target.value), 1, 40))}
+              />
+            </label>
+          </div>
+          <p className="inline-note">Horizon search runs coarse screening, then local refinement around survivors.</p>
+          <div className="run-config-grid">
+            <label>
+              Candidate Pool
+              <input
+                type="number"
+                value={runConfig.advanced?.search.candidate_pool_size ?? DEFAULT_ADVANCED.search.candidate_pool_size}
+                onChange={(e) => updateSearch('candidate_pool_size', clampInt(Number(e.target.value), 32, 500))}
+              />
+            </label>
+            <label>
+              Stage A Keep
+              <input
+                type="number"
+                value={runConfig.advanced?.search.stage_a_keep ?? DEFAULT_ADVANCED.search.stage_a_keep}
+                onChange={(e) => updateSearch('stage_a_keep', clampInt(Number(e.target.value), 8, 300))}
+              />
+            </label>
+            <label>
+              Stage B Keep
+              <input
+                type="number"
+                value={runConfig.advanced?.search.stage_b_keep ?? DEFAULT_ADVANCED.search.stage_b_keep}
+                onChange={(e) => updateSearch('stage_b_keep', clampInt(Number(e.target.value), 4, 160))}
+              />
+            </label>
+            <label>
+              Min Novelty
+              <input
+                type="number"
+                step={0.01}
+                value={runConfig.advanced?.search.min_novelty_score ?? DEFAULT_ADVANCED.search.min_novelty_score}
+                onChange={(e) => updateSearch('min_novelty_score', clampFloat(Number(e.target.value), 0, 1))}
+              />
+            </label>
+          </div>
+          <div className="run-config-grid">
+            <label>
+              CV Folds
+              <input
+                type="number"
+                value={runConfig.advanced?.validation.folds ?? DEFAULT_ADVANCED.validation.folds}
+                onChange={(e) => updateValidation('folds', clampInt(Number(e.target.value), 2, 6))}
+              />
+            </label>
+            <label>
+              Purge Bars
+              <input
+                type="number"
+                value={runConfig.advanced?.validation.purge_bars ?? DEFAULT_ADVANCED.validation.purge_bars}
+                onChange={(e) => updateValidation('purge_bars', clampInt(Number(e.target.value), 0, 64))}
+              />
+            </label>
+            <label>
+              Embargo Bars
+              <input
+                type="number"
+                value={runConfig.advanced?.validation.embargo_bars ?? DEFAULT_ADVANCED.validation.embargo_bars}
+                onChange={(e) => updateValidation('embargo_bars', clampInt(Number(e.target.value), 0, 64))}
+              />
+            </label>
+            <label>
+              Baseline Margin
+              <input
+                type="number"
+                step={0.001}
+                value={runConfig.advanced?.validation.baseline_margin ?? DEFAULT_ADVANCED.validation.baseline_margin}
+                onChange={(e) => updateValidation('baseline_margin', clampFloat(Number(e.target.value), 0, 0.2))}
+              />
+            </label>
+          </div>
+          <div className="run-config-grid">
+            <label>
+              Objective RMSE
+              <input
+                type="number"
+                step={0.01}
+                value={runConfig.advanced?.objective_weights.rmse ?? DEFAULT_ADVANCED.objective_weights.rmse}
+                onChange={(e) => updateObjective('rmse', clampFloat(Number(e.target.value), 0.01, 1))}
+              />
+            </label>
+            <label>
+              Objective MAE
+              <input
+                type="number"
+                step={0.01}
+                value={runConfig.advanced?.objective_weights.mae ?? DEFAULT_ADVANCED.objective_weights.mae}
+                onChange={(e) => updateObjective('mae', clampFloat(Number(e.target.value), 0.01, 1))}
+              />
+            </label>
+            <label>
+              Objective Calibration
+              <input
+                type="number"
+                step={0.01}
+                value={runConfig.advanced?.objective_weights.calibration ?? DEFAULT_ADVANCED.objective_weights.calibration}
+                onChange={(e) => updateObjective('calibration', clampFloat(Number(e.target.value), 0.01, 1))}
+              />
+            </label>
+            <label>
+              Objective Directional
+              <input
+                type="number"
+                step={0.01}
+                value={runConfig.advanced?.objective_weights.directional ?? DEFAULT_ADVANCED.objective_weights.directional}
+                onChange={(e) => updateObjective('directional', clampFloat(Number(e.target.value), 0.01, 1))}
+              />
+            </label>
+          </div>
+          <p className="inline-note">Purged folds + embargo reduce leakage risk. Objective weights define final ranking behavior.</p>
+        </details>
 
         <div className="controls">
           <button onClick={onCreate} disabled={loadingCreate}>
@@ -557,19 +958,62 @@ export function App() {
       <section className="panel results-panel">
         <div className="results-header">
           <h2>Results Explorer</h2>
-          {summary && !plotsLoaded && (
-            <button className="secondary" onClick={loadPlots} disabled={loadingPlots}>
-              {loadingPlots ? 'Loading Plots...' : 'Load Plots'}
-            </button>
+          {summary && (
+            <div className="slice-controls">
+              <label>
+                Future timepoint (minutes)
+                <input
+                  type="number"
+                  min={5}
+                  max={10080}
+                  value={horizonMinutes}
+                  onChange={(e) => setHorizonMinutes(clampInt(Number(e.target.value), 5, 10080))}
+                />
+              </label>
+              <label>
+                Metric
+                <select value={sliceMetric} onChange={(e) => setSliceMetric(e.target.value as NonNullable<PlotOptions['metric']>)}>
+                  <option value="composite_error">Composite Error</option>
+                  <option value="calibration_error">Calibration Error</option>
+                  <option value="directional_hit_rate">Directional Hit Rate</option>
+                  <option value="pnl_total">PnL</option>
+                </select>
+              </label>
+              <label>
+                Min novelty
+                <input
+                  type="number"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={minNovelty}
+                  onChange={(e) => setMinNovelty(clampFloat(Number(e.target.value), 0, 1))}
+                />
+              </label>
+              <button className="secondary" onClick={() => void loadPlots()} disabled={loadingPlots}>
+                {loadingPlots ? 'Loading Plots...' : 'Refresh Plots'}
+              </button>
+            </div>
           )}
         </div>
         {summary ? (
           <>
+            <div className="telemetry-footnote" style={{ marginBottom: 10 }}>
+              <strong>Forecast interpretation</strong>
+              <div>Target variable: future close at selected horizon, conditioned on current bar features.</div>
+              <div>
+                Timepoint selection ({horizonMinutes}m ahead) auto-converts to bars by timeframe, e.g. 2h = 24 bars on 5m and 2 bars on 1h.
+              </div>
+            </div>
             {summaryInsights && (
               <div className="kpis" style={{ marginBottom: 10 }}>
                 <div>
                   <label>Avg Composite Error</label>
                   <span>{fmtNumber(summaryInsights.avgError, 5)}</span>
+                </div>
+                <div>
+                  <label>Avg Calibration Error</label>
+                  <span>{fmtNumber(summaryInsights.avgCal, 5)}</span>
                 </div>
                 <div>
                   <label>Avg Hit Rate</label>
@@ -585,10 +1029,30 @@ export function App() {
                 </div>
               </div>
             )}
+            {summary.validation_report && (
+              <div className="kpis" style={{ marginBottom: 10 }}>
+                <div>
+                  <label>Leakage Checks</label>
+                  <span>{summary.validation_report.leakage_checks_passed ? 'Pass' : 'Fail'}</span>
+                </div>
+                <div>
+                  <label>Leakage Sentinel</label>
+                  <span>{summary.validation_report.leakage_sentinel_triggered ? 'Triggered' : 'Not Triggered'}</span>
+                </div>
+                <div>
+                  <label>Holdout Pass Ratio</label>
+                  <span>{fmtPct(summary.validation_report.holdout_pass_ratio)}</span>
+                </div>
+                <div>
+                  <label>Baseline Rejection Rate</label>
+                  <span>{fmtPct(summary.validation_report.baseline_rejection_rate)}</span>
+                </div>
+              </div>
+            )}
             <div className="universal-card">
               <h3>Universal Recommendation</h3>
               <p>
-                Horizon: <b>{summary.universal_recommendation.best_horizon}</b> bars | Composite Error:{' '}
+                Horizon: <b>{horizonLabel(summary.universal_recommendation)}</b> | Composite Error:{' '}
                 <b>{summary.universal_recommendation.score.composite_error.toFixed(6)}</b> | Hit Rate:{' '}
                 <b>{summary.universal_recommendation.score.directional_hit_rate.toFixed(3)}</b> | PnL:{' '}
                 <b>{summary.universal_recommendation.score.pnl_total.toFixed(4)}</b>
@@ -623,8 +1087,9 @@ export function App() {
                   <tr>
                     <th>Symbol</th>
                     <th>TF</th>
-                    <th>Horizon</th>
+                    <th>Horizon (Bars/Time)</th>
                     <th>Error</th>
+                    <th>Cal</th>
                     <th>HitRate</th>
                     <th>PnL</th>
                     <th>MaxDD</th>
@@ -637,8 +1102,9 @@ export function App() {
                     <tr key={`${rec.symbol}-${rec.timeframe}`}>
                       <td>{rec.symbol}</td>
                       <td>{rec.timeframe}</td>
-                      <td>{rec.best_horizon}</td>
+                      <td>{horizonLabel(rec)}</td>
                       <td>{rec.score.composite_error.toFixed(6)}</td>
+                      <td>{(rec.score.calibration_error ?? 0).toFixed(5)}</td>
                       <td>{rec.score.directional_hit_rate.toFixed(3)}</td>
                       <td>{rec.score.pnl_total.toFixed(4)}</td>
                       <td>{rec.score.max_drawdown.toFixed(4)}</td>

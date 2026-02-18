@@ -24,6 +24,7 @@ class ReportBuilder:
         template = self.env.get_template("report.html.j2")
         per_asset = [r.model_dump() for r in summary.per_asset_recommendations]
         avg_error = mean([row["score"]["composite_error"] for row in per_asset]) if per_asset else 0.0
+        avg_calibration = mean([row["score"].get("calibration_error", 0.0) for row in per_asset]) if per_asset else 0.0
         avg_hit = mean([row["score"]["directional_hit_rate"] for row in per_asset]) if per_asset else 0.0
         avg_pnl = mean([row["score"]["pnl_total"] for row in per_asset]) if per_asset else 0.0
         positive_ratio = (
@@ -43,11 +44,13 @@ class ReportBuilder:
             per_asset=per_asset,
             insights={
                 "avg_error": avg_error,
+                "avg_calibration_error": avg_calibration,
                 "avg_hit": avg_hit,
                 "avg_pnl": avg_pnl,
                 "positive_ratio": positive_ratio,
                 "warnings": warnings,
             },
+            validation=summary.validation_report.model_dump() if summary.validation_report else None,
         )
 
         report_dir = self.store.report_dir(run_id)
