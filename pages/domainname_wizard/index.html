@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Domain Name Wizard | OrderSkew Tools</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+  <main class="container">
+    <header class="hero card">
+      <p class="eyebrow">OrderSkew Toolkit</p>
+      <h1>Domain Name Wizard</h1>
+      <p class="subtitle">
+        Browser-native domain discovery lab adapted from your <code>domainname-wizard</code> repo. Name generation,
+        iterative tuning, scoring, and ranking all execute locally in your browser worker.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-secondary" href="../index.html">Back to tools</a>
+        <a class="btn btn-secondary" href="source/README.md" target="_blank" rel="noreferrer">Imported source snapshot</a>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Search Setup</h2>
+      <form id="search-form" class="grid">
+        <label>Keywords
+          <input name="keywords" required placeholder="e.g. AI productivity" value="AI productivity">
+        </label>
+        <label>Description
+          <input name="description" placeholder="Optional business description">
+        </label>
+        <label>Style
+          <select name="style">
+            <option value="default">default</option>
+            <option value="brandable">brandable</option>
+            <option value="twowords">twowords</option>
+            <option value="threewords">threewords</option>
+            <option value="compound">compound</option>
+            <option value="spelling">spelling</option>
+            <option value="nonenglish">nonenglish</option>
+            <option value="dictionary">dictionary</option>
+          </select>
+        </label>
+        <label>Randomness
+          <select name="randomness">
+            <option value="low">low</option>
+            <option value="medium" selected>medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <label>Blacklist
+          <input name="blacklist" placeholder="comma,separated,blocked,terms">
+        </label>
+        <label>Maximum Name Length
+          <input name="maxLength" type="number" min="5" max="25" value="25">
+        </label>
+        <label>TLD
+          <input name="tld" placeholder="com" value="com">
+        </label>
+        <label>Max Names / Loop
+          <input name="maxNames" type="number" min="1" max="250" value="100">
+        </label>
+        <label>Yearly Budget (USD)
+          <input name="yearlyBudget" type="number" min="1" max="100000" value="50">
+        </label>
+        <label>Loop Count
+          <input name="loopCount" type="number" min="1" max="25" value="10">
+        </label>
+      </form>
+      <div class="controls">
+        <button id="start-btn" class="btn btn-primary" type="button">Start Search</button>
+        <button id="cancel-btn" class="btn btn-danger" type="button" disabled>Cancel Run</button>
+        <button id="download-json-btn" class="btn btn-secondary" type="button" disabled>Download Results JSON</button>
+      </div>
+      <p id="form-error" class="error" hidden></p>
+    </section>
+
+    <section class="card" id="status-card">
+      <div class="status-head">
+        <h2>Status</h2>
+        <span class="job-id" id="job-id">Run: -</span>
+      </div>
+      <div class="status-kpis">
+        <p><strong id="status-label">Idle</strong> <span id="progress-label">(0%)</span></p>
+        <p id="loop-label">Loop -/-</p>
+        <p id="elapsed-label">Elapsed: 00:00</p>
+      </div>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+      </div>
+      <p id="job-error" class="error" hidden></p>
+      <p class="hint">
+        Processing runs in <code>engine.worker.js</code> in your browser. No backend API is required for this tool.
+      </p>
+    </section>
+
+    <section class="card" id="results-panel" hidden>
+      <div class="results-head">
+        <h2>Results</h2>
+        <label>Sort ranked domains
+          <select id="sort-mode">
+            <option value="marketability">marketability</option>
+            <option value="financialValue">financialValue</option>
+            <option value="alphabetical">alphabetical</option>
+            <option value="syllableCount">syllableCount</option>
+            <option value="labelLength">labelLength</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="summary-kpis" class="summary-grid"></div>
+
+      <h3>All Ranked Available Domains</h3>
+      <div id="all-ranked-table" class="table-wrap"></div>
+
+      <h3>Within Budget</h3>
+      <div id="within-budget-table" class="table-wrap"></div>
+
+      <h3>Over Budget</h3>
+      <div id="over-budget-table" class="table-wrap"></div>
+
+      <h3>Unavailable / Unknown</h3>
+      <div id="unavailable-table" class="table-wrap"></div>
+
+      <h3>Loop Summaries</h3>
+      <div id="loop-summary-table" class="table-wrap"></div>
+
+      <h3>Tuning History</h3>
+      <div id="tuning-table" class="table-wrap"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

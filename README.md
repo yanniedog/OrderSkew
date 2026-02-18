@@ -43,5 +43,7 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - Optional account/profile persistence can still be handled by Cloudflare Worker + D1 when enabled.
 - Binance API rate limits apply per end-user IP because calls are made directly from the browser to Binance.
 - Full source for this tool lives under `tools/novel_indicator/` (frontend, Cloudflare API, migrations, deploy scripts, and legacy backend reference code).
+- `pages/domainname_wizard/` hosts a browser-native Domain Name Wizard tool with local worker processing.
+- Imported source snapshot from `C:\code\domainname-wizard` is stored at `pages/domainname_wizard/source/` (excluding `.next`, `node_modules`, and local env/debug artifacts).
 
 
