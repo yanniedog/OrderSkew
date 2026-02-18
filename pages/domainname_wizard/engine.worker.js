@@ -181,6 +181,11 @@ function mergeBest(existing, next, loop) {
   const existingPrice = typeof existing.price === 'number' ? existing.price : Number.POSITIVE_INFINITY;
   const better = (next.overallScore || 0) > (existing.overallScore || 0) || ((next.overallScore || 0) === (existing.overallScore || 0) && nextPrice < existingPrice);
   const chosen = better ? next : existing;
+  // #region agent log
+  if (existing.isNamelixPremium !== next.isNamelixPremium || existingPrice !== nextPrice) {
+    self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:mergeBest', message: 'Merge diff premium/price', data: { domain: next.domain, existingPremium: existing.isNamelixPremium, nextPremium: next.isNamelixPremium, chosenPremium: chosen.isNamelixPremium, existingPrice: existing.price, nextPrice: next.price, chosenPrice: chosen.price, hypothesisId: 'H2' }, timestamp: Date.now() } });
+  }
+  // #endregion
   return {
     ...chosen,
     firstSeenLoop: Math.min(existing.firstSeenLoop || loop, next.firstSeenLoop || loop),
@@ -425,7 +430,13 @@ function makeBatch(plan, seed, target, seen) {
     if (seen.has(key)) continue;
     seen.add(key);
     const premium = (hash(`${domain}|premium|${seed}`) % 100) < (plan.style === 'brandable' ? 22 : 12);
-    out.push({ domain, sourceName, isNamelixPremium: premium });
+    const candidate = { domain, sourceName, isNamelixPremium: premium };
+    // #region agent log
+    if (out.length < 2) {
+      self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:makeBatch', message: 'Candidate premium', data: { domain: candidate.domain, seed, isNamelixPremium: candidate.isNamelixPremium, hypothesisId: 'H1' }, timestamp: Date.now() } });
+    }
+    // #endregion
+    out.push(candidate);
   }
   return out;
 }
@@ -469,6 +480,11 @@ function progress(totalLoops, currentLoop, fraction) {
 
 function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory) {
   const allRanked = sortRanked(Array.from(availableMap.values()), 'marketability');
+  // #region agent log
+  allRanked.slice(0, 2).forEach(function (r, i) {
+    self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:snapshot', message: 'Snapshot row', data: { index: i, domain: r.domain, price: r.price, isNamelixPremium: r.isNamelixPremium, hypothesisId: 'H4' }, timestamp: Date.now() } });
+  });
+  // #endregion
   const withinBudgetOnly = allRanked.filter(function (r) { return r.overBudget !== true; });
   return {
     withinBudget: withinBudgetOnly.slice().sort(sortByPrice),
@@ -524,10 +540,17 @@ async function run(job) {
       patch(job, { status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount });
 
       let got = 0;
+      let simLogCount = 0;
       for (const cand of cands) {
         const raw = simulate(cand, plan.input, loop, batches, seed);
         const result = { ...raw, price: raw.priceMicros ? round(raw.priceMicros / 1000000, 2) : undefined };
         result.overBudget = result.available && typeof result.price === 'number' ? result.price > plan.input.yearlyBudget : false;
+        // #region agent log
+        if (simLogCount < 2) {
+          simLogCount += 1;
+          self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:simulateResult', message: 'Result price/premium', data: { domain: result.domain, isNamelixPremium: result.isNamelixPremium, price: result.price, hypothesisId: 'H4' }, timestamp: Date.now() } });
+        }
+        // #endregion
         const ranked = { ...result, ...scoreDomain(result, plan.input), firstSeenLoop: loop, lastSeenLoop: loop, timesDiscovered: 1 };
 
         if (result.available && !result.overBudget) {

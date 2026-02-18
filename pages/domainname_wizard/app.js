@@ -27,6 +27,7 @@
   let currentJob = null;
   let currentResults = null;
   let currentSortMode = 'marketability';
+  const debugLogs = [];
 
   function escapeHtml(input) {
     const div = document.createElement('div');
@@ -327,7 +328,13 @@
       return;
     }
 
-    const sortedRanked = sortRows(results.allRanked || [], currentSortMode);
+    const allRanked = results.allRanked || [];
+    // #region agent log
+    allRanked.slice(0, 2).forEach(function (row, i) {
+      debugLogs.push({ sessionId: '437d46', location: 'app.js:renderResults', message: 'UI row', data: { index: i, domain: row.domain, price: row.price, isNamelixPremium: row.isNamelixPremium, hypothesisId: 'H4' }, timestamp: Date.now() });
+    });
+    // #endregion
+    const sortedRanked = sortRows(allRanked, currentSortMode);
     const withinBudget = sortRows(results.withinBudget || [], currentSortMode);
     const overBudget = sortRows(results.overBudget || [], currentSortMode);
     const unavailable = sortRows(results.unavailable || [], currentSortMode);
@@ -1079,6 +1086,11 @@
   engine.addEventListener('message', function (event) {
     const message = event.data || {};
 
+    if (message.type === 'debugLog' && message.payload) {
+      debugLogs.push(message.payload);
+      return;
+    }
+
     if (message.type === 'state' && message.job) {
       updateStatus(message.job);
       return;
@@ -1119,4 +1131,25 @@
   downloadJsonBtn.addEventListener('click', function () {
     downloadResultsJson();
   });
+
+  function downloadDebugLog() {
+    const ndjson = debugLogs.map(function (entry) { return JSON.stringify(entry); }).join('\n');
+    const blob = new Blob([ndjson], { type: 'application/x-ndjson' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'debug-437d46.log';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  const downloadDebugLogLink = document.getElementById('download-debug-log');
+  if (downloadDebugLogLink) {
+    downloadDebugLogLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      downloadDebugLog();
+    });
+  }
 })();
