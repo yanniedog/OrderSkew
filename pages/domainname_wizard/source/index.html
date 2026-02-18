@@ -1,0 +1,350 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Domainname Wizard - Namelix-to-GoDaddy Budget Finder</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: linear-gradient(135deg, #f5f7fa 0%, #e9eef5 100%); color: #14212f; min-height: 100vh; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem 3rem; display: grid; gap: 1.25rem; }
+    .card { background: #fff; border: 1px solid #d7dfe8; border-radius: 12px; padding: 1.25rem; box-shadow: 0 8px 26px rgba(10, 35, 60, 0.06); }
+    h1, h2, h3 { margin-top: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; }
+    label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.92rem; }
+    input, select, button { border-radius: 8px; border: 1px solid #b6c4d3; padding: 0.52rem 0.65rem; font-size: 0.95rem; }
+    button { cursor: pointer; background: #106ba3; color: white; border-color: #106ba3; max-width: max-content; }
+    button:hover:not([disabled]) { background: #0d5a8a; }
+    button[disabled] { opacity: 0.65; cursor: default; }
+    .error { color: #b5162a; font-weight: 600; }
+    .progress { background: #e6edf4; border-radius: 999px; height: 10px; overflow: hidden; margin-bottom: 0.75rem; }
+    .progress > div { height: 100%; background: linear-gradient(90deg, #0582c5 0%, #29b473 100%); transition: width 0.3s ease; }
+    .table-wrap { overflow-x: auto; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { border: 1px solid #d7dfe8; padding: 0.4rem 0.5rem; text-align: left; white-space: nowrap; }
+    th { background: #f1f5f9; }
+    .api-bar {
+      background: #e8f4fc; border: 1px solid #b6d9f0; border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1rem;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+    }
+    .api-bar label { flex: 1 1 200px; margin: 0; }
+    .api-bar input { flex: 1 1 240px; min-width: 0; }
+    .api-bar .hint { font-size: 0.85rem; color: #5a6c7d; width: 100%; }
+    @media (max-width: 700px) { main { padding: 1rem 0.65rem 2rem; } .card { padding: 0.8rem; } }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <section class="card">
+      <div id="api-bar" class="api-bar" style="display: none;">
+        <label>Backend API URL (required when opening as file or when front-end is on another domain)</label>
+        <input id="api-base-input" type="url" placeholder="https://your-backend.example.com" />
+        <button type="button" id="api-save-btn">Save</button>
+        <span class="hint" id="api-hint"></span>
+      </div>
+
+      <h1>Domainname Wizard</h1>
+      <p style="margin-top: 0; color: #5a6c7d;">Namelix-to-GoDaddy budget domain finder with iterative tuning and marketability ranking.</p>
+
+      <form id="form" class="grid">
+        <label>Keywords <input name="keywords" required placeholder="e.g. AI productivity" /></label>
+        <label>Description <input name="description" placeholder="Optional business description" /></label>
+        <label>Style
+          <select name="style">
+            <option value="default">default</option>
+            <option value="brandable">brandable</option>
+            <option value="twowords">twowords</option>
+            <option value="threewords">threewords</option>
+            <option value="compound">compound</option>
+            <option value="spelling">spelling</option>
+            <option value="nonenglish">nonenglish</option>
+            <option value="dictionary">dictionary</option>
+          </select>
+        </label>
+        <label>Randomness
+          <select name="randomness">
+            <option value="low">low</option>
+            <option value="medium" selected>medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <label>Blacklist <input name="blacklist" placeholder="comma,separated,words" /></label>
+        <label>Maximum Name Length <input name="maxLength" type="number" min="5" max="25" value="25" /></label>
+        <label>TLD <input name="tld" placeholder="com" value="com" /></label>
+        <label>Max Names <input name="maxNames" type="number" min="1" max="250" value="100" /></label>
+        <label>Yearly Budget (USD) <input name="yearlyBudget" type="number" min="1" value="50" /></label>
+        <label>Loop Count <input name="loopCount" type="number" min="1" max="25" value="10" /></label>
+        <label><button type="submit" id="submit-btn">Start Search</button></label>
+      </form>
+      <p id="submit-error" class="error" style="display: none;"></p>
+    </section>
+
+    <section id="job-section" class="card" style="display: none;">
+      <h2>Status</h2>
+      <p><strong id="phase-label"></strong> <span id="progress-pct"></span> <span id="loop-status"></span></p>
+      <div class="progress"><div id="progress-bar" style="width: 0%;"></div></div>
+      <p id="job-error" class="error" style="display: none;"></p>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var API_STORAGE_KEY = "domainnameWizardApiBase";
+      var isFile = window.location.protocol === "file:";
+
+      function getApiBase() {
+        var saved = (localStorage.getItem(API_STORAGE_KEY) || "").trim();
+        if (saved) return saved.replace(/\/$/, "");
+        if (isFile) return "";
+        return window.location.origin;
+      }
+
+      function showApiBar() {
+        var bar = document.getElementById("api-bar");
+        var input = document.getElementById("api-base-input");
+        var hint = document.getElementById("api-hint");
+        if (!bar || !input) return;
+        bar.style.display = "flex";
+        input.value = getApiBase();
+        hint.textContent = isFile ? "Enter the full URL of your deployed backend (e.g. https://your-app.vercel.app)." : "Optional: use a different backend URL (e.g. if this page is on a static host).";
+      }
+
+      if (isFile || !getApiBase()) {
+        showApiBar();
+      }
+
+      document.getElementById("api-save-btn").addEventListener("click", function () {
+        var input = document.getElementById("api-base-input");
+        var val = (input && input.value || "").trim().replace(/\/$/, "");
+        localStorage.setItem(API_STORAGE_KEY, val);
+        if (val) input.value = val;
+      });
+
+      function formatMoney(value, currency) {
+        if (typeof value !== "number") return "-";
+        return new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD", maximumFractionDigits: 2 }).format(value);
+      }
+
+      function phaseLabel(status, phase) {
+        if (status === "queued") return "Queued";
+        if (status === "done") return "Done";
+        if (status === "failed") return "Failed";
+        if (phase === "looping") return "Iterative tuning";
+        if (phase === "namelix") return "Generating names";
+        if (phase === "godaddy") return "Checking domains";
+        if (phase === "finalize") return "Finalizing";
+        return "Running";
+      }
+
+      function escapeHtml(s) {
+        var div = document.createElement("div");
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      function score(v) {
+        return typeof v === "number" ? v.toFixed(1) : "-";
+      }
+
+      function compareOverall(a, b) {
+        if (a.overallScore !== b.overallScore) return b.overallScore - a.overallScore;
+        return String(a.domain).localeCompare(String(b.domain));
+      }
+
+      function sortRows(rows, mode) {
+        var copy = rows.slice();
+        copy.sort(function (a, b) {
+          if (mode === "alphabetical") {
+            var alpha = String(a.domain).localeCompare(String(b.domain));
+            if (alpha !== 0) return alpha;
+            return compareOverall(a, b);
+          }
+          if (mode === "syllableCount") {
+            if ((a.syllableCount || 0) !== (b.syllableCount || 0)) return (a.syllableCount || 0) - (b.syllableCount || 0);
+            return compareOverall(a, b);
+          }
+          if (mode === "labelLength") {
+            if ((a.labelLength || 0) !== (b.labelLength || 0)) return (a.labelLength || 0) - (b.labelLength || 0);
+            return compareOverall(a, b);
+          }
+          if (mode === "financialValue") {
+            if ((a.financialValueScore || 0) !== (b.financialValueScore || 0)) return (b.financialValueScore || 0) - (a.financialValueScore || 0);
+            return compareOverall(a, b);
+          }
+          if ((a.marketabilityScore || 0) !== (b.marketabilityScore || 0)) return (b.marketabilityScore || 0) - (a.marketabilityScore || 0);
+          return compareOverall(a, b);
+        });
+        return copy;
+      }
+
+      function renderBudgetTable(rows) {
+        if (!rows.length) return "<p>(none)</p>";
+        var h = "<div class=\"table-wrap\"><table><thead><tr><th>Domain</th><th>Price</th><th>Available</th><th>Definitive</th><th>Premium</th><th>Marketability</th><th>Financial</th><th>Overall</th><th>Reason</th></tr></thead><tbody>";
+        rows.forEach(function (r) {
+          h += "<tr><td>" + escapeHtml(r.domain) + "</td><td>" + formatMoney(r.price, r.currency) + "</td><td>" + (r.available ? "Yes" : "No") + "</td><td>" + (r.definitive ? "Yes" : "No") + "</td><td>" + (r.isNamelixPremium ? "Yes" : "No") + "</td><td>" + score(r.marketabilityScore) + "</td><td>" + score(r.financialValueScore) + "</td><td>" + score(r.overallScore) + "</td><td>" + escapeHtml(r.reason || "-") + "</td></tr>";
+        });
+        return h + "</tbody></table></div>";
+      }
+
+      function renderRankedTable(rows) {
+        if (!rows.length) return "<p>(none)</p>";
+        var h = "<div class=\"table-wrap\"><table><thead><tr><th>Domain</th><th>Availability</th><th>Price</th><th>Marketability</th><th>Financial</th><th>Overall</th><th>Syllables</th><th>Label Len</th><th>Discovered</th><th>First Loop</th><th>Last Loop</th><th>Value Drivers</th><th>Value Detractors</th></tr></thead><tbody>";
+        rows.forEach(function (r) {
+          var drivers = (r.valueDrivers || []).map(function (d) { return d.component + " (" + Number(d.impact || 0).toFixed(1) + ")"; }).join(", ") || "-";
+          var detractors = (r.valueDetractors || []).map(function (d) { return d.component + " (" + Number(d.impact || 0).toFixed(1) + ")"; }).join(", ") || "-";
+          h += "<tr><td>" + escapeHtml(r.domain) + "</td><td>Available</td><td>" + formatMoney(r.price, r.currency) + "</td><td>" + score(r.marketabilityScore) + "</td><td>" + score(r.financialValueScore) + "</td><td>" + score(r.overallScore) + "</td><td>" + (r.syllableCount || 0) + "</td><td>" + (r.labelLength || 0) + "</td><td>" + (r.timesDiscovered || 0) + "</td><td>" + (r.firstSeenLoop || "-") + "</td><td>" + (r.lastSeenLoop || "-") + "</td><td>" + escapeHtml(drivers) + "</td><td>" + escapeHtml(detractors) + "</td></tr>";
+        });
+        return h + "</tbody></table></div>";
+      }
+
+      function renderLoopSummary(rows) {
+        if (!rows || !rows.length) return "<p>(none)</p>";
+        var h = "<div class=\"table-wrap\"><table><thead><tr><th>Loop</th><th>Required</th><th>Available</th><th>Quota Met</th><th>251 Hit</th><th>Considered</th><th>Batches</th><th>Keywords</th><th>Description</th><th>Style</th><th>Randomness</th><th>Mutation</th><th>Within Budget</th><th>Avg Score</th><th>Top Domain</th><th>Note</th></tr></thead><tbody>";
+        rows.forEach(function (r) {
+          h += "<tr><td>" + r.loop + "</td><td>" + (r.requiredQuota || 0) + "</td><td>" + (r.availableCount || 0) + "</td><td>" + (r.quotaMet ? "Yes" : "No") + "</td><td>" + (r.limitHit ? "Yes" : "No") + "</td><td>" + (r.consideredCount || 0) + "</td><td>" + (r.batchCount || 0) + "</td><td>" + escapeHtml(r.keywords || "-") + "</td><td>" + escapeHtml(r.description || "-") + "</td><td>" + escapeHtml(r.style) + "</td><td>" + escapeHtml(r.randomness) + "</td><td>" + escapeHtml(r.mutationIntensity) + "</td><td>" + (r.withinBudgetCount || 0) + "</td><td>" + score(r.averageOverallScore) + "</td><td>" + escapeHtml(r.topDomain || "-") + "</td><td>" + escapeHtml(r.skipReason || "-") + "</td></tr>";
+        });
+        return h + "</tbody></table></div>";
+      }
+
+      var formEl = document.getElementById("form");
+      var submitBtn = document.getElementById("submit-btn");
+      var submitError = document.getElementById("submit-error");
+      var jobSection = document.getElementById("job-section");
+      var phaseLabelEl = document.getElementById("phase-label");
+      var progressPct = document.getElementById("progress-pct");
+      var loopStatus = document.getElementById("loop-status");
+      var progressBar = document.getElementById("progress-bar");
+      var jobError = document.getElementById("job-error");
+      var resultsEl = document.getElementById("results");
+      var pollTimer = null;
+      var latestResults = null;
+      var latestSortMode = "marketability";
+
+      function renderAllResults(results) {
+        latestResults = results;
+        var ranked = sortRows(results.allRanked || [], latestSortMode);
+        var html = "<h3>All Discovered Domains (" + ranked.length + ")</h3>";
+        html += "<label>Sort By <select id=\"all-sort\"><option value=\"marketability\">marketability</option><option value=\"financialValue\">financialValue</option><option value=\"alphabetical\">alphabetical</option><option value=\"syllableCount\">syllableCount</option><option value=\"labelLength\">labelLength</option></select></label>";
+        html += renderRankedTable(ranked);
+        html += "<h3>Within Budget (" + (results.withinBudget || []).length + ")</h3>" + renderBudgetTable(results.withinBudget || []);
+        html += "<h3>Loop Summaries (" + (results.loopSummaries || []).length + ")</h3>" + renderLoopSummary(results.loopSummaries || []);
+        resultsEl.innerHTML = html;
+
+        var sortEl = document.getElementById("all-sort");
+        if (sortEl) {
+          sortEl.value = latestSortMode;
+          sortEl.addEventListener("change", function () {
+            latestSortMode = sortEl.value || "marketability";
+            if (latestResults) renderAllResults(latestResults);
+          });
+        }
+      }
+
+      formEl.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var base = getApiBase();
+        if (!base) {
+          submitError.textContent = "Set and save a Backend API URL above, then try again.";
+          submitError.style.display = "block";
+          return;
+        }
+
+        submitError.style.display = "none";
+        submitError.textContent = "";
+        submitBtn.disabled = true;
+        jobSection.style.display = "block";
+        jobError.style.display = "none";
+        resultsEl.innerHTML = "";
+        latestResults = null;
+        latestSortMode = "marketability";
+        phaseLabelEl.textContent = "Queued";
+        progressPct.textContent = "(0%)";
+        loopStatus.textContent = "";
+        progressBar.style.width = "0%";
+
+        var tld = (formEl.tld.value || "com").trim().replace(/^\./, "");
+        var body = {
+          keywords: (formEl.keywords.value || "").trim(),
+          description: (formEl.description.value || "").trim(),
+          style: formEl.style.value,
+          randomness: formEl.randomness.value,
+          blacklist: (formEl.blacklist.value || "").trim(),
+          maxLength: Number(formEl.maxLength.value) || 25,
+          tld: tld,
+          maxNames: Number(formEl.maxNames.value) || 100,
+          yearlyBudget: Number(formEl.yearlyBudget.value) || 50,
+          loopCount: Number(formEl.loopCount.value) || 10
+        };
+
+        var postUrl = base + "/api/searches";
+        fetch(postUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        })
+          .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, status: res.status, data: data }; }); })
+          .then(function (result) {
+            if (!result.ok || !result.data.jobId) {
+              var msg = result.data && (result.data.message || result.data.code);
+              if (result.status === 0 || result.status >= 500) msg = "Backend unreachable. Check API URL and CORS.";
+              throw new Error(msg || "Unable to start the search job.");
+            }
+            pollJob(result.data.jobId);
+          })
+          .catch(function (err) {
+            submitError.textContent = err.message || "Unexpected error.";
+            submitError.style.display = "block";
+            submitBtn.disabled = false;
+          });
+      });
+
+      function pollJob(jobId) {
+        if (pollTimer) clearInterval(pollTimer);
+        var base = getApiBase();
+        var getUrl = base + "/api/searches/" + encodeURIComponent(jobId);
+
+        function tick() {
+          fetch(getUrl, { cache: "no-store" })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (job) {
+              if (!job) return;
+              phaseLabelEl.textContent = phaseLabel(job.status, job.phase);
+              progressPct.textContent = "(" + (job.progress || 0) + "%)";
+              loopStatus.textContent = (typeof job.currentLoop === "number" && typeof job.totalLoops === "number") ? ("Loop " + job.currentLoop + "/" + job.totalLoops) : "";
+              progressBar.style.width = (job.progress || 0) + "%";
+              if (job.error) {
+                jobError.textContent = job.error.code + ": " + job.error.message;
+                jobError.style.display = "block";
+                submitBtn.disabled = false;
+                clearInterval(pollTimer);
+                pollTimer = null;
+                return;
+              }
+              if (job.status === "done" && job.results) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+                submitBtn.disabled = false;
+                renderAllResults(job.results);
+                return;
+              }
+              if (job.status === "failed") {
+                clearInterval(pollTimer);
+                pollTimer = null;
+                submitBtn.disabled = false;
+                if (!job.error) jobError.textContent = "Job failed.";
+                jobError.style.display = "block";
+              }
+            });
+        }
+        tick();
+        pollTimer = setInterval(tick, 2000);
+      }
+    })();
+  </script>
+</body>
+</html>

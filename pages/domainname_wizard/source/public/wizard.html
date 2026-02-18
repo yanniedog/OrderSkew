@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Namelix-to-GoDaddy Budget Finder</title>
+  <style>
+    :root { color-scheme: light; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: linear-gradient(135deg, #f5f7fa 0%, #e9eef5 100%); color: #14212f; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem 3rem; display: grid; gap: 1.25rem; }
+    .card { background: #fff; border: 1px solid #d7dfe8; border-radius: 12px; padding: 1rem; box-shadow: 0 8px 26px rgba(10, 35, 60, 0.06); }
+    h1, h2, h3 { margin-top: 0; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; }
+    label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.92rem; }
+    input, select, button { border-radius: 8px; border: 1px solid #b6c4d3; padding: 0.52rem 0.65rem; font-size: 0.95rem; }
+    button { cursor: pointer; background: #106ba3; color: white; border-color: #106ba3; max-width: max-content; }
+    button[disabled] { opacity: 0.65; cursor: default; }
+    .error { color: #b5162a; font-weight: 600; }
+    .progress { background: #e6edf4; border-radius: 999px; height: 10px; overflow: hidden; margin-bottom: 0.75rem; }
+    .progress > div { height: 100%; background: linear-gradient(90deg, #0582c5 0%, #29b473 100%); transition: width 0.3s ease; }
+    .table-wrap { overflow-x: auto; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { border: 1px solid #d7dfe8; padding: 0.4rem 0.5rem; text-align: left; white-space: nowrap; }
+    th { background: #f1f5f9; }
+    .file-notice { text-align: center; padding: 2rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 12px; margin: 2rem 1rem; }
+    .file-notice a { color: #106ba3; }
+    @media (max-width: 700px) { main { padding: 1rem 0.65rem 2rem; } .card { padding: 0.8rem; } }
+  </style>
+</head>
+<body>
+  <div id="file-notice" class="file-notice" style="display: none;">
+    <p>This page must be served by the app so it can call the search API.</p>
+    <p>Run <code>npm run dev</code>, then open:</p>
+    <p><a href="http://localhost:3000/wizard.html">http://localhost:3000/wizard.html</a></p>
+  </div>
+
+  <main id="app" style="display: none;">
+    <section class="card">
+      <h1>Namelix-to-GoDaddy Budget Finder</h1>
+      <form id="form" class="grid">
+        <label>Keywords <input name="keywords" required placeholder="e.g. AI productivity" /></label>
+        <label>Description <input name="description" placeholder="Optional business description" /></label>
+        <label>Style
+          <select name="style">
+            <option value="default">default</option>
+            <option value="brandable">brandable</option>
+            <option value="twowords">twowords</option>
+            <option value="threewords">threewords</option>
+            <option value="compound">compound</option>
+            <option value="spelling">spelling</option>
+            <option value="nonenglish">nonenglish</option>
+            <option value="dictionary">dictionary</option>
+          </select>
+        </label>
+        <label>Randomness
+          <select name="randomness">
+            <option value="low">low</option>
+            <option value="medium" selected>medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <label>Blacklist <input name="blacklist" placeholder="comma,separated,words" /></label>
+        <label>Maximum Name Length <input name="maxLength" type="number" min="5" max="25" value="25" /></label>
+        <label>TLD <input name="tld" placeholder="com" value="com" /></label>
+        <label>Max Names <input name="maxNames" type="number" min="1" max="250" value="100" /></label>
+        <label>Yearly Budget <input name="yearlyBudget" type="number" min="1" value="50" /></label>
+        <label><button type="submit" id="submit-btn">Start Search</button></label>
+      </form>
+      <p id="submit-error" class="error" style="display: none;"></p>
+    </section>
+
+    <section id="job-section" class="card" style="display: none;">
+      <h2>Status</h2>
+      <p><strong id="phase-label"></strong> <span id="progress-pct"></span></p>
+      <div class="progress"><div id="progress-bar"></div></div>
+      <p id="job-error" class="error" style="display: none;"></p>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      // #region agent log
+      fetch('http://127.0.0.1:7278/ingest/12c75e00-6c9a-482c-b25d-6079b2218f1d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'89960b'},body:JSON.stringify({sessionId:'89960b',location:'wizard.html:page-init',message:'page load',data:{protocol:window.location.protocol,origin:window.location.origin,href:window.location.href,isFile:window.location.protocol==='file:'},timestamp:Date.now(),hypothesisId:'H1'})}).catch(function(){});
+      // #endregion
+      if (window.location.protocol === "file:") {
+        document.getElementById("file-notice").style.display = "block";
+        return;
+      }
+      document.getElementById("app").style.display = "block";
+
+      var STYLES = ["default", "brandable", "twowords", "threewords", "compound", "spelling", "nonenglish", "dictionary"];
+      var RANDOMNESS = ["low", "medium", "high"];
+
+      function formatMoney(value, currency) {
+        if (typeof value !== "number") return "-";
+        return new Intl.NumberFormat("en-US", { style: "currency", currency: currency || "USD", maximumFractionDigits: 2 }).format(value);
+      }
+
+      function phaseLabel(status, phase) {
+        if (status === "queued") return "Queued";
+        if (status === "done") return "Done";
+        if (status === "failed") return "Failed";
+        if (phase === "namelix") return "Generating names";
+        if (phase === "godaddy") return "Checking domains";
+        if (phase === "finalize") return "Finalizing";
+        return "Running";
+      }
+
+      function table(rows) {
+        if (!rows.length) return "";
+        var h = "<div class=\"table-wrap\"><table><thead><tr><th>Domain</th><th>Name</th><th>Available</th><th>Definitive</th><th>Price</th><th>Premium</th><th>Reason</th></tr></thead><tbody>";
+        rows.forEach(function (r) {
+          h += "<tr><td>" + escapeHtml(r.domain) + "</td><td>" + escapeHtml(r.sourceName) + "</td><td>" + (r.available ? "Yes" : "No") + "</td><td>" + (r.definitive ? "Yes" : "No") + "</td><td>" + formatMoney(r.price, r.currency) + "</td><td>" + (r.isNamelixPremium ? "Yes" : "No") + "</td><td>" + escapeHtml(r.reason || "-") + "</td></tr>";
+        });
+        return h + "</tbody></table></div>";
+      }
+
+      function escapeHtml(s) {
+        var div = document.createElement("div");
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      var formEl = document.getElementById("form");
+      var submitBtn = document.getElementById("submit-btn");
+      var submitError = document.getElementById("submit-error");
+      var jobSection = document.getElementById("job-section");
+      var phaseLabelEl = document.getElementById("phase-label");
+      var progressPct = document.getElementById("progress-pct");
+      var progressBar = document.getElementById("progress-bar");
+      var jobError = document.getElementById("job-error");
+      var resultsEl = document.getElementById("results");
+      var pollTimer = null;
+
+      formEl.addEventListener("submit", function (e) {
+        e.preventDefault();
+        submitError.style.display = "none";
+        submitError.textContent = "";
+        submitBtn.disabled = true;
+        jobSection.style.display = "block";
+        jobError.style.display = "none";
+        resultsEl.innerHTML = "";
+        phaseLabelEl.textContent = "Queued";
+        progressPct.textContent = "(0%)";
+        progressBar.style.width = "0%";
+
+        var tld = (formEl.tld.value || "com").trim().replace(/^\./, "");
+        var body = {
+          keywords: (formEl.keywords.value || "").trim(),
+          description: (formEl.description.value || "").trim(),
+          style: formEl.style.value,
+          randomness: formEl.randomness.value,
+          blacklist: (formEl.blacklist.value || "").trim(),
+          maxLength: Number(formEl.maxLength.value) || 25,
+          tld: tld,
+          maxNames: Number(formEl.maxNames.value) || 100,
+          yearlyBudget: Number(formEl.yearlyBudget.value) || 50
+        };
+
+        var fetchUrl = window.location.origin + "/api/searches";
+        // #region agent log
+        fetch('http://127.0.0.1:7278/ingest/12c75e00-6c9a-482c-b25d-6079b2218f1d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'89960b'},body:JSON.stringify({sessionId:'89960b',location:'wizard.html:pre-fetch',message:'before POST',data:{fetchUrl:fetchUrl,origin:window.location.origin},timestamp:Date.now(),hypothesisId:'H2-H4'})}).catch(function(){});
+        // #endregion
+
+        fetch("/api/searches", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        })
+          .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+          .then(function (result) {
+            if (!result.ok || !result.data.jobId) {
+              throw new Error(result.data.message || "Unable to start the search job.");
+            }
+            pollJob(result.data.jobId);
+          })
+          .catch(function (err) {
+            // #region agent log
+            fetch('http://127.0.0.1:7278/ingest/12c75e00-6c9a-482c-b25d-6079b2218f1d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'89960b'},body:JSON.stringify({sessionId:'89960b',location:'wizard.html:catch',message:'submit fetch failed',data:{errMessage:err&&err.message,errName:err&&err.name,errCause:err&&err.cause&&String(err.cause)},timestamp:Date.now(),hypothesisId:'H5'})}).catch(function(){});
+            // #endregion
+            submitError.textContent = err.message || "Unexpected error.";
+            submitError.style.display = "block";
+            submitBtn.disabled = false;
+          });
+      });
+
+      function pollJob(jobId) {
+        if (pollTimer) clearInterval(pollTimer);
+        function tick() {
+          fetch("/api/searches/" + jobId, { cache: "no-store" })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (job) {
+              if (!job) return;
+              phaseLabelEl.textContent = phaseLabel(job.status, job.phase);
+              progressPct.textContent = "(" + (job.progress || 0) + "%)";
+              progressBar.style.width = (job.progress || 0) + "%";
+              if (job.error) {
+                jobError.textContent = job.error.code + ": " + job.error.message;
+                jobError.style.display = "block";
+                submitBtn.disabled = false;
+                clearInterval(pollTimer);
+                pollTimer = null;
+                return;
+              }
+              if (job.status === "done" && job.results) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+                submitBtn.disabled = false;
+                var r = job.results;
+                var html = "<h3>Within Budget (" + r.withinBudget.length + ")</h3>" + table(r.withinBudget);
+                html += "<h3>Over Budget (" + r.overBudget.length + ")</h3>" + table(r.overBudget);
+                html += "<h3>Unavailable / Unknown (" + r.unavailable.length + ")</h3>" + table(r.unavailable);
+                resultsEl.innerHTML = html;
+                return;
+              }
+              if (job.status === "failed") {
+                clearInterval(pollTimer);
+                pollTimer = null;
+                submitBtn.disabled = false;
+                if (!job.error) jobError.textContent = "Job failed.";
+                jobError.style.display = "block";
+              }
+            });
+        }
+        tick();
+        pollTimer = setInterval(tick, 2000);
+      }
+    })();
+  </script>
+</body>
+</html>
