@@ -50,7 +50,7 @@ GODADDY_ENV=OTE
 `GODADDY_ENV` supports:
 
 - `OTE` (default)
-- `PROD`
+- `PROD` / `PRODUCTION` / `LIVE`
 
 ## Install
 

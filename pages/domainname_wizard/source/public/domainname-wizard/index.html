@@ -23,10 +23,8 @@
 
     <section class="card">
       <h2>Search Setup</h2>
-      <div id="open-online-banner" class="open-online-banner" hidden aria-live="polite"></div>
-      <p id="backend-status" class="backend-status" hidden></p>
       <form id="search-form" class="grid">
-        <p class="backend-info">Backend is fixed (not editable). Availability and price via this app.</p>
+        <p class="backend-info">Backend is detected automatically. On Vercel, availability and pricing run through the same deployment.</p>
         <label>Keywords
           <input name="keywords" required placeholder="e.g. AI productivity" value="AI productivity">
         </label>
@@ -94,7 +92,7 @@
       </div>
       <p id="job-error" class="error" hidden></p>
       <p class="hint">
-        Availability and price from GoDaddy via this app.
+        Availability and pricing are automatic when the backend is reachable.
       </p>
     </section>
 

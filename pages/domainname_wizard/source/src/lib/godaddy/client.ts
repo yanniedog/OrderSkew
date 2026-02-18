@@ -54,6 +54,22 @@ export interface GoDaddyAvailability {
 
 const CHUNK_SIZE = 100;
 const MAX_RETRIES = 4;
+const GODADDY_PROD_BASE_URL = "https://api.godaddy.com";
+const GODADDY_OTE_BASE_URL = "https://api.ote-godaddy.com";
+
+function readEnvValue(env: NodeJS.ProcessEnv, keys: string[]): string {
+  for (const key of keys) {
+    const raw = env[key];
+    if (typeof raw !== "string") {
+      continue;
+    }
+    const value = raw.trim().replace(/^['"]|['"]$/g, "");
+    if (value) {
+      return value;
+    }
+  }
+  return "";
+}
 
 export function chunkDomains(domains: string[], chunkSize: number = CHUNK_SIZE): string[][] {
   const chunks: string[][] = [];
@@ -65,9 +81,12 @@ export function chunkDomains(domains: string[], chunkSize: number = CHUNK_SIZE):
   return chunks;
 }
 
-function resolveBaseUrl(): string {
-  const mode = (process.env.GODADDY_ENV ?? "OTE").toUpperCase();
-  return mode === "PROD" ? "https://api.godaddy.com" : "https://api.ote-godaddy.com";
+export function resolveBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const mode = readEnvValue(env, ["GODADDY_ENV", "GODADDY_API_ENV"]).toUpperCase() || "OTE";
+  if (mode === "PROD" || mode === "PRODUCTION" || mode === "LIVE") {
+    return GODADDY_PROD_BASE_URL;
+  }
+  return GODADDY_OTE_BASE_URL;
 }
 
 function parseRetryAfterMs(value: string | null): number | null {
@@ -89,11 +108,13 @@ function parseRetryAfterMs(value: string | null): number | null {
 }
 
 async function requestAvailabilityChunk(domains: string[]): Promise<GoDaddyBulkResponse> {
-  const apiKey = process.env.GODADDY_API_KEY;
-  const apiSecret = process.env.GODADDY_API_SECRET;
+  const apiKey = readEnvValue(process.env, ["GODADDY_API_KEY", "GODADDY_KEY"]);
+  const apiSecret = readEnvValue(process.env, ["GODADDY_API_SECRET", "GODADDY_SECRET"]);
 
   if (!apiKey || !apiSecret) {
-    throw new GoDaddyAuthError("Missing GoDaddy API credentials. Set GODADDY_API_KEY and GODADDY_API_SECRET.");
+    throw new GoDaddyAuthError(
+      "Missing GoDaddy API credentials. Set GODADDY_API_KEY/GODADDY_API_SECRET (or GODADDY_KEY/GODADDY_SECRET).",
+    );
   }
 
   const endpoint = `${resolveBaseUrl()}/v1/domains/available?checkType=FAST`;

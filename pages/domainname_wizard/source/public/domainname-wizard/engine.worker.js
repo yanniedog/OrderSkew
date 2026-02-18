@@ -465,7 +465,7 @@ async function fetchAvailability(apiBaseUrl, domains) {
       });
     } catch (err) {
       const msg = err && err.message ? err.message : 'Network error';
-      throw new Error('Availability request failed: ' + msg + '. If you opened this page from a file (file://), serve it from a web server or host it online (e.g. same Vercel app or GitHub Pages).');
+      throw new Error('Availability request failed: ' + msg);
     }
     const data = await res.json().catch(function () { return {}; });
     if (!res.ok) {
@@ -533,7 +533,8 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
 
 async function run(job) {
   const input = job.input;
-  const useBackend = Boolean(input.apiBaseUrl && String(input.apiBaseUrl).trim());
+  const backendBaseUrl = String(input.apiBaseUrl || '').trim();
+  let useBackend = Boolean(backendBaseUrl);
   const availableMap = new Map();
   const overBudgetMap = new Map();
   const unavailableMap = new Map();
@@ -579,9 +580,27 @@ async function run(job) {
       let got = 0;
       let logCount = 0;
       const domainList = cands.map(function (c) { return c.domain; });
-      const availabilityByDomain = useBackend
-        ? await fetchAvailability(input.apiBaseUrl, domainList)
-        : await fetchRdapAvailability(domainList, job.id);
+      let availabilityByDomain;
+      if (useBackend) {
+        try {
+          availabilityByDomain = await fetchAvailability(backendBaseUrl, domainList);
+        } catch (error) {
+          useBackend = false;
+          availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+          self.postMessage({
+            type: 'debugLog',
+            payload: {
+              sessionId: '437d46',
+              location: 'engine.worker.js:run',
+              message: 'Backend unavailable, switched to RDAP',
+              data: { error: error instanceof Error ? error.message : String(error || 'unknown') },
+              timestamp: Date.now(),
+            },
+          });
+        }
+      } else {
+        availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+      }
 
       for (const cand of cands) {
         let result;

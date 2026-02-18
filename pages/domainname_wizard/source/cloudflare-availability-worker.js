@@ -19,8 +19,10 @@ function json(data, status = 200, headers = {}) {
 }
 
 function getBaseUrl(env) {
-  const mode = (env.GODADDY_ENV || "OTE").toUpperCase();
-  return mode === "PROD" ? "https://api.godaddy.com" : "https://api.ote-godaddy.com";
+  const mode = String(env.GODADDY_ENV || "OTE").trim().toUpperCase();
+  return mode === "PROD" || mode === "PRODUCTION" || mode === "LIVE"
+    ? "https://api.godaddy.com"
+    : "https://api.ote-godaddy.com";
 }
 
 export default {
