@@ -1,4 +1,4 @@
-﻿# Novel Indicator (Browser-Local + Cloudflare Auth/Profile)
+# Novel Indicator (Browser-Local + Cloudflare Auth/Profile)
 
 Production architecture for the Novel Indicator web app:
 - Optimization, indicator search, telemetry generation, report export, and Pine export run in the end-user browser (Web Worker).
@@ -93,7 +93,7 @@ This script:
 2. Builds frontend bundle.
 3. Cleans and repopulates `pages/novel_indicator` from `frontend/dist`.
 
-Cloudflare deployment of auth/profile Worker is performed with Wrangler in `cloudflare_api`.
+Cloudflare deployment of auth/profile Worker is performed with Wrangler in `cloudflare_api`. The Worker must be routed so that `orderskew.com/api/*` is handled by this Worker (see `cloudflare_api/wrangler.toml` `[[routes]]`). If the route is missing, registration and Google login will fail (e.g. HTTP 405 on register, or the welcome page when opening `/api/auth/google/start`).
 
 ## CI Guardrails
 
