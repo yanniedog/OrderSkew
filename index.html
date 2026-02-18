@@ -449,6 +449,12 @@
                                 </svg>
                                 <span>Other tools</span>
                             </a>
+                            <a href="pages/domainname_wizard/index.html" data-menu-close-on-click class="flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"></path>
+                                </svg>
+                                <span>Domain Name Wizard</span>
+                            </a>
                             <div class="border-t border-[var(--color-border)] my-1"></div>
                             <!-- Solana Donation -->
                             <button id="sol-btn" data-menu-close-on-click class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" title="Donate SOL">
@@ -925,14 +931,17 @@
     (function() {
         var host = window.location.host || '';
         var pathname = window.location.pathname || '';
-        var link = document.querySelector('a[href="pages/index.html"]');
         if (host.indexOf('vscode-resource') !== -1 || host.indexOf('vscode-cdn') !== -1) {
-            if (link && pathname) {
+            if (pathname) {
                 try {
                     var path = decodeURIComponent(pathname);
                     var base = path.replace(/\/[^/]*$/, '');
-                    var newHref = 'file://' + base + '/pages/index.html';
-                    link.setAttribute('href', newHref);
+                    var links = document.querySelectorAll('a[href^="pages/"]');
+                    links.forEach(function(link) {
+                        var href = link.getAttribute('href');
+                        if (!href) return;
+                        link.setAttribute('href', 'file://' + base + '/' + href);
+                    });
                 } catch (e) { }
             }
         }
