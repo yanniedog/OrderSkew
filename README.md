@@ -36,4 +36,10 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - When extending the calculator, preserve DRY principles by updating shared helpers (formatting, fee handling, export builders) instead of duplicating logic.
 - If you introduce new dependencies, prefer CDN builds compatible with static hosting since the project is currently serverless.
 
+## Additional Tools
+- `pages/index.html` is the tools hub.
+- `pages/novel_indicator/` hosts the Novel Indicator Lab static frontend.
+- Novel Indicator heavy compute runs on the end user machine through a local backend (`127.0.0.1:8000`), keeping public web hosting static-only.
+- Full copied source for this tool lives under `tools/novel_indicator/` (backend, frontend, tests, and deploy script).
+
 
