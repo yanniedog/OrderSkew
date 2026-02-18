@@ -546,15 +546,19 @@ async function fetchRdapAvailability(domains, jobId) {
       i -= 1;
       continue;
     }
-    const body = await res.text();
-    let parsed = null;
-    try { parsed = body ? JSON.parse(body) : null; } catch (_) {}
-    const registered = res.status === 200 && parsed && parsed.objectClassName === 'domain';
-    out[key] = {
-      available: !registered,
-      definitive: res.status === 200 || res.status === 404,
-      reason: registered ? 'Registered (RDAP).' : (res.status === 404 ? 'No registration (RDAP).' : 'Unknown (RDAP).'),
-    };
+    try {
+      const body = await res.text();
+      let parsed = null;
+      try { parsed = body ? JSON.parse(body) : null; } catch (_) {}
+      const registered = res.status === 200 && parsed && parsed.objectClassName === 'domain';
+      out[key] = {
+        available: !registered,
+        definitive: res.status === 200 || res.status === 404,
+        reason: registered ? 'Registered (RDAP).' : (res.status === 404 ? 'No registration (RDAP).' : 'Unknown (RDAP).'),
+      };
+    } catch (e) {
+      out[key] = { available: false, definitive: false, reason: (e && e.message) ? e.message : 'RDAP body/parse failed.' };
+    }
     if (i < domains.length - 1) await new Promise(function (r) { setTimeout(r, RDAP_DELAY_MS); });
   }
   return out;
