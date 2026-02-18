@@ -68,8 +68,7 @@
 
 
         loadAdvancedMode: () => {
-            const saved = localStorage.getItem(CONSTANTS.STORAGE_PREFIX + 'advanced_mode');
-            State.advancedMode = saved === 'true';
+            State.advancedMode = false;
             App.applyAdvancedMode();
         },
 
