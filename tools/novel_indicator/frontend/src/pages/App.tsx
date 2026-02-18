@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   cancelRun,
   createRun,
@@ -68,12 +68,32 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
+function demoUrl(path: string): string {
+  const url = new URL(path, window.location.href).href
+  // #region agent log
+  if (typeof fetch !== 'undefined')
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85ed20' },
+      body: JSON.stringify({
+        sessionId: '85ed20',
+        location: 'App.tsx:demoUrl',
+        message: 'Demo URL resolved',
+        data: { path, url, base: window.location.href },
+        timestamp: Date.now(),
+        hypothesisId: 'A',
+      }),
+    }).catch(() => {})
+  // #endregion
+  return url
+}
+
 async function loadDemoSummary(): Promise<{ summary: ResultSummary; plots: Record<string, PlotPayload>; run: RunStatus }> {
-  const summary = (await fetch('./demo/result_summary.json').then((r) => r.json())) as ResultSummary
+  const summary = (await fetch(demoUrl('demo/result_summary.json')).then((r) => r.json())) as ResultSummary
   const loadedPlots: Record<string, PlotPayload> = {}
   await Promise.all(
     PLOTS.map(async (plotId) => {
-      const response = await fetch(`./demo/plots/${plotId}.json`)
+      const response = await fetch(demoUrl(`demo/plots/${plotId}.json`))
       if (!response.ok) {
         return
       }
@@ -99,6 +119,21 @@ async function loadDemoSummary(): Promise<{ summary: ResultSummary; plots: Recor
     logs: [{ timestamp: now, stage: 'finished', message: 'Demo dataset loaded from static artifacts.' }],
   }
 
+  // #region agent log
+  if (typeof fetch !== 'undefined')
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85ed20' },
+      body: JSON.stringify({
+        sessionId: '85ed20',
+        location: 'App.tsx:loadDemoSummary',
+        message: 'Demo loaded',
+        data: { plotCount: Object.keys(loadedPlots).length },
+        timestamp: Date.now(),
+        hypothesisId: 'D',
+      }),
+    }).catch(() => {})
+  // #endregion
   return { summary, plots: loadedPlots, run }
 }
 
@@ -119,6 +154,7 @@ export function App() {
   const [apiBaseInput, setApiBaseInput] = useState(getApiBase())
   const [preset, setPreset] = useState<PresetKey>('balanced')
   const [runConfig, setRunConfig] = useState<RunConfig>(PRESET_CONFIGS.balanced)
+  const autoDemoLoadedRef = useRef(false)
 
   const selectedRun = useMemo(() => runs.find((r) => r.run_id === selectedRunId) ?? null, [runs, selectedRunId])
   const latestTelemetry = useMemo(() => telemetry[telemetry.length - 1] ?? null, [telemetry])
@@ -145,9 +181,39 @@ export function App() {
     try {
       await getHealth({ timeoutMs: 3_000, retries: 0 })
       setConnectionState('online')
+      // #region agent log
+      if (typeof fetch !== 'undefined')
+        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85ed20' },
+          body: JSON.stringify({
+            sessionId: '85ed20',
+            location: 'App.tsx:checkConnection',
+            message: 'Connection state',
+            data: { state: 'online' },
+            timestamp: Date.now(),
+            hypothesisId: 'B',
+          }),
+        }).catch(() => {})
+      // #endregion
       return true
     } catch {
       setConnectionState('offline')
+      // #region agent log
+      if (typeof fetch !== 'undefined')
+        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85ed20' },
+          body: JSON.stringify({
+            sessionId: '85ed20',
+            location: 'App.tsx:checkConnection',
+            message: 'Connection state',
+            data: { state: 'offline' },
+            timestamp: Date.now(),
+            hypothesisId: 'B',
+          }),
+        }).catch(() => {})
+      // #endregion
       return false
     }
   }
@@ -169,6 +235,44 @@ export function App() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    if (connectionState !== 'offline' || runs.length > 0 || autoDemoLoadedRef.current) {
+      return
+    }
+    autoDemoLoadedRef.current = true
+    setError(null)
+    // #region agent log
+    if (typeof fetch !== 'undefined')
+      fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '85ed20' },
+        body: JSON.stringify({
+          sessionId: '85ed20',
+          location: 'App.tsx:autoLoadDemo',
+          message: 'Auto-loading demo (offline, no runs)',
+          data: {},
+          timestamp: Date.now(),
+          hypothesisId: 'C',
+        }),
+      }).catch(() => {})
+    // #endregion
+    loadDemoSummary()
+      .then((demo) => {
+        setDemoMode(true)
+        setRuns([demo.run])
+        setSelectedRunId(demo.run.run_id)
+        setSummary(demo.summary)
+        setSummaryRunId(demo.run.run_id)
+        setPlots(demo.plots)
+        setPlotsRunId(demo.run.run_id)
+        setTelemetry([])
+      })
+      .catch((e) => {
+        setError(`Unable to load bundled demo data: ${(e as Error).message}`)
+        autoDemoLoadedRef.current = false
+      })
+  }, [connectionState, runs.length])
 
   useEffect(() => {
     if (demoMode || connectionState !== 'online') {

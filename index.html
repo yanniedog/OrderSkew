@@ -926,9 +926,6 @@
         var host = window.location.host || '';
         var pathname = window.location.pathname || '';
         var link = document.querySelector('a[href="pages/index.html"]');
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:othertools-rewrite',message:'Other tools link init',data:{host:host,pathname:pathname,hasLink:!!link,href:link?link.getAttribute('href'):null},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
-        // #endregion
         if (host.indexOf('vscode-resource') !== -1 || host.indexOf('vscode-cdn') !== -1) {
             if (link && pathname) {
                 try {
@@ -936,21 +933,7 @@
                     var base = path.replace(/\/[^/]*$/, '');
                     var newHref = 'file://' + base + '/pages/index.html';
                     link.setAttribute('href', newHref);
-                    // #region agent log
-                    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:othertools-rewrite',message:'Rewrote Other tools href',data:{newHref:newHref,decodedPath:path},timestamp:Date.now(),hypothesisId:'B'})}).catch(function(){});
-                    // #endregion
-                } catch (e) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:othertools-rewrite',message:'Rewrite error',data:{err:String(e)},timestamp:Date.now(),hypothesisId:'C'})}).catch(function(){});
-                    // #endregion
-                }
-            }
-            if (link) {
-                link.addEventListener('click', function(e) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:othertools-click',message:'Other tools link clicked',data:{hrefAtClick:this.getAttribute('href')},timestamp:Date.now(),hypothesisId:'D'})}).catch(function(){});
-                    // #endregion
-                }, true);
+                } catch (e) { }
             }
         }
     })();
