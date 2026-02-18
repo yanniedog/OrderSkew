@@ -468,8 +468,9 @@ function progress(totalLoops, currentLoop, fraction) {
 
 function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory) {
   const allRanked = sortRanked(Array.from(availableMap.values()), 'marketability');
+  const withinBudgetOnly = allRanked.filter(function (r) { return r.overBudget !== true; });
   return {
-    withinBudget: allRanked.slice().sort(sortByPrice),
+    withinBudget: withinBudgetOnly.slice().sort(sortByPrice),
     overBudget: sortRanked(Array.from(overBudgetMap.values()), 'financialValue'),
     unavailable: sortRanked(Array.from(unavailableMap.values()), 'marketability'),
     allRanked,
@@ -532,9 +533,11 @@ async function run(job) {
           got += 1;
           loopAvail.push(ranked);
           const key = ranked.domain.toLowerCase();
+          overBudgetMap.delete(key);
           availableMap.set(key, mergeBest(availableMap.get(key), ranked, loop));
         } else if (result.available && result.overBudget) {
           const key = ranked.domain.toLowerCase();
+          availableMap.delete(key);
           overBudgetMap.set(key, mergeBest(overBudgetMap.get(key), ranked, loop));
         } else {
           const key = ranked.domain.toLowerCase();
