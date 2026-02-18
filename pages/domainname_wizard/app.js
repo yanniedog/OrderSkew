@@ -1197,6 +1197,11 @@
 
     if (message.type === 'debugLog' && message.payload) {
       debugLogs.push(message.payload);
+      // #region agent log
+      if (message.payload.sessionId === '624c7c') {
+        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '624c7c' }, body: JSON.stringify(message.payload) }).catch(function () {});
+      }
+      // #endregion
       return;
     }
 

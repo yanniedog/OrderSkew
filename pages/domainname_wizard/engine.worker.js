@@ -47,6 +47,13 @@ function pick(arr, rand) { return arr[Math.floor(rand() * arr.length)] || ''; }
 
 function emitError(message, jobId) { self.postMessage({ type: 'error', message: String(message || 'Worker error'), jobId: jobId || null }); }
 function emitJob(job) { self.postMessage({ type: 'state', job: JSON.parse(JSON.stringify(job)) }); }
+// #region agent log
+function sendIngest(location, message, data, hypothesisId) {
+  const payload = { sessionId: '624c7c', location: String(location || 'engine.worker.js'), message: String(message || 'log'), data: data || {}, timestamp: Date.now(), runId: 'run1', hypothesisId: hypothesisId || null };
+  self.postMessage({ type: 'debugLog', payload: payload });
+  fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '624c7c' }, body: JSON.stringify(payload) }).catch(function () {});
+}
+// #endregion
 function emitDebugLog(location, message, data) {
   self.postMessage({
     type: 'debugLog',
@@ -478,6 +485,9 @@ async function fetchAvailability(apiBaseUrl, domains) {
       });
     } catch (err) {
       const msg = err && err.message ? err.message : 'Network error';
+      // #region agent log
+      sendIngest('engine.worker.js:fetchAvailability', 'Availability API fetch exception', { url, chunkSize: chunk.length, chunkOffset: i, errorMessage: msg }, 'H1');
+      // #endregion
       emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API fetch exception', {
         url,
         chunkSize: chunk.length,
@@ -490,6 +500,9 @@ async function fetchAvailability(apiBaseUrl, domains) {
     if (!res.ok) {
       const statusMsg = String(res.status || 0) + (res.statusText ? ` ${res.statusText}` : '');
       const msg = data.message || data.code || statusMsg || 'Availability request failed.';
+      // #region agent log
+      sendIngest('engine.worker.js:fetchAvailability', 'Availability API non-OK response', { url, status: res.status, statusText: res.statusText, dataMessage: data.message, dataCode: data.code, errorMessage: msg }, 'H2');
+      // #endregion
       emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API non-OK response', {
         url,
         chunkSize: chunk.length,
@@ -622,11 +635,20 @@ async function run(job) {
       const domainList = cands.map(function (c) { return c.domain; });
       let availabilityByDomain;
       if (useBackend) {
+        // #region agent log
+        sendIngest('engine.worker.js:run', 'About to call primary availability API', { url: backendBaseUrl + '/api/domains/availability', domainCount: domainList.length }, 'H5');
+        // #endregion
         try {
           availabilityByDomain = await fetchAvailability(backendBaseUrl, domainList);
         } catch (error) {
           const primaryError = error instanceof Error ? error.message : String(error || 'unknown');
+          // #region agent log
+          sendIngest('engine.worker.js:run', 'Primary availability failed', { primaryError, backendBaseUrl }, 'H4');
+          // #endregion
           if (backendBaseUrl && backendBaseUrl !== LEGACY_VERCEL_BACKEND_URL) {
+            // #region agent log
+            sendIngest('engine.worker.js:run', 'Trying fallback Vercel backend', { fallbackUrl: LEGACY_VERCEL_BACKEND_URL }, 'H3');
+            // #endregion
             try {
               availabilityByDomain = await fetchAvailability(LEGACY_VERCEL_BACKEND_URL, domainList);
               emitDebugLog('engine.worker.js:run', 'Primary backend unavailable, switched to Vercel backend', {
@@ -635,6 +657,9 @@ async function run(job) {
                 error: primaryError,
               });
             } catch (fallbackError) {
+              // #region agent log
+              sendIngest('engine.worker.js:run', 'Fallback backend also failed', { fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError || 'unknown') }, 'H6');
+              // #endregion
               useBackend = false;
               availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
               emitDebugLog('engine.worker.js:run', 'Both backends unavailable, switched to RDAP', {
@@ -835,6 +860,9 @@ async function start(rawInput) {
     await run(job);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected run error.';
+    // #region agent log
+    sendIngest('engine.worker.js:start', 'Run failed (caught in start)', { jobId: job.id, errorMessage: message, progress: Number(job.progress || 0), phase: job.phase || null }, 'H7');
+    // #endregion
     emitDebugLog('engine.worker.js:start', 'Run failed', {
       jobId: job.id,
       error: message,
