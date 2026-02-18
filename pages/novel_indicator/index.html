@@ -3,15 +3,107 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Novel Indicator Lab</title>
-    <script type="module" crossorigin src="./assets/index-lwPhW0oe.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BIyFOJOa.css">
+    <title>Novel Indicator Lab (Standalone)</title>
+    <style>
+      :root { color-scheme: light; }
+      body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #f6f8fb; color: #13233a; }
+      .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+      .card { background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(10, 37, 64, 0.08); padding: 18px; margin-bottom: 16px; }
+      h1 { margin: 0 0 6px; }
+      .muted { color: #55657c; margin: 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { text-align: left; padding: 8px; border-bottom: 1px solid #e6ebf2; font-size: 14px; }
+      code { background: #eef3ff; border-radius: 6px; padding: 2px 6px; }
+      .plot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+      pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 220px; overflow: auto; }
+      .status { display: inline-block; background: #0d7c45; color: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
+      .error { background: #ffe9e9; color: #8f2222; border-radius: 8px; padding: 10px; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script nomodule>
-      document.body.innerHTML =
-        '<div style="font-family: sans-serif; margin: 2rem; line-height: 1.5;">This tool requires a modern browser (Chrome, Firefox, Safari, or Edge). Internet Explorer is not supported.</div>'
+    <main class="wrap">
+      <section class="card">
+        <span class="status">STANDALONE</span>
+        <h1>Novel Indicator Lab</h1>
+        <p class="muted">Fully self-contained browser page. No backend, local API, or software installation is required.</p>
+      </section>
+
+      <section id="status" class="card">Loading bundled standalone dataset…</section>
+      <section id="results" class="card" hidden></section>
+      <section id="plots" class="card" hidden></section>
+    </main>
+
+    <script>
+      async function loadJson(path) {
+        const res = await fetch(path)
+        if (!res.ok) throw new Error(`Failed to load ${path}: ${res.status}`)
+        return res.json()
+      }
+
+      function renderSummary(summary) {
+        const results = document.getElementById('results')
+        const u = summary.universal_recommendation
+        results.hidden = false
+        results.innerHTML = `
+          <h2>Results Explorer</h2>
+          <p>Run: <b>${summary.run_id}</b></p>
+          <p>Universal Horizon: <b>${u.best_horizon}</b> bars | Composite Error: <b>${u.score.composite_error.toFixed(6)}</b></p>
+          <h3>Universal Indicator Combo</h3>
+          <ul>
+            ${u.indicator_combo.map((i) => `<li><code>${i.indicator_id}</code> ${i.expression}</li>`).join('')}
+          </ul>
+          <h3>Per-Asset Recommendations</h3>
+          <table>
+            <thead>
+              <tr><th>Symbol</th><th>TF</th><th>Horizon</th><th>Error</th><th>HitRate</th><th>PnL</th><th>MaxDD</th></tr>
+            </thead>
+            <tbody>
+              ${summary.per_asset_recommendations.slice(0, 30).map((r) => `
+                <tr>
+                  <td>${r.symbol}</td><td>${r.timeframe}</td><td>${r.best_horizon}</td>
+                  <td>${r.score.composite_error.toFixed(6)}</td><td>${r.score.directional_hit_rate.toFixed(3)}</td>
+                  <td>${r.score.pnl_total.toFixed(4)}</td><td>${r.score.max_drawdown.toFixed(4)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `
+      }
+
+      function renderPlots(plots) {
+        const container = document.getElementById('plots')
+        container.hidden = false
+        container.innerHTML = '<h2>Visual Diagnostics (Bundled Plot Payloads)</h2><div class="plot-grid"></div>'
+        const grid = container.querySelector('.plot-grid')
+        for (const [plotId, payload] of Object.entries(plots)) {
+          const card = document.createElement('article')
+          card.className = 'card'
+          card.innerHTML = `<h3>${payload.title || plotId}</h3><pre>${JSON.stringify(payload, null, 2)}</pre>`
+          grid.appendChild(card)
+        }
+      }
+
+      ;(async () => {
+        const status = document.getElementById('status')
+        try {
+          const summary = await loadJson('./demo/result_summary.json')
+          const plotIds = ['horizon_heatmap', 'forecast_overlay', 'novelty_pareto', 'timeframe_error']
+          const plots = {}
+          await Promise.all(plotIds.map(async (plotId) => {
+            try {
+              plots[plotId] = await loadJson(`./demo/plots/${plotId}.json`)
+            } catch {
+              // optional
+            }
+          }))
+
+          status.innerHTML = `<h2>Session</h2><p>Bundled standalone artifacts loaded successfully at ${new Date().toLocaleString()}.</p>`
+          renderSummary(summary)
+          renderPlots(plots)
+        } catch (err) {
+          status.innerHTML = `<div class="error"><strong>Failed to initialize standalone page.</strong><br>${err.message}</div>`
+        }
+      })()
     </script>
   </body>
 </html>

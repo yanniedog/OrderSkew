@@ -7,9 +7,9 @@ End-to-end local research stack for crypto OHLCV ingestion, AI-driven symbolic i
 This project is copied into `orderskew/tools/novel_indicator` and deployed as a static tool under `orderskew/pages/novel_indicator`.
 
 - Public website role: serve static HTML/CSS/JS only.
-- End-user machine role: run the local compute engine (`FastAPI`) at `127.0.0.1:8000`.
-- Frontend endpoint routing: configurable from the UI (`Local API endpoint`) and persisted in local storage.
-- Fallback mode: bundled demo artifacts can be loaded without backend connectivity.
+- Standalone mode (only mode in OrderSkew page): bundled artifacts load directly in-browser with no API endpoint setup.
+- End users do not need to run Python, Node, or any local backend service to use the deployed page.
+- The frontend in `orderskew/pages/novel_indicator` is self-contained and browser-only.
 
 This architecture keeps server load near-zero while preserving full local compute for discovery runs.
 
