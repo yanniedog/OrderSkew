@@ -29,6 +29,7 @@
   let currentSortMode = 'marketability';
   const debugLogs = [];
   let lastLoggedJobErrorKey = '';
+  let latestRunExport = null;
 
   const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
   const BACKEND_URL = (function () {
@@ -131,6 +132,14 @@
       data: data || {},
       timestamp: Date.now(),
     });
+  }
+
+  function cloneForExport(value) {
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (_) {
+      return null;
+    }
   }
 
   function sortRows(rows, mode) {
@@ -1089,31 +1098,35 @@
     if (job.results) {
       currentResults = job.results;
       renderResults(currentResults);
-      downloadJsonBtn.disabled = false;
     }
 
     if (job.status === 'done' || job.status === 'failed') {
+      latestRunExport = {
+        run: cloneForExport(job),
+        results: cloneForExport(job.results || currentResults || {}),
+      };
+      downloadJsonBtn.disabled = !latestRunExport || !latestRunExport.run || !latestRunExport.results;
       startBtn.disabled = false;
       cancelBtn.disabled = true;
     }
   }
 
   function downloadResultsJson() {
-    if (!currentResults || !currentJob) {
+    if (!latestRunExport || !latestRunExport.run || !latestRunExport.results) {
       return;
     }
 
     const payload = {
       exportedAt: new Date().toISOString(),
-      run: currentJob,
-      results: currentResults,
+      run: latestRunExport.run,
+      results: latestRunExport.results,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `domainname_wizard_${currentJob.id || 'run'}.json`;
+    link.download = `domainname_wizard_${latestRunExport.run.id || 'run'}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1140,6 +1153,7 @@
 
     resultsPanelEl.hidden = true;
     currentResults = null;
+    latestRunExport = null;
     downloadJsonBtn.disabled = true;
 
     engine.postMessage({ type: 'start', input: input });
