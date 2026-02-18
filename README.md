@@ -45,5 +45,6 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - Full source for this tool lives under `tools/novel_indicator/` (frontend, Cloudflare API, migrations, deploy scripts, and legacy backend reference code).
 - `pages/domainname_wizard/` hosts a browser-native Domain Name Wizard tool with local worker processing.
 - Imported source snapshot from `C:\code\domainname-wizard` is stored at `pages/domainname_wizard/source/` (excluding `.next`, `node_modules`, and local env/debug artifacts).
+- Full automated test (unit + E2E): from repo root run `node test-domainname-wizard.js`. Requires `npm install` in `pages/domainname_wizard/source/` and Playwright browsers (`npx playwright install chromium` in that directory) for E2E.
 
 

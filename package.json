@@ -1,0 +1,7 @@
+{
+  "name": "orderskew",
+  "private": true,
+  "scripts": {
+    "test:domainname_wizard": "node test-domainname-wizard.js"
+  }
+}

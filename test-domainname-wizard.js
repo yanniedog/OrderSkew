@@ -8,7 +8,6 @@ const { spawnSync, spawn } = require("child_process");
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const url = require("url");
 
 const root = __dirname;
 const sourceDir = path.join(root, "pages", "domainname_wizard", "source");
@@ -30,24 +29,28 @@ function log(msg) {
 
 function runUnitTests() {
   log("Running unit tests (vitest) in source...");
-  const isWin = process.platform === "win32";
-  const result = spawnSync(isWin ? "npm.cmd" : "npm", ["run", "test"], {
+  const vitestMjs = path.join(sourceDir, "node_modules", "vitest", "vitest.mjs");
+  const result = spawnSync(process.execPath, [vitestMjs, "run"], {
     cwd: sourceDir,
     stdio: "inherit",
     shell: false,
     timeout: 120000,
   });
   if (result.status !== 0) {
-    log("Unit tests FAILED (exit " + (result.status || "signal") + ")");
-    process.exit(result.status || 1);
+    log("Unit tests FAILED (exit " + (result.status != null ? result.status : "signal") + ")");
+    process.exit(result.status != null ? result.status : 1);
   }
   log("Unit tests OK");
 }
 
 function createStaticServer() {
   return http.createServer((req, res) => {
-    const parsed = url.parse(req.url, true);
-    let pathname = decodeURIComponent(parsed.pathname);
+    let pathname = "";
+    try {
+      pathname = decodeURIComponent(new URL(req.url, "http://x").pathname);
+    } catch {
+      pathname = "/";
+    }
     if (pathname === "/") pathname = "/pages/index.html";
     const filePath = path.resolve(path.join(root, pathname.replace(/^\//, "").replace(/\/+/g, path.sep)));
     if (!filePath.startsWith(root)) {
