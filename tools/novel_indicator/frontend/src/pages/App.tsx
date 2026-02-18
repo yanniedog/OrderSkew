@@ -296,7 +296,7 @@ export function App() {
         <div className="header-line">
           <div>
             <h1>Novel Indicator Lab</h1>
-            <p>Browser-local optimization with no login required. Binance fetches run from your browser IP.</p>
+            <p>Guest mode opens directly to optimization choices. Binance fetches run from your browser IP.</p>
           </div>
           <span className="status-pill online">Guest Mode</span>
         </div>
