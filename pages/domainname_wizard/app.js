@@ -29,6 +29,7 @@
   let currentSortMode = 'marketability';
   const debugLogs = [];
   let lastLoggedJobErrorKey = '';
+  let lastLoggedJobStateKey = '';
   let latestRunExport = null;
 
   const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
@@ -1078,6 +1079,26 @@
     startBtn.disabled = running;
     cancelBtn.disabled = !running;
 
+    const stateKey = [
+      job.id || '',
+      job.status || '',
+      job.phase || '',
+      Number(job.currentLoop || 0),
+      Number(job.totalLoops || 0),
+      Number(job.progress || 0),
+    ].join('|');
+    if (stateKey !== lastLoggedJobStateKey) {
+      pushDebugLog('app.js:updateStatus', 'Job state', {
+        jobId: job.id || null,
+        status: job.status || null,
+        phase: job.phase || null,
+        progress: Number(job.progress || 0),
+        currentLoop: Number(job.currentLoop || 0),
+        totalLoops: Number(job.totalLoops || 0),
+      });
+      lastLoggedJobStateKey = stateKey;
+    }
+
     if (job.error) {
       showJobError(`${job.error.code}: ${job.error.message}`);
       const errorKey = `${job.id || ''}:${job.error.code || ''}:${job.error.message || ''}`;
@@ -1137,6 +1158,8 @@
     showFormError('');
     showJobError('');
     debugLogs.length = 0;
+    lastLoggedJobStateKey = '';
+    lastLoggedJobErrorKey = '';
 
     const input = collectInput();
     pushDebugLog('app.js:handleStart', 'Run started', {
@@ -1224,7 +1247,23 @@
   });
 
   function downloadDebugLog() {
-    const ndjson = debugLogs.map(function (entry) { return JSON.stringify(entry); }).join('\n');
+    const exportLogs = debugLogs.slice();
+    if (latestRunExport && latestRunExport.run && latestRunExport.run.error) {
+      exportLogs.push({
+        sessionId: '437d46',
+        location: 'app.js:downloadDebugLog',
+        message: 'Exported run error summary',
+        data: {
+          jobId: latestRunExport.run.id || null,
+          code: latestRunExport.run.error.code || 'UNKNOWN',
+          message: latestRunExport.run.error.message || '',
+          status: latestRunExport.run.status || null,
+          phase: latestRunExport.run.phase || null,
+        },
+        timestamp: Date.now(),
+      });
+    }
+    const ndjson = exportLogs.map(function (entry) { return JSON.stringify(entry); }).join('\n');
     const blob = new Blob([ndjson], { type: 'application/x-ndjson' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
