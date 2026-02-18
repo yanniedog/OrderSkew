@@ -149,6 +149,7 @@ const State = {
     sellOnlyHighestExecuted: null,
     selectedCopyCellId: null,
     copiedCellIds: new Set(),
+    lastStrategySignature: null,
     activeTab: 'buy',
     theme: 'light',
     mode: 'simple',

@@ -224,6 +224,16 @@
             });
         },
 
+        resetCopyCellHighlights: () => {
+            State.selectedCopyCellId = null;
+            if (State.copiedCellIds && typeof State.copiedCellIds.clear === 'function') {
+                State.copiedCellIds.clear();
+            } else {
+                State.copiedCellIds = new Set();
+            }
+            App.updateCopyCellHighlight();
+        },
+
         setFieldValidationState: (missingFieldIds = []) => {
             const ids = new Set(missingFieldIds);
             const fields = [

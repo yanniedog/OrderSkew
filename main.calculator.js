@@ -104,9 +104,39 @@
             };
         },
 
+        getStrategySignature: () => {
+            return JSON.stringify({
+                mode: State.tradingMode,
+                appMode: State.mode,
+                startCapital: Utils.stripCommas(els.startCap?.value ?? ''),
+                currentPrice: Utils.stripCommas(els.currPrice?.value ?? ''),
+                currentPriceSell: Utils.stripCommas(els.currPriceSell?.value ?? ''),
+                existingQuantity: Utils.stripCommas(els.existQty?.value ?? ''),
+                existingAvgPrice: Utils.stripCommas(els.existAvg?.value ?? ''),
+                rungs: els.rungs?.value ?? '',
+                skew: els.skew?.value ?? '',
+                depth: els.depth?.value ?? '',
+                priceRangeMode: els.priceRangeMode?.value ?? '',
+                buyFloor: Utils.stripCommas(els.buyFloor?.value ?? ''),
+                sellCeiling: Utils.stripCommas(els.sellCeiling?.value ?? ''),
+                feeType: els.feeType?.value ?? '',
+                feeValue: Utils.stripCommas(els.feeValue?.value ?? ''),
+                feeSettlement: els.feeSettlement?.value ?? '',
+                spacingMode: els.spacingMode?.value ?? '',
+                sellOnlyChecked: !!els.sellOnlyCheck?.checked,
+                sellOnlyHighestExecuted: State.sellOnlyHighestExecuted
+            });
+        },
+
         // --- CORE CALCULATION ---
 
         calculatePlan: () => {
+            const strategySignature = App.getStrategySignature();
+            if (State.lastStrategySignature !== null && State.lastStrategySignature !== strategySignature) {
+                App.resetCopyCellHighlights();
+            }
+            State.lastStrategySignature = strategySignature;
+
             const {
                 C,
                 currentPrice,
