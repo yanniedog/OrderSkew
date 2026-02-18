@@ -38,7 +38,7 @@ type RunExportBundle = {
   files: RunExportFile[]
 }
 
-type OhlcvRow = { timestamp: number; high: number; low: number; close: number; volume: number }
+type OhlcvRow = { timestamp: number; open: number; high: number; low: number; close: number; volume: number }
 
 const DEFAULT_CONFIG: RunConfig = {
   top_n_symbols: 6,
@@ -259,38 +259,139 @@ function shiftTarget(close: Float64Array, h: number): Float64Array {
   return out
 }
 
-function linearFit(feature: Float64Array, close: Float64Array, target: Float64Array): { yTrue: Float64Array; yPred: Float64Array; closeRef: Float64Array } {
-  const x: number[] = []
-  const y: number[] = []
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function rollingStd(values: Float64Array, window: number): Float64Array {
+  const out = new Float64Array(values.length)
+  const c1 = new Float64Array(values.length + 1)
+  const c2 = new Float64Array(values.length + 1)
+  for (let i = 0; i < values.length; i += 1) {
+    c1[i + 1] = c1[i] + values[i]
+    c2[i + 1] = c2[i] + values[i] * values[i]
+  }
+  for (let i = 0; i < values.length; i += 1) {
+    const start = Math.max(0, i - window + 1)
+    const count = i - start + 1
+    const sum = c1[i + 1] - c1[start]
+    const sum2 = c2[i + 1] - c2[start]
+    const avg = sum / count
+    out[i] = Math.sqrt(Math.max(sum2 / count - avg * avg, 0))
+  }
+  return out
+}
+
+function ema(values: Float64Array, window: number): Float64Array {
+  const out = new Float64Array(values.length)
+  if (!values.length) return out
+  const alpha = 2 / (window + 1)
+  out[0] = values[0]
+  for (let i = 1; i < values.length; i += 1) {
+    out[i] = alpha * values[i] + (1 - alpha) * out[i - 1]
+  }
+  return out
+}
+
+function rsi(close: Float64Array, window: number): Float64Array {
+  const up = new Float64Array(close.length)
+  const down = new Float64Array(close.length)
+  for (let i = 1; i < close.length; i += 1) {
+    const d = close[i] - close[i - 1]
+    if (d > 0) up[i] = d
+    else down[i] = -d
+  }
+  const upEma = ema(up, window)
+  const downEma = ema(down, window)
+  const out = new Float64Array(close.length)
+  for (let i = 0; i < close.length; i += 1) {
+    const rs = upEma[i] / (downEma[i] + 1e-9)
+    out[i] = 100 - 100 / (1 + rs)
+  }
+  return out
+}
+
+type Fold = { trainIdx: Int32Array; valIdx: Int32Array }
+
+function buildWalkForwardFolds(n: number, horizon: number): Fold[] {
+  const usable = n - horizon - 1
+  if (usable < 320) return []
+  const folds = 4
+  const chunk = Math.floor(usable / (folds + 1))
+  if (chunk < 60) return []
+  const output: Fold[] = []
+  for (let i = 0; i < folds; i += 1) {
+    const trainEnd = chunk * (i + 1)
+    const valStart = trainEnd + horizon
+    const valEnd = Math.min(valStart + chunk, usable)
+    const trainLen = Math.max(0, trainEnd - horizon)
+    const valLen = Math.max(0, valEnd - valStart)
+    if (trainLen < 120 || valLen < 40) continue
+    const trainIdx = new Int32Array(trainLen)
+    for (let j = 0; j < trainLen; j += 1) trainIdx[j] = j
+    const valIdx = new Int32Array(valLen)
+    for (let j = 0; j < valLen; j += 1) valIdx[j] = valStart + j
+    output.push({ trainIdx, valIdx })
+  }
+  return output
+}
+
+function fitLinear1D(feature: Float64Array, targetDelta: Float64Array, idx: Int32Array): { alpha: number; beta: number } | null {
+  let sx = 0
+  let sy = 0
+  let sxx = 0
+  let sxy = 0
+  let count = 0
+  for (let i = 0; i < idx.length; i += 1) {
+    const at = idx[i]
+    const x = feature[at]
+    const y = targetDelta[at]
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+    sx += x
+    sy += y
+    sxx += x * x
+    sxy += x * y
+    count += 1
+  }
+  if (count < 80) return null
+  const mx = sx / count
+  const my = sy / count
+  const varX = sxx - sx * mx
+  if (Math.abs(varX) < 1e-9) return null
+  const covXY = sxy - sx * my
+  const beta = covXY / varX
+  const alpha = my - beta * mx
+  return { alpha, beta }
+}
+
+function linearFit(feature: Float64Array, close: Float64Array, target: Float64Array, horizon: number): { yTrue: Float64Array; yPred: Float64Array; closeRef: Float64Array } {
+  const folds = buildWalkForwardFolds(close.length, horizon)
+  if (!folds.length) return { yTrue: new Float64Array(), yPred: new Float64Array(), closeRef: new Float64Array() }
+
+  const targetDelta = new Float64Array(close.length)
+  targetDelta.fill(Number.NaN)
   for (let i = 0; i < close.length; i += 1) {
     if (!Number.isFinite(target[i])) continue
-    const f = feature[i]
-    if (!Number.isFinite(f)) continue
-    x.push(f)
-    y.push((target[i] - close[i]) / (close[i] + 1e-9))
+    targetDelta[i] = (target[i] - close[i]) / (close[i] + 1e-9)
   }
-  if (x.length < 50) {
-    return { yTrue: new Float64Array(), yPred: new Float64Array(), closeRef: new Float64Array() }
-  }
-
-  let xx = 0
-  let xy = 0
-  for (let i = 0; i < x.length; i += 1) {
-    xx += x[i] * x[i]
-    xy += x[i] * y[i]
-  }
-  const beta = xy / (xx + 1e-9)
 
   const yTrue: number[] = []
   const yPred: number[] = []
   const closeRef: number[] = []
-  for (let i = 0; i < close.length; i += 1) {
-    if (!Number.isFinite(target[i]) || !Number.isFinite(feature[i])) continue
-    const pred = close[i] * (1 + Math.max(-0.8, Math.min(0.8, beta * feature[i])))
-    yTrue.push(target[i])
-    yPred.push(pred)
-    closeRef.push(close[i])
+  for (const fold of folds) {
+    const model = fitLinear1D(feature, targetDelta, fold.trainIdx)
+    if (!model) continue
+    for (let i = 0; i < fold.valIdx.length; i += 1) {
+      const at = fold.valIdx[i]
+      if (!Number.isFinite(feature[at]) || !Number.isFinite(target[at])) continue
+      const predDelta = clamp(model.alpha + model.beta * feature[at], -0.8, 0.8)
+      const pred = close[at] * (1 + predDelta)
+      yTrue.push(target[at])
+      yPred.push(pred)
+      closeRef.push(close[at])
+    }
   }
+
   return {
     yTrue: Float64Array.from(yTrue),
     yPred: Float64Array.from(yPred),
@@ -298,16 +399,87 @@ function linearFit(feature: Float64Array, close: Float64Array, target: Float64Ar
   }
 }
 
+function backtest(yTrue: Float64Array, yPred: Float64Array, closeRef: Float64Array, threshold: number): { pnl: number; maxDrawdown: number; turnover: number; equity: number[] } {
+  const n = Math.min(yTrue.length, yPred.length, closeRef.length)
+  if (n < 5) {
+    return { pnl: 0, maxDrawdown: 0, turnover: 0, equity: [] }
+  }
+  const fee = 0.0012
+  const signal = new Float64Array(n)
+  for (let i = 0; i < n; i += 1) {
+    const f = (yPred[i] - closeRef[i]) / (closeRef[i] + 1e-9)
+    if (f > threshold) signal[i] = 1
+    else if (f < -threshold) signal[i] = -1
+    else signal[i] = 0
+  }
+
+  const returns = new Float64Array(n)
+  let turnover = 0
+  let equity = 1
+  let peak = 1
+  let maxDrawdown = 0
+  const curve: number[] = []
+  for (let i = 0; i < n; i += 1) {
+    const prev = i > 0 ? signal[i - 1] : 0
+    const turn = Math.abs(signal[i] - prev)
+    turnover += turn
+    const realized = (yTrue[i] - closeRef[i]) / (closeRef[i] + 1e-9)
+    const value = prev * realized - fee * turn
+    returns[i] = value
+    equity *= 1 + value
+    if (equity > peak) peak = equity
+    const dd = (equity - peak) / (peak + 1e-12)
+    if (dd < maxDrawdown) maxDrawdown = dd
+    curve.push(equity)
+  }
+
+  return {
+    pnl: equity - 1,
+    maxDrawdown,
+    turnover: turnover / n,
+    equity: curve,
+  }
+}
+
+async function fetchWithRetry(bundle: RunBundle, endpoint: string, url: string, attempts = 4): Promise<Response> {
+  let lastError: Error | null = null
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await fetch(url)
+      recordBinanceCall(bundle, endpoint, response)
+      if (response.status === 429 || response.status >= 500) {
+        const waitMs = 350 * Math.pow(2, attempt) + Math.floor(Math.random() * 140)
+        await new Promise((resolve) => setTimeout(resolve, waitMs))
+        continue
+      }
+      return response
+    } catch (error) {
+      lastError = error as Error
+      const waitMs = 350 * Math.pow(2, attempt) + Math.floor(Math.random() * 140)
+      await new Promise((resolve) => setTimeout(resolve, waitMs))
+    }
+  }
+  if (lastError) throw lastError
+  throw new Error(`Binance request failed: ${endpoint}`)
+}
+
 async function fetchTopSymbols(bundle: RunBundle, topN: number): Promise<string[]> {
-  const response = await fetch('https://api.binance.com/api/v3/ticker/24hr')
-  recordBinanceCall(bundle, '/api/v3/ticker/24hr', response)
+  const response = await fetchWithRetry(bundle, '/api/v3/ticker/24hr', 'https://api.binance.com/api/v3/ticker/24hr')
   if (!response.ok) throw new Error(`Binance universe request failed (${response.status})`)
-  const rows = (await response.json()) as Array<{ symbol: string; quoteVolume: string }>
+  const rows = (await response.json()) as Array<{ symbol: string; quoteVolume: string; priceChangePercent: string; count: number }>
+  const stableBases = new Set(['USDC', 'USDT', 'FDUSD', 'BUSD', 'TUSD', 'DAI', 'USDP', 'EUR', 'GBP'])
   return rows
     .filter((r) => r.symbol.endsWith('USDT'))
     .filter((r) => !/(UP|DOWN|BULL|BEAR)/.test(r.symbol))
-    .map((r) => ({ symbol: r.symbol, quoteVolume: Number(r.quoteVolume || '0') }))
-    .sort((a, b) => b.quoteVolume - a.quoteVolume)
+    .filter((r) => !stableBases.has(r.symbol.slice(0, -4)))
+    .map((r) => {
+      const quoteVolume = Number(r.quoteVolume || '0')
+      const move = Math.abs(Number(r.priceChangePercent || '0'))
+      const trades = Number(r.count ?? 0)
+      const score = Math.log10(quoteVolume + 1) * clamp(move / 5, 0.2, 2.2) * clamp(Math.log10(trades + 10) / 4, 0.3, 1.6)
+      return { symbol: r.symbol, score }
+    })
+    .sort((a, b) => b.score - a.score)
     .slice(0, topN)
     .map((r) => r.symbol)
 }
@@ -322,13 +494,19 @@ async function fetchKlines(bundle: RunBundle, symbol: string, timeframe: string,
 
   while (cursor < end) {
     const params = new URLSearchParams({ symbol, interval: timeframe, startTime: String(cursor), endTime: String(end), limit: '1000' })
-    const response = await fetch(`https://api.binance.com/api/v3/klines?${params.toString()}`)
-    recordBinanceCall(bundle, '/api/v3/klines', response)
+    const response = await fetchWithRetry(bundle, '/api/v3/klines', `https://api.binance.com/api/v3/klines?${params.toString()}`)
     if (!response.ok) throw new Error(`Binance klines failed (${response.status})`)
     const batch = (await response.json()) as Array<[number, string, string, string, string, string]>
     if (!batch.length) break
     for (const row of batch) {
-      out.push({ timestamp: Number(row[0]), high: Number(row[2]), low: Number(row[3]), close: Number(row[4]), volume: Number(row[5]) })
+      out.push({
+        timestamp: Number(row[0]),
+        open: Number(row[1]),
+        high: Number(row[2]),
+        low: Number(row[3]),
+        close: Number(row[4]),
+        volume: Number(row[5]),
+      })
     }
     const next = Number(batch[batch.length - 1][0]) + step
     if (next <= cursor) break
@@ -348,8 +526,17 @@ type Outcome = {
   pine: string
   complexity: number
   horizon: number
+  normalizedRmse: number
+  normalizedMae: number
   composite: number
   hitRate: number
+  pnl: number
+  maxDrawdown: number
+  turnover: number
+  stability: number
+  equityCurve: number[]
+  horizonScores: Record<number, number>
+  frontier: Array<{ label: string; complexity: number; error: number; hitRate: number }>
   yTrue: Float64Array
   yPred: Float64Array
   closeRef: Float64Array
@@ -359,6 +546,7 @@ function evaluate(rows: OhlcvRow[], seed: number): Outcome {
   const close = Float64Array.from(rows.map((r) => r.close))
   const high = Float64Array.from(rows.map((r) => r.high))
   const low = Float64Array.from(rows.map((r) => r.low))
+  const volume = Float64Array.from(rows.map((r) => r.volume))
   const rng = seeded(seed)
 
   const candidates: Array<{ id: string; expr: string; pine: string; complexity: number; feature: Float64Array }> = []
@@ -367,13 +555,36 @@ function evaluate(rows: OhlcvRow[], seed: number): Outcome {
   const ret1 = new Float64Array(close.length)
   for (let i = 1; i < close.length; i += 1) ret1[i] = (close[i] - close[i - 1]) / (close[i - 1] + 1e-9)
   candidates.push({ id: 'cand_ret1', expr: 'ret1(close)', pine: '(close - close[1]) / (close[1] + 1e-9)', complexity: 2, feature: ret1 })
+  const ret3 = new Float64Array(close.length)
+  for (let i = 3; i < close.length; i += 1) ret3[i] = (close[i] - close[i - 3]) / (close[i - 3] + 1e-9)
+  candidates.push({ id: 'cand_ret3', expr: 'ret3(close)', pine: '(close - close[3]) / (close[3] + 1e-9)', complexity: 2, feature: ret3 })
 
   for (const w of windows) {
     const sma = rollingMean(close, w)
     const ratio = new Float64Array(close.length)
-    for (let i = 0; i < close.length; i += 1) ratio[i] = close[i] / (sma[i] + 1e-9)
+    for (let i = 0; i < close.length; i += 1) ratio[i] = close[i] / (sma[i] + 1e-9) - 1
     candidates.push({ id: `cand_sma_${w}`, expr: `div(close,sma(close,${w}))`, pine: `close / (ta.sma(close, ${w}) + 1e-9)`, complexity: 4, feature: ratio })
   }
+
+  const ema8 = ema(close, 8)
+  const ema21 = ema(close, 21)
+  const emaGap = new Float64Array(close.length)
+  for (let i = 0; i < close.length; i += 1) emaGap[i] = (ema8[i] - ema21[i]) / (Math.abs(ema21[i]) + 1e-9)
+  candidates.push({
+    id: 'cand_ema_gap',
+    expr: 'div(sub(ema(close,8),ema(close,21)),abs(ema(close,21)))',
+    pine: '(ta.ema(close, 8) - ta.ema(close, 21)) / (math.abs(ta.ema(close, 21)) + 1e-9)',
+    complexity: 5,
+    feature: emaGap,
+  })
+
+  const rsi14 = rsi(close, 14)
+  const rsiCentered = new Float64Array(close.length)
+  for (let i = 0; i < close.length; i += 1) rsiCentered[i] = (rsi14[i] - 50) / 50
+  candidates.push({ id: 'cand_rsi14', expr: 'sub(rsi(close,14),50)', pine: '(ta.rsi(close, 14) - 50) / 50', complexity: 4, feature: rsiCentered })
+
+  const retStd20 = rollingStd(ret1, 20)
+  candidates.push({ id: 'cand_ret_std20', expr: 'std(ret1(close),20)', pine: 'ta.stdev((close-close[1])/(close[1]+1e-9), 20)', complexity: 4, feature: retStd20 })
 
   for (let i = 0; i < 24; i += 1) {
     const a = windows[Math.floor(rng() * windows.length)]
@@ -394,15 +605,50 @@ function evaluate(rows: OhlcvRow[], seed: number): Outcome {
   const range = new Float64Array(close.length)
   for (let i = 0; i < close.length; i += 1) range[i] = high[i] - low[i]
   candidates.push({ id: 'cand_range', expr: 'sub(high,low)', pine: 'high - low', complexity: 2, feature: range })
+  const rangeNorm = new Float64Array(close.length)
+  for (let i = 0; i < close.length; i += 1) rangeNorm[i] = range[i] / (Math.abs(close[i]) + 1e-9)
+  candidates.push({ id: 'cand_range_norm', expr: 'div(sub(high,low),close)', pine: '(high-low)/(math.abs(close)+1e-9)', complexity: 3, feature: rangeNorm })
+  const volSma21 = rollingMean(volume, 21)
+  const volRatio = new Float64Array(close.length)
+  for (let i = 0; i < close.length; i += 1) volRatio[i] = volume[i] / (volSma21[i] + 1e-9) - 1
+  candidates.push({ id: 'cand_volume_ratio', expr: 'div(volume,sma(volume,21))', pine: 'volume/(ta.sma(volume,21)+1e-9)', complexity: 4, feature: volRatio })
 
-  let best: Outcome | null = null
+  const evals: Array<{
+    candidate: { id: string; expr: string; pine: string; complexity: number }
+    horizon: number
+    normalizedRmse: number
+    normalizedMae: number
+    composite: number
+    hitRate: number
+    yTrue: Float64Array
+    yPred: Float64Array
+    closeRef: Float64Array
+    horizonScores: Record<number, number>
+  }> = []
+
   for (const candidate of candidates) {
-    for (let horizon = 3; horizon <= 200; horizon += 12) {
+    let bestLocal: {
+      horizon: number
+      normalizedRmse: number
+      normalizedMae: number
+      composite: number
+      hitRate: number
+      yTrue: Float64Array
+      yPred: Float64Array
+      closeRef: Float64Array
+    } | null = null
+    const horizonScores: Record<number, number> = {}
+
+    for (let horizon = 3; horizon <= 200; horizon += 10) {
       const target = shiftTarget(close, horizon)
-      const fit = linearFit(candidate.feature, close, target)
+      const fit = linearFit(candidate.feature, close, target, horizon)
+      if (fit.yTrue.length < 120) continue
       const nrmse = rmse(fit.yTrue, fit.yPred) / (std(fit.yTrue) + 1e-9)
-      const nmae = mae(fit.yTrue, fit.yPred) / (Math.max(std(fit.yTrue), 1e-9))
-      const composite = 0.5 * (nrmse + nmae)
+      let absTargetDelta = 0
+      for (let i = 0; i < fit.yTrue.length; i += 1) {
+        absTargetDelta += Math.abs(fit.yTrue[i] - fit.closeRef[i])
+      }
+      const nmae = mae(fit.yTrue, fit.yPred) / (absTargetDelta / fit.yTrue.length + 1e-9)
       let hits = 0
       for (let i = 0; i < fit.yTrue.length; i += 1) {
         const d1 = Math.sign(fit.yTrue[i] - fit.closeRef[i])
@@ -410,15 +656,13 @@ function evaluate(rows: OhlcvRow[], seed: number): Outcome {
         if (d1 === d2) hits += 1
       }
       const hitRate = fit.yTrue.length ? hits / fit.yTrue.length : 0
-      if (!best || composite < best.composite) {
-        best = {
-          symbol: '',
-          timeframe: '',
-          candidateId: candidate.id,
-          expression: candidate.expr,
-          pine: candidate.pine,
-          complexity: candidate.complexity,
+      const composite = 0.48 * nrmse + 0.34 * nmae + 0.18 * (1 - hitRate)
+      horizonScores[horizon] = composite
+      if (!bestLocal || composite < bestLocal.composite) {
+        bestLocal = {
           horizon,
+          normalizedRmse: nrmse,
+          normalizedMae: nmae,
           composite,
           hitRate,
           yTrue: fit.yTrue,
@@ -427,12 +671,56 @@ function evaluate(rows: OhlcvRow[], seed: number): Outcome {
         }
       }
     }
+    if (!bestLocal) continue
+    evals.push({
+      candidate: { id: candidate.id, expr: candidate.expr, pine: candidate.pine, complexity: candidate.complexity },
+      horizon: bestLocal.horizon,
+      normalizedRmse: bestLocal.normalizedRmse,
+      normalizedMae: bestLocal.normalizedMae,
+      composite: bestLocal.composite,
+      hitRate: bestLocal.hitRate,
+      yTrue: bestLocal.yTrue,
+      yPred: bestLocal.yPred,
+      closeRef: bestLocal.closeRef,
+      horizonScores,
+    })
   }
 
-  if (!best) {
+  if (!evals.length) {
     throw new Error('No valid candidate found')
   }
-  return best
+  evals.sort((a, b) => a.composite - b.composite)
+  const best = evals[0]
+  const bt = backtest(best.yTrue, best.yPred, best.closeRef, 0.001)
+  const top = Float64Array.from(evals.slice(0, 6).map((entry) => entry.composite))
+  return {
+    symbol: '',
+    timeframe: '',
+    candidateId: best.candidate.id,
+    expression: best.candidate.expr,
+    pine: best.candidate.pine,
+    complexity: best.candidate.complexity,
+    horizon: best.horizon,
+    normalizedRmse: best.normalizedRmse,
+    normalizedMae: best.normalizedMae,
+    composite: best.composite,
+    hitRate: best.hitRate,
+    pnl: bt.pnl,
+    maxDrawdown: bt.maxDrawdown,
+    turnover: bt.turnover,
+    stability: 1 / (std(top) + 1e-6),
+    equityCurve: bt.equity,
+    horizonScores: best.horizonScores,
+    frontier: evals.slice(0, 14).map((entry) => ({
+      label: entry.candidate.id,
+      complexity: entry.candidate.complexity,
+      error: entry.composite,
+      hitRate: entry.hitRate,
+    })),
+    yTrue: best.yTrue,
+    yPred: best.yPred,
+    closeRef: best.closeRef,
+  }
 }
 
 function buildArtifacts(runId: string, outcomes: Outcome[]): { summary: ResultSummary; plots: Record<string, PlotPayload>; pine: Record<string, string> } {
@@ -443,54 +731,234 @@ function buildArtifacts(runId: string, outcomes: Outcome[]): { summary: ResultSu
       best_horizon: o.horizon,
       indicator_combo: [{ indicator_id: o.candidateId, expression: o.expression, complexity: o.complexity, params: {} }],
       score: {
-        normalized_rmse: o.composite,
-        normalized_mae: o.composite,
+        normalized_rmse: o.normalizedRmse,
+        normalized_mae: o.normalizedMae,
         composite_error: o.composite,
         directional_hit_rate: o.hitRate,
-        pnl_total: 0,
-        max_drawdown: 0,
-        turnover: 0,
-        stability_score: 1 / (o.composite + 1e-6),
+        pnl_total: o.pnl,
+        max_drawdown: o.maxDrawdown,
+        turnover: o.turnover,
+        stability_score: o.stability,
       },
     }))
     .sort((a, b) => a.score.composite_error - b.score.composite_error)
 
+  const comboAggregate = new Map<
+    string,
+    {
+      count: number
+      totalError: number
+      totalHit: number
+      totalPnl: number
+      totalHorizon: number
+      sample: Outcome
+    }
+  >()
+  for (const outcome of outcomes) {
+    const key = outcome.expression
+    const existing = comboAggregate.get(key)
+    if (!existing) {
+      comboAggregate.set(key, {
+        count: 1,
+        totalError: outcome.composite,
+        totalHit: outcome.hitRate,
+        totalPnl: outcome.pnl,
+        totalHorizon: outcome.horizon,
+        sample: outcome,
+      })
+      continue
+    }
+    existing.count += 1
+    existing.totalError += outcome.composite
+    existing.totalHit += outcome.hitRate
+    existing.totalPnl += outcome.pnl
+    existing.totalHorizon += outcome.horizon
+  }
+  const bestUniversal = Array.from(comboAggregate.values()).sort((a, b) => {
+    const scoreA = a.totalError / a.count + 0.03 * (1 - a.totalHit / a.count) + 0.05 * Math.max(0, -(a.totalPnl / a.count))
+    const scoreB = b.totalError / b.count + 0.03 * (1 - b.totalHit / b.count) + 0.05 * Math.max(0, -(b.totalPnl / b.count))
+    return scoreA - scoreB
+  })[0]
+
+  const universal = bestUniversal?.sample ?? outcomes[0]
   const summary: ResultSummary = {
     run_id: runId,
     universal_recommendation: {
       symbol: 'UNIVERSAL',
-      timeframe: '5m|1h|4h',
-      best_horizon: per[0]?.best_horizon ?? 3,
-      indicator_combo: per[0]?.indicator_combo ?? [],
-      score: per[0]?.score ?? {
-        normalized_rmse: 0,
-        normalized_mae: 0,
-        composite_error: 9999,
-        directional_hit_rate: 0,
-        pnl_total: 0,
-        max_drawdown: 0,
-        turnover: 0,
-        stability_score: 0,
-      },
+      timeframe: Array.from(new Set(outcomes.map((o) => o.timeframe))).join('|'),
+      best_horizon: bestUniversal ? Math.round(bestUniversal.totalHorizon / bestUniversal.count) : universal?.horizon ?? 3,
+      indicator_combo: universal ? [{ indicator_id: `${universal.candidateId}_u`, expression: universal.expression, complexity: universal.complexity, params: {} }] : [],
+      score: universal
+        ? {
+            normalized_rmse: bestUniversal ? bestUniversal.totalError / bestUniversal.count : universal.normalizedRmse,
+            normalized_mae: bestUniversal ? bestUniversal.totalError / bestUniversal.count : universal.normalizedMae,
+            composite_error: bestUniversal ? bestUniversal.totalError / bestUniversal.count : universal.composite,
+            directional_hit_rate: bestUniversal ? bestUniversal.totalHit / bestUniversal.count : universal.hitRate,
+            pnl_total: bestUniversal ? bestUniversal.totalPnl / bestUniversal.count : universal.pnl,
+            max_drawdown: universal.maxDrawdown,
+            turnover: universal.turnover,
+            stability_score: universal.stability,
+          }
+        : {
+            normalized_rmse: 9_999,
+            normalized_mae: 9_999,
+            composite_error: 9_999,
+            directional_hit_rate: 0,
+            pnl_total: 0,
+            max_drawdown: 0,
+            turnover: 0,
+            stability_score: 0,
+          },
     },
     per_asset_recommendations: per,
     generated_at: nowIso(),
   }
 
   const first = outcomes[0]
+  const allHorizons = Array.from(
+    new Set(
+      outcomes.flatMap((outcome) =>
+        Object.keys(outcome.horizonScores)
+          .map((value) => Number(value))
+          .filter((value) => Number.isFinite(value)),
+      ),
+    ),
+  ).sort((a, b) => a - b)
+
+  const timeframeCategories = Array.from(new Set(per.map((entry) => entry.timeframe)))
+  const timeframeValues = timeframeCategories.map((tf) => {
+    const rows = per.filter((entry) => entry.timeframe === tf)
+    return rows.reduce((acc, row) => acc + row.score.composite_error, 0) / Math.max(rows.length, 1)
+  })
+
+  const equityLength = Math.min(900, ...outcomes.slice(0, 3).map((outcome) => outcome.equityCurve.length))
+  const residualBins = [-0.06, -0.04, -0.025, -0.015, -0.0075, 0, 0.0075, 0.015, 0.025, 0.04, 0.06]
+  const residualCounts = Array.from({ length: residualBins.length - 1 }, () => 0)
+  if (first) {
+    for (let i = 0; i < first.yTrue.length; i += 1) {
+      const residual = (first.yPred[i] - first.yTrue[i]) / (Math.abs(first.closeRef[i]) + 1e-9)
+      for (let b = 0; b < residualBins.length - 1; b += 1) {
+        if (residual >= residualBins[b] && residual < residualBins[b + 1]) {
+          residualCounts[b] += 1
+          break
+        }
+      }
+    }
+  }
+
   const plots: Record<string, PlotPayload> = {
-    horizon_heatmap: { run_id: runId, plot_id: 'horizon_heatmap', title: 'Error by Horizon', payload: { type: 'heatmap', x: [3, 15, 27, 39], y: per.map((r) => `${r.symbol}:${r.timeframe}`), z: per.map((r) => [r.score.composite_error, r.score.composite_error, r.score.composite_error, r.score.composite_error]) } },
-    forecast_overlay: { run_id: runId, plot_id: 'forecast_overlay', title: 'Forecast Overlay', payload: { type: 'line', x: Array.from({ length: Math.min(500, first?.yTrue.length ?? 0) }, (_, i) => i), series: [{ name: 'y_true', values: Array.from(first?.yTrue?.slice(0, 500) ?? []) }, { name: 'y_pred', values: Array.from(first?.yPred?.slice(0, 500) ?? []) }] } },
-    novelty_pareto: { run_id: runId, plot_id: 'novelty_pareto', title: 'Novelty/Complexity vs Accuracy', payload: { type: 'scatter', points: outcomes.map((o) => ({ label: `${o.symbol}:${o.timeframe}:${o.candidateId}`, complexity: o.complexity, error: o.composite })) } },
-    timeframe_error: { run_id: runId, plot_id: 'timeframe_error', title: 'Composite Error by Timeframe', payload: { type: 'bar', categories: Array.from(new Set(per.map((r) => r.timeframe))), values: Array.from(new Set(per.map((r) => r.timeframe))).map((tf) => { const rows = per.filter((r) => r.timeframe === tf); return rows.reduce((acc, row) => acc + row.score.composite_error, 0) / Math.max(rows.length, 1) }) } },
+    horizon_heatmap: {
+      run_id: runId,
+      plot_id: 'horizon_heatmap',
+      title: 'Error by Horizon',
+      payload: {
+        type: 'heatmap',
+        x: allHorizons,
+        y: per.map((row) => `${row.symbol}:${row.timeframe}`),
+        z: outcomes.map((outcome) => allHorizons.map((h) => outcome.horizonScores[h] ?? Number.NaN)),
+      },
+    },
+    forecast_overlay: {
+      run_id: runId,
+      plot_id: 'forecast_overlay',
+      title: first ? `Forecast Overlay (${first.symbol}:${first.timeframe})` : 'Forecast Overlay',
+      payload: {
+        type: 'line',
+        x: Array.from({ length: Math.min(700, first?.yTrue.length ?? 0) }, (_, i) => i),
+        series: first
+          ? [
+              { name: 'y_true', values: Array.from(first.yTrue.slice(0, 700)) },
+              { name: 'y_pred', values: Array.from(first.yPred.slice(0, 700)) },
+              { name: 'close_ref', values: Array.from(first.closeRef.slice(0, 700)) },
+            ]
+          : [],
+      },
+    },
+    novelty_pareto: {
+      run_id: runId,
+      plot_id: 'novelty_pareto',
+      title: 'Novelty/Complexity vs Accuracy',
+      payload: {
+        type: 'scatter',
+        points: outcomes.flatMap((outcome) =>
+          outcome.frontier.map((point) => ({
+            label: `${outcome.symbol}:${outcome.timeframe}:${point.label}`,
+            complexity: point.complexity,
+            error: point.error,
+            hit_rate: point.hitRate,
+            pnl: outcome.pnl,
+          })),
+        ),
+      },
+    },
+    timeframe_error: {
+      run_id: runId,
+      plot_id: 'timeframe_error',
+      title: 'Composite Error by Timeframe',
+      payload: { type: 'bar', categories: timeframeCategories, values: timeframeValues },
+    },
+    leaderboard: {
+      run_id: runId,
+      plot_id: 'leaderboard',
+      title: 'Asset Leaderboard',
+      payload: {
+        type: 'table',
+        rows: per.map((row) => ({
+          asset: `${row.symbol}:${row.timeframe}`,
+          error: row.score.composite_error,
+          hit_rate: row.score.directional_hit_rate,
+          horizon: row.best_horizon,
+          pnl: row.score.pnl_total,
+          max_drawdown: row.score.max_drawdown,
+          turnover: row.score.turnover,
+          stability: row.score.stability_score,
+        })),
+      },
+    },
+    equity_curve: {
+      run_id: runId,
+      plot_id: 'equity_curve',
+      title: 'Equity Curve (Top 3)',
+      payload: {
+        type: 'line',
+        x: Array.from({ length: Math.max(0, equityLength) }, (_, i) => i),
+        series: outcomes.slice(0, 3).map((outcome) => ({
+          name: `${outcome.symbol}:${outcome.timeframe}`,
+          values: outcome.equityCurve.slice(0, Math.max(0, equityLength)),
+        })),
+      },
+    },
+    residual_histogram: {
+      run_id: runId,
+      plot_id: 'residual_histogram',
+      title: first ? `Residual Distribution (${first.symbol}:${first.timeframe})` : 'Residual Distribution',
+      payload: {
+        type: 'bar',
+        categories: residualBins.slice(0, -1).map((left, idx) => `${left.toFixed(3)}..${residualBins[idx + 1].toFixed(3)}`),
+        values: residualCounts,
+      },
+    },
   }
 
   const pine: Record<string, string> = {}
-  for (const rec of per.slice(0, 3)) {
-    const expr = rec.indicator_combo[0].expression
-    pine[`${rec.symbol}_${rec.timeframe}_indicator.pine`] = `//@version=6\nindicator("${rec.symbol} ${rec.timeframe}", overlay=false)\nvalue = ${expr}\nplot(value)`
+  for (const outcome of outcomes.slice(0, 3)) {
+    pine[`${outcome.symbol}_${outcome.timeframe}_indicator.pine`] =
+      `//@version=6\n` +
+      `indicator("${outcome.symbol} ${outcome.timeframe}", overlay=false)\n` +
+      `horizon = ${outcome.horizon}\n` +
+      `value = ${outcome.pine}\n` +
+      `plot(value)\n`
   }
-  pine['universal_indicator.pine'] = `//@version=6\nindicator("Novel Indicator Universal", overlay=false)\nvalue = close\nplot(value)`
+  if (universal) {
+    pine['universal_indicator.pine'] =
+      `//@version=6\n` +
+      `indicator("Novel Indicator Universal", overlay=false)\n` +
+      `horizon = ${universal.horizon}\n` +
+      `value = ${universal.pine}\n` +
+      `plot(value)\n`
+  } else {
+    pine['universal_indicator.pine'] = `//@version=6\nindicator("Novel Indicator Universal", overlay=false)\nvalue = close\nplot(value)\n`
+  }
 
   return { summary, plots, pine }
 }
@@ -520,27 +988,45 @@ async function executeRun(runIdValue: string): Promise<void> {
         if (cancelRuns.has(runIdValue)) throw new Error('Run canceled')
         stageStart = Date.now()
         updateRun(bundle, 'running', 'optimization', Math.min(0.85, 0.15 + done / totalJobs), `Optimizing ${symbol} ${timeframe} locally...`)
-        const days = timeframe === '5m' ? 90 : timeframe === '1h' ? 365 : 365 * 2
+        const minPerJob = bundle.config.budget_minutes / Math.max(totalJobs, 1)
+        const days = timeframe === '5m' ? (minPerJob < 3 ? 70 : minPerJob < 6 ? 95 : 130) : timeframe === '1h' ? (minPerJob < 3 ? 260 : minPerJob < 6 ? 380 : 620) : minPerJob < 3 ? 420 : minPerJob < 6 ? 730 : 1_050
         const rows = await fetchKlines(bundle, symbol, timeframe, days)
         if (rows.length > 600) {
-          const outcome = evaluate(rows, stableSeed(bundle.config.random_seed, symbol, timeframe))
-          outcome.symbol = symbol
-          outcome.timeframe = timeframe
-          outcomes.push(outcome)
+          try {
+            const outcome = evaluate(rows, stableSeed(bundle.config.random_seed, symbol, timeframe))
+            outcome.symbol = symbol
+            outcome.timeframe = timeframe
+            outcomes.push(outcome)
+          } catch (error) {
+            bundle.run.logs.push({
+              timestamp: nowIso(),
+              stage: 'optimization',
+              message: `Skipped ${symbol} ${timeframe}: ${(error as Error).message}`,
+            })
+          }
+        } else {
+          bundle.run.logs.push({
+            timestamp: nowIso(),
+            stage: 'ingest',
+            message: `Skipped ${symbol} ${timeframe}: insufficient candles (${rows.length}).`,
+          })
         }
         done += 1
+        const elapsedSec = Math.max((Date.now() - started) / 1000, 0.1)
+        const avgPerJob = elapsedSec / Math.max(done, 1)
+        const remainingJobs = Math.max(0, totalJobs - done)
         addTelemetry(bundle, {
           stage: 'optimization',
           working_on: `${symbol} ${timeframe}`,
           achieved: `${done}/${totalJobs} datasets`,
-          remaining: `${Math.max(0, totalJobs - done)} datasets`,
+          remaining: `${remainingJobs} datasets`,
           overall_progress: Math.min(0.85, 0.15 + done / totalJobs),
           stage_progress: done / totalJobs,
-          run_elapsed_sec: (Date.now() - started) / 1000,
+          run_elapsed_sec: elapsedSec,
           stage_elapsed_sec: (Date.now() - stageStart) / 1000,
-          eta_total_sec: null,
-          eta_stage_sec: null,
-          rate_units_per_sec: done / Math.max((Date.now() - started) / 1000, 0.1),
+          eta_total_sec: avgPerJob * remainingJobs,
+          eta_stage_sec: avgPerJob,
+          rate_units_per_sec: done / elapsedSec,
         })
         await saveBundle(runIdValue, bundle)
       }
@@ -578,9 +1064,61 @@ function listRuns(): RunStatus[] {
 function buildReportHtml(bundle: RunBundle): string {
   if (!bundle.summary) return '<html><body><h1>No report data.</h1></body></html>'
   const rows = bundle.summary.per_asset_recommendations
-    .map((r) => `<tr><td>${r.symbol}</td><td>${r.timeframe}</td><td>${r.best_horizon}</td><td>${r.score.composite_error.toFixed(6)}</td></tr>`)
+    .map(
+      (r) =>
+        `<tr><td>${r.symbol}</td><td>${r.timeframe}</td><td>${r.best_horizon}</td><td>${r.score.composite_error.toFixed(6)}</td><td>${r.score.directional_hit_rate.toFixed(3)}</td><td>${r.score.pnl_total.toFixed(4)}</td><td>${r.score.max_drawdown.toFixed(4)}</td><td>${r.score.turnover.toFixed(4)}</td><td>${r.score.stability_score.toFixed(3)}</td></tr>`,
+    )
     .join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Novel Indicator Report</title><style>body{font-family:Arial;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>Novel Indicator Report</h1><p>Run ${bundle.summary.run_id}</p><p>Generated ${bundle.summary.generated_at}</p><table><thead><tr><th>Symbol</th><th>TF</th><th>Horizon</th><th>Error</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
+  const per = bundle.summary.per_asset_recommendations
+  const avgError = per.length ? per.reduce((acc, row) => acc + row.score.composite_error, 0) / per.length : 0
+  const avgHit = per.length ? per.reduce((acc, row) => acc + row.score.directional_hit_rate, 0) / per.length : 0
+  const avgPnl = per.length ? per.reduce((acc, row) => acc + row.score.pnl_total, 0) / per.length : 0
+  const positive = per.length ? per.filter((row) => row.score.pnl_total > 0).length / per.length : 0
+  const warnings: string[] = []
+  if (avgHit < 0.52) warnings.push('Directional hit rate below robust threshold.')
+  if (avgPnl <= 0) warnings.push('Average post-cost pnl is non-positive.')
+  if (avgError > 1.2) warnings.push('Composite error remains elevated.')
+  return `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Novel Indicator Report</title>
+      <style>
+        :root{--ink:#122033;--muted:#455467;--line:#d8dfeb;--accent:#0b6bcb;--accent2:#d65a31}
+        body{font-family:"Segoe UI",Arial,sans-serif;padding:24px;color:var(--ink)}
+        h1,h2{margin:0 0 10px}
+        p{margin:0 0 8px}
+        .row{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px;margin:14px 0}
+        .card{border:1px solid var(--line);border-radius:10px;padding:10px}
+        .card label{display:block;color:var(--muted);font-size:12px}
+        .card b{font-size:17px}
+        table{width:100%;border-collapse:collapse;margin-top:14px}
+        th,td{border:1px solid var(--line);padding:7px;font-size:12px;text-align:left}
+        th{background:#f3f7fc}
+        .pill{display:inline-block;background:#eef5ff;border:1px solid #d5e5fb;border-radius:999px;padding:4px 10px;font-size:12px;margin-right:6px}
+        .warn{border:1px solid #f1c8b8;background:#fff6f1;border-radius:10px;padding:10px;margin-top:12px}
+      </style>
+    </head>
+    <body>
+      <h1>Novel Indicator Report</h1>
+      <p>Run <b>${bundle.summary.run_id}</b> | Generated ${bundle.summary.generated_at}</p>
+      <div class="row">
+        <div class="card"><label>Avg Composite Error</label><b>${avgError.toFixed(5)}</b></div>
+        <div class="card"><label>Avg Hit Rate</label><b>${(avgHit * 100).toFixed(2)}%</b></div>
+        <div class="card"><label>Avg PnL</label><b>${avgPnl.toFixed(4)}</b></div>
+        <div class="card"><label>Positive-PnL Assets</label><b>${(positive * 100).toFixed(1)}%</b></div>
+      </div>
+      <h2>Universal Recommendation</h2>
+      <p>Horizon: <b>${bundle.summary.universal_recommendation.best_horizon}</b> bars | Composite Error: <b>${bundle.summary.universal_recommendation.score.composite_error.toFixed(6)}</b></p>
+      <p>Hit Rate: <b>${bundle.summary.universal_recommendation.score.directional_hit_rate.toFixed(3)}</b> | PnL: <b>${bundle.summary.universal_recommendation.score.pnl_total.toFixed(4)}</b></p>
+      <p>${bundle.summary.universal_recommendation.indicator_combo.map((entry) => `<span class="pill">${entry.indicator_id}</span>`).join('')}</p>
+      <table>
+        <thead><tr><th>Symbol</th><th>TF</th><th>Horizon</th><th>Error</th><th>Hit</th><th>PnL</th><th>MaxDD</th><th>Turnover</th><th>Stability</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${warnings.length ? `<div class="warn"><b>Quality warnings</b><ul>${warnings.map((warning) => `<li>${warning}</li>`).join('')}</ul></div>` : ''}
+    </body>
+  </html>`
 }
 
 function csvCell(value: unknown): string {
@@ -595,10 +1133,14 @@ function buildRecommendationsCsv(summary: ResultSummary): string {
     'symbol',
     'timeframe',
     'best_horizon',
+    'normalized_rmse',
+    'normalized_mae',
     'composite_error',
     'directional_hit_rate',
     'pnl_total',
     'max_drawdown',
+    'turnover',
+    'stability_score',
     'indicator_ids',
     'indicator_expressions',
   ]
@@ -609,10 +1151,14 @@ function buildRecommendationsCsv(summary: ResultSummary): string {
       rec.symbol,
       rec.timeframe,
       rec.best_horizon,
+      rec.score.normalized_rmse,
+      rec.score.normalized_mae,
       rec.score.composite_error,
       rec.score.directional_hit_rate,
       rec.score.pnl_total,
       rec.score.max_drawdown,
+      rec.score.turnover,
+      rec.score.stability_score,
       ids,
       expressions,
     ]

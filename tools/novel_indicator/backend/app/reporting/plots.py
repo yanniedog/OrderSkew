@@ -7,8 +7,12 @@ import numpy as np
 from app.research.search.optimizer import SearchOutcome
 
 
-def build_plot_payloads(outcomes: list[SearchOutcome]) -> dict[str, dict]:
+def build_plot_payloads(
+    outcomes: list[SearchOutcome],
+    backtests: dict[tuple[str, str], dict[str, float | list[float]]] | None = None,
+) -> dict[str, dict]:
     payloads: dict[str, dict] = {}
+    backtests = backtests or {}
 
     labels: list[str] = []
     horizons: list[int] = []
@@ -38,6 +42,9 @@ def build_plot_payloads(outcomes: list[SearchOutcome]) -> dict[str, dict]:
                 "error": float(o.combo_score.composite_error),
                 "hit_rate": float(o.combo_score.directional_hit_rate),
                 "horizon": int(o.combo_score.horizon),
+                "pnl": float(backtests.get((o.symbol, o.timeframe), {}).get("pnl_total", 0.0)),
+                "max_drawdown": float(backtests.get((o.symbol, o.timeframe), {}).get("max_drawdown", 0.0)),
+                "turnover": float(backtests.get((o.symbol, o.timeframe), {}).get("turnover", 0.0)),
             }
             for o in outcomes
         ],
@@ -60,6 +67,7 @@ def build_plot_payloads(outcomes: list[SearchOutcome]) -> dict[str, dict]:
             "series": [
                 {"name": "y_true", "values": best.combo_score.y_true[:n].tolist()},
                 {"name": "y_pred", "values": best.combo_score.y_pred[:n].tolist()},
+                {"name": "close_ref", "values": best.combo_score.close_ref[:n].tolist()},
             ],
         }
 
@@ -72,6 +80,8 @@ def build_plot_payloads(outcomes: list[SearchOutcome]) -> dict[str, dict]:
                     "label": f"{outcome.symbol}:{outcome.timeframe}:{cand.indicator_id}",
                     "complexity": cand.complexity,
                     "error": float(ev.best_score.composite_error),
+                    "hit_rate": float(ev.best_score.directional_hit_rate),
+                    "pnl": float(backtests.get((outcome.symbol, outcome.timeframe), {}).get("pnl_total", 0.0)),
                 }
             )
 
@@ -91,5 +101,22 @@ def build_plot_payloads(outcomes: list[SearchOutcome]) -> dict[str, dict]:
         "categories": list(group_by_tf.keys()),
         "values": [float(np.mean(vals)) for vals in group_by_tf.values()],
     }
+
+    # Backtest equity curves for top 3 outcomes.
+    top = sorted(outcomes, key=lambda o: o.combo_score.composite_error)[:3]
+    if top:
+        max_len = 0
+        series: list[dict] = []
+        for outcome in top:
+            equity = backtests.get((outcome.symbol, outcome.timeframe), {}).get("equity_curve", [])
+            if isinstance(equity, list):
+                max_len = max(max_len, min(len(equity), 800))
+                series.append({"name": f"{outcome.symbol}:{outcome.timeframe}", "values": equity[:800]})
+        payloads["equity_curve"] = {
+            "title": "Equity Curves (Top 3)",
+            "type": "line",
+            "x": list(range(max_len)),
+            "series": series,
+        }
 
     return payloads

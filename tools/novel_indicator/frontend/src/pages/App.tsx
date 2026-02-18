@@ -14,13 +14,14 @@ import {
 import type {
   BinanceCallDiagnostic,
   PlotPayload,
+  ResultSummary,
   RunConfig,
   RunStatus,
   TelemetrySnapshot,
 } from '../api/types'
 import { PlotPanel } from '../components/PlotPanel'
 
-const PLOTS = ['horizon_heatmap', 'forecast_overlay', 'novelty_pareto', 'timeframe_error']
+const PLOTS = ['horizon_heatmap', 'forecast_overlay', 'novelty_pareto', 'timeframe_error', 'leaderboard', 'equity_curve', 'residual_histogram']
 const TIMEFRAME_OPTIONS = ['5m', '1h', '4h'] as const
 
 const PRESET_CONFIGS = {
@@ -52,10 +53,20 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
 }
 
+function fmtNumber(value: number, digits = 4): string {
+  if (!Number.isFinite(value)) return 'n/a'
+  return value.toFixed(digits)
+}
+
+function fmtPct(value: number): string {
+  if (!Number.isFinite(value)) return 'n/a'
+  return `${(value * 100).toFixed(2)}%`
+}
+
 export function App() {
   const [runs, setRuns] = useState<RunStatus[]>([])
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
-  const [summary, setSummary] = useState<any | null>(null)
+  const [summary, setSummary] = useState<ResultSummary | null>(null)
   const [summaryRunId, setSummaryRunId] = useState<string | null>(null)
   const [plots, setPlots] = useState<Record<string, PlotPayload>>({})
   const [plotsRunId, setPlotsRunId] = useState<string | null>(null)
@@ -74,6 +85,29 @@ export function App() {
   const selectedRun = useMemo(() => runs.find((r) => r.run_id === selectedRunId) ?? null, [runs, selectedRunId])
   const latestTelemetry = useMemo(() => telemetry[telemetry.length - 1] ?? null, [telemetry])
   const plotsLoaded = plotsRunId === selectedRunId && Object.keys(plots).length > 0
+  const summaryInsights = useMemo(() => {
+    if (!summary || summary.per_asset_recommendations.length === 0) return null
+    const rows = summary.per_asset_recommendations
+    const avgError = rows.reduce((acc, row) => acc + row.score.composite_error, 0) / rows.length
+    const avgHit = rows.reduce((acc, row) => acc + row.score.directional_hit_rate, 0) / rows.length
+    const avgPnl = rows.reduce((acc, row) => acc + row.score.pnl_total, 0) / rows.length
+    const positivePnl = rows.filter((row) => row.score.pnl_total > 0).length
+    const best = rows[0]
+    const worst = rows[rows.length - 1]
+    const qualityFlags: string[] = []
+    if (avgHit < 0.52) qualityFlags.push('Directional edge is weak (<52%).')
+    if (avgPnl <= 0) qualityFlags.push('Average post-cost pnl is non-positive.')
+    if (avgError > 1.2) qualityFlags.push('Composite forecasting error is high.')
+    return {
+      avgError,
+      avgHit,
+      avgPnl,
+      positivePnlRatio: positivePnl / rows.length,
+      best,
+      worst,
+      qualityFlags,
+    }
+  }, [summary])
 
   useEffect(() => {
     try {
@@ -531,21 +565,59 @@ export function App() {
         </div>
         {summary ? (
           <>
+            {summaryInsights && (
+              <div className="kpis" style={{ marginBottom: 10 }}>
+                <div>
+                  <label>Avg Composite Error</label>
+                  <span>{fmtNumber(summaryInsights.avgError, 5)}</span>
+                </div>
+                <div>
+                  <label>Avg Hit Rate</label>
+                  <span>{fmtPct(summaryInsights.avgHit)}</span>
+                </div>
+                <div>
+                  <label>Avg PnL</label>
+                  <span>{fmtNumber(summaryInsights.avgPnl, 4)}</span>
+                </div>
+                <div>
+                  <label>Positive PnL Assets</label>
+                  <span>{fmtPct(summaryInsights.positivePnlRatio)}</span>
+                </div>
+              </div>
+            )}
             <div className="universal-card">
               <h3>Universal Recommendation</h3>
               <p>
                 Horizon: <b>{summary.universal_recommendation.best_horizon}</b> bars | Composite Error:{' '}
-                <b>{summary.universal_recommendation.score.composite_error.toFixed(6)}</b>
+                <b>{summary.universal_recommendation.score.composite_error.toFixed(6)}</b> | Hit Rate:{' '}
+                <b>{summary.universal_recommendation.score.directional_hit_rate.toFixed(3)}</b> | PnL:{' '}
+                <b>{summary.universal_recommendation.score.pnl_total.toFixed(4)}</b>
               </p>
               <ul>
-                {summary.universal_recommendation.indicator_combo.map((i: any) => (
+                {summary.universal_recommendation.indicator_combo.map((i) => (
                   <li key={i.indicator_id}>
                     <code>{i.indicator_id}</code> {i.expression}
                   </li>
                 ))}
               </ul>
+              {summaryInsights && summaryInsights.qualityFlags.length > 0 && (
+                <div className="telemetry-footnote" style={{ marginTop: 10 }}>
+                  <strong>Quality Warnings</strong>
+                  <ul>
+                    {summaryInsights.qualityFlags.map((flag) => (
+                      <li key={flag}>{flag}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
             <div className="table-wrap">
+              {summaryInsights && (
+                <p className="inline-note" style={{ marginBottom: 8 }}>
+                  Best: <b>{summaryInsights.best.symbol}:{summaryInsights.best.timeframe}</b> ({fmtNumber(summaryInsights.best.score.composite_error, 5)}) | Worst:{' '}
+                  <b>{summaryInsights.worst.symbol}:{summaryInsights.worst.timeframe}</b> ({fmtNumber(summaryInsights.worst.score.composite_error, 5)})
+                </p>
+              )}
               <table>
                 <thead>
                   <tr>
@@ -556,10 +628,12 @@ export function App() {
                     <th>HitRate</th>
                     <th>PnL</th>
                     <th>MaxDD</th>
+                    <th>Turnover</th>
+                    <th>Stability</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {summary.per_asset_recommendations.slice(0, 30).map((rec: any) => (
+                  {summary.per_asset_recommendations.slice(0, 40).map((rec) => (
                     <tr key={`${rec.symbol}-${rec.timeframe}`}>
                       <td>{rec.symbol}</td>
                       <td>{rec.timeframe}</td>
@@ -568,6 +642,8 @@ export function App() {
                       <td>{rec.score.directional_hit_rate.toFixed(3)}</td>
                       <td>{rec.score.pnl_total.toFixed(4)}</td>
                       <td>{rec.score.max_drawdown.toFixed(4)}</td>
+                      <td>{rec.score.turnover.toFixed(4)}</td>
+                      <td>{rec.score.stability_score.toFixed(3)}</td>
                     </tr>
                   ))}
                 </tbody>

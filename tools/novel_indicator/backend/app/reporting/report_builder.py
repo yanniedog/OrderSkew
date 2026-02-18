@@ -2,6 +2,7 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import mean
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from xhtml2pdf import pisa
@@ -21,11 +22,32 @@ class ReportBuilder:
 
     def build(self, run_id: str, summary: ResultSummary) -> ReportArtifact:
         template = self.env.get_template("report.html.j2")
+        per_asset = [r.model_dump() for r in summary.per_asset_recommendations]
+        avg_error = mean([row["score"]["composite_error"] for row in per_asset]) if per_asset else 0.0
+        avg_hit = mean([row["score"]["directional_hit_rate"] for row in per_asset]) if per_asset else 0.0
+        avg_pnl = mean([row["score"]["pnl_total"] for row in per_asset]) if per_asset else 0.0
+        positive_ratio = (
+            sum(1 for row in per_asset if row["score"]["pnl_total"] > 0) / len(per_asset) if per_asset else 0.0
+        )
+        warnings: list[str] = []
+        if avg_hit < 0.52:
+            warnings.append("Directional hit rate is below robust threshold (52%).")
+        if avg_pnl <= 0:
+            warnings.append("Average post-cost PnL is non-positive.")
+        if avg_error > 1.2:
+            warnings.append("Composite error remains elevated.")
         html = template.render(
             run_id=run_id,
             generated_at=datetime.now(timezone.utc).isoformat(),
             universal=summary.universal_recommendation.model_dump(),
-            per_asset=[r.model_dump() for r in summary.per_asset_recommendations],
+            per_asset=per_asset,
+            insights={
+                "avg_error": avg_error,
+                "avg_hit": avg_hit,
+                "avg_pnl": avg_pnl,
+                "positive_ratio": positive_ratio,
+                "warnings": warnings,
+            },
         )
 
         report_dir = self.store.report_dir(run_id)

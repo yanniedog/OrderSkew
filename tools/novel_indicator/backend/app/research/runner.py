@@ -247,7 +247,7 @@ class ExperimentRunner:
                 stage_done=artifact_stage_done,
                 stage_total=artifact_stage_total,
             )
-            plot_payloads = build_plot_payloads(outcomes)
+            plot_payloads = build_plot_payloads(outcomes, backtests=backtests)
             for plot_id, payload in plot_payloads.items():
                 self.db.save_plot(run_id, plot_id, payload)
                 path = self.store.plot_dir(run_id) / f"{plot_id}.json"
