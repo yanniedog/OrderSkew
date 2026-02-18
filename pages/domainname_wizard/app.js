@@ -93,6 +93,7 @@
     if (status === 'running' && phase === 'looping') return 'Iterative tuning';
     if (status === 'running' && phase === 'namelix') return 'Generating candidates';
     if (status === 'running' && phase === 'godaddy') return 'Checking availability (GoDaddy or RDAP)';
+    if (status === 'running' && phase === 'rdap') return 'Checking availability (RDAP)…';
     if (status === 'running' && phase === 'finalize') return 'Finalizing';
     if (status === 'done') return 'Done';
     if (status === 'failed') return 'Failed';

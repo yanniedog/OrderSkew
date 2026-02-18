@@ -526,10 +526,15 @@ async function fetchAvailability(apiBaseUrl, domains) {
   return out;
 }
 
-async function fetchRdapAvailability(domains, jobId) {
+async function fetchRdapAvailability(domains, jobId, onProgress) {
+  const total = domains.length;
   const out = {};
   for (let i = 0; i < domains.length; i += 1) {
     if (jobId && canceled.has(jobId)) break;
+    if (typeof onProgress === 'function') {
+      const step = Math.max(1, Math.floor(total / 20));
+      if (i % step === 0 || i === domains.length - 1) onProgress(i + 1, total);
+    }
     const domain = domains[i];
     const key = domain.toLowerCase();
     const url = 'https://rdap.org/domain/' + encodeURIComponent(domain);
@@ -665,7 +670,11 @@ async function run(job) {
               sendIngest('engine.worker.js:run', 'Fallback backend also failed', { fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError || 'unknown') }, 'H6');
               // #endregion
               useBackend = false;
-              availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+              patch(job, { phase: 'rdap' });
+              availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
+                const frac = total > 0 ? done / total : 0;
+                patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+              });
               emitDebugLog('engine.worker.js:run', 'Both backends unavailable, switched to RDAP', {
                 backendBaseUrl,
                 fallbackBackendBaseUrl: LEGACY_VERCEL_BACKEND_URL,
@@ -675,7 +684,11 @@ async function run(job) {
             }
           } else {
             useBackend = false;
-            availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+            patch(job, { phase: 'rdap' });
+            availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
+              const frac = total > 0 ? done / total : 0;
+              patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+            });
             emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP', {
               backendBaseUrl,
               error: primaryError,
@@ -683,7 +696,11 @@ async function run(job) {
           }
         }
       } else {
-        availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+        patch(job, { phase: 'rdap' });
+        availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
+          const frac = total > 0 ? done / total : 0;
+          patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+        });
       }
 
       for (const cand of cands) {
