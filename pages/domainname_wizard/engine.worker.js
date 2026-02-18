@@ -101,6 +101,7 @@ function parseInput(raw) {
     style,
     randomness,
     blacklist: text(input.blacklist),
+    tld,
     maxLength: clamp(Math.round(Number(input.maxLength) || 25), 5, 25),
     maxNames: clamp(Math.round(Number(input.maxNames) || 100), 1, 250),
     yearlyBudget: clamp(Number(input.yearlyBudget) || 50, 1, 100000),

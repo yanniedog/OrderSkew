@@ -690,7 +690,7 @@
             }
             if (blocked) continue;
 
-            const domain = `${label}.${loopInput.tld}`;
+            const domain = `${label}.${loopInput.tld || 'com'}`;
             if (seenDomains.has(domain.toLowerCase())) continue;
             seenDomains.add(domain.toLowerCase());
             consideredCount += 1;
@@ -704,7 +704,7 @@
 
             const entropy = hash(`${domain}:${loop}:${batchCount}:${consideredCount}`);
             const availability = ((entropy % 10000) / 10000) < clamp(0.72 - (randomness === 'high' ? 0.08 : randomness === 'medium' ? 0.03 : 0) - Math.max(0, label.length - 12) * 0.012, 0.2, 0.92);
-            const tldBase = ({ com: 13, net: 14, org: 13, io: 36, ai: 82, co: 26, app: 20, dev: 18 }[loopInput.tld] || 18);
+            const tldBase = ({ com: 13, net: 14, org: 13, io: 36, ai: 82, co: 26, app: 20, dev: 18 }[loopInput.tld || 'com'] || 18);
             const premium = (hash(`${domain}|premium`) % 100) < (style === 'brandable' ? 22 : 12);
             const price = clamp(
               tldBase +
