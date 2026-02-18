@@ -1,5 +1,7 @@
 .cursor/debug.log
 **/node_modules/
+.env.local
+**/.env.local
 **/dist/
 **/__pycache__/
 **/.pytest_cache/

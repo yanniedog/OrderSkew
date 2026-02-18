@@ -150,26 +150,6 @@ export async function checkAvailabilityBulk(domains: string[]): Promise<Map<stri
         const payload = await requestAvailabilityChunk(chunk);
 
         for (const domainInfo of payload.domains ?? []) {
-          // #region agent log
-          fetch("http://127.0.0.1:7278/ingest/12c75e00-6c9a-482c-b25d-6079b2218f1d", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "1e9370" },
-            body: JSON.stringify({
-              sessionId: "1e9370",
-              location: "client.ts:availabilityResponse",
-              message: "GoDaddy API per-domain",
-              data: {
-                domain: domainInfo.domain,
-                available: domainInfo.available,
-                priceFromApi: domainInfo.price,
-                priceType: typeof domainInfo.price,
-                currency: domainInfo.currency,
-                hypothesisId: "A",
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
           resultMap.set(domainInfo.domain.toLowerCase(), {
             domain: domainInfo.domain.toLowerCase(),
             available: Boolean(domainInfo.available),
