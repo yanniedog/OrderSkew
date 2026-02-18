@@ -1,148 +1,112 @@
-# Novel Indicator Discovery Platform
+﻿# Novel Indicator (Browser-Local + Cloudflare Auth/Profile)
 
-End-to-end local research stack for crypto OHLCV ingestion, AI-driven symbolic indicator discovery, leakage-safe forecasting (`3..200` bars), backtest diagnostics, universal/per-asset ranking, interactive web UI, PDF reporting, and PineScript v6 export.
+Production architecture for the Novel Indicator web app:
+- Optimization, indicator search, telemetry generation, report export, and Pine export run in the end-user browser (Web Worker).
+- Binance market-data calls are made directly from the browser to Binance.
+- Cloudflare Worker + D1 handle authentication and user profile persistence only.
 
-## OrderSkew Integration Mode
+No end user runs Python, localhost services, or local backend processes.
 
-This project is copied into `orderskew/tools/novel_indicator` and deployed as a static tool under `orderskew/pages/novel_indicator`.
+## Public Runtime Guarantees
 
-- Public website role: serve static HTML/CSS/JS only.
-- End-user machine role: run the local compute engine (`FastAPI`) at `127.0.0.1:8000`.
-- Frontend endpoint routing: configurable from the UI (`Local API endpoint`) and persisted in local storage.
-- Fallback mode: bundled demo artifacts can be loaded without backend connectivity.
+1. Users open the page and run optimization in-browser only.
+2. Binance requests are never proxied by your site backend.
+3. If Binance rate limits occur, they apply to that user egress IP.
+4. Server stores account/profile data plus retained run summaries/plots only.
+5. Server does not store raw historical OHLCV market arrays.
 
-This architecture keeps server load near-zero while preserving full local compute for discovery runs.
+## Architecture
 
-## What Is Implemented
+- Frontend SPA: `tools/novel_indicator/frontend` (deployed to `pages/novel_indicator`).
+- Browser compute engine: `tools/novel_indicator/frontend/src/engine/worker.ts`.
+- Cloudflare API: `tools/novel_indicator/cloudflare_api`.
+- D1 schema migrations: `tools/novel_indicator/cloudflare_api/migrations`.
 
-- Backend (`FastAPI`, Python 3.10):
-  - `POST /api/runs` launches resumable background runs.
-  - `GET /api/runs/{id}` stage/progress/log monitoring.
-  - `GET /api/runs/{id}/results` universal + per-asset recommendations.
-- `GET /api/runs/{id}/plots/{plot_id}` chart payload retrieval.
-- `GET /api/runs/{id}/telemetry` live telemetry snapshots.
-  - `POST /api/runs/{id}/report` HTML-to-PDF report generation.
-  - `POST /api/runs/{id}/exports/pine` PineScript bundle export.
-  - Binance top-volume universe snapshot + OHLCV ingestion.
-  - Purged walk-forward CV with purge/embargo leakage controls.
-  - Symbolic indicator DSL, novelty filtering, collinearity filtering.
-  - Adaptive coarse-to-fine horizon search over `3..200`.
-  - Multi-stage candidate search + mutation tuning + sparse combo search.
-  - Secondary backtest metrics with fees/slippage.
-  - SQLite run metadata, Parquet data/features, JSON artifacts.
-  - Live telemetry stream to console and file (overall/task progress bars, elapsed/ETA, throughput, CPU/RAM, CPU temp when available).
-- Frontend (`React` + `Vite` + `Plotly`):
-  - Run launch, run list, live monitor logs, result tables, visual diagnostics.
-  - Live telemetry dashboard (overall/task progress, ETA, throughput, CPU/RAM/temp).
-  - Export controls (report + Pine).
-  - Responsive, non-generic visual style.
+## API Scope (Cloudflare Worker)
 
-## Repo Layout
+Auth:
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `POST /api/auth/email/verify/request`
+- `POST /api/auth/email/verify/confirm`
+- `POST /api/auth/password/forgot`
+- `POST /api/auth/password/reset`
+- `GET /api/auth/google/start`
+- `GET /api/auth/google/callback`
+- `GET /api/auth/session`
 
-- `backend/app/main.py` FastAPI entrypoint.
-- `backend/app/api/routes_runs.py` run lifecycle and export/report APIs.
-- `backend/app/research/runner.py` full orchestration pipeline.
-- `backend/app/research/search/optimizer.py` multi-stage AI indicator search.
-- `backend/app/research/indicators/dsl.py` indicator expression DSL + Pine translation.
-- `backend/app/reporting/report_builder.py` HTML -> PDF report builder.
-- `backend/app/exporters/pine.py` PineScript generator.
-- `frontend/src/pages/App.tsx` interactive dashboard.
-- `artifacts/runs/<run_id>/...` run outputs.
+Profile:
+- `GET /api/me`
+- `GET /api/me/preferences`
+- `PUT /api/me/preferences`
+- `GET /api/me/runs`
+- `POST /api/me/runs`
+- `GET /api/me/runs/:runId`
+- `DELETE /api/me/runs/:runId`
 
-## Setup
+Explicit non-goal:
+- No `/api` route fetches Binance.
 
-### Prerequisites
+## Data Policy
 
-- `pyenv` Python `3.10.9` active.
-- Node.js `20+` and npm.
+Persisted in D1:
+- users, credentials, oauth links, sessions, verification/reset tokens
+- user preferences
+- retained run summaries and selected plot payloads
 
-### Backend
+Rejected by API:
+- raw OHLCV candle payloads
+- oversized payloads beyond configured limits
 
-```powershell
-cd backend
-python -m pip install -e .
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
+## Local Development (Maintainers)
 
-macOS/Linux equivalent:
-
-```bash
-cd backend
-python3 -m pip install -e .
-python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-### Frontend
-
+Frontend:
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-Production static bundle for `orderskew/pages/novel_indicator`:
-
+Cloudflare API:
 ```powershell
-cd frontend
-npm run build
+cd cloudflare_api
+npm install
+npm run typecheck
+npm run test
+npm run dev
 ```
 
-Automated test + build + publish into OrderSkew pages:
+One-command helper (opens both frontend + worker dev shells):
+```powershell
+.\run-dev.ps1
+```
+
+## Deploy Static Frontend Into OrderSkew Pages
 
 ```powershell
 .\deploy-to-orderskew.ps1
 ```
 
-### One-command launcher
+This script:
+1. Typechecks/tests Cloudflare API package.
+2. Builds frontend bundle.
+3. Cleans and repopulates `pages/novel_indicator` from `frontend/dist`.
 
-```powershell
-.\run-dev.ps1
-```
+Cloudflare deployment of auth/profile Worker is performed with Wrangler in `cloudflare_api`.
 
-## Test And Build Validation
+## CI Guardrails
 
-Backend tests:
+Workflow: `.github/workflows/novel-indicator-ci.yml`
 
-```powershell
-python -m pytest backend/tests -q
-```
+Checks include:
+1. Frontend build.
+2. Cloudflare API typecheck + tests.
+3. D1 migration presence check.
+4. Forbidden string scan for Binance host usage in server code.
+5. Forbidden localhost scan in frontend source + production bundle.
+6. Forbidden demo-fallback markers in frontend source.
 
-Frontend build:
+## Legacy Python Backend
 
-```powershell
-cd frontend
-npm run build
-```
-
-## Run Artifacts
-
-For each run, artifacts are written to:
-
-- `artifacts/runs/<run_id>/data/*.parquet`
-- `artifacts/runs/<run_id>/plots/*.json`
-- `artifacts/runs/<run_id>/report/report.html`
-- `artifacts/runs/<run_id>/report/report.pdf`
-- `artifacts/runs/<run_id>/exports/*.pine`
-- `artifacts/runs/<run_id>/result_summary.json`
-- `artifacts/runs/<run_id>/telemetry.log`
-- `artifacts/runs/<run_id>/telemetry.jsonl`
-
-## Benchmark Snapshot
-
-On the same 2-symbol x 2-timeframe benchmark workload:
-
-- Baseline model/search pipeline: `~16.8s`, mean composite error `~0.205`.
-- Refined pipeline (current): `~26.2s`, mean composite error `~0.059`.
-
-This improves prediction quality substantially while remaining interactive. Use lower search budgets for faster iteration cycles.
-
-## Notes
-
-- Primary ranking metric is pure prediction error (normalized MAE/RMSE blend).
-- Directional accuracy and backtest performance are secondary diagnostics.
-- Pine scripts are deterministic and contain no AI logic.
-- A smoke run was validated successfully (`artifacts/runs/smoke002`).
-- CPU temperature reporting depends on host sensor exposure; if unavailable it is logged as `n/a`.
-- Purged/embargoed CV + strict no-lookahead timestamp checks are enforced to prevent historical data contamination.
-- Adaptive budget scaling reduces search complexity automatically when budget-per-job is low.
-- Browser support target is modern Chromium/Firefox/Safari/Edge. Internet Explorer is not supported.
+`tools/novel_indicator/backend` remains in-repo as legacy research code reference. It is not required for public runtime of the hosted Novel Indicator app.

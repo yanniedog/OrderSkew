@@ -1,4 +1,4 @@
-﻿export type Bindings = {
+export type Bindings = {
   DB: D1Database
   SESSION_SECRET: string
   GOOGLE_CLIENT_ID: string

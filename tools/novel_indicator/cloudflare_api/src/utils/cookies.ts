@@ -1,5 +1,12 @@
-﻿import type { Context } from 'hono'
-import type { Bindings } from '../types'
+type CookieReadableContext = {
+  req: {
+    header: (name: string) => string | undefined
+  }
+}
+
+type CookieWritableContext = CookieReadableContext & {
+  header: (name: string, value: string, options?: { append?: boolean }) => void
+}
 
 export function parseCookies(cookieHeader: string | null): Record<string, string> {
   if (!cookieHeader) {
@@ -11,19 +18,24 @@ export function parseCookies(cookieHeader: string | null): Record<string, string
     if (!name) {
       continue
     }
-    out[name] = decodeURIComponent(rest.join('='))
+    const rawValue = rest.join('=')
+    try {
+      out[name] = decodeURIComponent(rawValue)
+    } catch {
+      out[name] = rawValue
+    }
   }
   return out
 }
 
-export function getCookie(c: Context<{ Bindings: Bindings }>, key: string): string | null {
+export function getCookie(c: CookieReadableContext, key: string): string | null {
   const cookieHeader = c.req.header('Cookie') ?? null
   const all = parseCookies(cookieHeader)
   return all[key] ?? null
 }
 
 export function setCookie(
-  c: Context<{ Bindings: Bindings }>,
+  c: CookieWritableContext,
   key: string,
   value: string,
   options: {
@@ -53,7 +65,7 @@ export function setCookie(
   c.header('Set-Cookie', attrs.join('; '), { append: true })
 }
 
-export function clearCookie(c: Context<{ Bindings: Bindings }>, key: string, domain?: string): void {
+export function clearCookie(c: CookieWritableContext, key: string, domain?: string): void {
   setCookie(c, key, '', {
     maxAge: 0,
     domain,

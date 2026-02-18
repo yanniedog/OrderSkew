@@ -1,4 +1,4 @@
-﻿export function nowIso(): string {
+export function nowIso(): string {
   return new Date().toISOString()
 }
 

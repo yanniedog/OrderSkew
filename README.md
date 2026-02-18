@@ -39,7 +39,8 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 ## Additional Tools
 - `pages/index.html` is the tools hub.
 - `pages/novel_indicator/` hosts the Novel Indicator Lab static frontend.
-- Novel Indicator heavy compute runs on the end user machine through a local backend (`127.0.0.1:8000`), keeping public web hosting static-only.
-- Full copied source for this tool lives under `tools/novel_indicator/` (backend, frontend, tests, and deploy script).
+- Novel Indicator optimization and Binance data fetching run locally in the end user browser (Web Worker), with login/profile persistence handled by Cloudflare Worker + D1.
+- Binance API rate limits apply per end-user IP because calls are made directly from the browser to Binance.
+- Full source for this tool lives under `tools/novel_indicator/` (frontend, Cloudflare API, migrations, deploy scripts, and legacy backend reference code).
 
 

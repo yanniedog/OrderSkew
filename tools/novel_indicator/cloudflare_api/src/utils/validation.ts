@@ -1,4 +1,4 @@
-﻿import type { JsonObject, JsonValue } from '../types'
+import type { JsonObject, JsonValue } from '../types'
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

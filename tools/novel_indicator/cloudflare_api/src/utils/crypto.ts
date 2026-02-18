@@ -1,4 +1,4 @@
-﻿import { argon2id } from '@noble/hashes/argon2'
+import { argon2id } from '@noble/hashes/argon2'
 import { randomBytes } from '@noble/hashes/utils'
 
 const HASH_VERSION = 'v=19'

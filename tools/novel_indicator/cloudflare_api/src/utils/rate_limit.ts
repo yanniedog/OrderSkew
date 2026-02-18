@@ -1,4 +1,4 @@
-﻿const limiterStore = new Map<string, { count: number; resetAt: number }>()
+const limiterStore = new Map<string, { count: number; resetAt: number }>()
 
 export function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
   const now = Date.now()

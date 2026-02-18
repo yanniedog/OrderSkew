@@ -1,4 +1,4 @@
-﻿name = "novel-indicator-api"
+name = "novel-indicator-api"
 main = "src/index.ts"
 compatibility_date = "2026-02-18"
 

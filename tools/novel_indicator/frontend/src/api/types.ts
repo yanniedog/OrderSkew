@@ -1,4 +1,4 @@
-﻿export type RunStatusEnum = 'queued' | 'running' | 'completed' | 'failed' | 'canceled'
+export type RunStatusEnum = 'queued' | 'running' | 'completed' | 'failed' | 'canceled'
 export type RunStageEnum =
   | 'created'
   | 'universe'
@@ -96,14 +96,13 @@ export interface TelemetrySnapshot {
   eta_total_sec?: number | null
   eta_stage_sec?: number | null
   rate_units_per_sec: number
-  rate_units_per_core_sec?: number | null
-  rate_units_per_cpu_pct_sec?: number | null
-  system_cpu_percent: number
-  process_cpu_percent: number
-  ram_used_gb: number
-  ram_total_gb: number
-  ram_percent: number
-  cpu_temp_c?: number | null
+  logical_cores?: number | null
+  device_memory_gb?: number | null
+  js_heap_used_mb?: number | null
+  js_heap_limit_mb?: number | null
+  js_heap_percent?: number | null
+  worker_busy_ratio?: number | null
+  storage_used_mb?: number | null
 }
 
 export interface TelemetryFeed {
@@ -111,6 +110,64 @@ export interface TelemetryFeed {
   snapshots: TelemetrySnapshot[]
 }
 
+export interface BinanceCallDiagnostic {
+  ts: string
+  endpoint: string
+  status: number
+  headers: Record<string, string>
+}
+
+export interface BinanceDiagnosticsFeed {
+  run_id: string
+  calls: BinanceCallDiagnostic[]
+}
+
 export interface HealthResponse {
   status: string
+}
+
+export interface AuthUser {
+  id: string
+  username: string
+  email: string
+  display_name?: string | null
+  email_verified: boolean
+}
+
+export interface SessionInfo {
+  user: AuthUser
+  csrf_token: string | null
+}
+
+export interface UserPreferences {
+  top_n_symbols?: number
+  timeframes?: string[]
+  budget_minutes?: number
+  random_seed?: number
+  ecoMode?: boolean
+  [k: string]: unknown
+}
+
+export interface StoredRunSummary {
+  run_id: string
+  source_version: string
+  sync_state: string
+  retained_at: string
+  created_at: string
+  updated_at: string
+  summary: ResultSummary
+}
+
+export interface StoredRunDetail {
+  summary: {
+    run_id: string
+    source_version: string
+    sync_state: string
+    retained_at: string
+    created_at: string
+    updated_at: string
+    config: RunConfig
+    summary: ResultSummary
+  }
+  plots: Array<{ plot_id: string; payload: Record<string, unknown> }>
 }
