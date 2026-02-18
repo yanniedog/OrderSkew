@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Artifacts
+artifacts/*.sqlite3
+artifacts/runs/*
+!artifacts/runs/.gitkeep
+
+# Local env
+.env
+*.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

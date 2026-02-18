@@ -1,0 +1,10 @@
+{
+  "title": "Composite Error by Timeframe",
+  "type": "bar",
+  "categories": [
+    "5m"
+  ],
+  "values": [
+    0.0944641420076517
+  ]
+}

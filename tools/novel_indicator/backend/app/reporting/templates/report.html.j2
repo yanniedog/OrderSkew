@@ -1,0 +1,99 @@
+﻿<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Novel Indicator Report - {{ run_id }}</title>
+  <style>
+    body { font-family: Helvetica, Arial, sans-serif; margin: 30px; color: #1f2430; }
+    h1, h2, h3 { color: #0f2b5b; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ccd4e0; padding: 8px; font-size: 12px; text-align: left; }
+    th { background: #f2f6fc; }
+    .pill { display:inline-block; padding: 2px 8px; border-radius: 10px; background:#e6eefc; margin-right:4px; }
+    .section { margin-bottom: 28px; }
+    .small { font-size: 11px; color: #4b5668; }
+  </style>
+</head>
+<body>
+  <h1>Novel Indicator Forecasting Report</h1>
+  <p class="small">Run: {{ run_id }} | Generated: {{ generated_at }}</p>
+
+  <div class="section">
+    <h2>Executive Summary</h2>
+    <p>Primary objective: pure prediction error minimization across purged walk-forward folds.</p>
+    <p>Universal recommendation horizon: <strong>{{ universal.best_horizon }} bars</strong></p>
+    <p>Universal composite error: <strong>{{ '%.6f'|format(universal.score.composite_error) }}</strong></p>
+    <p>
+      {% for spec in universal.indicator_combo %}
+      <span class="pill">{{ spec.indicator_id }}</span>
+      {% endfor %}
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Universal Indicator Formulae</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Expression</th><th>Complexity</th></tr></thead>
+      <tbody>
+      {% for spec in universal.indicator_combo %}
+        <tr>
+          <td>{{ spec.indicator_id }}</td>
+          <td>{{ spec.expression }}</td>
+          <td>{{ spec.complexity }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Per-Asset Diagnostics</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>TF</th>
+          <th>Best Horizon</th>
+          <th>Composite Error</th>
+          <th>NRMSE</th>
+          <th>NMAE</th>
+          <th>Hit Rate</th>
+          <th>PnL</th>
+          <th>Max DD</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for rec in per_asset %}
+        <tr>
+          <td>{{ rec.symbol }}</td>
+          <td>{{ rec.timeframe }}</td>
+          <td>{{ rec.best_horizon }}</td>
+          <td>{{ '%.6f'|format(rec.score.composite_error) }}</td>
+          <td>{{ '%.6f'|format(rec.score.normalized_rmse) }}</td>
+          <td>{{ '%.6f'|format(rec.score.normalized_mae) }}</td>
+          <td>{{ '%.3f'|format(rec.score.directional_hit_rate) }}</td>
+          <td>{{ '%.4f'|format(rec.score.pnl_total) }}</td>
+          <td>{{ '%.4f'|format(rec.score.max_drawdown) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Methodology Snapshot</h2>
+    <ul>
+      <li>Binance spot OHLCV ingestion for dynamic top-volume USDT universe.</li>
+      <li>Symbolic indicator generation with novelty and collinearity constraints.</li>
+      <li>Adaptive coarse-to-fine horizon search over 3..200 bars.</li>
+      <li>Purged walk-forward cross validation with embargo.</li>
+      <li>Secondary backtest diagnostics with fees and slippage.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Limitations And Failure Modes</h2>
+    <p class="small">Results are sensitive to regime shift, exchange microstructure drift, and data quality anomalies. Use this as research output, not direct execution advice.</p>
+  </div>
+</body>
+</html>
