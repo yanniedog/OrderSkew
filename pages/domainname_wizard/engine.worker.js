@@ -429,7 +429,7 @@ function makeBatch(plan, seed, target, seen) {
     const key = domain.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    const premium = (hash(`${domain}|premium|${seed}`) % 100) < (plan.style === 'brandable' ? 22 : 12);
+    const premium = (hash(`${domain}|premium`) % 100) < (plan.style === 'brandable' ? 22 : 12);
     const candidate = { domain, sourceName, isNamelixPremium: premium };
     // #region agent log
     if (out.length < 2) {
