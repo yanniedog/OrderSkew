@@ -41,6 +41,17 @@
     return LEGACY_VERCEL_BACKEND_URL;
   })();
 
+  (function setRepoUpdatedDatetime() {
+    const el = document.getElementById('repo-updated-datetime');
+    if (!el) return;
+    const raw = typeof document.lastModified === 'string' && document.lastModified ? document.lastModified : '';
+    if (!raw) return;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return;
+    const pad = function (n) { return String(n).padStart(2, '0'); };
+    el.textContent = '(' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ')';
+  })();
+
   function escapeHtml(input) {
     const div = document.createElement('div');
     div.textContent = input == null ? '' : String(input);
