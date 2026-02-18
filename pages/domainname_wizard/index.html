@@ -24,8 +24,10 @@
 
     <section class="card">
       <h2>Search Setup</h2>
+      <div id="open-online-banner" class="open-online-banner" hidden aria-live="polite"></div>
+      <p id="backend-status" class="backend-status" hidden></p>
       <form id="search-form" class="grid">
-        <p class="backend-info">Backend is fixed (not editable). To avoid &quot;Failed to fetch&quot;, open the wizard on the same app: <a href="https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app/domainname-wizard/">https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app/domainname-wizard/</a></p>
+        <p class="backend-info">Backend is fixed (not editable). Availability checks only work when this page is opened from the hosted app.</p>
         <label>Keywords
           <input name="keywords" required placeholder="e.g. AI productivity" value="AI productivity">
         </label>
@@ -93,7 +95,7 @@
       </div>
       <p id="job-error" class="error" hidden></p>
       <p class="hint">
-        Availability and price come from the fixed backend (Vercel). For &quot;Failed to fetch&quot;, open this page from a web server or host it online instead of <code>file://</code>.
+        Availability and price from the fixed backend. If you see &quot;Failed to fetch&quot;, use the link in the yellow banner above.
       </p>
     </section>
 

@@ -37,6 +37,49 @@
     return origin;
   })();
 
+  const WIZARD_ONLINE_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app/domainname-wizard/';
+
+  function isViewingFromHostedApp() {
+    if (typeof window === 'undefined' || !window.location) return false;
+    return window.location.protocol === 'https:' && /vercel\.app$/i.test(window.location.hostname || '');
+  }
+
+  function showOpenOnlineBanner() {
+    var banner = document.getElementById('open-online-banner');
+    if (!banner) return;
+    banner.hidden = false;
+    banner.innerHTML = 'Availability checks will fail when this page is opened from a local file or another site. <strong>Open the wizard here:</strong> <a href="' + WIZARD_ONLINE_URL + '" target="_blank" rel="noopener">' + WIZARD_ONLINE_URL + '</a>';
+  }
+
+  function checkBackendThenShowBanner() {
+    var banner = document.getElementById('open-online-banner');
+    var statusEl = document.getElementById('backend-status');
+    if (!isViewingFromHostedApp()) {
+      showOpenOnlineBanner();
+      return;
+    }
+    var url = BACKEND_URL + '/api/domains/availability';
+    fetch(url, { method: 'OPTIONS', mode: 'cors' })
+      .then(function (r) {
+        if (statusEl) {
+          statusEl.hidden = false;
+          statusEl.textContent = 'Backend: reachable';
+          statusEl.className = 'backend-status ok';
+        }
+      })
+      .catch(function () {
+        if (statusEl) {
+          statusEl.hidden = false;
+          statusEl.textContent = 'Backend: unreachable (availability checks will fail). Ensure the Vercel project root is set to pages/domainname_wizard/source and the app is deployed.';
+          statusEl.className = 'backend-status fail';
+        }
+        if (banner) {
+          banner.hidden = false;
+          banner.innerHTML = 'The availability API could not be reached. Try opening this page again in a moment, or check the Vercel deployment. <a href="' + WIZARD_ONLINE_URL + '" target="_blank" rel="noopener">Open wizard</a>';
+        }
+      });
+  }
+
   function escapeHtml(input) {
     const div = document.createElement('div');
     div.textContent = input == null ? '' : String(input);
@@ -1194,4 +1237,6 @@
       downloadDebugLog();
     });
   }
+
+  checkBackendThenShowBanner();
 })();
