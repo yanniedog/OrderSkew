@@ -28,6 +28,7 @@
   let currentResults = null;
   let currentSortMode = 'marketability';
   const debugLogs = [];
+  let lastLoggedJobErrorKey = '';
 
   const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
   const BACKEND_URL = (function () {
@@ -120,6 +121,16 @@
       return (b.overallScore || 0) - (a.overallScore || 0);
     }
     return String(a.domain || '').localeCompare(String(b.domain || ''));
+  }
+
+  function pushDebugLog(location, message, data) {
+    debugLogs.push({
+      sessionId: '437d46',
+      location: String(location || 'app.js'),
+      message: String(message || 'log'),
+      data: data || {},
+      timestamp: Date.now(),
+    });
   }
 
   function sortRows(rows, mode) {
@@ -1060,6 +1071,17 @@
 
     if (job.error) {
       showJobError(`${job.error.code}: ${job.error.message}`);
+      const errorKey = `${job.id || ''}:${job.error.code || ''}:${job.error.message || ''}`;
+      if (errorKey !== lastLoggedJobErrorKey) {
+        pushDebugLog('app.js:updateStatus', 'Job error', {
+          jobId: job.id || null,
+          code: job.error.code || 'UNKNOWN',
+          message: job.error.message || '',
+          phase: job.phase || null,
+          progress: Number(job.progress || 0),
+        });
+        lastLoggedJobErrorKey = errorKey;
+      }
     } else {
       showJobError('');
     }
@@ -1104,6 +1126,13 @@
     debugLogs.length = 0;
 
     const input = collectInput();
+    pushDebugLog('app.js:handleStart', 'Run started', {
+      apiBaseUrl: input.apiBaseUrl,
+      origin: (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '',
+      keywordsLength: String(input.keywords || '').length,
+      loopCount: input.loopCount,
+      maxNames: input.maxNames,
+    });
     if (!input.keywords || input.keywords.length < 2) {
       showFormError('Keywords must be at least 2 characters.');
       return;
@@ -1140,6 +1169,10 @@
 
     if (message.type === 'error') {
       const details = message.message || 'Unknown worker error.';
+      pushDebugLog('app.js:workerMessage', 'Worker error message', {
+        jobId: message.jobId || null,
+        message: details,
+      });
       showFormError(details);
       startBtn.disabled = false;
       cancelBtn.disabled = true;
@@ -1147,7 +1180,9 @@
   });
 
   engine.addEventListener('error', function (event) {
-    showFormError(event.message || 'Worker runtime error.');
+    const errorMessage = event.message || 'Worker runtime error.';
+    pushDebugLog('app.js:workerErrorEvent', 'Worker runtime error', { message: errorMessage });
+    showFormError(errorMessage);
     startBtn.disabled = false;
     cancelBtn.disabled = true;
   });

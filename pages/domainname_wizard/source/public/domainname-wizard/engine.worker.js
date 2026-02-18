@@ -47,6 +47,18 @@ function pick(arr, rand) { return arr[Math.floor(rand() * arr.length)] || ''; }
 
 function emitError(message, jobId) { self.postMessage({ type: 'error', message: String(message || 'Worker error'), jobId: jobId || null }); }
 function emitJob(job) { self.postMessage({ type: 'state', job: JSON.parse(JSON.stringify(job)) }); }
+function emitDebugLog(location, message, data) {
+  self.postMessage({
+    type: 'debugLog',
+    payload: {
+      sessionId: '437d46',
+      location: String(location || 'engine.worker.js'),
+      message: String(message || 'log'),
+      data: data || {},
+      timestamp: Date.now(),
+    },
+  });
+}
 
 function patch(job, fields, emit = true) {
   Object.assign(job, fields);
@@ -465,14 +477,35 @@ async function fetchAvailability(apiBaseUrl, domains) {
       });
     } catch (err) {
       const msg = err && err.message ? err.message : 'Network error';
+      emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API fetch exception', {
+        url,
+        chunkSize: chunk.length,
+        chunkOffset: i,
+        error: msg,
+      });
       throw new Error('Availability request failed: ' + msg);
     }
     const data = await res.json().catch(function () { return {}; });
     if (!res.ok) {
       const msg = data.message || data.code || res.statusText || 'Availability request failed.';
+      emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API non-OK response', {
+        url,
+        chunkSize: chunk.length,
+        chunkOffset: i,
+        status: res.status,
+        statusText: res.statusText,
+        errorMessage: msg,
+      });
       throw new Error(msg);
     }
     const results = data.results || {};
+    if (!results || typeof results !== 'object') {
+      emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API invalid payload', {
+        url,
+        chunkSize: chunk.length,
+        chunkOffset: i,
+      });
+    }
     for (const key of Object.keys(results)) Object.assign(out, { [key]: results[key] });
   }
   return out;
@@ -535,6 +568,11 @@ async function run(job) {
   const input = job.input;
   const backendBaseUrl = String(input.apiBaseUrl || '').trim();
   let useBackend = Boolean(backendBaseUrl);
+  emitDebugLog('engine.worker.js:run', useBackend ? 'Using backend availability API' : 'Using RDAP availability API', {
+    backendBaseUrl: useBackend ? backendBaseUrl : null,
+    loopCount: input.loopCount,
+    maxNames: input.maxNames,
+  });
   const availableMap = new Map();
   const overBudgetMap = new Map();
   const unavailableMap = new Map();
@@ -587,15 +625,9 @@ async function run(job) {
         } catch (error) {
           useBackend = false;
           availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
-          self.postMessage({
-            type: 'debugLog',
-            payload: {
-              sessionId: '437d46',
-              location: 'engine.worker.js:run',
-              message: 'Backend unavailable, switched to RDAP',
-              data: { error: error instanceof Error ? error.message : String(error || 'unknown') },
-              timestamp: Date.now(),
-            },
+          emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP', {
+            backendBaseUrl,
+            error: error instanceof Error ? error.message : String(error || 'unknown'),
           });
         }
       } else {
@@ -780,6 +812,12 @@ async function start(rawInput) {
     await run(job);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected run error.';
+    emitDebugLog('engine.worker.js:start', 'Run failed', {
+      jobId: job.id,
+      error: message,
+      progress: Number(job.progress || 0),
+      phase: job.phase || null,
+    });
     patch(job, {
       status: 'failed',
       phase: 'finalize',
