@@ -1172,6 +1172,10 @@ class Optimizer {
       }
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f925fd'},body:JSON.stringify({sessionId:'f925fd',location:'engine.worker.js:Optimizer.next:1175',message:'Token sources before mutation',data:{loop,baseTokens,eliteTokens,elitePoolDomains:this.model.elitePool.slice(0,10).map(function(e){return e.domain}),goodTokens:good.slice(0,20),weakTokens:Array.from(weak).slice(0,20),modelTokenCount:tokenEntries.length,modelTokensTop20:tokenRank.slice(0,20).map(function(x){return {token:x.token,ucb:Math.round(x.ucb*1000)/1000,plays:(this.model.tokens[x.token]||{}).plays||0,reward:Math.round(((this.model.tokens[x.token]||{}).reward||0)*1000)/1000}}.bind(this)),curTokensBefore:this.curTokens.slice(),explorationRate},timestamp:Date.now(),runId:'run1',hypothesisId:'H1_H2_H3'})}).catch(function(){});
+    // #endregion
+
     const intensity = this.rand() < explorationRate ? 'high' : this.rand() > 0.5 ? 'medium' : 'low';
     const mut = intensity === 'high' ? 4 : intensity === 'medium' ? 2 : 1;
     const next = this.curTokens.length ? this.curTokens.slice() : baseTokens.slice(0, 4);
@@ -1196,6 +1200,9 @@ class Optimizer {
     }
 
     this.curTokens = next.slice(0, 8);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f925fd'},body:JSON.stringify({sessionId:'f925fd',location:'engine.worker.js:Optimizer.next:1210',message:'Final curTokens after mutation',data:{loop,curTokensAfter:this.curTokens.slice(),keywordsString:this.curTokens.join(' ')||this.base.keywords,intensity,mutCount:mut,style,randomness},timestamp:Date.now(),runId:'run1',hypothesisId:'H1_H2_H3'})}).catch(function(){});
 
     return {
       loop,
@@ -1541,6 +1548,9 @@ async function run(job) {
   const tuningHistory = [];
 
   const model = await loadModel();
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f925fd'},body:JSON.stringify({sessionId:'f925fd',location:'engine.worker.js:run:modelLoaded',message:'Loaded model from IndexedDB',data:{runCount:model.runCount,tokenCount:Object.keys(model.tokens).length,allTokens:Object.entries(model.tokens).map(function(e){return {token:e[0],plays:e[1].plays,reward:Math.round(e[1].reward*1000)/1000}}).sort(function(a,b){return b.plays-a.plays}).slice(0,50),elitePoolSize:model.elitePool.length,elitePoolDomains:model.elitePool.slice(0,15).map(function(e){return {domain:e.domain,score:e.score}})},timestamp:Date.now(),runId:'run1',hypothesisId:'H2'})}).catch(function(){});
+  // #endregion
   const optimizer = new Optimizer(input, model, hash(job.id));
 
   patch(job, { status: 'running', phase: 'looping', progress: 5, currentLoop: 0, totalLoops: input.loopCount, results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, []) });
