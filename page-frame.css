@@ -46,6 +46,7 @@
     width: 4px;
     border-radius: 999px;
     background: linear-gradient(180deg, var(--os-primary), var(--os-secondary));
+    pointer-events: none;
 }
 
 .os-frame-brand {
@@ -61,6 +62,11 @@
     white-space: nowrap;
     user-select: none;
     text-decoration: none;
+    display: inline-block;
+    position: relative;
+    z-index: 1;
+    cursor: pointer;
+    padding: 0.25em 0;
 }
 
 .os-frame-nav-links {
