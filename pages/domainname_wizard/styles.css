@@ -283,7 +283,8 @@ select {
 
 .table-wrap {
   width: 100%;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
   max-height: min(62vh, 760px);
@@ -292,17 +293,21 @@ select {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 760px;
+  min-width: 0;
+  table-layout: fixed;
   background: #ffffff;
 }
 
 th,
 td {
   border-bottom: 1px solid #e4ecf8;
-  padding: 6px 8px;
-  font-size: 0.8rem;
+  padding: 6px 7px;
+  font-size: clamp(0.68rem, 0.78vw, 0.78rem);
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 th {

@@ -707,39 +707,47 @@
       .map((row) => {
         const priceCell = row._pending ? '...' : formatMoney(row.price, row.currency);
         const estVal = row.estimatedValueUSD ? '$' + Number(row.estimatedValueUSD).toLocaleString() : '-';
-        const estRange = row.estimatedValueLow && row.estimatedValueHigh ? '$' + Number(row.estimatedValueLow).toLocaleString() + ' - $' + Number(row.estimatedValueHigh).toLocaleString() : '';
         const vrCell = row.valueRatio != null ? formatScore(row.valueRatio, 1) + 'x' : '-';
         const flagCell = row.underpricedFlag ? '<span class="underpriced-badge">' + escapeHtml(row.underpricedFlag.replace(/_/g, ' ')) + '</span>' : '';
-        const liqCell = row.liquidityScore != null ? formatScore(row.liquidityScore, 0) : '-';
-        const evCell = row.ev24m != null ? '$' + Number(row.ev24m).toLocaleString() : '-';
-        const roiCell = row.expectedROI != null ? formatScore(row.expectedROI, 1) + '%' : '-';
-        const devCell = row.devEcosystemScore > 0 ? Number(row.devEcosystemScore).toLocaleString() : '-';
-        const archiveCell = row.hasArchiveHistory ? 'Yes' : '-';
+        const valueCell = [
+          `I:${formatScore(row.intrinsicValue, 1)}`,
+          `L:${row.liquidityScore != null ? formatScore(row.liquidityScore, 0) : '-'}`,
+          `M:${formatScore(row.marketabilityScore, 1)}`,
+        ].join(' | ');
+        const financeCell = [
+          `EV:${row.ev24m != null ? '$' + Number(row.ev24m).toLocaleString() : '-'}`,
+          `ROI:${row.expectedROI != null ? formatScore(row.expectedROI, 1) + '%' : '-'}`,
+        ].join(' | ');
+        const qualityCell = [
+          `P:${formatScore(row.phoneticScore, 1)}`,
+          `B:${formatScore(row.brandabilityScore, 1)}`,
+          `S:${formatScore(row.seoScore, 1)}`,
+          `C:${formatScore(row.commercialScore || 0, 1)}`,
+        ].join(' | ');
+        const signalsCell = [
+          `Dev:${row.devEcosystemScore > 0 ? Number(row.devEcosystemScore).toLocaleString() : '-'}`,
+          `Arc:${row.hasArchiveHistory ? 'Y' : 'N'}`,
+          `Syl:${Number(row.syllableCount || 0)}`,
+          `Len:${Number(row.labelLength || 0)}`,
+        ].join(' | ');
         const wordsCell = (row.segmentedWords || []).join(' + ') || '-';
+        const notes = [
+          (row.valueDrivers || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
+          (row.valueDetractors || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
+        ].filter(Boolean).join(' | ');
         return `
           <tr class="${row.underpricedFlag ? 'underpriced-row' : ''}">
             <td>${escapeHtml(row.domain)} ${flagCell}</td>
             ${availabilityCell(row)}
             <td>${priceCell}</td>
-            <td class="est-val" title="${escapeHtml(estRange)}">${estVal}</td>
+            <td>${estVal}</td>
             <td class="${row.valueRatio >= 3 ? 'good' : ''}">${vrCell}</td>
-            <td>${formatScore(row.intrinsicValue, 1)}</td>
-            <td>${liqCell}</td>
-            <td>${evCell}</td>
-            <td>${roiCell}</td>
-            <td>${formatScore(row.marketabilityScore, 1)}</td>
-            <td>${formatScore(row.phoneticScore, 1)}</td>
-            <td>${formatScore(row.brandabilityScore, 1)}</td>
-            <td>${formatScore(row.seoScore, 1)}</td>
-            <td>${formatScore(row.commercialScore || 0, 1)}</td>
-            <td>${formatScore(row.memorabilityScore, 1)}</td>
-            <td>${devCell}</td>
-            <td>${archiveCell}</td>
+            <td>${valueCell}</td>
+            <td>${financeCell}</td>
+            <td>${qualityCell}</td>
+            <td>${signalsCell}</td>
             <td>${escapeHtml(wordsCell)}</td>
-            <td>${Number(row.syllableCount || 0)}</td>
-            <td>${Number(row.labelLength || 0)}</td>
-            <td>${escapeHtml((row.valueDrivers || []).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', ') || '-')}</td>
-            <td>${escapeHtml((row.valueDetractors || []).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', ') || '-')}</td>
+            <td>${escapeHtml(notes || '-')}</td>
           </tr>
         `;
       })
@@ -754,23 +762,12 @@
             ${th('Price', 'Year-1 registration price from availability provider.')}
             ${th('Est. Value', 'Model-estimated resale value in USD.')}
             ${th('Value Ratio', 'Estimated value divided by current price; higher suggests more upside.')}
-            ${th('Intrinsic', 'Fundamental quality score from linguistic and structural features.')}
-            ${th('Liquidity', 'Expected resale liquidity score based on historical comparables and features.')}
-            ${th('EV (24m)', 'Expected monetary value over a 24-month holding period.')}
-            ${th('ROI', 'Expected return on investment percentage based on EV and price.')}
-            ${th('Marketability', 'Brand-market fit score for recall and buyer appeal.')}
-            ${th('Phonetic', 'Pronounceability and spoken clarity score.')}
-            ${th('Brand', 'Brandability score from distinctiveness and naming quality.')}
-            ${th('SEO', 'Search visibility and keyword relevance score.')}
-            ${th('Commercial', 'Commercial intent/value score from CPC and comparable signals.')}
-            ${th('Memory', 'Memorability score based on structure, rhythm, and clarity.')}
-            ${th('Dev Ecosystem', 'Developer ecosystem signal (GitHub/npm/PyPI density around terms).')}
-            ${th('Archive', 'Whether historical snapshots were found for this domain.')}
+            ${th('Value Metrics', 'Compact view: Intrinsic, Liquidity, and Marketability.')}
+            ${th('Finance', 'Compact view: EV (24m) and expected ROI.')}
+            ${th('Quality', 'Compact view: Phonetic, Brandability, SEO, Commercial.')}
+            ${th('Signals', 'Compact view: Dev signal, archive flag, syllables, length.')}
             ${th('Words', 'Detected meaningful morphemes/word segments in the domain label.')}
-            ${th('Syl', 'Estimated syllable count in the label.')}
-            ${th('Len', 'Character length of the domain label (without TLD).')}
-            ${th('Value Drivers', 'Top positive factors contributing to valuation.')}
-            ${th('Detractors', 'Top negative factors reducing valuation.')}
+            ${th('Notes', 'Top positive and negative value factors (trimmed).')}
           </tr>
         </thead>
         <tbody>${body}</tbody>
@@ -789,20 +786,12 @@
           <tr>
             ${th('Loop', 'Loop index within the current search run.')}
             ${th('Keywords', 'Keywords used by this loop. Tokens are colored by learned term performance (blue low -> red high).')}
-            ${th('Style', 'Name-generation style arm selected for this loop.')}
-            ${th('Randomness', 'Randomness arm selected for this loop.')}
-            ${th('Mutation', 'Mutation intensity used to alter keyword set this loop.')}
-            ${th('Explore Rate', 'Exploration probability used by the optimizer at this loop.')}
-            ${th('Elite Pool', 'Count of elite domains currently retained by optimizer memory.')}
-            ${th('Required', 'Target number of available names requested this loop.')}
-            ${th('Available', 'Number of available names discovered this loop.')}
-            ${th('Quota Met', 'Whether this loop achieved its required available-name quota.')}
-            ${th('Considered', 'Total candidates considered before loop completion.')}
-            ${th('Avg Score', 'Average overall score for available names in this loop.')}
-            ${th('Top Domain', 'Highest-scoring discovered domain from this loop.')}
-            ${th('Top Score', 'Overall score of the top domain from this loop.')}
-            ${th('Name Source', 'Generation backend/fallback source used for candidate names.')}
-            ${th('Note', 'Loop status note (for example if quota was missed).')}
+            ${th('Strategy', 'Style, randomness, and mutation used in this loop.')}
+            ${th('Explore', 'Exploration rate and elite pool size for this loop.')}
+            ${th('Quota', 'Required and available names for this loop.')}
+            ${th('Results', 'Considered candidates and average score for this loop.')}
+            ${th('Top', 'Top domain and top score for this loop.')}
+            ${th('Source/Note', 'Name source and any skip note for this loop.')}
           </tr>
         </thead>
         <tbody>
@@ -811,20 +800,12 @@
               <tr>
                 <td>${row.loop}</td>
                 <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
-                <td>${escapeHtml(row.style || '-')}</td>
-                <td>${escapeHtml(row.randomness || '-')}</td>
-                <td>${escapeHtml(row.mutationIntensity || '-')}</td>
-                <td>${formatScore(row.explorationRate, 3)}</td>
-                <td>${Number(row.elitePoolSize || 0)}</td>
-                <td>${Number(row.requiredQuota || 0)}</td>
-                <td>${Number(row.availableCount || 0)}</td>
-                <td>${row.quotaMet ? '<span class="good">Yes</span>' : 'No'}</td>
-                <td>${Number(row.consideredCount || 0)}</td>
-                <td>${formatScore(row.averageOverallScore, 2)}</td>
-                <td>${escapeHtml(row.topDomain || '-')}</td>
-                <td>${formatScore(row.topScore, 1)}</td>
-                <td>${escapeHtml(row.nameSource || '-')}</td>
-                <td>${escapeHtml(row.skipReason || '-')}</td>
+                <td>${escapeHtml(`${row.style || '-'} | ${row.randomness || '-'} | ${row.mutationIntensity || '-'}`)}</td>
+                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>
+                <td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.availableCount || 0)}`)}</span></td>
+                <td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>
+                <td>${escapeHtml(`${row.topDomain || '-'} | ${formatScore(row.topScore, 1)}`)}</td>
+                <td>${escapeHtml(`${row.nameSource || '-'} | ${row.skipReason || '-'}`)}</td>
               </tr>
             `)
             .join('')}
@@ -843,14 +824,9 @@
         <thead>
           <tr>
             ${th('Loop', 'Loop index where this tuning decision was recorded.')}
-            ${th('Source Loop', 'Best prior loop used as a reference (if any).')}
             ${th('Keywords', 'Keyword set chosen for this loop. Tokens are colored by learned performance.')}
-            ${th('Description', 'User description context used for generation/scoring.')}
-            ${th('Style', 'Selected style arm for this loop.')}
-            ${th('Randomness', 'Selected randomness arm for this loop.')}
-            ${th('Mutation', 'Selected mutation intensity for keyword evolution.')}
-            ${th('Explore Rate', 'Exploration probability used in this decision.')}
-            ${th('Elite Pool', 'Current elite memory size when decision was made.')}
+            ${th('Strategy', 'Source loop and selected style/randomness/mutation.')}
+            ${th('Explore', 'Exploration rate and elite pool at decision time.')}
             ${th('Reward', 'Loop reward assigned by RL objective (0-1).')}
           </tr>
         </thead>
@@ -859,14 +835,9 @@
             .map((row) => `
               <tr>
                 <td>${row.loop}</td>
-                <td>${row.sourceLoop == null ? '-' : row.sourceLoop}</td>
                 <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
-                <td>${renderPerformancePhrase(row.description || '-', tokenPerfLookup)}</td>
-                <td>${escapeHtml(row.selectedStyle || '-')}</td>
-                <td>${escapeHtml(row.selectedRandomness || '-')}</td>
-                <td>${escapeHtml(row.selectedMutationIntensity || '-')}</td>
-                <td>${formatScore(row.explorationRate, 3)}</td>
-                <td>${Number(row.elitePoolSize || 0)}</td>
+                <td>${escapeHtml(`src=${row.sourceLoop == null ? '-' : row.sourceLoop} | ${row.selectedStyle || '-'} | ${row.selectedRandomness || '-'} | ${row.selectedMutationIntensity || '-'}`)}</td>
+                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>
                 <td>${formatScore(row.reward, 4)}</td>
               </tr>
             `)
@@ -896,17 +867,9 @@
         <tr${row.inCurrentKeywords ? ' class="keyword-row-active"' : ''}>
           <td>${row.rank || '-'}</td>
           <td><span class="perf-token" style="background:${wordColor}" title="${escapeHtml(wordTitle)}">${escapeHtml(row.token || '-')}</span></td>
-          <td>${escapeHtml(row.source || '-')}</td>
-          <td>${row.inCurrentKeywords ? 'yes' : 'no'}</td>
-          <td>${row.plays || 0}</td>
-          <td>${formatScore(row.avgReward || 0, 4)}</td>
-          <td>${formatScore((row.successRate || 0) * 100, 1)}%</td>
-          <td>${formatScore((row.confidence || 0) * 100, 1)}%</td>
-          <td>${formatScore(row.meanDomainScore || 0, 1)}</td>
-          <td>${formatScore(row.performanceScore || 0, 1)}</td>
-          <td>${formatScore(row.selectionScore || 0, 1)}</td>
-          <td>${row.ucb == null ? '-' : formatScore(row.ucb, 4)}</td>
-          <td>${formatScore(row.themeScore || 0, 2)}</td>
+          <td>${escapeHtml(`${row.source || '-'} | ${row.inCurrentKeywords ? 'active' : 'idle'}`)}</td>
+          <td>${escapeHtml(`plays=${row.plays || 0} | avg=${formatScore(row.avgReward || 0, 4)} | succ=${formatScore((row.successRate || 0) * 100, 1)}%`)}</td>
+          <td>${escapeHtml(`conf=${formatScore((row.confidence || 0) * 100, 1)}% | dom=${formatScore(row.meanDomainScore || 0, 1)} | perf=${formatScore(row.performanceScore || 0, 1)} | sel=${formatScore(row.selectionScore || 0, 1)} | ucb=${row.ucb == null ? '-' : formatScore(row.ucb, 4)} | theme=${formatScore(row.themeScore || 0, 2)}`)}</td>
           <td>${row.lastLoop == null ? '-' : row.lastLoop}</td>
         </tr>
       `;
@@ -920,17 +883,9 @@
           <tr>
             ${th('Rank', 'Ranking order in the current curated keyword library view.')}
             ${th('Word', 'Keyword token. Color shows learned performance (blue worst -> red best).')}
-            ${th('Source', 'Origin of token: seed, synonym API, phrase expansion, or theme.')}
-            ${th('Active', 'Whether token is currently selected in active loop keywords.')}
-            ${th('Plays', 'Number of loops where this token was actively used by RL.')}
-            ${th('Avg Reward', 'Average RL reward on loops where this token was used.')}
-            ${th('Success %', 'Percent of uses where loop reward cleared success threshold.')}
-            ${th('Confidence %', 'Evidence confidence from sample size; rises as token is tested more.')}
-            ${th('Mean Domain', 'Average domain overall score for matches associated with this token.')}
-            ${th('Perf', 'Composite token performance score combining reward, success, quality, and confidence.')}
-            ${th('Select', 'Selection priority score used by optimizer to pick terms over time.')}
-            ${th('UCB', 'Upper-confidence-bound exploration score for this token.')}
-            ${th('Theme', 'Static theme affinity score to seed/library concepts.')}
+            ${th('State', 'Source and whether token is active in current loop keywords.')}
+            ${th('Usage', 'Core usage metrics: plays, average reward, success rate.')}
+            ${th('Evidence', 'Confidence and composite evidence metrics used for RL prioritization.')}
             ${th('Last Loop', 'Most recent loop index where this token was selected.')}
           </tr>
         </thead>
