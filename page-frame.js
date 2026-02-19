@@ -97,6 +97,27 @@
         return nav;
     }
 
+    function padTwo(n) { return String(n).padStart(2, '0'); }
+
+    function formatLocal(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return null;
+        var y = d.getFullYear();
+        var m = padTwo(d.getMonth() + 1);
+        var day = padTwo(d.getDate());
+        var h = padTwo(d.getHours());
+        var min = padTwo(d.getMinutes());
+        var s = padTwo(d.getSeconds());
+        return y + '-' + m + '-' + day + ' ' + h + ':' + min + ':' + s + ' (local)';
+    }
+
+    function formatUtc(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return null;
+        return d.getUTCFullYear() + '-' + padTwo(d.getUTCMonth() + 1) + '-' + padTwo(d.getUTCDate()) +
+            ' ' + padTwo(d.getUTCHours()) + ':' + padTwo(d.getUTCMinutes()) + ':' + padTwo(d.getUTCSeconds()) + ' UTC';
+    }
+
     function buildFooter() {
         var footer = document.createElement('footer');
         footer.className = 'os-frame-footer';
@@ -105,6 +126,30 @@
                 '<span class="os-frame-commit" id="os-frame-commit">' + CONFIG.commitLoading + '</span>' +
             '</div>';
         return footer;
+    }
+
+    function setCommitStamp(el, label, dateIso, fullSha) {
+        el.innerHTML = '';
+        el.appendChild(document.createTextNode(label + ': '));
+        if (dateIso) {
+            var localStr = formatLocal(dateIso);
+            var utcStr = formatUtc(dateIso);
+            if (localStr && utcStr) {
+                var timeSpan = document.createElement('span');
+                timeSpan.setAttribute('title', utcStr);
+                timeSpan.textContent = localStr;
+                el.appendChild(timeSpan);
+                el.appendChild(document.createTextNode(' '));
+            }
+        }
+        var shortSha = fullSha ? String(fullSha).slice(0, 7) : '?';
+        var link = document.createElement('a');
+        link.className = 'os-frame-commit-link';
+        link.href = 'https://github.com/' + repo + '/commit/' + (fullSha || '');
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = shortSha;
+        el.appendChild(link);
     }
 
     function loadCommitStamp() {
@@ -124,8 +169,8 @@
         })
         .then(function (data) {
             if (!data) return;
-            var sha = data.sha ? String(data.sha).slice(0, 7) : '?';
-            el.textContent = CONFIG.commitLabel + ': ' + sha;
+            var dateIso = data.commit && data.commit.committer ? data.commit.committer.date : null;
+            setCommitStamp(el, CONFIG.commitLabel, dateIso, data.sha);
         })
         .catch(function () {
             el.textContent = CONFIG.commitUnavailable;

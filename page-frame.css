@@ -91,6 +91,15 @@
     letter-spacing: 0.01em;
 }
 
+.os-frame-commit-link {
+    color: #1b5d95;
+    text-decoration: none;
+}
+
+.os-frame-commit-link:hover {
+    text-decoration: underline;
+}
+
 /* ── Responsive ── */
 
 @media (max-width: 480px) {
