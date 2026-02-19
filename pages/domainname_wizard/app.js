@@ -33,12 +33,11 @@
   let latestRunExport = null;
   const ENGINE_WORKER_VERSION = '2026-02-18-2';
 
-  const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
   const BACKEND_URL = (function () {
     if (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol || '') && window.location.origin) {
       return window.location.origin;
     }
-    return LEGACY_VERCEL_BACKEND_URL;
+    return '';
   })();
 
   (function setRepoUpdatedDatetime() {
@@ -104,7 +103,7 @@
     if (status === 'running' && phase === 'looping') return 'Iterative tuning';
     if (status === 'running' && phase === 'namelix') return 'Generating candidates';
     if (status === 'running' && phase === 'godaddy') return 'Checking availability (GoDaddy or RDAP)';
-    if (status === 'running' && phase === 'rdap') return 'Checking availability (RDAP)…';
+    if (status === 'running' && phase === 'rdap') return 'Checking availability (RDAP)â€¦';
     if (status === 'running' && phase === 'finalize') return 'Finalizing';
     if (status === 'done') return 'Done';
     if (status === 'failed') return 'Failed';
@@ -136,6 +135,118 @@
       return (b.overallScore || 0) - (a.overallScore || 0);
     }
     return String(a.domain || '').localeCompare(String(b.domain || ''));
+  }
+
+  const dataSourceState = {
+    nameGeneration: null,
+    availability: null,
+    godaddyDebug: null,
+    syntheticFlags: [],
+  };
+
+  function updateDataSourcePanel(payload) {
+    if (!payload || !payload.data) return;
+    const d = payload.data;
+    const msg = payload.message || '';
+
+    if (msg === 'Name generation source' || d.source === 'LOCAL (makeBatch combinatorics)') {
+      dataSourceState.nameGeneration = {
+        source: d.source || 'LOCAL',
+        namelixApiCalled: Boolean(d.namelixApiCalled),
+        syntheticNameGeneration: Boolean(d.syntheticNameGeneration),
+        premiumSource: d.sampleCandidates && d.sampleCandidates[0] ? d.sampleCandidates[0].premiumSource : 'hash-based',
+      };
+      if (d.syntheticNameGeneration) {
+        dataSourceState.syntheticFlags.push('Name generation is LOCAL (not Namelix API)');
+      }
+    }
+
+    if (msg === 'GoDaddy API debug info' || d.dataSource || d.godaddyEndpoint) {
+      dataSourceState.godaddyDebug = d;
+      dataSourceState.availability = {
+        source: d.dataSource || 'GoDaddy API',
+        endpoint: d.godaddyEndpoint || null,
+        env: d.godaddyEnv || null,
+        credentialsSource: d.credentialsSource || null,
+        apiKeyPresent: d.apiKeyPresent,
+        status: d.godaddyStatus || null,
+        syntheticData: Boolean(d.syntheticData),
+      };
+    }
+
+    if (msg === 'Availability API success response' && d._debug) {
+      dataSourceState.godaddyDebug = d._debug;
+      dataSourceState.availability = {
+        source: d._debug.dataSource || 'GoDaddy API',
+        endpoint: d._debug.godaddyEndpoint || d.url,
+        env: d._debug.godaddyEnv || null,
+        credentialsSource: d._debug.credentialsSource || null,
+        apiKeyPresent: d._debug.apiKeyPresent,
+        status: d._debug.godaddyStatus || d.status,
+        syntheticData: Boolean(d._debug.syntheticData),
+        resultCount: d.resultCount,
+      };
+    }
+
+    renderDataSourcePanel();
+  }
+
+  function renderDataSourcePanel() {
+    const el = document.getElementById('data-source-panel');
+    if (!el) return;
+    el.hidden = false;
+
+    const parts = [];
+
+    parts.push('<h3>Data Source Confirmation</h3>');
+
+    if (dataSourceState.nameGeneration) {
+      const ng = dataSourceState.nameGeneration;
+      const cls = ng.namelixApiCalled ? 'good' : 'warn';
+      parts.push('<div class="ds-block">');
+      parts.push('<strong>Name Generation:</strong> ');
+      parts.push('<span class="' + cls + '">' + escapeHtml(ng.source) + '</span>');
+      parts.push('<br>Namelix API called: <strong>' + (ng.namelixApiCalled ? 'YES' : 'NO') + '</strong>');
+      parts.push('<br>Premium flag source: <strong>' + escapeHtml(ng.premiumSource || 'unknown') + '</strong>');
+      if (ng.syntheticNameGeneration) {
+        parts.push('<br><span class="warn">Names are generated locally, not from Namelix.</span>');
+      }
+      parts.push('</div>');
+    }
+
+    if (dataSourceState.availability) {
+      const av = dataSourceState.availability;
+      const cls = av.syntheticData ? 'bad' : 'good';
+      parts.push('<div class="ds-block">');
+      parts.push('<strong>Availability &amp; Pricing:</strong> ');
+      parts.push('<span class="' + cls + '">' + escapeHtml(av.source || 'Unknown') + '</span>');
+      if (av.endpoint) parts.push('<br>Endpoint: <code>' + escapeHtml(av.endpoint) + '</code>');
+      if (av.env) parts.push('<br>GoDaddy Environment: <strong>' + escapeHtml(av.env) + '</strong>');
+      if (av.credentialsSource) parts.push('<br>Credentials from: <strong>' + escapeHtml(av.credentialsSource) + '</strong>');
+      parts.push('<br>API Key present: <strong>' + (av.apiKeyPresent ? 'YES' : 'NO') + '</strong>');
+      if (av.status) parts.push('<br>GoDaddy response status: <strong>' + escapeHtml(String(av.status)) + '</strong>');
+      if (av.resultCount != null) parts.push('<br>Results returned: <strong>' + av.resultCount + '</strong>');
+      parts.push('<br>Synthetic data: <strong class="' + (av.syntheticData ? 'bad' : 'good') + '">' + (av.syntheticData ? 'YES' : 'NO') + '</strong>');
+      parts.push('</div>');
+    }
+
+    if (dataSourceState.godaddyDebug && dataSourceState.godaddyDebug.sampleRawResponse) {
+      parts.push('<div class="ds-block">');
+      parts.push('<strong>Sample GoDaddy Raw Response:</strong><br>');
+      parts.push('<pre style="font-size:0.75rem;overflow-x:auto;max-width:100%;">' + escapeHtml(JSON.stringify(dataSourceState.godaddyDebug.sampleRawResponse, null, 2)) + '</pre>');
+      parts.push('</div>');
+    }
+
+    if (dataSourceState.syntheticFlags.length > 0) {
+      parts.push('<div class="ds-block warn-block">');
+      parts.push('<strong>Synthetic/Simulated Data Warnings:</strong><ul>');
+      dataSourceState.syntheticFlags.forEach(function (f) {
+        parts.push('<li>' + escapeHtml(f) + '</li>');
+      });
+      parts.push('</ul></div>');
+    }
+
+    el.innerHTML = parts.join('');
   }
 
   function pushDebugLog(location, message, data) {
@@ -435,623 +546,10 @@
     };
   }
 
-  function createInPageEngine() {
-    const listeners = { message: [], error: [] };
-    const STYLE_VALUES = ['default', 'brandable', 'twowords', 'threewords', 'compound', 'spelling', 'nonenglish', 'dictionary'];
-    const RANDOMNESS_VALUES = ['low', 'medium', 'high'];
-    const PREFIXES = ['neo', 'prime', 'terra', 'atlas', 'signal', 'lumen', 'delta', 'orbit'];
-    const SUFFIXES = ['labs', 'works', 'flow', 'hub', 'gen', 'base', 'stack', 'pilot', 'ly'];
-    const WORDS = ['horizon', 'ember', 'vector', 'harbor', 'beacon', 'origin', 'summit', 'apex'];
-    const MODEL_STORAGE_KEY = 'domainname_wizard_optimizer_v1';
-    const runningJobs = new Set();
-    const canceledJobs = new Set();
-
-    function emit(type, payload) {
-      for (const handler of listeners[type] || []) {
-        try {
-          handler(payload);
-        } catch (error) {
-          // Keep engine alive if one listener fails.
-        }
-      }
-    }
-
-    function emitState(job) {
-      emit('message', { data: { type: 'state', job: JSON.parse(JSON.stringify(job)) } });
-    }
-
-    function emitError(message, jobId) {
-      emit('message', { data: { type: 'error', message: String(message || 'In-page engine error.'), jobId: jobId || null } });
-    }
-
-    function hash(input) {
-      const raw = String(input || '');
-      let h = 2166136261;
-      for (let i = 0; i < raw.length; i += 1) {
-        h ^= raw.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return h >>> 0;
-    }
-
-    function seeded(seed) {
-      let s = seed >>> 0;
-      return function next() {
-        s += 0x6d2b79f5;
-        let x = s;
-        x = Math.imul(x ^ (x >>> 15), x | 1);
-        x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-
-    function pick(list, random) {
-      if (!list.length) return '';
-      return list[Math.floor(random() * list.length)];
-    }
-
-    function sleep(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-
-    function tokenize(input) {
-      return String(input || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]+/g, ' ')
-        .split(/[\s-]+/)
-        .map((token) => token.trim())
-        .filter((token) => token.length >= 2)
-        .slice(0, 12);
-    }
-
-    function labelize(input) {
-      const value = String(input || '')
-        .toLowerCase()
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/&/g, ' and ')
-        .replace(/['\u2019]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      if (!value || value.length > 63) return null;
-      if (!/^[a-z0-9-]+$/.test(value)) return null;
-      return value;
-    }
-
-    function averageReward(stats) {
-      if (!stats || stats.plays === 0) return 0.55;
-      return stats.reward / stats.plays;
-    }
-
-    function loadModel() {
-      try {
-        const raw = window.localStorage.getItem(MODEL_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : {};
-        return {
-          style: Object.fromEntries(STYLE_VALUES.map((style) => [style, parsed.style?.[style] || { plays: 0, reward: 0 }])),
-          randomness: Object.fromEntries(RANDOMNESS_VALUES.map((mode) => [mode, parsed.randomness?.[mode] || { plays: 0, reward: 0 }])),
-          tokens: parsed.tokens && typeof parsed.tokens === 'object' ? parsed.tokens : {},
-        };
-      } catch {
-        return {
-          style: Object.fromEntries(STYLE_VALUES.map((style) => [style, { plays: 0, reward: 0 }])),
-          randomness: Object.fromEntries(RANDOMNESS_VALUES.map((mode) => [mode, { plays: 0, reward: 0 }])),
-          tokens: {},
-        };
-      }
-    }
-
-    function saveModel(model) {
-      try {
-        window.localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(model));
-      } catch {
-        // Ignore storage quota or private-mode failures.
-      }
-    }
-
-    function chooseArm(bandit, arms, epsilon, random) {
-      if (random() < epsilon) return pick(arms, random);
-      let best = arms[0];
-      let bestScore = -Infinity;
-      for (const arm of arms) {
-        const score = averageReward(bandit[arm]);
-        if (score > bestScore || (score === bestScore && random() > 0.5)) {
-          best = arm;
-          bestScore = score;
-        }
-      }
-      return best;
-    }
-
-    function updateBanditStat(stats, reward) {
-      stats.plays += 1;
-      stats.reward += reward;
-    }
-
-    function buildSourceName(style, a, b, c, random) {
-      if (style === 'twowords') return `${a}${b}`;
-      if (style === 'threewords') return `${a}${b}${c}`;
-      if (style === 'compound') return `${a}${pick(SUFFIXES, random)}`;
-      if (style === 'brandable') return `${a.slice(0, Math.ceil(a.length / 2))}${b.slice(Math.floor(b.length / 2))}`;
-      if (style === 'spelling') {
-        let out = `${a}${b}`;
-        out = out.replace(/ph/g, 'f').replace(/x/g, 'ks').replace(/c/g, 'k');
-        if (out.length > 3 && random() > 0.6) out = `${out.slice(0, -1)}${pick(['i', 'y', 'o'], random)}`;
-        return out;
-      }
-      if (style === 'nonenglish') return `${a.slice(0, Math.ceil(a.length / 2))}${b.slice(Math.floor(b.length / 2))}${pick(['a', 'o', 'i', 'u'], random)}`;
-      if (style === 'dictionary') return `${pick(WORDS, random)}${a}`;
-      return `${pick(PREFIXES, random)}${a}${pick(SUFFIXES, random)}`;
-    }
-
-    function scoreRow(row, input) {
-      const label = String(row.domain || '').split('.')[0] || '';
-      const tokens = tokenize(`${input.keywords} ${input.description || ''}`);
-      const vowels = (label.match(/[aeiouy]/g) || []).length;
-      const vowelRatio = vowels / Math.max(1, label.length);
-      const pronounceability = clamp(100 - Math.abs(vowelRatio - 0.42) * 220, 0, 100);
-      const lengthScore = clamp(100 - Math.abs(label.length - 9) * 10, 0, 100);
-      const syllableCount = Math.max(1, (label.match(/[aeiouy]+/g) || []).length || 1);
-      const syllableScore = syllableCount >= 2 && syllableCount <= 3 ? 100 : syllableCount === 1 || syllableCount === 4 ? 78 : 52;
-      let matches = 0;
-      for (const token of tokens) if (label.includes(token)) matches += 1;
-      const relevance = tokens.length ? clamp(30 + (matches / tokens.length) * 70, 0, 100) : 35;
-      const distinctiveness = clamp((new Set(label.replace(/-/g, '').split('')).size / Math.max(1, label.replace(/-/g, '').length)) * 120, 0, 100);
-      const marketabilityScore = round2(
-        clamp(
-          lengthScore * 0.22 +
-            syllableScore * 0.18 +
-            pronounceability * 0.2 +
-            relevance * 0.16 +
-            distinctiveness * 0.1 +
-            (label.includes('-') ? 28 : 100) * 0.08 +
-            (/\d/.test(label) ? 24 : 100) * 0.06,
-          0,
-          100,
-        ),
-      );
-      const affordability = typeof row.price === 'number' ? clamp(112 - (row.price / Math.max(1, input.yearlyBudget)) * 65, 0, 100) : 50;
-      let financialValueScore = round2(
-        clamp(
-          (row.available ? 100 : 0) * 0.35 +
-            (row.definitive ? 100 : 62) * 0.12 +
-            affordability * 0.38 +
-            (row.isNamelixPremium ? 35 : 100) * 0.15,
-          0,
-          100,
-        ),
-      );
-      if (row.overBudget) financialValueScore = round2(financialValueScore * 0.82);
-      if (!row.available) financialValueScore = round2(financialValueScore * 0.45);
-      const overallScore = round2(clamp(financialValueScore * 0.62 + marketabilityScore * 0.38, 0, 100));
-      return {
-        marketabilityScore,
-        financialValueScore,
-        overallScore,
-        syllableCount,
-        labelLength: label.length,
-        valueDrivers: [],
-        valueDetractors: [],
-      };
-    }
-
-    function buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory) {
-      const allRanked = sortRows(Array.from(availableMap.values()), 'marketability');
-      const withinBudget = allRanked.slice().sort((a, b) => {
-        const ap = typeof a.price === 'number' ? a.price : Number.POSITIVE_INFINITY;
-        const bp = typeof b.price === 'number' ? b.price : Number.POSITIVE_INFINITY;
-        return ap - bp || String(a.domain || '').localeCompare(String(b.domain || ''));
-      });
-      return {
-        withinBudget,
-        overBudget: sortRows(Array.from(overBudgetMap.values()), 'financialValue'),
-        unavailable: sortRows(Array.from(unavailableMap.values()), 'marketability'),
-        allRanked,
-        loopSummaries: loopSummaries.slice(),
-        tuningHistory: tuningHistory.slice(),
-      };
-    }
-
-    async function runJob(job) {
-      const input = job.input;
-      const availableMap = new Map();
-      const overBudgetMap = new Map();
-      const unavailableMap = new Map();
-      const loopSummaries = [];
-      const tuningHistory = [];
-      const model = loadModel();
-      const random = seeded(hash(job.id));
-      let currentKeywords = tokenize(input.keywords).slice(0, 8);
-      let bestLoop = null;
-      let bestReward = -1;
-
-      patch(job, {
-        status: 'running',
-        phase: 'looping',
-        progress: 5,
-        currentLoop: 0,
-        totalLoops: input.loopCount,
-        results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-      }, false);
-      emitState(job);
-
-      for (let loop = 1; loop <= input.loopCount; loop += 1) {
-        if (canceledJobs.has(job.id)) throw new Error('Run canceled by user.');
-
-        const style = chooseArm(model.style, STYLE_VALUES, 0.24, random);
-        const randomness = chooseArm(model.randomness, RANDOMNESS_VALUES, 0.24, random);
-        const mutationIntensity = random() > 0.66 ? 'high' : random() > 0.33 ? 'medium' : 'low';
-        const mutCount = mutationIntensity === 'high' ? 3 : mutationIntensity === 'medium' ? 2 : 1;
-
-        const tokenRank = Object.entries(model.tokens || {})
-          .map(([token, stats]) => ({ token, avg: averageReward(stats) }))
-          .sort((a, b) => b.avg - a.avg);
-        const positiveTokens = tokenRank.filter((item) => item.avg >= 0.58).map((item) => item.token).slice(0, 12);
-        const weakTokens = new Set(tokenRank.filter((item) => item.avg <= 0.4).map((item) => item.token).slice(0, 20));
-        const baseTokens = tokenize(input.keywords);
-        const poolTokens = currentKeywords.length ? currentKeywords.slice() : baseTokens.slice(0, 6);
-        for (let i = 0; i < mutCount; i += 1) {
-          if (poolTokens.length > 2) {
-            const weakIdx = poolTokens.findIndex((token) => weakTokens.has(token));
-            const removeIdx = weakIdx >= 0 ? weakIdx : Math.floor(random() * poolTokens.length);
-            poolTokens.splice(removeIdx, 1);
-          }
-          const source = positiveTokens.length && random() > 0.2 ? positiveTokens : baseTokens;
-          const candidate = pick(source.length ? source : ['brand', 'company'], random);
-          if (candidate && !poolTokens.includes(candidate)) poolTokens.push(candidate);
-        }
-        currentKeywords = poolTokens.slice(0, 8);
-        const loopInput = { ...input, style, randomness, keywords: currentKeywords.join(' ') || input.keywords };
-
-        const seenDomains = new Set();
-        const loopAvailable = [];
-        let consideredCount = 0;
-        let batchCount = 0;
-        let limitHit = false;
-        let skipReason = undefined;
-        let stalled = 0;
-
-        while (loopAvailable.length < loopInput.maxNames) {
-          if (canceledJobs.has(job.id)) throw new Error('Run canceled by user.');
-          if (consideredCount >= 251) {
-            limitHit = true;
-            skipReason = 'Considered-name cap of 251 reached.';
-            break;
-          }
-          if (batchCount >= 12) {
-            skipReason = 'Batch attempt cap (12) reached before quota.';
-            break;
-          }
-
-          patch(job, {
-            phase: 'namelix',
-            progress: Math.round(5 + ((loop - 1 + loopAvailable.length / Math.max(1, loopInput.maxNames)) / loopInput.loopCount) * 90),
-            currentLoop: loop,
-          }, false);
-          emitState(job);
-
-          const remaining = loopInput.maxNames - loopAvailable.length;
-          const batchTarget = clamp(Math.floor(Math.max(remaining * 3, remaining, Math.min(loopInput.maxNames, 80))), remaining, 250);
-          const loopRandom = seeded(hash(`${job.id}:${loop}:${batchCount}:${consideredCount}`));
-          const candidatePool = tokenize(`${loopInput.keywords} ${loopInput.description}`);
-          const blacklist = new Set(
-            String(loopInput.blacklist || '')
-              .split(',')
-              .map((token) => token.trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
-              .filter(Boolean),
-          );
-
-          let attempts = 0;
-          let gained = 0;
-          while (gained < batchTarget && attempts < batchTarget * 20) {
-            attempts += 1;
-            const a = pick(candidatePool.length ? candidatePool : ['nova', 'orbit', 'lumen', 'forge', 'signal'], loopRandom);
-            const b = pick(candidatePool.length ? candidatePool : ['spark', 'scale', 'craft', 'pilot', 'pulse'], loopRandom);
-            const c = pick(candidatePool.length ? candidatePool : ['core', 'path', 'nest', 'beam', 'lift'], loopRandom);
-            let sourceName = buildSourceName(style, a, b, c, loopRandom);
-            if (randomness === 'high' && loopRandom() > 0.45) sourceName += pick(SUFFIXES, loopRandom);
-            if (randomness === 'low' && sourceName.length > 16) sourceName = sourceName.slice(0, 16);
-
-            const label = labelize(sourceName);
-            if (!label || label.length > loopInput.maxLength) continue;
-            let blocked = false;
-            for (const token of blacklist) {
-              if (token && label.includes(token)) {
-                blocked = true;
-                break;
-              }
-            }
-            if (blocked) continue;
-
-            const domain = `${label}.${loopInput.tld || 'com'}`;
-            if (seenDomains.has(domain.toLowerCase())) continue;
-            seenDomains.add(domain.toLowerCase());
-            consideredCount += 1;
-            gained += 1;
-
-            patch(job, {
-              phase: 'godaddy',
-              progress: Math.round(5 + ((loop - 1 + (loopAvailable.length + 0.2) / Math.max(1, loopInput.maxNames)) / loopInput.loopCount) * 90),
-              currentLoop: loop,
-            }, false);
-
-            const entropy = hash(`${domain}:${loop}:${batchCount}:${consideredCount}`);
-            const availability = ((entropy % 10000) / 10000) < clamp(0.72 - (randomness === 'high' ? 0.08 : randomness === 'medium' ? 0.03 : 0) - Math.max(0, label.length - 12) * 0.012, 0.2, 0.92);
-            const tldBase = ({ com: 13, net: 14, org: 13, io: 36, ai: 82, co: 26, app: 20, dev: 18 }[loopInput.tld || 'com'] || 18);
-            const premium = (hash(`${domain}|premium`) % 100) < (style === 'brandable' ? 22 : 12);
-            const price = clamp(
-              tldBase +
-                Math.max(0, 10 - label.length) * 8.2 -
-                Math.max(0, label.length - 12) * 1.25 +
-                (style === 'brandable' ? 6 : style === 'dictionary' ? -1.5 : 0) +
-                (premium ? 35 + ((entropy >>> 8) % 90) : 0) +
-                ((entropy >>> 16) % 1500) / 100,
-              tldBase * 0.75,
-              4500,
-            );
-
-            const row = {
-              domain,
-              sourceName,
-              isNamelixPremium: premium,
-              available: availability,
-              definitive: true,
-              price,
-              currency: 'USD',
-              period: 1,
-              reason: availability ? 'Likely available (local heuristic).' : 'Likely unavailable (local heuristic).',
-              overBudget: availability ? price > loopInput.yearlyBudget : false,
-            };
-            const ranked = {
-              ...row,
-              ...scoreRow(row, loopInput),
-              firstSeenLoop: loop,
-              lastSeenLoop: loop,
-              timesDiscovered: 1,
-            };
-
-            const targetMap = ranked.available
-              ? ranked.overBudget
-                ? overBudgetMap
-                : availableMap
-              : unavailableMap;
-            const key = ranked.domain.toLowerCase();
-            const existing = targetMap.get(key);
-            if (!existing || ranked.overallScore > existing.overallScore) {
-              targetMap.set(key, ranked);
-            } else {
-              targetMap.set(key, { ...existing, lastSeenLoop: loop, timesDiscovered: (existing.timesDiscovered || 1) + 1 });
-            }
-
-            if (ranked.available && !ranked.overBudget) {
-              loopAvailable.push(ranked);
-              if (loopAvailable.length >= loopInput.maxNames) break;
-            }
-
-            if (consideredCount >= 251) {
-              limitHit = true;
-              skipReason = 'Considered-name cap of 251 reached.';
-              break;
-            }
-          }
-
-          const availableInBatch = loopAvailable.length;
-          stalled = availableInBatch === 0 ? stalled + 1 : 0;
-          if (stalled >= 3) {
-            skipReason = 'No newly qualifying domains across 3 consecutive batches.';
-            break;
-          }
-          batchCount += 1;
-
-          patch(job, {
-            phase: 'looping',
-            progress: Math.round(5 + ((loop - 1 + loopAvailable.length / Math.max(1, loopInput.maxNames)) / loopInput.loopCount) * 90),
-            currentLoop: loop,
-            results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-          }, false);
-          emitState(job);
-
-          await sleep(35 + Math.floor(Math.random() * 65));
-        }
-
-        const rankedLoop = sortRows(loopAvailable, 'marketability');
-        const reward =
-          rankedLoop.length === 0
-            ? 0
-            : round2(
-                clamp(
-                  rankedLoop
-                    .slice(0, Math.min(5, rankedLoop.length))
-                    .reduce((sum, row) => sum + (row.overallScore || 0), 0) /
-                    Math.min(5, rankedLoop.length) /
-                    100,
-                  0,
-                  1,
-                ),
-              );
-
-        updateBanditStat(model.style[style], reward);
-        updateBanditStat(model.randomness[randomness], reward);
-        for (const token of tokenize(`${loopInput.keywords} ${loopInput.description}`)) {
-          if (!model.tokens[token]) model.tokens[token] = { plays: 0, reward: 0 };
-          updateBanditStat(model.tokens[token], reward);
-        }
-        if (reward >= bestReward) {
-          bestReward = reward;
-          bestLoop = loop;
-        }
-
-        tuningHistory.push({
-          loop,
-          sourceLoop: bestLoop,
-          keywords: loopInput.keywords,
-          description: loopInput.description || '',
-          selectedStyle: style,
-          selectedRandomness: randomness,
-          selectedMutationIntensity: mutationIntensity,
-          reward: Number(reward.toFixed(4)),
-        });
-
-        loopSummaries.push({
-          loop,
-          keywords: loopInput.keywords,
-          description: loopInput.description || '',
-          style,
-          randomness,
-          mutationIntensity,
-          requiredQuota: loopInput.maxNames,
-          quotaMet: rankedLoop.length >= loopInput.maxNames,
-          skipped: rankedLoop.length < loopInput.maxNames,
-          limitHit,
-          skipReason,
-          consideredCount,
-          batchCount,
-          discoveredCount: rankedLoop.length,
-          availableCount: rankedLoop.length,
-          withinBudgetCount: rankedLoop.length,
-          averageOverallScore: rankedLoop.length
-            ? Number((rankedLoop.reduce((sum, row) => sum + (row.overallScore || 0), 0) / rankedLoop.length).toFixed(2))
-            : 0,
-          topDomain: rankedLoop[0]?.domain,
-          topScore: rankedLoop[0]?.overallScore,
-        });
-
-        patch(job, {
-          phase: 'looping',
-          progress: Math.round(5 + (loop / loopInput.loopCount) * 90),
-          currentLoop: loop,
-          results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-        }, false);
-        emitState(job);
-      }
-
-      saveModel(model);
-
-      patch(job, {
-        status: 'done',
-        phase: 'finalize',
-        progress: 100,
-        completedAt: Date.now(),
-        currentLoop: input.loopCount,
-        totalLoops: input.loopCount,
-        results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-      }, false);
-      emitState(job);
-    }
-
-    function start(message) {
-      const input = message?.input || {};
-      if (runningJobs.size > 0) {
-        const activeId = Array.from(runningJobs)[0];
-        emitError(`Run already active (${activeId}). Cancel or wait before starting another.`, activeId);
-        return;
-      }
-
-      let parsedInput;
-      try {
-        parsedInput = {
-          keywords: String(input.keywords || '').trim(),
-          description: String(input.description || '').trim(),
-          style: STYLE_VALUES.includes(input.style) ? input.style : 'default',
-          randomness: RANDOMNESS_VALUES.includes(input.randomness) ? input.randomness : 'medium',
-          blacklist: String(input.blacklist || '').trim(),
-          maxLength: clamp(Math.round(Number(input.maxLength) || 25), 5, 25),
-          tld: String(input.tld || 'com').trim().replace(/^\./, '').toLowerCase(),
-          maxNames: clamp(Math.round(Number(input.maxNames) || 100), 1, 250),
-          yearlyBudget: clamp(Number(input.yearlyBudget) || 50, 1, 100000),
-          loopCount: clamp(Math.round(Number(input.loopCount) || 10), 1, 25),
-        };
-        if (!parsedInput.keywords || parsedInput.keywords.length < 2) {
-          throw new Error('Keywords must be at least 2 characters.');
-        }
-        if (!/^[a-z0-9-]{2,24}$/.test(parsedInput.tld)) {
-          throw new Error('Invalid TLD.');
-        }
-      } catch (error) {
-        emitError(error instanceof Error ? error.message : 'Invalid input payload.');
-        return;
-      }
-
-      const createdAt = Date.now();
-      const job = {
-        id: `${Math.random().toString(16).slice(2, 10)}${Math.random().toString(16).slice(2, 6)}`,
-        status: 'queued',
-        phase: null,
-        progress: 0,
-        input: parsedInput,
-        createdAt,
-        updatedAt: createdAt,
-        startedAt: createdAt,
-        completedAt: null,
-        currentLoop: 0,
-        totalLoops: parsedInput.loopCount,
-        error: null,
-        results: {
-          withinBudget: [],
-          overBudget: [],
-          unavailable: [],
-          allRanked: [],
-          loopSummaries: [],
-          tuningHistory: [],
-        },
-      };
-
-      runningJobs.add(job.id);
-      emitState(job);
-
-      runJob(job)
-        .catch((error) => {
-          patch(
-            job,
-            {
-              status: 'failed',
-              phase: 'finalize',
-              completedAt: Date.now(),
-              error: {
-                code: String(error instanceof Error && error.message.includes('canceled') ? 'CANCELED' : 'INTERNAL_ERROR'),
-                message: String(error instanceof Error ? error.message : 'Unexpected in-page engine failure.'),
-              },
-            },
-            false,
-          );
-          emitState(job);
-        })
-        .finally(() => {
-          runningJobs.delete(job.id);
-          canceledJobs.delete(job.id);
-        });
-    }
-
-    function cancel(message) {
-      const jobId = String(message?.jobId || '');
-      if (!jobId) return;
-      if (runningJobs.has(jobId)) canceledJobs.add(jobId);
-    }
-
-    return {
-      postMessage(message) {
-        if (message?.type === 'start') {
-          start(message);
-          return;
-        }
-        if (message?.type === 'cancel') {
-          cancel(message);
-          return;
-        }
-        emitError(`Unknown engine command: ${String(message?.type || 'undefined')}`);
-      },
-      addEventListener(type, handler) {
-        if (!listeners[type]) listeners[type] = [];
-        listeners[type].push(handler);
-      },
-      removeEventListener(type, handler) {
-        if (!listeners[type]) return;
-        const idx = listeners[type].indexOf(handler);
-        if (idx >= 0) listeners[type].splice(idx, 1);
-      },
-    };
-  }
+  /* createInPageEngine was removed: it generated fully synthetic/simulated
+     domain availability and pricing data using local heuristics (no real API calls).
+     The worker (engine.worker.js) now handles all processing with real GoDaddy API data.
+     See git history for the original 600+ line implementation. */
 
   function createEngineBridge() {
     try {
@@ -1173,6 +671,12 @@
     debugLogs.length = 0;
     lastLoggedJobStateKey = '';
     lastLoggedJobErrorKey = '';
+    dataSourceState.nameGeneration = null;
+    dataSourceState.availability = null;
+    dataSourceState.godaddyDebug = null;
+    dataSourceState.syntheticFlags = [];
+    var dsPanel = document.getElementById('data-source-panel');
+    if (dsPanel) { dsPanel.hidden = true; dsPanel.innerHTML = ''; }
 
     const input = collectInput();
     pushDebugLog('app.js:handleStart', 'Run started', {
@@ -1210,10 +714,11 @@
     if (message.type === 'debugLog' && message.payload) {
       debugLogs.push(message.payload);
       // #region agent log
-      if (message.payload.sessionId === '624c7c') {
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '624c7c' }, body: JSON.stringify(message.payload) }).catch(function () {});
+      if (message.payload.sessionId === 'efbcb6') {
+        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'efbcb6' }, body: JSON.stringify(message.payload) }).catch(function () {});
       }
       // #endregion
+      updateDataSourcePanel(message.payload);
       return;
     }
 

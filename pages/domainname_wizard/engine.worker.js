@@ -49,9 +49,9 @@ function emitError(message, jobId) { self.postMessage({ type: 'error', message: 
 function emitJob(job) { self.postMessage({ type: 'state', job: JSON.parse(JSON.stringify(job)) }); }
 // #region agent log
 function sendIngest(location, message, data, hypothesisId) {
-  const payload = { sessionId: '624c7c', location: String(location || 'engine.worker.js'), message: String(message || 'log'), data: data || {}, timestamp: Date.now(), runId: 'run1', hypothesisId: hypothesisId || null };
+  const payload = { sessionId: 'efbcb6', location: String(location || 'engine.worker.js'), message: String(message || 'log'), data: data || {}, timestamp: Date.now(), runId: 'run1', hypothesisId: hypothesisId || null };
   self.postMessage({ type: 'debugLog', payload: payload });
-  fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '624c7c' }, body: JSON.stringify(payload) }).catch(function () {});
+  fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'efbcb6' }, body: JSON.stringify(payload) }).catch(function () {});
 }
 // #endregion
 function emitDebugLog(location, message, data) {
@@ -467,12 +467,13 @@ function progress(totalLoops, currentLoop, fraction) {
 
 const AVAILABILITY_CHUNK = 100;
 const RDAP_DELAY_MS = 1200;
-const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
+const LEGACY_VERCEL_BACKEND_URL = null;
 
 async function fetchAvailability(apiBaseUrl, domains) {
   const base = String(apiBaseUrl).replace(/\/+$/, '');
   const url = base + '/api/domains/availability';
   const out = {};
+  let _lastDebug = null;
   for (let i = 0; i < domains.length; i += AVAILABILITY_CHUNK) {
     const chunk = domains.slice(i, i + AVAILABILITY_CHUNK);
     let res;
@@ -514,6 +515,19 @@ async function fetchAvailability(apiBaseUrl, domains) {
       throw new Error('Availability API error (' + statusMsg + '): ' + msg);
     }
     const results = data.results || {};
+    if (data._debug) _lastDebug = data._debug;
+    // #region agent log
+    sendIngest('engine.worker.js:fetchAvailability', 'Availability API success response', {
+      url,
+      status: res.status,
+      chunkSize: chunk.length,
+      chunkOffset: i,
+      resultCount: Object.keys(results).length,
+      _debug: data._debug || null,
+      syntheticData: false,
+      sampleResults: Object.entries(results).slice(0, 3).map(function(e) { return { domain: e[0], available: e[1].available, price: e[1].price, reason: e[1].reason }; }),
+    }, 'H1');
+    // #endregion
     if (!results || typeof results !== 'object') {
       emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API invalid payload', {
         url,
@@ -523,6 +537,7 @@ async function fetchAvailability(apiBaseUrl, domains) {
     }
     for (const key of Object.keys(results)) Object.assign(out, { [key]: results[key] });
   }
+  out._debug = _lastDebug;
   return out;
 }
 
@@ -633,6 +648,18 @@ async function run(job) {
       patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03 + 0.72 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount });
 
       const cands = makeBatch(plan.input, seed, batchMax, seen);
+      // #region agent log
+      if (loop === 1 && batches === 0) {
+        sendIngest('engine.worker.js:run', 'Name generation source', {
+          source: 'LOCAL (makeBatch combinatorics)',
+          namelixApiCalled: false,
+          syntheticNameGeneration: true,
+          candidateCount: cands.length,
+          sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, isNamelixPremium: c.isNamelixPremium, premiumSource: 'hash-based (synthetic)' }; }),
+          explanation: 'Names generated using local PREFIX/SUFFIX/DICT arrays and styleName combinatorics. No external Namelix API is called. isNamelixPremium is computed via hash(domain|premium) % 100 < threshold.',
+        }, 'H3');
+      }
+      // #endregion
       considered += cands.length;
       batches += 1;
 
@@ -649,51 +676,28 @@ async function run(job) {
         // #endregion
         try {
           availabilityByDomain = await fetchAvailability(backendBaseUrl, domainList);
+          // #region agent log
+          if (availabilityByDomain._debug) {
+            sendIngest('engine.worker.js:run', 'GoDaddy backend _debug metadata', { _debug: availabilityByDomain._debug }, 'H1');
+            self.postMessage({ type: 'debugLog', payload: { sessionId: 'efbcb6', location: 'engine.worker.js:run', message: 'GoDaddy API debug info', data: availabilityByDomain._debug, timestamp: Date.now() } });
+          }
+          delete availabilityByDomain._debug;
+          // #endregion
         } catch (error) {
           const primaryError = error instanceof Error ? error.message : String(error || 'unknown');
           // #region agent log
-          sendIngest('engine.worker.js:run', 'Primary availability failed', { primaryError, backendBaseUrl }, 'H4');
+          sendIngest('engine.worker.js:run', 'Primary availability failed, falling back to RDAP', { primaryError, backendBaseUrl }, 'H4');
           // #endregion
-          if (backendBaseUrl && backendBaseUrl !== LEGACY_VERCEL_BACKEND_URL) {
-            // #region agent log
-            sendIngest('engine.worker.js:run', 'Trying fallback Vercel backend', { fallbackUrl: LEGACY_VERCEL_BACKEND_URL }, 'H3');
-            // #endregion
-            try {
-              availabilityByDomain = await fetchAvailability(LEGACY_VERCEL_BACKEND_URL, domainList);
-              emitDebugLog('engine.worker.js:run', 'Primary backend unavailable, switched to Vercel backend', {
-                backendBaseUrl,
-                fallbackBackendBaseUrl: LEGACY_VERCEL_BACKEND_URL,
-                error: primaryError,
-              });
-            } catch (fallbackError) {
-              // #region agent log
-              sendIngest('engine.worker.js:run', 'Fallback backend also failed', { fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError || 'unknown') }, 'H6');
-              // #endregion
-              useBackend = false;
-              patch(job, { phase: 'rdap' });
-              availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
-                const frac = total > 0 ? done / total : 0;
-                patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
-              });
-              emitDebugLog('engine.worker.js:run', 'Both backends unavailable, switched to RDAP', {
-                backendBaseUrl,
-                fallbackBackendBaseUrl: LEGACY_VERCEL_BACKEND_URL,
-                primaryError,
-                fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError || 'unknown'),
-              });
-            }
-          } else {
-            useBackend = false;
-            patch(job, { phase: 'rdap' });
-            availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
-              const frac = total > 0 ? done / total : 0;
-              patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
-            });
-            emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP', {
-              backendBaseUrl,
-              error: primaryError,
-            });
-          }
+          useBackend = false;
+          patch(job, { phase: 'rdap' });
+          availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
+            const frac = total > 0 ? done / total : 0;
+            patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+          });
+          emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP (no prices available)', {
+            backendBaseUrl,
+            error: primaryError,
+          });
         }
       } else {
         patch(job, { phase: 'rdap' });

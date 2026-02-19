@@ -55,12 +55,26 @@ export async function onRequestPost(context) {
 
   const apiKey = env.GODADDY_API_KEY;
   const apiSecret = env.GODADDY_API_SECRET;
+
+  const _debug = {
+    credentialsSource: "Cloudflare Pages env bindings",
+    apiKeyPresent: Boolean(apiKey),
+    apiKeyPrefix: apiKey ? String(apiKey).slice(0, 6) + "..." : null,
+    apiSecretPresent: Boolean(apiSecret),
+    godaddyEnv: String(env.GODADDY_ENV || "OTE"),
+    domainCount: unique.length,
+    sampleDomains: unique.slice(0, 3),
+    timestamp: new Date().toISOString(),
+  };
+
   if (!apiKey || !apiSecret) {
-    return json({ code: "GODADDY_AUTH", message: "Missing GoDaddy API credentials (secrets)." }, 502);
+    return json({ code: "GODADDY_AUTH", message: "Missing GoDaddy API credentials (secrets).", _debug }, 502);
   }
 
   const baseUrl = getBaseUrl(env);
   const endpoint = `${baseUrl}/v1/domains/available?checkType=FAST`;
+  _debug.godaddyBaseUrl = baseUrl;
+  _debug.godaddyEndpoint = endpoint;
 
   let res;
   try {
@@ -74,27 +88,44 @@ export async function onRequestPost(context) {
       body: JSON.stringify(unique),
     });
   } catch (e) {
-    return json({ code: "GODADDY_API", message: (e && e.message) || "GoDaddy request failed." }, 502);
+    _debug.fetchError = (e && e.message) || "GoDaddy request failed.";
+    return json({ code: "GODADDY_API", message: _debug.fetchError, _debug }, 502);
   }
 
+  _debug.godaddyStatus = res.status;
+  _debug.godaddyStatusText = res.statusText || "";
+
   if (res.status === 429) {
-    return json({ code: "GODADDY_RATE_LIMIT", message: "GoDaddy rate limit reached." }, 429);
+    return json({ code: "GODADDY_RATE_LIMIT", message: "GoDaddy rate limit reached.", _debug }, 429);
   }
   if (res.status === 401 || res.status === 403) {
-    return json({ code: "GODADDY_AUTH", message: "GoDaddy authentication failed." }, 502);
+    _debug.authFailure = true;
+    return json({ code: "GODADDY_AUTH", message: "GoDaddy authentication failed.", _debug }, 502);
   }
   if (!res.ok) {
     const text = await res.text();
-    return json({ code: "GODADDY_API", message: `GoDaddy error (${res.status}): ${text.slice(0, 200)}` }, 502);
+    _debug.godaddyErrorBody = text.slice(0, 500);
+    return json({ code: "GODADDY_API", message: `GoDaddy error (${res.status}): ${text.slice(0, 200)}`, _debug }, 502);
   }
 
   const data = await res.json().catch(() => ({}));
+  _debug.godaddyResponseDomainCount = (data.domains || []).length;
+  _debug.godaddyResponseErrorCount = (data.errors || []).length;
+  _debug.dataSource = "GoDaddy API (LIVE)";
+  _debug.syntheticData = false;
+
+  const sampleRaw = (data.domains || []).slice(0, 2).map(function (d) {
+    return { domain: d.domain, available: d.available, rawPrice: d.price, convertedPrice: typeof d.price === "number" ? Number((d.price / 1000000).toFixed(2)) : undefined };
+  });
+  _debug.sampleRawResponse = sampleRaw;
+
   const results = {};
 
   for (const d of data.domains || []) {
     const key = (d.domain || "").toLowerCase();
     if (!key) continue;
-    const price = typeof d.price === "number" && Number.isFinite(d.price) ? Number(Number(d.price).toFixed(2)) : undefined;
+    const rawPrice = typeof d.price === "number" && Number.isFinite(d.price) ? d.price : undefined;
+    const price = rawPrice != null ? Number((rawPrice / 1000000).toFixed(2)) : undefined;
     results[key] = {
       available: Boolean(d.available),
       definitive: Boolean(d.definitive),
@@ -119,5 +150,5 @@ export async function onRequestPost(context) {
     }
   }
 
-  return json({ results });
+  return json({ results, _debug });
 }
