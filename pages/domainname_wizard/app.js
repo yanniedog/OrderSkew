@@ -47,10 +47,43 @@
   const tableSortState = new WeakMap();
   let dataSourceCollapsed = true;
   let diagnosticsInFlight = null;
-  let diagnosticsDebounceTimer = null;
   let persistentRewardPolicy = null;
   let persistentRewardPolicyMeta = null;
   let persistedRunIds = new Set();
+  const SESSION_KEYWORDS_KEY = 'domainname_wizard.default_keywords.v1';
+  const SESSION_DEFAULT_KEYWORDS = [
+    'agentic workflow automation',
+    'edge ai monitoring',
+    'developer productivity copilot',
+    'compliance ops platform',
+    'supply chain intelligence',
+    'finops optimization engine',
+    'cyber risk analytics',
+    'revenue intelligence studio',
+    'clinical data platform',
+    'customer support orchestration',
+    'marketplace fraud detection',
+    'pricing optimization lab',
+  ];
+
+  function setSessionDefaultKeywords() {
+    if (!formEl) return;
+    const keywordsInput = formEl.querySelector('input[name="keywords"]');
+    if (!keywordsInput) return;
+
+    const current = String(keywordsInput.value || '').trim();
+    if (current && current.toLowerCase() !== 'ai productivity') return;
+
+    let chosen = '';
+    try {
+      chosen = String(sessionStorage.getItem(SESSION_KEYWORDS_KEY) || '').trim();
+    } catch (_) {}
+    if (!chosen) {
+      chosen = SESSION_DEFAULT_KEYWORDS[Math.floor(Math.random() * SESSION_DEFAULT_KEYWORDS.length)] || 'startup platform';
+      try { sessionStorage.setItem(SESSION_KEYWORDS_KEY, chosen); } catch (_) {}
+    }
+    keywordsInput.value = chosen;
+  }
 
   function showFormError(message) {
     if (!message) {
@@ -221,8 +254,6 @@
       const issues = [];
       setDiagnosticsRunning(true);
 
-      const githubTokenInput = formEl ? formEl.querySelector('input[name="githubToken"]') : null;
-      const githubToken = githubTokenInput ? String(githubTokenInput.value || '').trim() : '';
       const backendBaseUrl = String(BACKEND_URL || '').trim().replace(/\/+$/, '');
 
       // Synonym API (DataMuse)
@@ -255,9 +286,7 @@
 
       // GitHub API
       try {
-        const headers = { Accept: 'application/vnd.github+json' };
-        if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
-        const gh = await fetchJsonWithTimeout('https://api.github.com/rate_limit', { method: 'GET', headers }, 7000);
+        const gh = await fetchJsonWithTimeout('https://api.github.com/rate_limit', { method: 'GET', headers: { Accept: 'application/vnd.github+json' } }, 7000);
         const core = gh.json && gh.json.resources && gh.json.resources.core ? gh.json.resources.core : null;
         const ok = Boolean(gh.response && gh.response.ok && core && typeof core.remaining === 'number');
         const abnormal = ok && core.remaining <= 0;
@@ -268,7 +297,7 @@
           remaining: core ? Number(core.remaining) : null,
           limit: core ? Number(core.limit) : null,
           reset: core ? Number(core.reset) : null,
-          tokenUsed: Boolean(githubToken),
+          tokenUsed: false,
           abnormal,
           source: 'preflight',
         };
@@ -282,7 +311,7 @@
           remaining: null,
           limit: null,
           reset: null,
-          tokenUsed: Boolean(githubToken),
+          tokenUsed: false,
           abnormal: true,
           source: 'preflight',
           error: msg,
@@ -665,7 +694,6 @@
       bodyParts.push('<span class="' + cls + '">' + (gh.accessible ? 'ACCESSIBLE' : 'UNREACHABLE') + '</span>');
       bodyParts.push('<br>Provider: <strong>github.com</strong>');
       if (gh.status != null) bodyParts.push('<br>HTTP status: <strong>' + escapeHtml(String(gh.status)) + '</strong>');
-      bodyParts.push('<br>Auth token used: <strong>' + (gh.tokenUsed ? 'YES' : 'NO') + '</strong>');
       if (gh.limit != null) bodyParts.push('<br>Rate limit: <strong>' + gh.remaining + '</strong> / ' + gh.limit);
       if (gh.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(gh.error)) + '</span>');
       if (gh.abnormal) bodyParts.push('<br><span class="warn">Abnormal result detected.</span>');
@@ -695,7 +723,6 @@
       bodyParts.push('<strong>GitHub Value Evidence:</strong> ');
       bodyParts.push('<span class="' + (de.githubSuccess > 0 ? 'good' : 'warn') + '">' + escapeHtml(String(de.mode || 'unknown')) + '</span>');
       bodyParts.push('<br>Words queried: <strong>' + escapeHtml(String(de.attemptedWords)) + '</strong> (fetched ' + escapeHtml(String(de.fetchedWords)) + ', cache hits ' + escapeHtml(String(de.cacheHits)) + ')');
-      bodyParts.push('<br>GitHub token used in enrichment: <strong>' + (de.githubTokenUsed ? 'YES' : 'NO') + '</strong>');
       bodyParts.push('<br>GitHub calls: <strong>' + escapeHtml(String(de.githubSuccess)) + '</strong> / ' + escapeHtml(String(de.githubCalls)) + ' success');
       bodyParts.push('<br>npm calls: <strong>' + escapeHtml(String(de.npmSuccess)) + '</strong> / ' + escapeHtml(String(de.npmCalls)) + ' success');
       if (de.backendAttempted) bodyParts.push('<br>Backend attempted: <strong>YES</strong> (status ' + escapeHtml(String(de.backendStatus == null ? '-' : de.backendStatus)) + ')');
@@ -1092,7 +1119,7 @@
       ? `<p class="keyword-library-meta"><strong>Curated coverage:</strong> ${formatScore(Number(coverage.coveragePct || 0), 1)}% | target ${formatScore(Number(coverage.coverageTargetPct || 0), 1)}% (${Number(coverage.assessedTarget || 0)}/${Number(coverage.total || 0)})</p>`
       : '';
     const devBadge = dev
-      ? `<p class="keyword-library-meta"><strong>GitHub enrichment:</strong> mode=${escapeHtml(String(dev.mode || 'unknown'))}, words=${escapeHtml(String(dev.attemptedWords || 0))}, github=${escapeHtml(String(dev.githubSuccess || 0))}/${escapeHtml(String(dev.githubCalls || 0))}, token=${dev.githubTokenUsed ? 'YES' : 'NO'}</p>`
+      ? `<p class="keyword-library-meta"><strong>GitHub enrichment:</strong> mode=${escapeHtml(String(dev.mode || 'unknown'))}, words=${escapeHtml(String(dev.attemptedWords || 0))}, github=${escapeHtml(String(dev.githubSuccess || 0))}/${escapeHtml(String(dev.githubCalls || 0))}</p>`
       : '';
     const body = rows.map(function (row) {
       const perf01 = clamp((Number(row.performanceScore) || 0) / 100, 0, 1);
@@ -1303,13 +1330,12 @@
       style: String(data.get('style') || 'default'),
       randomness: String(data.get('randomness') || 'medium'),
       blacklist: String(data.get('blacklist') || '').trim(),
-      maxLength: clamp(Math.round(parseNumber(data.get('maxLength'), 10)), 5, 25),
+      maxLength: Math.max(1, Math.round(parseNumber(data.get('maxLength'), 10))),
       tld: String(data.get('tld') || 'com').trim(),
-      maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 5)), 1, 250),
-      yearlyBudget: clamp(parseNumber(data.get('yearlyBudget'), 50), 1, 100000),
-      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 100)), 1, 250),
+      maxNames: Math.max(1, Math.round(parseNumber(data.get('maxNames'), 5))),
+      yearlyBudget: Math.max(1, parseNumber(data.get('yearlyBudget'), 50)),
+      loopCount: Math.max(1, Math.round(parseNumber(data.get('loopCount'), 100))),
       apiBaseUrl: BACKEND_URL,
-      githubToken: String(data.get('githubToken') || '').trim(),
       preferEnglish: String(data.get('preferEnglish') || '').toLowerCase() === 'on',
       rewardPolicy: persistentRewardPolicy || null,
     };
@@ -1578,17 +1604,7 @@
   }
 
   initTableSections();
-  if (formEl) {
-    const githubInput = formEl.querySelector('input[name="githubToken"]');
-    if (githubInput) {
-      githubInput.addEventListener('input', function () {
-        if (diagnosticsDebounceTimer) clearTimeout(diagnosticsDebounceTimer);
-        diagnosticsDebounceTimer = setTimeout(function () {
-          runPreflightDiagnostics('github-token-change');
-        }, 600);
-      });
-    }
-  }
+  setSessionDefaultKeywords();
   runPreflightDiagnostics('initial-load');
   void loadPersistentRunProfile('initial-load');
 

@@ -12,10 +12,7 @@
     <header class="hero card">
       <p class="eyebrow">OrderSkew Toolkit</p>
       <h1>Domain Name Wizard</h1>
-      <p class="subtitle">
-        Browser-native domain discovery lab adapted from your <code>domainname-wizard</code> repo. Name generation,
-        iterative tuning, scoring, and ranking all execute locally in your browser worker.
-      </p>
+      <p class="subtitle">Browser-native domain discovery and optimization.</p>
       <div class="hero-actions">
         <a class="btn btn-secondary" href="DEPLOY.md" target="_blank" rel="noreferrer">Deployment guide</a>
       </div>
@@ -24,12 +21,11 @@
     <section class="card">
       <h2>Search Setup</h2>
       <form id="search-form" class="grid">
-        <p class="backend-info">Backend is detected automatically. On Vercel, availability and pricing run through the same deployment.</p>
         <label>Keywords
-          <input name="keywords" required placeholder="e.g. AI productivity" value="AI productivity">
+          <input name="keywords" required placeholder="e.g. edge ai automation">
         </label>
         <label>Description
-          <input name="description" placeholder="Optional business description">
+          <input name="description" placeholder="Business description">
         </label>
         <label>Style
           <select name="style">
@@ -46,7 +42,6 @@
         <label class="checkbox-label">Prefer English
           <span class="checkbox-row">
             <input name="preferEnglish" type="checkbox" checked>
-            <small>Bias generated names and keyword library toward English tokens/phrases.</small>
           </span>
         </label>
         <label>Randomness
@@ -60,22 +55,19 @@
           <input name="blacklist" placeholder="comma,separated,blocked,terms">
         </label>
         <label>Maximum Name Length
-          <input name="maxLength" type="number" min="5" max="25" value="10">
+          <input name="maxLength" type="number" min="1" value="10">
         </label>
         <label>TLD
           <input name="tld" placeholder="com" value="com">
         </label>
         <label>Max Names / Loop
-          <input name="maxNames" type="number" min="1" max="250" value="5">
+          <input name="maxNames" type="number" min="1" value="5">
         </label>
         <label>Yearly Budget (USD)
-          <input name="yearlyBudget" type="number" min="1" max="100000" value="50">
+          <input name="yearlyBudget" type="number" min="1" value="50">
         </label>
         <label>Loop Count
-          <input name="loopCount" type="number" min="1" max="250" value="100">
-        </label>
-        <label>GitHub Token <small>(optional, for dev ecosystem scoring)</small>
-          <input name="githubToken" type="password" placeholder="ghp_... (increases API rate limit)">
+          <input name="loopCount" type="number" min="1" value="100">
         </label>
       </form>
       <div class="controls">
@@ -103,15 +95,9 @@
         <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
       </div>
       <p id="job-error" class="error" hidden></p>
-      <p class="hint">
-        Availability and pricing are automatic when the backend is reachable.
-      </p>
     </section>
 
     <section class="card" id="results-panel" hidden>
-      <p class="hint" style="margin-bottom:1rem;">
-        Availability and price from GoDaddy via the fixed backend.
-      </p>
       <div class="results-head">
         <h2>Results</h2>
         <label>Sort ranked domains
