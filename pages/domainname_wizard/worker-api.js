@@ -1,0 +1,241 @@
+// Domain Name Wizard - External API integration
+// Depends on: worker-utils.js
+
+// ---------------------------------------------------------------------------
+// Fetch: Namelix names
+// ---------------------------------------------------------------------------
+
+async function fetchNamelixNames(apiBaseUrl, plan, prevNames) {
+  const base = String(apiBaseUrl).replace(/\/+$/, '');
+  const url = base + '/api/names/generate';
+  const payload = {
+    keywords: plan.keywords,
+    description: plan.description || '',
+    blacklist: plan.blacklist || '',
+    maxLength: plan.maxLength || 25,
+    tld: plan.tld || 'com',
+    style: plan.style || 'default',
+    randomness: plan.randomness || 'medium',
+    maxNames: plan.maxNames || 30,
+    prevNames: prevNames || [],
+  };
+  sendIngest('worker-api.js:fetchNamelixNames', 'Calling Namelix name generation API', { url, keywords: payload.keywords, style: payload.style, maxNames: payload.maxNames }, 'H3');
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const msg = err && err.message ? err.message : 'Namelix API request failed';
+    sendIngest('worker-api.js:fetchNamelixNames', 'Namelix API fetch exception', { url, error: msg }, 'H3');
+    throw new Error('Namelix request failed: ' + msg);
+  }
+  const data = await res.json().catch(function () { return {}; });
+  if (!res.ok) {
+    const msg = data.message || data.code || ('Namelix API error ' + res.status);
+    sendIngest('worker-api.js:fetchNamelixNames', 'Namelix API non-OK response', { url, status: res.status, message: msg, _debug: data._debug || null }, 'H3');
+    throw new Error(msg);
+  }
+  const names = data.names || [];
+  sendIngest('worker-api.js:fetchNamelixNames', 'Namelix API success', {
+    url,
+    nameCount: names.length,
+    _debug: data._debug || null,
+    sampleNames: names.slice(0, 5).map(function (n) { return { domain: n.domain, businessName: n.businessName, source: n.source }; }),
+  }, 'H3');
+  if (data._debug) {
+    self.postMessage({ type: 'debugLog', payload: { sessionId: 'efbcb6', location: 'worker-api.js:fetchNamelixNames', message: 'Namelix API debug info', data: data._debug, timestamp: Date.now() } });
+  }
+  return names;
+}
+
+// ---------------------------------------------------------------------------
+// Fetch: GoDaddy availability
+// ---------------------------------------------------------------------------
+
+const AVAILABILITY_CHUNK = 100;
+
+async function fetchAvailability(apiBaseUrl, domains) {
+  const base = String(apiBaseUrl).replace(/\/+$/, '');
+  const url = base + '/api/domains/availability';
+  const out = {};
+  let _lastDebug = null;
+  for (let i = 0; i < domains.length; i += AVAILABILITY_CHUNK) {
+    const chunk = domains.slice(i, i + AVAILABILITY_CHUNK);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domains: chunk }),
+      });
+    } catch (err) {
+      const msg = err && err.message ? err.message : 'Network error';
+      sendIngest('worker-api.js:fetchAvailability', 'Availability API fetch exception', { url, chunkSize: chunk.length, chunkOffset: i, errorMessage: msg }, 'H1');
+      emitDebugLog('worker-api.js:fetchAvailability', 'Availability API fetch exception', { url, chunkSize: chunk.length, chunkOffset: i, error: msg });
+      throw new Error('Availability request failed: ' + msg);
+    }
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      const statusMsg = String(res.status || 0) + (res.statusText ? ` ${res.statusText}` : '');
+      const msg = data.message || data.code || statusMsg || 'Availability request failed.';
+      sendIngest('worker-api.js:fetchAvailability', 'Availability API non-OK response', { url, status: res.status, statusText: res.statusText, dataMessage: data.message, dataCode: data.code, errorMessage: msg }, 'H2');
+      emitDebugLog('worker-api.js:fetchAvailability', 'Availability API non-OK response', { url, chunkSize: chunk.length, chunkOffset: i, status: res.status, statusText: res.statusText, errorMessage: msg });
+      throw new Error('Availability API error (' + statusMsg + '): ' + msg);
+    }
+    const results = data.results || {};
+    if (data._debug) _lastDebug = data._debug;
+    sendIngest('worker-api.js:fetchAvailability', 'Availability API success response', {
+      url, status: res.status, chunkSize: chunk.length, chunkOffset: i,
+      resultCount: Object.keys(results).length, _debug: data._debug || null, syntheticData: false,
+      sampleResults: Object.entries(results).slice(0, 3).map(function(e) { return { domain: e[0], available: e[1].available, price: e[1].price, reason: e[1].reason }; }),
+    }, 'H1');
+    if (!results || typeof results !== 'object') {
+      emitDebugLog('worker-api.js:fetchAvailability', 'Availability API invalid payload', { url, chunkSize: chunk.length, chunkOffset: i });
+    }
+    for (const key of Object.keys(results)) Object.assign(out, { [key]: results[key] });
+  }
+  out._debug = _lastDebug;
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Fetch: RDAP fallback
+// ---------------------------------------------------------------------------
+
+const RDAP_DELAY_MS = 1200;
+
+async function fetchRdapAvailability(domains, jobId, onProgress) {
+  const total = domains.length;
+  const out = {};
+  for (let i = 0; i < domains.length; i += 1) {
+    if (jobId && canceled.has(jobId)) break;
+    if (typeof onProgress === 'function') {
+      const step = Math.max(1, Math.floor(total / 20));
+      if (i % step === 0 || i === domains.length - 1) onProgress(i + 1, total);
+    }
+    const domain = domains[i];
+    const key = domain.toLowerCase();
+    const url = 'https://rdap.org/domain/' + encodeURIComponent(domain);
+    let res;
+    try {
+      res = await fetch(url, { method: 'GET', headers: { Accept: 'application/rdap+json, application/json' } });
+    } catch (e) {
+      out[key] = { available: false, definitive: false, reason: (e && e.message) || 'RDAP request failed.' };
+      await new Promise(function (r) { setTimeout(r, RDAP_DELAY_MS); });
+      continue;
+    }
+    if (res.status === 429) {
+      await new Promise(function (r) { setTimeout(r, 11000); });
+      i -= 1;
+      continue;
+    }
+    try {
+      const body = await res.text();
+      let parsed = null;
+      try { parsed = body ? JSON.parse(body) : null; } catch (_) {}
+      const registered = res.status === 200 && parsed && parsed.objectClassName === 'domain';
+      out[key] = {
+        available: !registered,
+        definitive: res.status === 200 || res.status === 404,
+        reason: registered ? 'Registered (RDAP).' : (res.status === 404 ? 'No registration (RDAP).' : 'Unknown (RDAP).'),
+      };
+    } catch (e) {
+      out[key] = { available: false, definitive: false, reason: (e && e.message) ? e.message : 'RDAP body/parse failed.' };
+    }
+    if (i < domains.length - 1) await new Promise(function (r) { setTimeout(r, RDAP_DELAY_MS); });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// API Enrichment: Developer Ecosystem (GitHub, npm, PyPI)
+// ---------------------------------------------------------------------------
+
+async function fetchDevEcosystemScores(words, input) {
+  const scores = new Map();
+  if (!words || words.length === 0) return scores;
+  const unique = [...new Set(words.filter(w => w.length >= 3))].slice(0, 30);
+  const githubToken = input.githubToken || '';
+
+  for (const word of unique) {
+    if (DEV_ECOSYSTEM_CACHE.has(word)) { scores.set(word, DEV_ECOSYSTEM_CACHE.get(word)); continue; }
+    let total = 0;
+    try {
+      const headers = { Accept: 'application/vnd.github.v3+json' };
+      if (githubToken) headers.Authorization = 'token ' + githubToken;
+      const ghResp = await fetch('https://api.github.com/search/repositories?q=' + encodeURIComponent(word) + '&per_page=1', { headers });
+      if (ghResp.ok) {
+        const ghData = await ghResp.json();
+        total += Math.min(ghData.total_count || 0, 500000);
+      }
+    } catch (_) {}
+    try {
+      const npmResp = await fetch('https://registry.npmjs.org/-/v1/search?text=' + encodeURIComponent(word) + '&size=1');
+      if (npmResp.ok) {
+        const npmData = await npmResp.json();
+        total += Math.min((npmData.total || 0) * 10, 100000);
+      }
+    } catch (_) {}
+    scores.set(word, total);
+    DEV_ECOSYSTEM_CACHE.set(word, total);
+    await new Promise(r => setTimeout(r, 600));
+  }
+  return scores;
+}
+
+// ---------------------------------------------------------------------------
+// API Enrichment: Wayback Machine archive check
+// ---------------------------------------------------------------------------
+
+async function checkArchiveHistory(domains) {
+  const hits = new Set();
+  if (!domains || domains.length === 0) return hits;
+  const toCheck = domains.slice(0, 100);
+  for (const domain of toCheck) {
+    if (ARCHIVE_CACHE.has(domain)) { if (ARCHIVE_CACHE.get(domain)) hits.add(domain); continue; }
+    try {
+      const resp = await fetch('https://archive.org/wayback/available?url=' + encodeURIComponent(domain));
+      if (resp.ok) {
+        const data = await resp.json();
+        const hasSnap = data.archived_snapshots && data.archived_snapshots.closest && data.archived_snapshots.closest.available;
+        ARCHIVE_CACHE.set(domain, Boolean(hasSnap));
+        if (hasSnap) hits.add(domain);
+      } else {
+        ARCHIVE_CACHE.set(domain, false);
+      }
+    } catch (_) {
+      ARCHIVE_CACHE.set(domain, false);
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return hits;
+}
+
+// ---------------------------------------------------------------------------
+// API Enrichment: DataMuse word validation
+// ---------------------------------------------------------------------------
+
+async function enrichWithDataMuse(words) {
+  const validated = new Map();
+  if (!words || words.length === 0) return validated;
+  const toCheck = [...new Set(words.filter(w => w.length >= 3))].slice(0, 50);
+  for (const word of toCheck) {
+    try {
+      const resp = await fetch('https://api.datamuse.com/words?sp=' + encodeURIComponent(word) + '&md=f&max=1');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.length > 0 && data[0].word === word && data[0].tags) {
+          const fTag = data[0].tags.find(t => t.startsWith('f:'));
+          if (fTag) validated.set(word, parseFloat(fTag.slice(2)) || 0);
+        }
+      }
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 50));
+  }
+  return validated;
+}
