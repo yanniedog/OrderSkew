@@ -10,3 +10,5 @@
 *.pyc
 *.tsbuildinfo
 *.log
+pages/domainname_wizard/temporary-logs-manually-saved/*.*
+
