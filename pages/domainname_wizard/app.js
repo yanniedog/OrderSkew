@@ -928,6 +928,10 @@
     const curatedCoverageTargetPct = liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTargetPct || 0) : 0);
     const curatedCoverageAssessed = liveCoverage ? Number(liveCoverage.assessedTarget || 0) : (latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0);
     const curatedCoverageTotal = liveCoverage ? Number(liveCoverage.total || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0);
+    // #region agent log
+    var _displayVal = curatedCoverageTotal > 0 ? curatedCoveragePct + '%' : '-';
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'84c593'},body:JSON.stringify({sessionId:'84c593',location:'app.js:renderSummary',message:'curated coverage source',data:{usedLiveCoverage:!!liveCoverage,curatedCoverageTotal:curatedCoverageTotal,curatedCoveragePct:curatedCoveragePct,displayValue:_displayVal},timestamp:Date.now(),hypothesisId:'H4-H5'})}).catch(function(){});
+    // #endregion
 
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
@@ -1424,6 +1428,14 @@
 
     if (job.results) {
       currentResults = job.results;
+      // #region agent log
+      const r = job.results;
+      const hasLib = !!(r.keywordLibrary);
+      const hasCov = !!(r.keywordLibrary && r.keywordLibrary.coverageMetrics);
+      const loopSummaries = Array.isArray(r.loopSummaries) ? r.loopSummaries : [];
+      const latestLoop = loopSummaries.length ? loopSummaries[loopSummaries.length - 1] : null;
+      fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'84c593'},body:JSON.stringify({sessionId:'84c593',location:'app.js:updateStatus',message:'results received',data:{hasKeywordLibrary:hasLib,hasCoverageMetrics:hasCov,coveragePct:hasCov?r.keywordLibrary.coverageMetrics.coveragePct:null,total:hasCov?r.keywordLibrary.coverageMetrics.total:null,assessedTarget:hasCov?r.keywordLibrary.coverageMetrics.assessedTarget:null,loopSummariesLen:loopSummaries.length,latestLoopCuratedCoveragePct:latestLoop?latestLoop.curatedCoveragePct:null},timestamp:Date.now(),hypothesisId:'H1-H3-H5'})}).catch(function(){});
+      // #endregion
       renderResults(currentResults);
     }
 

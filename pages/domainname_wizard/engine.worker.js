@@ -135,6 +135,11 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
     const coverage = typeof keywordState.optimizer.getCoverageMetrics === 'function'
       ? keywordState.optimizer.getCoverageMetrics()
       : null;
+    // #region agent log
+    try {
+      fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'84c593'},body:JSON.stringify({sessionId:'84c593',location:'engine.worker.js:snapshot',message:'snapshot optimizer path',data:{hasCoverage:!!coverage,coverageTotal:coverage?coverage.total:null,coveragePct:coverage?coverage.coveragePct:null},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(function(){});
+    } catch (e) {}
+    // #endregion
     keywordLibrary = {
       seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
       currentKeywords: Array.isArray(keywordState.optimizer.curTokens) ? keywordState.optimizer.curTokens.slice(0, 8) : [],
