@@ -199,6 +199,7 @@ function parseInput(raw) {
     description: text(input.description),
     style,
     randomness,
+    preferEnglish: input.preferEnglish !== false,
     blacklist: text(input.blacklist),
     tld,
     maxLength: clamp(Math.round(Number(input.maxLength) || 10), 5, 25),
@@ -207,6 +208,8 @@ function parseInput(raw) {
     loopCount: clamp(Math.round(Number(input.loopCount) || 30), 1, 60),
     apiBaseUrl: text(input.apiBaseUrl),
     githubToken: text(input.githubToken),
+    keywordLibraryTokens: Array.isArray(input.keywordLibraryTokens) ? input.keywordLibraryTokens.slice(0, 120) : [],
+    keywordLibraryPhrases: Array.isArray(input.keywordLibraryPhrases) ? input.keywordLibraryPhrases.slice(0, 80) : [],
   };
 }
 

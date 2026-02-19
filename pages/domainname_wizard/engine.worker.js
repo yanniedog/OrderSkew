@@ -146,8 +146,38 @@ async function run(job) {
   const loopSummaries = [];
   const tuningHistory = [];
 
+  let keywordLibrary = {
+    seedTokens: tokenize(`${input.keywords} ${input.description || ''}`).slice(0, 8),
+    tokens: tokenize(`${input.keywords} ${input.description || ''}`).slice(0, 24),
+    phrases: [],
+    keywordString: input.keywords,
+  };
+  try {
+    keywordLibrary = await fetchAssociatedKeywordLibrary(`${input.keywords} ${input.description || ''}`, {
+      preferEnglish: input.preferEnglish !== false,
+      maxSeeds: 8,
+    });
+    emitDebugLog('engine.worker.js:run', 'Keyword library enriched via APIs', {
+      seedCount: keywordLibrary.seedTokens.length,
+      tokenCount: keywordLibrary.tokens.length,
+      phraseCount: keywordLibrary.phrases.length,
+      preferEnglish: input.preferEnglish !== false,
+      sampleTokens: keywordLibrary.tokens.slice(0, 16),
+      samplePhrases: keywordLibrary.phrases.slice(0, 8),
+    });
+  } catch (libraryErr) {
+    emitDebugLog('engine.worker.js:run', 'Keyword library API enrichment failed; using normalized seed tokens', {
+      error: libraryErr && libraryErr.message ? libraryErr.message : String(libraryErr || 'unknown'),
+    });
+  }
+
   const model = await loadModel();
-  const optimizer = new Optimizer(input, model, hash(job.id));
+  const optimizerInput = {
+    ...input,
+    keywordLibraryTokens: keywordLibrary.tokens.slice(0, 120),
+    keywordLibraryPhrases: keywordLibrary.phrases.slice(0, 60),
+  };
+  const optimizer = new Optimizer(optimizerInput, model, hash(job.id));
 
   patch(job, { status: 'running', phase: 'looping', progress: 5, currentLoop: 0, totalLoops: input.loopCount, results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, []) });
 

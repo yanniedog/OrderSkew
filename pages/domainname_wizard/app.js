@@ -42,6 +42,7 @@
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
   const ENGINE_WORKER_VERSION = '2026-02-19-3';
+  const tableSortState = new WeakMap();
 
   function showFormError(message) {
     if (!message) {
@@ -524,8 +525,99 @@
 
     loopSummaryTableEl.innerHTML = renderLoopSummaryTable(results.loopSummaries || []);
     tuningTableEl.innerHTML = renderTuningTable(results.tuningHistory || []);
+    wireTableSorting();
 
     resultsPanelEl.hidden = false;
+  }
+
+  function toggleTableSection(toggleButton) {
+    if (!toggleButton) return;
+    const section = toggleButton.closest('[data-table-section]');
+    if (!section) return;
+    const panelId = toggleButton.getAttribute('aria-controls');
+    const panel = panelId ? document.getElementById(panelId) : section.querySelector('.table-section-panel');
+    if (!panel) return;
+    const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
+    toggleButton.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    panel.hidden = expanded;
+    section.classList.toggle('is-collapsed', expanded);
+  }
+
+  function initTableSections() {
+    const toggles = document.querySelectorAll('[data-table-toggle]');
+    toggles.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        toggleTableSection(btn);
+      });
+    });
+  }
+
+  function parseSortValue(raw) {
+    const text = String(raw == null ? '' : raw).trim();
+    if (!text || text === '-' || text === '...') return { kind: 'text', value: '' };
+    const normalized = text.replace(/[$,%x,\s]/gi, '');
+    if (/^-?\d+(\.\d+)?$/.test(normalized)) {
+      const num = Number(normalized);
+      if (Number.isFinite(num)) return { kind: 'number', value: num };
+    }
+    return { kind: 'text', value: text.toLowerCase() };
+  }
+
+  function sortTableByColumn(table, columnIndex) {
+    if (!table || !table.tBodies || !table.tBodies[0]) return;
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.rows);
+    if (rows.length < 2) return;
+
+    const prev = tableSortState.get(table) || { index: -1, dir: 'desc' };
+    const nextDir = prev.index === columnIndex && prev.dir === 'desc' ? 'asc' : 'desc';
+    tableSortState.set(table, { index: columnIndex, dir: nextDir });
+
+    const factor = nextDir === 'asc' ? 1 : -1;
+    rows.sort(function (ra, rb) {
+      const aCell = ra.cells[columnIndex];
+      const bCell = rb.cells[columnIndex];
+      const a = parseSortValue(aCell ? aCell.textContent : '');
+      const b = parseSortValue(bCell ? bCell.textContent : '');
+      if (a.kind === 'number' && b.kind === 'number') {
+        if (a.value !== b.value) return (a.value - b.value) * factor;
+      } else {
+        if (a.value !== b.value) return String(a.value).localeCompare(String(b.value)) * factor;
+      }
+      return String(ra.cells[0] ? ra.cells[0].textContent : '').localeCompare(String(rb.cells[0] ? rb.cells[0].textContent : ''));
+    });
+
+    const ths = table.querySelectorAll('thead th');
+    ths.forEach(function (th, idx) {
+      th.classList.remove('sorted-asc', 'sorted-desc');
+      if (idx === columnIndex) th.classList.add(nextDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    });
+
+    const frag = document.createDocumentFragment();
+    rows.forEach(function (row) { frag.appendChild(row); });
+    tbody.appendChild(frag);
+  }
+
+  function wireTableSorting() {
+    const tables = resultsPanelEl.querySelectorAll('.table-wrap table');
+    tables.forEach(function (table) {
+      if (table.dataset.sortWired === '1') return;
+      table.dataset.sortWired = '1';
+      const ths = table.querySelectorAll('thead th');
+      ths.forEach(function (th, idx) {
+        th.classList.add('sortable');
+        th.setAttribute('role', 'button');
+        th.setAttribute('tabindex', '0');
+        const runSort = function () { sortTableByColumn(table, idx); };
+        th.addEventListener('click', runSort);
+        th.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            runSort();
+          }
+        });
+      });
+    });
   }
 
   function collectInput() {
@@ -543,6 +635,7 @@
       loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 30)), 1, 60),
       apiBaseUrl: BACKEND_URL,
       githubToken: String(data.get('githubToken') || '').trim(),
+      preferEnglish: String(data.get('preferEnglish') || '').toLowerCase() === 'on',
     };
   }
 
@@ -800,5 +893,7 @@
       downloadDebugLog();
     });
   }
+
+  initTableSections();
 
 })();

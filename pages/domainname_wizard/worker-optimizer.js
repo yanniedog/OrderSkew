@@ -206,11 +206,22 @@ class Optimizer {
 
     this._baseKeywordTokens = tokenize(base.keywords).map(normalizeThemeToken).filter(Boolean).slice(0, 12);
     this._baseDescriptionTokens = tokenize(base.description || '').map(normalizeThemeToken).filter(Boolean).slice(0, 12);
-    this._themeSeedTokens = dedupeTokens(this._baseKeywordTokens.concat(this._baseDescriptionTokens)).slice(0, 24);
+    this._libraryTokens = Array.isArray(base.keywordLibraryTokens)
+      ? base.keywordLibraryTokens.map(normalizeThemeToken).filter(Boolean).slice(0, 120)
+      : [];
+    this._libraryPhraseTokens = Array.isArray(base.keywordLibraryPhrases)
+      ? tokenize(base.keywordLibraryPhrases.join(' ')).map(normalizeThemeToken).filter(Boolean).slice(0, 80)
+      : [];
+    this._curatedHasLibrary = this._libraryTokens.length > 0 || this._libraryPhraseTokens.length > 0;
+    this._themeSeedTokens = dedupeTokens(
+      this._libraryTokens.concat(this._libraryPhraseTokens, this._baseKeywordTokens, this._baseDescriptionTokens),
+    ).slice(0, 40);
     if (!this._themeSeedTokens.length) this._themeSeedTokens = ['brand'];
     this._baseTokenSet = new Set(this._themeSeedTokens);
     this._themeSeedStems = new Set(this._themeSeedTokens.map(tokenStem).filter(Boolean));
-    this._lockedSeedTokens = this._baseKeywordTokens.length
+    this._lockedSeedTokens = this._curatedHasLibrary
+      ? []
+      : this._baseKeywordTokens.length
       ? this._baseKeywordTokens.slice(0, Math.min(3, this._baseKeywordTokens.length))
       : this._themeSeedTokens.slice(0, 1);
 
@@ -224,6 +235,8 @@ class Optimizer {
     emitDebugLog('worker-optimizer.js', 'Initialized strict keyword pool', {
       seedTokens: this._themeSeedTokens.slice(0, 12),
       lockedTokens: this._lockedSeedTokens.slice(),
+      curatedLibraryTokens: this._libraryTokens.slice(0, 20),
+      curatedLibraryPhrases: (base.keywordLibraryPhrases || []).slice(0, 8),
       poolSize: this._themeTokenPool.length,
       poolTokens: this._themeTokenPool.slice(0, 40),
     });
@@ -281,21 +294,26 @@ class Optimizer {
 
   _buildThemeTokenScores() {
     const scored = new Map();
+    const baseTokenWeight = this._curatedHasLibrary ? 3.8 : 5.0;
+    const variantWeight = this._curatedHasLibrary ? 3.0 : 3.0;
+    const directSynWeight = this._curatedHasLibrary ? 3.1 : 3.6;
+    const reverseRootWeight = this._curatedHasLibrary ? 3.0 : 3.4;
+    const siblingWeight = this._curatedHasLibrary ? 2.9 : 2.8;
 
     for (const seed of this._themeSeedTokens) {
-      this._addThemeToken(scored, seed, 5.0);
-      for (const variant of buildTokenVariants(seed)) this._addThemeToken(scored, variant, 3.0);
+      this._addThemeToken(scored, seed, baseTokenWeight);
+      for (const variant of buildTokenVariants(seed)) this._addThemeToken(scored, variant, variantWeight);
 
       const directSynonyms = BUSINESS_SYNONYMS[seed] || [];
       for (const syn of directSynonyms) {
-        this._addThemeToken(scored, syn, 3.6);
+        this._addThemeToken(scored, syn, directSynWeight);
         for (const variant of buildTokenVariants(syn)) this._addThemeToken(scored, variant, 2.4);
       }
 
       const reverseRoots = REVERSE_BUSINESS_SYNONYMS[seed] || [];
       for (const root of reverseRoots) {
-        this._addThemeToken(scored, root, 3.4);
-        for (const sibling of BUSINESS_SYNONYMS[root] || []) this._addThemeToken(scored, sibling, 2.8);
+        this._addThemeToken(scored, root, reverseRootWeight);
+        for (const sibling of BUSINESS_SYNONYMS[root] || []) this._addThemeToken(scored, sibling, siblingWeight);
       }
     }
 
@@ -390,10 +408,13 @@ class Optimizer {
 
   next(loop) {
     const explorationRate = Math.max(0.05, 0.35 * Math.pow(0.82, loop - 1));
+    const styleOptions = this.base.preferEnglish !== false
+      ? STYLE_VALUES.filter((value) => value !== 'nonenglish')
+      : STYLE_VALUES;
 
     const style = this.rand() < explorationRate
-      ? pick(STYLE_VALUES, this.rand)
-      : this.thompsonChoose(this.model.style, STYLE_VALUES);
+      ? pick(styleOptions, this.rand)
+      : this.thompsonChoose(this.model.style, styleOptions);
     const randomness = this.rand() < explorationRate
       ? pick(RANDOMNESS_VALUES, this.rand)
       : this.thompsonChoose(this.model.randomness, RANDOMNESS_VALUES);
@@ -587,8 +608,19 @@ function styleName(style, a, b, c, rand) {
   return `${pick(PREFIX, rand)}${a}${pick(SUFFIX, rand)}`;
 }
 
+function looksEnglishLikeLabel(label) {
+  const clean = String(label || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (clean.length < 3) return false;
+  const tri = trigramScore(clean);
+  const seg = segmentWords(clean);
+  if (seg.quality >= 0.32) return true;
+  return tri >= -2.45;
+}
+
 function makeBatch(plan, seed, target, seen) {
   const rand = rng(seed >>> 0);
+  const preferEnglish = plan.preferEnglish !== false;
+  const style = preferEnglish && plan.style === 'nonenglish' ? 'default' : plan.style;
   const tokens = tokenize(`${plan.keywords} ${plan.description}`).map((t) => t.replace(/[^a-z0-9]/g, '')).filter((t) => t.length >= 2);
   const pool = tokens.length ? tokens : ['nova', 'orbit', 'lumen', 'quant', 'forge', 'signal'];
   const blocked = new Set(text(plan.blacklist).split(',').map((x) => x.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean));
@@ -599,11 +631,12 @@ function makeBatch(plan, seed, target, seen) {
     const a = pick(pool, rand);
     const b = pick(pool, rand);
     const c = pick(pool, rand);
-    let sourceName = styleName(plan.style, a, b, c, rand);
+    let sourceName = styleName(style, a, b, c, rand);
     if (plan.randomness === 'high' && rand() > 0.45) sourceName += pick(SUFFIX, rand);
     if (plan.randomness === 'low' && sourceName.length > 16) sourceName = sourceName.slice(0, 16);
     const label = toLabel(sourceName);
     if (!label || label.length > plan.maxLength) continue;
+    if (preferEnglish && !looksEnglishLikeLabel(label)) continue;
     let isBlocked = false;
     for (const tok of blocked) if (tok && label.includes(tok)) { isBlocked = true; break; }
     if (isBlocked) continue;

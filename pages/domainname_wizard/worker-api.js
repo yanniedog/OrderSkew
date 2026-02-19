@@ -14,10 +14,11 @@ async function fetchNamelixNames(apiBaseUrl, plan, prevNames) {
     blacklist: plan.blacklist || '',
     maxLength: plan.maxLength || 10,
     tld: plan.tld || 'com',
-    style: plan.style || 'default',
+    style: plan.preferEnglish !== false && plan.style === 'nonenglish' ? 'default' : (plan.style || 'default'),
     randomness: plan.randomness || 'medium',
     maxNames: plan.maxNames || 30,
     prevNames: prevNames || [],
+    preferEnglish: plan.preferEnglish !== false,
   };
   sendIngest('worker-api.js:fetchNamelixNames', 'Calling Namelix name generation API', { url, keywords: payload.keywords, style: payload.style, maxNames: payload.maxNames }, 'H3');
   let res;
@@ -50,6 +51,99 @@ async function fetchNamelixNames(apiBaseUrl, plan, prevNames) {
     self.postMessage({ type: 'debugLog', payload: { sessionId: 'efbcb6', location: 'worker-api.js:fetchNamelixNames', message: 'Namelix API debug info', data: data._debug, timestamp: Date.now() } });
   }
   return names;
+}
+
+function normalizeKeywordToken(token) {
+  return String(token || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function normalizeKeywordPhrase(phrase) {
+  return String(phrase || '').toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function keywordEnglishPass(token, preferEnglish) {
+  if (!token) return false;
+  if (!preferEnglish) return true;
+  return /^[a-z]+$/.test(token);
+}
+
+function addScoredToken(map, token, score) {
+  const t = normalizeKeywordToken(token);
+  if (!t || t.length < 2 || t.length > 24) return;
+  const prev = map.get(t) || 0;
+  if (score > prev) map.set(t, score);
+}
+
+function addScoredPhrase(map, phrase, score) {
+  const p = normalizeKeywordPhrase(phrase);
+  if (!p || p.length < 3 || p.length > 48) return;
+  if (!p.includes(' ')) return;
+  const prev = map.get(p) || 0;
+  if (score > prev) map.set(p, score);
+}
+
+async function fetchAssociatedKeywordLibrary(seedText, options) {
+  const opts = options || {};
+  const preferEnglish = opts.preferEnglish !== false;
+  const maxSeeds = Math.max(1, Math.min(10, Number(opts.maxSeeds) || 8));
+  const seeds = tokenize(seedText).map(normalizeKeywordToken).filter(Boolean).slice(0, maxSeeds);
+  const tokenScores = new Map();
+  const phraseScores = new Map();
+
+  for (const seed of seeds) addScoredToken(tokenScores, seed, 1000);
+  const endpoints = [];
+  for (const seed of seeds) {
+    endpoints.push(
+      `https://api.datamuse.com/words?ml=${encodeURIComponent(seed)}&max=30`,
+      `https://api.datamuse.com/words?rel_syn=${encodeURIComponent(seed)}&max=30`,
+      `https://api.datamuse.com/words?rel_trg=${encodeURIComponent(seed)}&max=20`,
+    );
+  }
+
+  for (const url of endpoints) {
+    try {
+      const resp = await fetch(url, { method: 'GET' });
+      if (!resp.ok) continue;
+      const payload = await resp.json();
+      if (!Array.isArray(payload)) continue;
+      for (const item of payload) {
+        const phrase = normalizeKeywordPhrase(item && item.word);
+        const score = Number(item && item.score) || 0;
+        if (!phrase) continue;
+        if (phrase.includes(' ')) addScoredPhrase(phraseScores, phrase, score);
+        for (const token of phrase.split(/\s+/)) {
+          const cleaned = normalizeKeywordToken(token);
+          if (!keywordEnglishPass(cleaned, preferEnglish)) continue;
+          addScoredToken(tokenScores, cleaned, score);
+        }
+      }
+    } catch (_) {
+      // Ignore per-endpoint failures and continue with remaining sources.
+    }
+    await new Promise(function (r) { setTimeout(r, 60); });
+  }
+
+  const rankedTokens = Array.from(tokenScores.entries())
+    .filter(function (entry) { return keywordEnglishPass(entry[0], preferEnglish); })
+    .sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]); })
+    .map(function (entry) { return entry[0]; })
+    .slice(0, 120);
+
+  const rankedPhrases = Array.from(phraseScores.entries())
+    .filter(function (entry) {
+      if (!preferEnglish) return true;
+      return entry[0].split(/\s+/).every(function (t) { return /^[a-z]+$/.test(t); });
+    })
+    .sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]); })
+    .map(function (entry) { return entry[0]; })
+    .slice(0, 60);
+
+  return {
+    seedTokens: seeds,
+    tokens: rankedTokens,
+    phrases: rankedPhrases,
+    keywordString: rankedTokens.slice(0, 8).join(' '),
+  };
 }
 
 // ---------------------------------------------------------------------------

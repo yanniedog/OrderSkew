@@ -93,7 +93,9 @@ export async function onRequestPost(context) {
   const blacklist = String(body.blacklist || "").trim();
   const maxLength = Math.min(25, Math.max(5, Math.round(Number(body.maxLength) || 15)));
   const tld = String(body.tld || "com").toLowerCase().replace(/^\./, "");
-  const style = STYLE_MAP[body.style] != null ? STYLE_MAP[body.style] : "";
+  const preferEnglish = body.preferEnglish !== false;
+  const requestedStyle = preferEnglish && body.style === "nonenglish" ? "default" : body.style;
+  const style = STYLE_MAP[requestedStyle] != null ? STYLE_MAP[requestedStyle] : "";
   const randomness = body.randomness === "low" ? "low" : body.randomness === "high" ? "high" : "medium";
   const maxNames = Math.min(200, Math.max(1, Math.round(Number(body.maxNames) || 30)));
   const prevNames = Array.isArray(body.prevNames) ? body.prevNames.join("|") : "";
@@ -134,6 +136,7 @@ export async function onRequestPost(context) {
     description,
     style,
     randomness,
+    preferEnglish,
     tld,
     maxLength,
     maxNames,
