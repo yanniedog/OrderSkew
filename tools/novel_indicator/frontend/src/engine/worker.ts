@@ -14,6 +14,24 @@ import type {
   TelemetrySnapshot,
 } from '../api/types'
 import { barsToMs, formatDurationMs, horizonLabel, minutesToBars, timeframeToMs } from '../utils/timeframe'
+import {
+  backtest,
+  buildWalkForwardFolds,
+  clamp,
+  ema,
+  fitLinear1D,
+  linearFit,
+  mae,
+  mean,
+  rmse,
+  rollingMean,
+  rollingStd,
+  rsi,
+  shiftTarget,
+  std,
+} from './worker-stats'
+import { buildReportHtml, buildRunExportBundle } from './worker-export'
+import { getAllRunStore, getKlineCache, putKlineCache, putRunStore } from './worker-db'
 
 type RpcRequest = { id: string; method: string; params?: Record<string, unknown> }
 type RpcResponse = { id: string; ok: boolean; result?: unknown; error?: string }
@@ -42,18 +60,6 @@ type RunBundle = {
     }>
     expressionToPine?: Record<string, string>
   }
-}
-
-type RunExportFile = {
-  path: string
-  content: string
-  mime: string
-}
-
-type RunExportBundle = {
-  run_id: string
-  generated_at: string
-  files: RunExportFile[]
 }
 
 type OhlcvRow = { timestamp: number; open: number; high: number; low: number; close: number; volume: number }
@@ -100,13 +106,8 @@ const DEFAULT_CONFIG: RunConfig = {
   },
 }
 
-const DB_NAME = 'novel-indicator-browser-db'
-const DB_VERSION = 2
-const RUN_STORE_NAME = 'runs'
-const KLINE_STORE_NAME = 'klines'
 const KLINE_CACHE_TTL_MS = 20 * 60 * 1000
 
-let dbPromise: Promise<IDBDatabase> | null = null
 let initialized = false
 const runs = new Map<string, RunBundle>()
 const cancelRuns = new Set<string>()
@@ -259,33 +260,8 @@ function mergeRunConfig(partial: Partial<RunConfig> | undefined): RunConfig {
   return merged
 }
 
-function openDb(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = () => {
-      const db = req.result
-      if (!db.objectStoreNames.contains(RUN_STORE_NAME)) {
-        db.createObjectStore(RUN_STORE_NAME, { keyPath: 'id' })
-      }
-      if (!db.objectStoreNames.contains(KLINE_STORE_NAME)) {
-        db.createObjectStore(KLINE_STORE_NAME, { keyPath: 'key' })
-      }
-    }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error ?? new Error('IDB open error'))
-  })
-  return dbPromise
-}
-
 async function saveBundleNow(id: string, bundle: RunBundle): Promise<void> {
-  const db = await openDb()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(RUN_STORE_NAME, 'readwrite')
-    tx.objectStore(RUN_STORE_NAME).put({ id, bundle })
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error ?? new Error('IDB write error'))
-  })
+  await putRunStore(id, { id, bundle })
 }
 
 function scheduleBundleSave(id: string, bundle: RunBundle): void {
@@ -309,49 +285,29 @@ async function flushBundleSaves(): Promise<void> {
 
 async function loadBundles(): Promise<void> {
   if (initialized) return
-  const db = await openDb()
-  const rows = await new Promise<Array<{ id: string; bundle: RunBundle }>>((resolve, reject) => {
-    const tx = db.transaction(RUN_STORE_NAME, 'readonly')
-    const req = tx.objectStore(RUN_STORE_NAME).getAll()
-    req.onsuccess = () => resolve((req.result ?? []) as Array<{ id: string; bundle: RunBundle }>)
-    req.onerror = () => reject(req.error ?? new Error('IDB read error'))
-  })
+  const rows = await getAllRunStore()
   for (const row of rows) {
     if (row?.id && row.bundle) {
-      row.bundle.config = mergeRunConfig(row.bundle.config)
-      row.bundle.context = row.bundle.context ?? {}
-      runs.set(row.id, row.bundle)
+      const bundle = row.bundle as RunBundle
+      bundle.config = mergeRunConfig(bundle.config)
+      bundle.context = bundle.context ?? {}
+      runs.set(row.id, bundle)
     }
   }
   initialized = true
 }
 
 async function loadKlineCache(symbol: string, timeframe: string, days: number): Promise<OhlcvRow[] | null> {
-  const db = await openDb()
   const key = `${symbol}|${timeframe}|${days}`
-  const row = await new Promise<{ key: string; fetched_at: number; rows: OhlcvRow[] } | null>((resolve, reject) => {
-    const tx = db.transaction(KLINE_STORE_NAME, 'readonly')
-    const req = tx.objectStore(KLINE_STORE_NAME).get(key)
-    req.onsuccess = () => resolve((req.result as { key: string; fetched_at: number; rows: OhlcvRow[] } | undefined) ?? null)
-    req.onerror = () => reject(req.error ?? new Error('IDB read error'))
-  })
+  const row = await getKlineCache(key)
   if (!row) return null
   if (Date.now() - row.fetched_at > KLINE_CACHE_TTL_MS) return null
-  return row.rows
+  return row.rows as OhlcvRow[]
 }
 
 async function saveKlineCache(symbol: string, timeframe: string, days: number, rows: OhlcvRow[]): Promise<void> {
-  const db = await openDb()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(KLINE_STORE_NAME, 'readwrite')
-    tx.objectStore(KLINE_STORE_NAME).put({
-      key: `${symbol}|${timeframe}|${days}`,
-      fetched_at: Date.now(),
-      rows,
-    })
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error ?? new Error('IDB write error'))
-  })
+  const key = `${symbol}|${timeframe}|${days}`
+  await putKlineCache(key, Date.now(), rows)
 }
 
 function makeBundle(id: string, config: RunConfig): RunBundle {
@@ -436,243 +392,6 @@ function recordBinanceCall(bundle: RunBundle, endpoint: string, response: Respon
   })
   if (bundle.binanceCalls.length > 240) {
     bundle.binanceCalls = bundle.binanceCalls.slice(-240)
-  }
-}
-
-function rollingMean(values: Float64Array, window: number): Float64Array {
-  const out = new Float64Array(values.length)
-  let sum = 0
-  for (let i = 0; i < values.length; i += 1) {
-    sum += values[i]
-    if (i >= window) sum -= values[i - window]
-    out[i] = i >= window - 1 ? sum / window : values[i]
-  }
-  return out
-}
-
-function std(values: Float64Array): number {
-  if (!values.length) return 1
-  let mean = 0
-  for (const v of values) mean += v
-  mean /= values.length
-  let acc = 0
-  for (const v of values) {
-    const d = v - mean
-    acc += d * d
-  }
-  return Math.sqrt(Math.max(acc / values.length, 1e-9))
-}
-
-function mean(values: Float64Array): number {
-  if (!values.length) return 0
-  let acc = 0
-  for (const v of values) acc += v
-  return acc / values.length
-}
-
-function mae(a: Float64Array, b: Float64Array): number {
-  let sum = 0
-  const n = Math.min(a.length, b.length)
-  for (let i = 0; i < n; i += 1) sum += Math.abs(a[i] - b[i])
-  return n ? sum / n : 9999
-}
-
-function rmse(a: Float64Array, b: Float64Array): number {
-  let sum = 0
-  const n = Math.min(a.length, b.length)
-  for (let i = 0; i < n; i += 1) {
-    const d = a[i] - b[i]
-    sum += d * d
-  }
-  return n ? Math.sqrt(sum / n) : 9999
-}
-
-function shiftTarget(close: Float64Array, h: number): Float64Array {
-  const out = new Float64Array(close.length)
-  out.fill(Number.NaN)
-  for (let i = 0; i < close.length - h; i += 1) out[i] = close[i + h]
-  return out
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
-}
-
-function rollingStd(values: Float64Array, window: number): Float64Array {
-  const out = new Float64Array(values.length)
-  const c1 = new Float64Array(values.length + 1)
-  const c2 = new Float64Array(values.length + 1)
-  for (let i = 0; i < values.length; i += 1) {
-    c1[i + 1] = c1[i] + values[i]
-    c2[i + 1] = c2[i] + values[i] * values[i]
-  }
-  for (let i = 0; i < values.length; i += 1) {
-    const start = Math.max(0, i - window + 1)
-    const count = i - start + 1
-    const sum = c1[i + 1] - c1[start]
-    const sum2 = c2[i + 1] - c2[start]
-    const avg = sum / count
-    out[i] = Math.sqrt(Math.max(sum2 / count - avg * avg, 0))
-  }
-  return out
-}
-
-function ema(values: Float64Array, window: number): Float64Array {
-  const out = new Float64Array(values.length)
-  if (!values.length) return out
-  const alpha = 2 / (window + 1)
-  out[0] = values[0]
-  for (let i = 1; i < values.length; i += 1) {
-    out[i] = alpha * values[i] + (1 - alpha) * out[i - 1]
-  }
-  return out
-}
-
-function rsi(close: Float64Array, window: number): Float64Array {
-  const up = new Float64Array(close.length)
-  const down = new Float64Array(close.length)
-  for (let i = 1; i < close.length; i += 1) {
-    const d = close[i] - close[i - 1]
-    if (d > 0) up[i] = d
-    else down[i] = -d
-  }
-  const upEma = ema(up, window)
-  const downEma = ema(down, window)
-  const out = new Float64Array(close.length)
-  for (let i = 0; i < close.length; i += 1) {
-    const rs = upEma[i] / (downEma[i] + 1e-9)
-    out[i] = 100 - 100 / (1 + rs)
-  }
-  return out
-}
-
-type Fold = { trainIdx: Int32Array; valIdx: Int32Array }
-
-function buildWalkForwardFolds(n: number, horizon: number): Fold[] {
-  const usable = n - horizon - 1
-  if (usable < 320) return []
-  const folds = 4
-  const chunk = Math.floor(usable / (folds + 1))
-  if (chunk < 60) return []
-  const output: Fold[] = []
-  for (let i = 0; i < folds; i += 1) {
-    const trainEnd = chunk * (i + 1)
-    const valStart = trainEnd + horizon
-    const valEnd = Math.min(valStart + chunk, usable)
-    const trainLen = Math.max(0, trainEnd - horizon)
-    const valLen = Math.max(0, valEnd - valStart)
-    if (trainLen < 120 || valLen < 40) continue
-    const trainIdx = new Int32Array(trainLen)
-    for (let j = 0; j < trainLen; j += 1) trainIdx[j] = j
-    const valIdx = new Int32Array(valLen)
-    for (let j = 0; j < valLen; j += 1) valIdx[j] = valStart + j
-    output.push({ trainIdx, valIdx })
-  }
-  return output
-}
-
-function fitLinear1D(feature: Float64Array, targetDelta: Float64Array, idx: Int32Array): { alpha: number; beta: number } | null {
-  let sx = 0
-  let sy = 0
-  let sxx = 0
-  let sxy = 0
-  let count = 0
-  for (let i = 0; i < idx.length; i += 1) {
-    const at = idx[i]
-    const x = feature[at]
-    const y = targetDelta[at]
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue
-    sx += x
-    sy += y
-    sxx += x * x
-    sxy += x * y
-    count += 1
-  }
-  if (count < 80) return null
-  const mx = sx / count
-  const my = sy / count
-  const varX = sxx - sx * mx
-  if (Math.abs(varX) < 1e-9) return null
-  const covXY = sxy - sx * my
-  const beta = covXY / varX
-  const alpha = my - beta * mx
-  return { alpha, beta }
-}
-
-function linearFit(feature: Float64Array, close: Float64Array, target: Float64Array, horizon: number): { yTrue: Float64Array; yPred: Float64Array; closeRef: Float64Array } {
-  const folds = buildWalkForwardFolds(close.length, horizon)
-  if (!folds.length) return { yTrue: new Float64Array(), yPred: new Float64Array(), closeRef: new Float64Array() }
-
-  const targetDelta = new Float64Array(close.length)
-  targetDelta.fill(Number.NaN)
-  for (let i = 0; i < close.length; i += 1) {
-    if (!Number.isFinite(target[i])) continue
-    targetDelta[i] = (target[i] - close[i]) / (close[i] + 1e-9)
-  }
-
-  const yTrue: number[] = []
-  const yPred: number[] = []
-  const closeRef: number[] = []
-  for (const fold of folds) {
-    const model = fitLinear1D(feature, targetDelta, fold.trainIdx)
-    if (!model) continue
-    for (let i = 0; i < fold.valIdx.length; i += 1) {
-      const at = fold.valIdx[i]
-      if (!Number.isFinite(feature[at]) || !Number.isFinite(target[at])) continue
-      const predDelta = clamp(model.alpha + model.beta * feature[at], -0.8, 0.8)
-      const pred = close[at] * (1 + predDelta)
-      yTrue.push(target[at])
-      yPred.push(pred)
-      closeRef.push(close[at])
-    }
-  }
-
-  return {
-    yTrue: Float64Array.from(yTrue),
-    yPred: Float64Array.from(yPred),
-    closeRef: Float64Array.from(closeRef),
-  }
-}
-
-function backtest(yTrue: Float64Array, yPred: Float64Array, closeRef: Float64Array, threshold: number): { pnl: number; maxDrawdown: number; turnover: number; equity: number[] } {
-  const n = Math.min(yTrue.length, yPred.length, closeRef.length)
-  if (n < 5) {
-    return { pnl: 0, maxDrawdown: 0, turnover: 0, equity: [] }
-  }
-  const fee = 0.0012
-  const signal = new Float64Array(n)
-  for (let i = 0; i < n; i += 1) {
-    const f = (yPred[i] - closeRef[i]) / (closeRef[i] + 1e-9)
-    if (f > threshold) signal[i] = 1
-    else if (f < -threshold) signal[i] = -1
-    else signal[i] = 0
-  }
-
-  const returns = new Float64Array(n)
-  let turnover = 0
-  let equity = 1
-  let peak = 1
-  let maxDrawdown = 0
-  const curve: number[] = []
-  for (let i = 0; i < n; i += 1) {
-    const prev = i > 0 ? signal[i - 1] : 0
-    const turn = Math.abs(signal[i] - prev)
-    turnover += turn
-    const realized = (yTrue[i] - closeRef[i]) / (closeRef[i] + 1e-9)
-    const value = prev * realized - fee * turn
-    returns[i] = value
-    equity *= 1 + value
-    if (equity > peak) peak = equity
-    const dd = (equity - peak) / (peak + 1e-12)
-    if (dd < maxDrawdown) maxDrawdown = dd
-    curve.push(equity)
-  }
-
-  return {
-    pnl: equity - 1,
-    maxDrawdown,
-    turnover: turnover / n,
-    equity: curve,
   }
 }
 
@@ -2225,283 +1944,6 @@ function listRuns(): RunStatus[] {
   return Array.from(runs.values())
     .map((bundle) => bundle.run)
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
-}
-
-function buildReportHtml(bundle: RunBundle): string {
-  if (!bundle.summary) return '<html><body><h1>No report data.</h1></body></html>'
-  const rows = bundle.summary.per_asset_recommendations
-    .map(
-      (r) =>
-        `<tr><td>${r.symbol}</td><td>${r.timeframe}</td><td>${r.best_horizon_label ?? `${r.best_horizon} bars (${formatDurationMs(r.best_horizon_ms ?? barsToMs(r.timeframe, r.best_horizon))} @ ${r.timeframe})`}</td><td>${r.score.composite_error.toFixed(6)}</td><td>${(r.score.calibration_error ?? 0).toFixed(6)}</td><td>${r.score.directional_hit_rate.toFixed(3)}</td><td>${r.score.pnl_total.toFixed(4)}</td><td>${r.score.max_drawdown.toFixed(4)}</td><td>${r.score.turnover.toFixed(4)}</td><td>${r.score.stability_score.toFixed(3)}</td></tr>`,
-    )
-    .join('')
-  const per = bundle.summary.per_asset_recommendations
-  const avgError = per.length ? per.reduce((acc, row) => acc + row.score.composite_error, 0) / per.length : 0
-  const avgHit = per.length ? per.reduce((acc, row) => acc + row.score.directional_hit_rate, 0) / per.length : 0
-  const avgPnl = per.length ? per.reduce((acc, row) => acc + row.score.pnl_total, 0) / per.length : 0
-  const avgCal = per.length ? per.reduce((acc, row) => acc + (row.score.calibration_error ?? 0), 0) / per.length : 0
-  const positive = per.length ? per.filter((row) => row.score.pnl_total > 0).length / per.length : 0
-  const warnings: string[] = []
-  if (avgHit < 0.52) warnings.push('Directional hit rate below robust threshold.')
-  if (avgPnl <= 0) warnings.push('Average post-cost pnl is non-positive.')
-  if (avgError > 1.2) warnings.push('Composite error remains elevated.')
-  return `<!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Novel Indicator Report</title>
-      <style>
-        :root{--ink:#122033;--muted:#455467;--line:#d8dfeb;--accent:#0b6bcb;--accent2:#d65a31}
-        body{font-family:"Segoe UI",Arial,sans-serif;padding:24px;color:var(--ink)}
-        h1,h2{margin:0 0 10px}
-        p{margin:0 0 8px}
-        .row{display:grid;grid-template-columns:repeat(4,minmax(140px,1fr));gap:10px;margin:14px 0}
-        .card{border:1px solid var(--line);border-radius:10px;padding:10px}
-        .card label{display:block;color:var(--muted);font-size:12px}
-        .card b{font-size:17px}
-        table{width:100%;border-collapse:collapse;margin-top:14px}
-        th,td{border:1px solid var(--line);padding:7px;font-size:12px;text-align:left}
-        th{background:#f3f7fc}
-        .pill{display:inline-block;background:#eef5ff;border:1px solid #d5e5fb;border-radius:999px;padding:4px 10px;font-size:12px;margin-right:6px}
-        .warn{border:1px solid #f1c8b8;background:#fff6f1;border-radius:10px;padding:10px;margin-top:12px}
-      </style>
-    </head>
-    <body>
-      <h1>Novel Indicator Report</h1>
-      <p>Run <b>${bundle.summary.run_id}</b> | Generated ${bundle.summary.generated_at}</p>
-      <div class="row">
-        <div class="card"><label>Avg Composite Error</label><b>${avgError.toFixed(5)}</b></div>
-        <div class="card"><label>Avg Calibration Error</label><b>${avgCal.toFixed(5)}</b></div>
-        <div class="card"><label>Avg Hit Rate</label><b>${(avgHit * 100).toFixed(2)}%</b></div>
-        <div class="card"><label>Avg PnL</label><b>${avgPnl.toFixed(4)}</b></div>
-        <div class="card"><label>Positive-PnL Assets</label><b>${(positive * 100).toFixed(1)}%</b></div>
-      </div>
-      <h2>Universal Recommendation</h2>
-      <p>Horizon: <b>${bundle.summary.universal_recommendation.best_horizon_label ?? `${bundle.summary.universal_recommendation.best_horizon} bars (${formatDurationMs(bundle.summary.universal_recommendation.best_horizon_ms ?? barsToMs(bundle.summary.universal_recommendation.timeframe.split('|')[0] ?? '1h', bundle.summary.universal_recommendation.best_horizon))})`}</b> | Composite Error: <b>${bundle.summary.universal_recommendation.score.composite_error.toFixed(6)}</b></p>
-      <p>Forecast semantics: horizon bars are translated into wall-clock time by source timeframe.</p>
-      <p>Hit Rate: <b>${bundle.summary.universal_recommendation.score.directional_hit_rate.toFixed(3)}</b> | PnL: <b>${bundle.summary.universal_recommendation.score.pnl_total.toFixed(4)}</b></p>
-      <p>${bundle.summary.universal_recommendation.indicator_combo.map((entry) => `<span class="pill">${entry.indicator_id}</span>`).join('')}</p>
-      <table>
-        <thead><tr><th>Symbol</th><th>TF</th><th>Horizon (bars/time)</th><th>Error</th><th>Calibration</th><th>Hit</th><th>PnL</th><th>MaxDD</th><th>Turnover</th><th>Stability</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${
-        bundle.summary.validation_report
-          ? `<h2>Validation and Bias Checks</h2>
-      <p>Leakage checks passed: <b>${bundle.summary.validation_report.leakage_checks_passed ? 'yes' : 'no'}</b> | Leakage sentinel triggered: <b>${bundle.summary.validation_report.leakage_sentinel_triggered ? 'yes' : 'no'}</b></p>
-      <p>Holdout rows: <b>${bundle.summary.validation_report.holdout_rows}</b> | Holdout pass ratio: <b>${(bundle.summary.validation_report.holdout_pass_ratio * 100).toFixed(2)}%</b> | Baseline rejection rate: <b>${(bundle.summary.validation_report.baseline_rejection_rate * 100).toFixed(2)}%</b></p>
-      ${
-        bundle.summary.validation_report.warnings.length
-          ? `<div class="warn"><b>Validation warnings</b><ul>${bundle.summary.validation_report.warnings
-              .slice(0, 12)
-              .map((warning) => `<li>${warning}</li>`)
-              .join('')}</ul></div>`
-          : ''
-      }`
-          : ''
-      }
-      ${warnings.length ? `<div class="warn"><b>Quality warnings</b><ul>${warnings.map((warning) => `<li>${warning}</li>`).join('')}</ul></div>` : ''}
-    </body>
-  </html>`
-}
-
-function csvCell(value: unknown): string {
-  if (value == null) return ''
-  const input = String(value)
-  if (!/[,"\n]/.test(input)) return input
-  return `"${input.replace(/"/g, '""')}"`
-}
-
-function buildRecommendationsCsv(summary: ResultSummary): string {
-  const header = [
-    'symbol',
-    'timeframe',
-    'best_horizon',
-    'best_horizon_label',
-    'normalized_rmse',
-    'normalized_mae',
-    'calibration_error',
-    'composite_error',
-    'directional_hit_rate',
-    'pnl_total',
-    'max_drawdown',
-    'turnover',
-    'stability_score',
-    'indicator_ids',
-    'indicator_expressions',
-  ]
-  const rows = summary.per_asset_recommendations.map((rec) => {
-    const ids = rec.indicator_combo.map((entry) => entry.indicator_id).join('|')
-    const expressions = rec.indicator_combo.map((entry) => entry.expression).join('|')
-    return [
-      rec.symbol,
-      rec.timeframe,
-      rec.best_horizon,
-      rec.best_horizon_label ?? `${rec.best_horizon} bars (${formatDurationMs(rec.best_horizon_ms ?? barsToMs(rec.timeframe, rec.best_horizon))} @ ${rec.timeframe})`,
-      rec.score.normalized_rmse,
-      rec.score.normalized_mae,
-      rec.score.calibration_error ?? 0,
-      rec.score.composite_error,
-      rec.score.directional_hit_rate,
-      rec.score.pnl_total,
-      rec.score.max_drawdown,
-      rec.score.turnover,
-      rec.score.stability_score,
-      ids,
-      expressions,
-    ]
-  })
-  return [header, ...rows].map((row) => row.map((value) => csvCell(value)).join(',')).join('\n')
-}
-
-function buildIndicatorCubeCsv(summary: ResultSummary): string {
-  const rows = summary.indicator_cube ?? []
-  if (!rows.length) return ''
-  const header = [
-    'symbol',
-    'timeframe',
-    'indicator_id',
-    'family',
-    'formula',
-    'novelty_score',
-    'complexity',
-    'horizon_bar',
-    'horizon_time_ms',
-    'normalized_rmse',
-    'normalized_mae',
-    'calibration_error',
-    'composite_error',
-    'directional_hit_rate',
-    'pnl_total',
-    'max_drawdown',
-    'turnover',
-    'stability_score',
-  ]
-  const body = rows.map((row) => [
-    row.symbol,
-    row.timeframe,
-    row.indicator_id,
-    row.family,
-    row.expression,
-    row.novelty_score,
-    row.complexity,
-    row.horizon_bar,
-    row.horizon_time_ms,
-    row.normalized_rmse,
-    row.normalized_mae,
-    row.calibration_error,
-    row.composite_error,
-    row.directional_hit_rate,
-    row.pnl_total,
-    row.max_drawdown,
-    row.turnover,
-    row.stability_score,
-  ])
-  return [header, ...body].map((row) => row.map((value) => csvCell(value)).join(',')).join('\n')
-}
-
-function toJsonl(rows: unknown[]): string {
-  if (!rows.length) return ''
-  return `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`
-}
-
-function buildRunExportBundle(bundle: RunBundle): RunExportBundle {
-  if (!bundle.summary) {
-    throw new Error('Run not found')
-  }
-  const generatedAt = nowIso()
-  const files: RunExportFile[] = [
-    {
-      path: 'report/report.html',
-      content: buildReportHtml(bundle),
-      mime: 'text/html;charset=utf-8',
-    },
-    {
-      path: 'run/run_status.json',
-      content: JSON.stringify(bundle.run, null, 2),
-      mime: 'application/json;charset=utf-8',
-    },
-    {
-      path: 'run/config.json',
-      content: JSON.stringify(bundle.config, null, 2),
-      mime: 'application/json;charset=utf-8',
-    },
-    {
-      path: 'results/summary.json',
-      content: JSON.stringify(bundle.summary, null, 2),
-      mime: 'application/json;charset=utf-8',
-    },
-    {
-      path: 'results/per_asset_recommendations.csv',
-      content: buildRecommendationsCsv(bundle.summary),
-      mime: 'text/csv;charset=utf-8',
-    },
-  ]
-
-  if ((bundle.summary.indicator_cube ?? []).length > 0) {
-    files.push({
-      path: 'results/indicator_cube.csv',
-      content: buildIndicatorCubeCsv(bundle.summary),
-      mime: 'text/csv;charset=utf-8',
-    })
-    files.push({
-      path: 'results/indicator_cube.jsonl',
-      content: toJsonl(bundle.summary.indicator_cube ?? []),
-      mime: 'application/x-ndjson;charset=utf-8',
-    })
-  }
-
-  const sortedPlots = Object.values(bundle.plots).sort((a, b) => a.plot_id.localeCompare(b.plot_id))
-  for (const plot of sortedPlots) {
-    files.push({
-      path: `plots/${plot.plot_id}.json`,
-      content: JSON.stringify({ run_id: plot.run_id, plot_id: plot.plot_id, title: plot.title, payload: plot.payload }, null, 2),
-      mime: 'application/json;charset=utf-8',
-    })
-  }
-
-  const sortedPine = Object.entries(bundle.pineScripts).sort(([a], [b]) => a.localeCompare(b))
-  for (const [name, content] of sortedPine) {
-    files.push({
-      path: `pine/${name}`,
-      content,
-      mime: 'text/plain;charset=utf-8',
-    })
-  }
-
-  if (bundle.telemetry.length > 0) {
-    files.push({
-      path: 'telemetry/telemetry.jsonl',
-      content: toJsonl(bundle.telemetry),
-      mime: 'application/x-ndjson;charset=utf-8',
-    })
-  }
-
-  if (bundle.binanceCalls.length > 0) {
-    files.push({
-      path: 'diagnostics/binance_calls.jsonl',
-      content: toJsonl(bundle.binanceCalls),
-      mime: 'application/x-ndjson;charset=utf-8',
-    })
-  }
-
-  const manifest = {
-    run_id: bundle.run.run_id,
-    generated_at: generatedAt,
-    file_count: files.length + 1,
-    files: files.map((file) => ({ path: file.path, mime: file.mime })),
-  }
-  files.unshift({
-    path: 'manifest.json',
-    content: JSON.stringify(manifest, null, 2),
-    mime: 'application/json;charset=utf-8',
-  })
-
-  return {
-    run_id: bundle.run.run_id,
-    generated_at: generatedAt,
-    files,
-  }
 }
 
 function storagePayload(bundle: RunBundle): Record<string, unknown> {

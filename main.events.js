@@ -12,6 +12,9 @@
                 });
             };
 
+            if (window.OrderSkewBindChartEvents) window.OrderSkewBindChartEvents(App, els);
+            if (window.OrderSkewBindIntroEvents) window.OrderSkewBindIntroEvents(App, els);
+
             // Mode Switch
             if (els.modeSimple) els.modeSimple.addEventListener('click', () => App.setMode('simple'));
             if (els.modePro) els.modePro.addEventListener('click', () => App.setMode('pro'));
@@ -37,129 +40,6 @@
                     }
                 });
             }
-
-            // Chart Display Toggles
-            const chartShowBars = document.getElementById('chart-show-bars');
-            const chartShowCumulative = document.getElementById('chart-show-cumulative');
-            const chartUnitVolume = document.getElementById('chart-unit-volume');
-            const chartUnitValue = document.getElementById('chart-unit-value');
-
-            if (chartShowBars) {
-                chartShowBars.addEventListener('change', () => {
-                    State.chartShowBars = chartShowBars.checked;
-                    App.redrawChart();
-                });
-            }
-
-            if (chartShowCumulative) {
-                chartShowCumulative.addEventListener('change', () => {
-                    State.chartShowCumulative = chartShowCumulative.checked;
-                    App.redrawChart();
-                });
-            }
-
-            const updateChartUnitType = (type) => {
-                State.chartUnitType = type;
-                if (type === 'volume') {
-                    chartUnitVolume?.classList.add('active');
-                    chartUnitValue?.classList.remove('active');
-                } else {
-                    chartUnitValue?.classList.add('active');
-                    chartUnitVolume?.classList.remove('active');
-                }
-                App.redrawChart();
-            };
-
-            if (chartUnitVolume) chartUnitVolume.addEventListener('click', () => updateChartUnitType('volume'));
-            if (chartUnitValue) chartUnitValue.addEventListener('click', () => updateChartUnitType('value'));
-
-            // How It Works Modal
-            const howItWorksModal = document.getElementById('how-it-works-modal');
-            const howItWorksVolumeChart = document.getElementById('how-it-works-volume-chart');
-            const howItWorksValueChart = document.getElementById('how-it-works-value-chart');
-            
-            const toggleHowItWorks = (show) => {
-                if (!howItWorksModal) return;
-                howItWorksModal.classList.toggle('open', show);
-                
-                // Draw charts when modal opens - match main page style
-                if (show && window.drawHowItWorksChart) {
-                    setTimeout(() => {
-                        if (howItWorksVolumeChart) {
-                            // Volume chart - shows quantity
-                            window.drawHowItWorksChart('#how-it-works-volume-chart svg', 100, false);
-                        }
-                        if (howItWorksValueChart) {
-                            // Value chart - shows dollar amounts
-                            window.drawHowItWorksChart('#how-it-works-value-chart svg', 100, true);
-                        }
-                    }, 100);
-                }
-            };
-            
-            const introHowItWorks = document.getElementById('intro-how-it-works');
-            const howItWorksBackdrop = document.getElementById('how-it-works-backdrop');
-            const howItWorksClose = document.getElementById('how-it-works-close');
-            
-            if (introHowItWorks) introHowItWorks.addEventListener('click', () => toggleHowItWorks(true));
-            if (howItWorksBackdrop) howItWorksBackdrop.addEventListener('click', () => toggleHowItWorks(false));
-            if (howItWorksClose) howItWorksClose.addEventListener('click', () => toggleHowItWorks(false));
-            
-            // How It Works button in header
-            const howItWorksBtn = document.getElementById('how-it-works-btn');
-            const howItWorksBtnMobile = document.getElementById('how-it-works-btn-mobile');
-            if (howItWorksBtn) howItWorksBtn.addEventListener('click', () => toggleHowItWorks(true));
-            if (howItWorksBtnMobile) howItWorksBtnMobile.addEventListener('click', () => toggleHowItWorks(true));
-
-            // Handle Intro Page
-            const enterBtn = document.getElementById('enter-app-btn');
-            if (enterBtn) {
-                enterBtn.addEventListener('click', () => {
-                    const wizard = document.getElementById('setup-wizard');
-                    if (!wizard) { console.error('Setup wizard not found'); return; }
-                    SetupWizard.prepare();
-                    wizard.style.opacity = '1';
-                    wizard.style.pointerEvents = 'auto';
-                    requestAnimationFrame(() => {
-                        SetupWizard.show();
-                        Utils.setCookie('os_intro_seen', 'true');
-                        Utils.hideIntro(document.getElementById('intro-layer'));
-                        history.pushState({ introVisible: false }, '');
-                    });
-                });
-            }
-
-
-            // Skip to Customization Button
-            const skipToCustomizeBtn = document.getElementById('skip-to-customize-btn');
-            if (skipToCustomizeBtn) {
-                skipToCustomizeBtn.addEventListener('click', () => {
-                    Utils.setCookie('os_intro_seen', 'true');
-                    Utils.hideIntro(document.getElementById('intro-layer'));
-                    localStorage.setItem(CONSTANTS.STORAGE_PREFIX + 'setup_completed', 'true');
-                    App.setMode('pro');
-                    App.calculatePlan();
-                    history.pushState({ introVisible: false }, '');
-                });
-            }
-
-            // Handle Logo Click - Return to Start Page
-            const logoHeader = document.getElementById('logo-header');
-            if (logoHeader) {
-                logoHeader.addEventListener('click', () => {
-                    App.returnToWelcome();
-                });
-            }
-
-            // Handle Start Over Button - restart setup wizard in-place
-            const startOverBtn = document.getElementById('start-over-btn');
-            if (startOverBtn) {
-                startOverBtn.addEventListener('click', () => {
-                    SetupWizard.prepare();
-                    SetupWizard.show();
-                });
-            }
-            
 
             // Slider Syncs
             const syncSlider = (slider, input, display) => {
@@ -701,7 +581,7 @@
                 if (e.key === 'Escape') {
                     if (els.qrModal?.classList.contains('open')) toggleModal(false);
                     if (els.videoModal?.classList.contains('open')) toggleVideo(false);
-                    if (howItWorksModal?.classList.contains('open')) toggleHowItWorks(false);
+                    if (window._orderSkewToggleHowItWorks) window._orderSkewToggleHowItWorks(false);
                 }
             });
 

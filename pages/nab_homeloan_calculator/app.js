@@ -1,4 +1,25 @@
 (function () {
+    const U = window.NABUtils || {};
+    const FREQ = U.FREQ || { monthly: { periodsPerYear: 12, dayStep: 30 }, fortnightly: { periodsPerYear: 26, dayStep: 14 }, weekly: { periodsPerYear: 52, dayStep: 7 } };
+    const n = U.n || (function (v) { const x = Number(v); return Number.isFinite(x) ? x : NaN; });
+    const optN = U.optN || (function (v) { const x = Number(v); return Number.isFinite(x) ? x : null; });
+    const isValidDate = U.isValidDate || (function (d) { return d instanceof Date && Number.isFinite(d.getTime()); });
+    const dateSerial = U.dateSerial || (function (d) { return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); });
+    const dateCmp = U.dateCmp || (function (a, b) { return Math.sign(dateSerial(a) - dateSerial(b)); });
+    const daysBetween = U.daysBetween || (function (a, b) { return Math.max(0, Math.round((dateSerial(b) - dateSerial(a)) / 86400000)); });
+    const isLeapYear = U.isLeapYear || (function (y) { return ((y % 4 === 0) && (y % 100 !== 0)) || (y % 400 === 0); });
+    const parseDate = U.parseDate || (function () { return null; });
+    const dateKey = U.dateKey || (function (d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
+    const monthKey = U.monthKey || (function (d) { return dateKey(d).slice(0, 7); });
+    const cloneDate = U.cloneDate || (function (d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); });
+    const addDays = U.addDays || (function (d, days) { const x = cloneDate(d); x.setDate(x.getDate() + days); return x; });
+    const daysInMonth = U.daysInMonth || (function (d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); });
+    const fmtDate = U.fmtDate || (function (d) { return d instanceof Date ? d.toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: '2-digit' }) : '-'; });
+    const money = U.money || (function (v) { const x = Number(v); if (!Number.isFinite(x)) return '-'; return x.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2, maximumFractionDigits: 2 }); });
+    const compactMoney = U.compactMoney || (function (v) { const x = Number(v); if (!Number.isFinite(x)) return '-'; if (Math.abs(x) >= 1000000) return `${(x / 1000000).toFixed(1)}m`; if (Math.abs(x) >= 1000) return `${(x / 1000).toFixed(0)}k`; return x.toFixed(0); });
+    const pct = U.pct || (function (v) { return Number.isFinite(v) ? `${v.toFixed(2)}%` : '-'; });
+    const htmlDecode = U.htmlDecode || (function (s) { if (typeof s !== 'string' || !s.includes('&')) return s || ''; const t = document.createElement('textarea'); t.innerHTML = s; return t.value; });
+
     const els = {
         form: document.getElementById('loan-form'),
         loanAmount: document.getElementById('loan-amount'),
@@ -49,12 +70,6 @@
         analyzedAccounts: document.getElementById('analyzedAccounts')
     };
 
-    const FREQ = {
-        monthly: { periodsPerYear: 12, dayStep: 30 },
-        fortnightly: { periodsPerYear: 26, dayStep: 14 },
-        weekly: { periodsPerYear: 52, dayStep: 7 }
-    };
-
     const state = {
         selectedFile: null,
         transactions: [],
@@ -62,63 +77,6 @@
         lastBaselineSchedule: [],
         lastFrequency: 'monthly'
     };
-
-    function n(v) { const x = Number(v); return Number.isFinite(x) ? x : NaN; }
-    function optN(v) { const x = Number(v); return Number.isFinite(x) ? x : null; }
-    function isValidDate(d) { return d instanceof Date && Number.isFinite(d.getTime()); }
-    function dateSerial(d) { return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); }
-    function dateCmp(a, b) { return Math.sign(dateSerial(a) - dateSerial(b)); }
-    function daysBetween(a, b) { return Math.max(0, Math.round((dateSerial(b) - dateSerial(a)) / 86400000)); }
-    function isLeapYear(y) { return ((y % 4 === 0) && (y % 100 !== 0)) || (y % 400 === 0); }
-    function parseDate(s) {
-        if (!s || typeof s !== 'string') return null;
-        const trimmed = s.trim();
-        let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
-        if (m) {
-            const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-            return (d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])) ? d : null;
-        }
-
-        m = /^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{2}|\d{4})$/.exec(trimmed);
-        if (!m) return null;
-        const monthMap = {
-            jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2, apr: 3, april: 3,
-            may: 4, jun: 5, june: 5, jul: 6, july: 6, aug: 7, august: 7, sep: 8, sept: 8,
-            september: 8, oct: 9, october: 9, nov: 10, november: 10, dec: 11, december: 11
-        };
-        const day = Number(m[1]);
-        const month = monthMap[m[2].toLowerCase()];
-        if (!Number.isInteger(month)) return null;
-        let year = Number(m[3]);
-        if (year < 100) year = year >= 70 ? 1900 + year : 2000 + year;
-        const d = new Date(year, month, day);
-        return (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) ? d : null;
-    }
-    function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
-    function monthKey(d) { return dateKey(d).slice(0, 7); }
-    function cloneDate(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
-    function addDays(d, days) { const x = cloneDate(d); x.setDate(x.getDate() + days); return x; }
-    function daysInMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); }
-    function fmtDate(d) { return d instanceof Date ? d.toLocaleDateString('en-AU', { year: 'numeric', month: 'short', day: '2-digit' }) : '-'; }
-    function money(v) {
-        const x = Number(v);
-        if (!Number.isFinite(x)) return '-';
-        return x.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    function compactMoney(v) {
-        const x = Number(v);
-        if (!Number.isFinite(x)) return '-';
-        if (Math.abs(x) >= 1000000) return `${(x / 1000000).toFixed(1)}m`;
-        if (Math.abs(x) >= 1000) return `${(x / 1000).toFixed(0)}k`;
-        return x.toFixed(0);
-    }
-    function pct(v) { return Number.isFinite(v) ? `${v.toFixed(2)}%` : '-'; }
-    function htmlDecode(s) {
-        if (typeof s !== 'string' || !s.includes('&')) return s || '';
-        const t = document.createElement('textarea');
-        t.innerHTML = s;
-        return t.value;
-    }
 
     function setUploadStatus(msg, level) {
         els.uploadStatus.textContent = msg;
