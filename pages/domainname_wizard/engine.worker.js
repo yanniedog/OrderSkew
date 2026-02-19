@@ -179,6 +179,10 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
       coverageMetrics: null,
     };
   }
+  // #region agent log
+  var _cov = keywordLibrary && keywordLibrary.coverageMetrics ? keywordLibrary.coverageMetrics : null;
+  fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'84c593'},body:JSON.stringify({sessionId:'84c593',location:'engine.worker.js:snapshot',message:'Snapshot built',data:{hasKeywordLibrary:!!keywordLibrary,coverageTotal:_cov?_cov.total:null,loopSummariesLen:loopSummaries?loopSummaries.length:0},timestamp:Date.now(),hypothesisId:'D'})}).catch(function(){});
+  // #endregion
   return {
     withinBudget: withinBudgetOnly.slice().sort(sortByPrice),
     overBudget: sortRanked(Array.from(overBudgetMap.values()), 'financialValue'),

@@ -1,0 +1,945 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Skew | Trading Plan Calculator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22 fill=%22none%22 stroke=%22%230ea5e9%22 stroke-width=%228%22 stroke-linecap=%22round%22><line x1=%2220%22 y1=%2280%22 x2=%2235%22 y2=%2280%22 /><line x1=%2220%22 y1=%2260%22 x2=%2250%22 y2=%2260%22 /><line x1=%2220%22 y1=%2240%22 x2=%2265%22 y2=%2240%22 /><line x1=%2220%22 y1=%2220%22 x2=%2280%22 y2=%2220%22 /></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="p-3 sm:p-6 theme-light layout-desktop antialiased design-overhaul">
+
+    <!-- Intro Overlay -->
+    <div id="intro-layer" class="fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center transition-opacity duration-500 overflow-hidden">
+        <!-- Animated Background Pattern -->
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-900/20 via-transparent to-transparent"></div>
+            <div class="absolute top-0 left-0 w-full h-full">
+                <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
+                <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+            </div>
+        </div>
+        
+        <!-- Content -->
+        <div class="relative z-20 text-center space-y-8 animate-fade-in px-4 max-w-2xl">
+            <div class="space-y-3">
+                <h1 class="text-5xl md:text-7xl font-bold font-solana text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-cyan-300 drop-shadow-lg tracking-tight">
+                    ORDER SKEW
+                </h1>
+                <div class="h-1 w-40 mx-auto bg-gradient-to-r from-transparent via-cyan-400 to-transparent rounded-full"></div>
+                <p class="text-cyan-200/80 text-sm tracking-[0.3em] uppercase font-light">Trading Plan Calculator</p>
+            </div>
+            
+            <p class="text-gray-300 text-lg md:text-xl tracking-wide font-light max-w-lg mx-auto leading-relaxed">
+                Create smart <span class="text-red-400 font-medium">buy</span> and <span class="text-green-400 font-medium">sell</span> ladders<br>
+                <span class="text-gray-400 text-base">with customizable allocation strategies</span>
+            </p>
+            
+            <div class="flex flex-col items-center gap-5 sm:gap-6 pt-6 w-full px-4 sm:px-0">
+                <button id="enter-app-btn" class="group relative w-full sm:w-auto px-10 sm:px-14 py-4 sm:py-5 bg-gradient-to-r from-cyan-500 to-blue-500 overflow-hidden rounded-xl text-white font-bold tracking-wide uppercase shadow-xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 hover:scale-105 active:scale-95 text-base sm:text-lg">
+                    <span class="relative z-10 flex items-center justify-center gap-2">
+                        <span>Start Planning</span>
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                    </span>
+                </button>
+                
+                <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-5 w-full max-w-md">
+                    <button type="button" id="intro-how-it-works" class="flex items-center gap-2.5 sm:gap-3 px-7 sm:px-8 py-3.5 sm:py-4 rounded-xl bg-white/10 hover:bg-white/20 border-2 border-white/20 hover:border-white/40 text-white font-semibold text-base sm:text-lg transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl">
+                        <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span>How It Works</span>
+                    </button>
+                </div>
+                
+                <button id="skip-to-customize-btn" class="text-gray-400 hover:text-gray-300 active:text-gray-200 transition-colors text-xs sm:text-sm py-1 mt-1 opacity-70 hover:opacity-100">
+                    Skip to customization
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works Modal -->
+    <div id="how-it-works-modal" class="qr-modal" style="z-index: 10001;">
+        <div class="qr-backdrop" id="how-it-works-backdrop"></div>
+        <div class="qr-content guide-shell w-full max-w-4xl p-0 bg-[var(--color-card)] rounded-2xl max-h-[90vh]">
+            <div class="guide-header">
+                <p class="guide-kicker">How It Works</p>
+                <h3 class="guide-title">Build a Ladder in Under 2 Minutes</h3>
+                <p class="guide-subtitle">Order Skew helps you map entries, exits, and expected outcomes before placing a single order.</p>
+                <div class="guide-chip-row">
+                    <span class="guide-chip">Mode</span>
+                    <span class="guide-chip">Range</span>
+                    <span class="guide-chip">Spacing</span>
+                    <span class="guide-chip">Skew</span>
+                    <span class="guide-chip">Review</span>
+                </div>
+            </div>
+
+            <div class="guide-body">
+                <section class="guide-sequence">
+                    <h4 class="guide-section-title">Quick Setup Sequence</h4>
+                    <ol class="guide-step-list">
+                        <li><span>1</span><p>Choose a trading mode: buy-only, sell-only, or buy + sell.</p></li>
+                        <li><span>2</span><p>Set your range using percentage width or fixed floor/ceiling targets.</p></li>
+                        <li><span>3</span><p>Select order count and spacing type: absolute for equal gaps or relative for geometric gaps.</p></li>
+                        <li><span>4</span><p>Adjust capital skew to control how aggressively capital is weighted across rungs.</p></li>
+                        <li><span>5</span><p>Check projected outcomes in the chart and then validate each rung in the table.</p></li>
+                    </ol>
+                </section>
+
+                <details class="guide-detail" open>
+                    <summary>
+                        <span>Read The Chart Correctly</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="guide-detail-content">
+                        <p class="guide-note">Bars represent individual rungs. The shaded area shows cumulative exposure.</p>
+                        <div class="guide-chart-grid">
+                            <article class="guide-chart-card">
+                                <header>
+                                    <p>Volume View</p>
+                                    <span>Asset units</span>
+                                </header>
+                                <div id="how-it-works-volume-chart" class="guide-chart-stage">
+                                    <svg width="100%" height="100%"></svg>
+                                </div>
+                                <p class="guide-caption">Use this to see position size across the ladder.</p>
+                            </article>
+                            <article class="guide-chart-card guide-chart-card--value">
+                                <header>
+                                    <p>Value View</p>
+                                    <span>Dollar flow</span>
+                                </header>
+                                <div id="how-it-works-value-chart" class="guide-chart-stage">
+                                    <svg width="100%" height="100%"></svg>
+                                </div>
+                                <p class="guide-caption">Use this to compare capital deployment and expected realized value.</p>
+                            </article>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="guide-detail" open>
+                    <summary>
+                        <span>Trading Modes Cheat Sheet</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="guide-detail-content">
+                        <div class="guide-mode-grid">
+                            <article class="guide-mode-card guide-mode-card--buy">
+                                <h5>Buy Only</h5>
+                                <p>Accumulate below market with pre-defined staggered bids.</p>
+                            </article>
+                            <article class="guide-mode-card guide-mode-card--sell">
+                                <h5>Sell Only</h5>
+                                <p>Scale out above market when you already hold inventory.</p>
+                            </article>
+                            <article class="guide-mode-card guide-mode-card--both">
+                                <h5>Buy + Sell</h5>
+                                <p>Bracket both sides to structure a full cycle around a mid price.</p>
+                            </article>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="guide-detail">
+                    <summary>
+                        <span>Risk Checklist Before Executing</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="guide-detail-content">
+                        <ul class="guide-risk-list">
+                            <li>Confirm total capital and fees before sizing up.</li>
+                            <li>Validate floor/ceiling so no rung sits outside your thesis.</li>
+                            <li>Check spacing mode because geometric spacing widens quickly.</li>
+                            <li>Use smaller size while testing and refine after real fills.</li>
+                        </ul>
+                    </div>
+                </details>
+            </div>
+
+            <div class="guide-footer">
+                <button id="how-it-works-close" class="btn-primary w-full py-3.5 sm:py-3 rounded-lg text-sm font-semibold">
+                    Start Building My Plan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Question-Based Setup Wizard -->
+    <div id="setup-wizard" class="fixed inset-0 z-[10000] bg-black backdrop-blur-sm flex items-center justify-center opacity-0 pointer-events-none" role="dialog" aria-labelledby="wizard-title" aria-modal="true">
+        <div class="bg-[var(--color-card)] rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" style="transform: scale(0.95); transition: transform 0.4s ease;">
+            <div class="p-6 sm:p-8">
+                <!-- Header with gradient accent -->
+                <div class="mb-6 pb-4 border-b border-[var(--color-border)]">
+                    <h2 id="wizard-title" class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 font-solana mb-2">
+                        Trading Plan Setup
+                    </h2>
+                    <div class="flex justify-between items-center mt-3">
+                        <span class="text-xs font-medium text-[var(--color-text-muted)]" aria-live="polite">
+                            Step <span id="wizard-step-num">1</span> of <span id="wizard-total-steps">4</span>
+                        </span>
+                        <button id="wizard-skip" class="text-xs text-[var(--color-text-muted)] hover:text-cyan-400 active:text-cyan-300 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 rounded px-3 py-1.5 active:scale-95" aria-label="Skip setup wizard">
+                            Skip Setup
+                        </button>
+                    </div>
+                    <div class="w-full bg-[var(--color-card-muted)] rounded-full h-2.5 overflow-hidden mt-3">
+                        <div id="wizard-progress" class="h-full rounded-full transition-all duration-300" style="width: 0%" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+
+                <!-- Question Content -->
+                <div id="wizard-content" class="space-y-6" role="region" aria-live="polite">
+                    <!-- Question will be dynamically inserted here -->
+                </div>
+
+                <!-- Error Message -->
+                <div id="wizard-error" class="wizard-error" role="alert" aria-live="assertive"></div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-3 sm:gap-4 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-[var(--color-border)]">
+                    <button id="wizard-back" class="w-full sm:w-auto px-4 sm:px-6 py-3 sm:py-2.5 rounded-lg bg-[var(--color-card-alt)] text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-95 transition-all font-medium text-sm hidden focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2" aria-label="Go to previous question">
+                        <- Back
+                    </button>
+                    <div class="hidden sm:block flex-1"></div>
+                    <button id="wizard-next" class="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-2.5 rounded-lg bg-gradient-to-r from-cyan-400 to-blue-600 text-white hover:from-cyan-500 hover:to-blue-700 active:scale-95 transition-all font-medium text-sm shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2">
+                        Next ->
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Value copied!</div>
+
+    <!-- QR Modal -->
+    <div id="qr-modal" class="qr-modal">
+        <div class="qr-backdrop" id="qr-backdrop"></div>
+        <div class="qr-content flex flex-col gap-5 w-full max-w-xl">
+            <div class="text-center space-y-2">
+                <h3 class="text-lg font-bold text-[var(--color-text)] font-solana">Fuel the Development</h3>
+                <p class="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-[420px] mx-auto">
+                    Choose a network, scan the QR, or copy the wallet to support Order Skew.
+                </p>
+            </div>
+
+            <div class="space-y-3 w-full">
+                <div class="flex flex-col sm:flex-row gap-3 items-start">
+                    <div class="flex-1">
+                        <label class="text-xs font-semibold text-[var(--color-text-secondary)]">Blockchain</label>
+                        <select id="donation-chain" class="form-input w-full rounded-lg p-2 text-sm mt-1">
+                            <option value="sol">Solana (SOL)</option>
+                            <option value="ada">Cardano (ADA)</option>
+                            <option value="bnb">Binance (BNB)</option>
+                            <option value="doge">Dogecoin (DOGE)</option>
+                            <option value="xmr">Monero (XMR)</option>
+                        </select>
+                    </div>
+                    <div class="flex-1 text-right">
+                        <p id="donation-network-label" class="text-[10px] uppercase font-semibold text-[var(--color-text-muted)]">SOL wallet</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 items-start">
+                    <div class="bg-white p-2 rounded-xl border border-[var(--color-border)] shadow-sm min-w-[180px] min-h-[180px] flex items-center justify-center">
+                        <div id="donation-qr" class="w-[170px] h-[170px] flex items-center justify-center"></div>
+                    </div>
+                    <div class="flex-1 space-y-2 w-full">
+                        <div class="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">Wallet Address</div>
+                        <div class="relative group">
+                            <div class="absolute inset-0 bg-[var(--color-card-muted)] rounded-lg border border-[var(--color-border)] group-hover:border-[var(--color-primary)] transition-colors"></div>
+                            <code id="donation-address" data-address="F6mjNXKBKzjmKTK1Z9cWabFHZYtxMg8rojuNuppX2EG1" class="relative z-10 block text-[11px] sm:text-[12px] text-[var(--color-text-muted)] font-mono break-all p-3 text-left group-hover:text-[var(--color-text)] transition-colors cursor-pointer">
+                                F6mjNXKBKzjmKTK1Z9cWabFHZYtxMg8rojuNuppX2EG1
+                            </code>
+                        </div>
+                        <button id="donation-copy" class="btn-secondary w-full py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3m-3-12h5a2 2 0 012 2v5m-6 6l6-6m0 0h-3.5M21 21l-3.5-3.5"></path></svg>
+                            Copy address
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="qr-close" class="btn-secondary w-full py-3 sm:py-2.5 rounded-lg text-sm font-medium hover:bg-[var(--color-border)] active:scale-[0.98] transition-all">Close</button>
+        </div>
+    </div>
+
+    <!-- Video Modal -->
+    <div id="video-modal" class="qr-modal" style="z-index: 10002;">
+        <div class="qr-backdrop" id="video-backdrop"></div>
+        <div class="qr-content w-full max-w-3xl p-0 bg-black overflow-hidden flex flex-col" style="max-width: 600px;">
+            <div class="relative pb-[56.25%] h-0">
+                <iframe class="absolute top-0 left-0 w-full h-full" data-src="https://www.youtube.com/embed/LPaAtWphx2U" title="Order Skew Tutorial" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+            </div>
+            <button id="video-close" class="w-full py-3.5 sm:py-3 text-sm font-medium bg-[var(--color-card)] text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-[0.98] transition-all">Close Tutorial</button>
+        </div>
+    </div>
+
+    <!-- Sticky Mobile Summary -->
+    <div id="mobile-sticky-summary" class="mobile-sticky-footer flex-col lg:hidden">
+        <div class="w-full flex justify-between items-center">
+            <div class="flex flex-col">
+                <span class="text-[10px] text-[var(--color-text-secondary)] font-medium uppercase tracking-wider">Net Profit</span>
+                <span id="sticky-net-profit" class="text-base font-bold text-[var(--color-primary)]">-</span>
+            </div>
+            <button id="sticky-expand-btn" class="p-2.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] active:scale-90 focus:outline-none transition-all rounded-full hover:bg-[var(--color-card-alt)]">
+                <svg id="sticky-chevron" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+            </button>
+            <div class="flex flex-col items-end">
+                 <span class="text-[10px] text-[var(--color-text-secondary)] font-medium uppercase tracking-wider">ROI</span>
+                 <span id="sticky-roi" class="text-base font-bold text-green-600">-</span>
+            </div>
+        </div>
+        
+        <!-- Expanded Details -->
+        <div id="sticky-details" class="hidden w-full pt-3 mt-2 border-t border-[var(--color-border)] grid grid-cols-2 gap-y-3 gap-x-4 text-xs animate-fade-in">
+            <div><span id="sticky-label-avg-buy" class="text-[var(--color-text-muted)]">Avg Buy:</span><span id="sticky-avg-buy" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+            <div class="avg-sell-section"><span id="sticky-label-avg-sell" class="text-[var(--color-text-muted)]">Avg Sell:</span><span id="sticky-avg-sell" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+            <div><span class="text-[var(--color-text-muted)]">Fees:</span><span id="sticky-fees" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+            <div><span class="text-[var(--color-text-muted)]">Vol:</span><span id="sticky-vol" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+            <div><span class="text-[var(--color-text-muted)]">Range Low:</span><span id="sticky-floor" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+            <div><span class="text-[var(--color-text-muted)]">Range High:</span><span id="sticky-ceiling" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
+        </div>
+    </div>
+
+    <div id="app" class="max-w-7xl mx-auto space-y-6 app-shell overflow-x-hidden w-full">
+        
+        <!-- Header -->
+        <header class="app-header relative z-40 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fade-in">
+            <div class="brand-block">
+                <div class="flex items-center gap-2">
+                    <h1 id="logo-header" class="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] font-solana cursor-pointer hover:opacity-80 transition-opacity">
+                        ORDER SKEW
+                    </h1>
+                </div>
+                <p class="text-sm text-[var(--color-text-secondary)] mt-1">Precision ladder planning for volatile markets.<br><span class="text-xs">Structure entries and exits with clear, data-backed ranges.</span></p>
+            </div>
+
+            <div class="header-actions flex flex-wrap items-center justify-end gap-2 sm:gap-2.5">
+                
+                <!-- Help Group (Pill Container) -->
+                <div class="header-tool-group flex items-center bg-[var(--color-card-alt)] rounded-full border border-[var(--color-border)] overflow-hidden">
+                    <button id="how-it-works-btn" class="flex items-center gap-1.5 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" title="How It Works">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="hidden sm:inline">Guide</span>
+                    </button>
+                    <div class="w-px h-5 bg-[var(--color-border)]"></div>
+                    <button id="video-btn" class="flex items-center gap-1.5 px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-primary)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" title="Watch Tutorial">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span class="hidden sm:inline">Video</span>
+                    </button>
+                  </div>
+
+                  <!-- Quick Save / Load -->
+                  <div class="relative z-50">
+                      <button id="quick-save-menu-btn" class="flex items-center justify-center w-9 h-9 rounded-full bg-[var(--color-card-alt)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-95 transition-all" aria-label="Save or load config" title="Save / Load">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M7 3h10l4 4v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v6h6V3"></path>
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M9 17h6"></path>
+                          </svg>
+                      </button>
+                      <div id="quick-save-menu-dropdown" class="absolute right-0 mt-2 w-44 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible transition-all duration-200 z-50 transform origin-top-right">
+                          <div class="py-1">
+                              <button type="button" id="quick-save-config-btn" data-menu-close-on-click class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left">
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                                  <span>Save Config</span>
+                              </button>
+                              <label data-menu-close-on-click class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors cursor-pointer">
+                                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                  <span>Load Config</span>
+                                  <input type="file" id="quick-load-config-file" accept=".json" class="hidden">
+                              </label>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- Actions Menu (Settings/Export/Reset) -->
+                  <div class="relative z-50">
+                    <button id="actions-menu-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[var(--color-card-alt)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" aria-label="Actions Menu" title="Actions">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <span class="hidden sm:inline">Actions</span>
+                        <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="actions-menu-dropdown" class="absolute right-0 mt-2 w-52 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible transition-all duration-200 z-50 transform origin-top-right">
+                        <div class="py-1">
+                            <!-- Theme Toggle -->
+                            <button id="theme-toggle-btn" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" aria-label="Toggle Theme">
+                                <svg id="icon-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+                                <svg id="icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                                <span id="theme-toggle-text">Dark Mode</span>
+                            </button>
+                            <div class="border-t border-[var(--color-border)] my-1"></div>
+                            <div class="px-4 py-2.5 sm:py-2 flex items-center justify-between gap-3 text-sm text-[var(--color-text)]">
+                                <div class="flex flex-col">
+                                    <span class="font-medium">Advanced settings</span>
+                                    <span class="text-[10px] text-[var(--color-text-muted)]">Show pro controls</span>
+                                </div>
+                                <label class="advanced-toggle" title="Toggle Advanced Mode">
+                                    <input type="checkbox" id="advanced-mode-toggle">
+                                    <span class="toggle-track">
+                                        <span class="toggle-thumb"></span>
+                                    </span>
+                                    <span class="toggle-label">Pro</span>
+                                </label>
+                            </div>
+                            <div class="border-t border-[var(--color-border)] my-1"></div>
+                            <!-- Start Over -->
+                            <button id="start-over-btn" data-menu-close-on-click class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" title="Start Over">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                <span>Start Over</span>
+                            </button>
+                            <div id="export-menu-items" class="hidden">
+                                <div class="border-t border-[var(--color-border)] my-1"></div>
+                                <div class="px-4 py-1.5">
+                                    <span class="text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Export</span>
+                                </div>
+                                <button type="button" id="download-csv-btn" data-menu-close-on-click class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    <span>Download CSV</span>
+                                </button>
+                                <button type="button" id="save-config-btn" data-menu-close-on-click class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                                    <span>Save Config</span>
+                                </button>
+                                <label class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors cursor-pointer">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                    <span>Load Config</span>
+                                    <input type="file" id="load-config-file" accept=".json" class="hidden">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Links Menu (External) -->
+                <div class="relative z-50">
+                    <button id="links-menu-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[var(--color-card-alt)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-border)] active:scale-95 transition-all text-xs font-medium" aria-label="Links Menu" title="Links & Support">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                        </svg>
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div id="links-menu-dropdown" class="absolute right-0 mt-2 w-56 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible transition-all duration-200 z-50 transform origin-top-right">
+                        <div class="py-1">
+                            <!-- GitHub -->
+                            <a href="https://github.com/yanniedog/OrderSkew" target="_blank" rel="noopener" data-menu-close-on-click class="flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors">
+                                <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                                <span>GitHub</span>
+                            </a>
+                            <!-- Discord -->
+                            <a href="https://discord.gg/Vv39PvPDkp" target="_blank" rel="noopener" data-menu-close-on-click class="flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors">
+                                <svg viewBox="0 0 24 24" class="w-4 h-4" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928-1.793 6.4-1.793 10.299 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                                <span>Discord</span>
+                            </a>
+                            <div class="border-t border-[var(--color-border)] my-1"></div>
+                            <a href="pages/index.html" data-menu-close-on-click class="flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+                                </svg>
+                                <span>Other tools</span>
+                            </a>
+                            <div class="border-t border-[var(--color-border)] my-1"></div>
+                            <!-- Solana Donation -->
+                            <button id="sol-btn" data-menu-close-on-click class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" title="Donate SOL">
+                                <svg viewBox="0 0 397.7 311.7" class="w-4 h-4" fill="currentColor"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7 4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>
+                                <span>Donate SOL</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main id="main-content-grid" class="app-layout-grid grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left Column: Controls -->
+            <div id="config-column" class="controls-column lg:col-span-5 space-y-6 min-w-0">
+                
+                <!-- Input Form Card -->
+                <div class="card card-panel strategy-card p-4 sm:p-5 animate-fade-in" style="animation-delay: 0.1s;">
+                    <div class="card-masthead flex justify-between items-center mb-4">
+                        <h2 class="text-base font-semibold text-[var(--color-text)]">
+                            Strategy
+                        </h2>
+                    </div>
+                    
+                    <form id="trading-plan-form" class="space-y-5" onsubmit="return false;">
+                        
+                        <!-- Mode Selector -->
+                        <div class="relative">
+                            <label class="text-xs font-medium text-[var(--color-text-secondary)] mb-2 block">Trading Mode</label>
+                            <div class="relative">
+                                <button 
+                                    type="button" 
+                                    id="mode-selector-btn" 
+                                    class="w-full flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] hover:border-[var(--color-primary)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2"
+                                    aria-haspopup="listbox"
+                                    aria-expanded="false"
+                                    aria-labelledby="mode-selector-label"
+                                >
+                                    <div class="flex items-center gap-2.5">
+                                        <div id="mode-selector-icon" class="w-5 h-5 rounded bg-red-500/20 flex items-center justify-center">
+                                            <svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                                        </div>
+                                        <span id="mode-selector-text" class="font-medium text-sm text-[var(--color-text)]">Buy Only</span>
+                                    </div>
+                                    <svg id="mode-selector-chevron" class="w-4 h-4 text-[var(--color-text-muted)] transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+                                <div 
+                                    id="mode-selector-dropdown" 
+                                    class="absolute z-50 w-full mt-1 bg-[var(--color-card)] border border-[var(--color-border)] rounded-lg shadow-xl opacity-0 invisible transition-all duration-200 transform translate-y-1"
+                                    role="listbox"
+                                >
+                                    <button 
+                                        type="button" 
+                                        data-mode="buy-only" 
+                                        class="mode-dropdown-option w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--color-card-alt)] transition-colors first:rounded-t-lg last:rounded-b-lg focus:outline-none focus:bg-[var(--color-card-alt)]"
+                                        role="option"
+                                        aria-selected="true"
+                                    >
+                                        <div class="w-5 h-5 rounded bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                                        </div>
+                                        <span class="font-medium text-sm text-[var(--color-text)]">Buy Only</span>
+                                        <svg class="w-4 h-4 text-[var(--color-primary)] ml-auto opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        data-mode="sell-only" 
+                                        class="mode-dropdown-option w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--color-card-alt)] transition-colors first:rounded-t-lg last:rounded-b-lg focus:outline-none focus:bg-[var(--color-card-alt)]"
+                                        role="option"
+                                        aria-selected="false"
+                                    >
+                                        <div class="w-5 h-5 rounded bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                                        </div>
+                                        <span class="font-medium text-sm text-[var(--color-text)]">Sell Only</span>
+                                        <svg class="w-4 h-4 text-[var(--color-primary)] ml-auto opacity-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </button>
+                                    <button 
+                                        type="button" 
+                                        data-mode="buy-sell" 
+                                        class="mode-dropdown-option w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-[var(--color-card-alt)] transition-colors first:rounded-t-lg last:rounded-b-lg focus:outline-none focus:bg-[var(--color-card-alt)]"
+                                        role="option"
+                                        aria-selected="false"
+                                    >
+                                        <div class="w-5 h-5 rounded bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-3.5 h-3.5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
+                                        </div>
+                                        <span class="font-medium text-sm text-[var(--color-text)]">Buy + Sell</span>
+                                        <svg class="w-4 h-4 text-[var(--color-primary)] ml-auto opacity-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Two-section layout: Capital+Fees (left) | Price Range+Allocation (right) -->
+                        <div class="strategy-grid grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2 border-t border-[var(--color-border)]">
+                            <!-- Left section: Capital & Fees -->
+                            <div class="strategy-panel strategy-panel-primary space-y-4">
+                                <h3 class="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Capital & Fees</h3>
+                                <div id="buy-mode-inputs" class="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text)]" id="starting_capital_label">Initial Capital</label>
+                                            <button type="button" class="helper-tooltip" title="Total amount of capital available to deploy for this plan.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
+                                            <input type="text" id="starting_capital" placeholder="e.g., 10,000" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="starting_capital_help">
+                                        </div>
+                                        <p id="starting_capital_help" class="input-helper-text">Total capital to allocate.</p>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="block text-xs font-medium text-[var(--color-text)]">Initial Asset Price</label>
+                                            <button type="button" class="helper-tooltip" title="Current market price of the asset used as a baseline.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
+                                            <input type="text" id="current_price" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_help">
+                                        </div>
+                                        <p id="current_price_help" class="input-helper-text">Reference price for the ladder.</p>
+                                    </div>
+                                </div>
+                                <!-- Sell Mode Inputs (Hidden by default) -->
+                                <div id="sell-mode-inputs" class="hidden grid grid-cols-1 gap-4">
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text)]">Held Quantity</label>
+                                            <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
+                                        </div>
+                                        <input type="number" id="existing_quantity" placeholder="e.g., 50" class="form-input w-full rounded-lg p-3 text-sm font-mono" aria-describedby="existing_quantity_help">
+                                        <p id="existing_quantity_help" class="input-helper-text">Quantity you hold.</p>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text)]">Initial Asset Price</label>
+                                            <button type="button" class="helper-tooltip" title="Current market price of the asset.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
+                                            <input type="text" id="current_price_sell" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_sell_help">
+                                        </div>
+                                        <p id="current_price_sell_help" class="input-helper-text">Reference price for the ladder.</p>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1.5 mb-1.5">
+                                            <label class="text-xs font-medium text-[var(--color-text)]">Average Cost Basis ($)</label>
+                                            <button type="button" class="helper-tooltip" title="Your average buy price for the assets you hold.">?</button>
+                                        </div>
+                                        <div class="relative flex items-center">
+                                            <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
+                                            <input type="number" id="existing_avg_price" placeholder="e.g., 80" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="existing_avg_price_help">
+                                        </div>
+                                        <p id="existing_avg_price_help" class="input-helper-text">Optional for profit projections.</p>
+                                    </div>
+                                </div>
+                                <details class="mt-3">
+                                    <summary class="accordion-summary">
+                                        <span>Fees</span>
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </summary>
+                                    <div class="accordion-content space-y-4">
+                                        <div>
+                                            <div class="flex items-center gap-1 mb-1.5">
+                                                <label class="text-xs font-medium text-[var(--color-text-secondary)]">Trading Fee</label>
+                                                <button type="button" class="helper-tooltip" title="Trading fee as a percentage or fixed dollar amount per trade.">?</button>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="flex rounded-lg border border-[var(--color-border)] overflow-hidden bg-[var(--color-card)]">
+                                                    <button type="button" id="fee_type_percent" class="fee-type-btn active px-3.5 sm:px-3 py-2.5 sm:py-2 text-xs font-medium transition-all active:scale-95" data-value="percent">%</button>
+                                                    <button type="button" id="fee_type_fixed" class="fee-type-btn px-3.5 sm:px-3 py-2.5 sm:py-2 text-xs font-medium transition-all active:scale-95" data-value="fixed">$</button>
+                                                </div>
+                                                <div class="relative flex items-center flex-1">
+                                                    <span id="fee_dollar_prefix" class="absolute left-3 text-[var(--color-text-secondary)] font-mono hidden">$</span>
+                                                    <input type="number" id="fee_value" value="0.1" step="0.01" class="form-input w-full rounded-lg p-2 font-mono text-sm">
+                                                </div>
+                                                <input type="hidden" id="fee_type" value="percent">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="flex items-center gap-1 mb-1.5">
+                                                <label class="text-xs font-medium text-[var(--color-text-secondary)]">Settlement</label>
+                                                <button type="button" class="helper-tooltip" title="'Net' means fees reduce the asset received. 'External' means fees are paid from a separate cash balance.">?</button>
+                                            </div>
+                                            <select id="fee_settlement" class="form-input w-full rounded-lg p-2 text-sm">
+                                                <option value="netted">Net (Deduct from Order)</option>
+                                                <option value="external">External (Separate Funds)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                            <!-- Right section: Price Range & Allocation (always visible, collapsed in non-advanced) -->
+                            <div class="strategy-panel strategy-panel-secondary space-y-4">
+                                <h3 class="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider">Price Range & Allocation</h3>
+                                <div id="price-range-allocation-controls" class="space-y-4">
+                                    <details id="price-range-details" class="mt-2">
+                                        <summary class="accordion-summary">
+                                            <span>Price Range</span>
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </summary>
+                                        <div class="accordion-content space-y-4">
+                                            <div>
+                                                <div class="flex justify-between mb-1.5">
+                                                    <div class="flex items-center gap-1">
+                                                        <label class="text-xs font-medium text-[var(--color-text-secondary)]">Number of Orders</label>
+                                                        <button type="button" class="helper-tooltip" title="How many separate buy/sell orders (rungs) to place in the ladder.">?</button>
+                                                    </div>
+                                                    <span id="number_of_rungs_display" class="text-xs font-mono font-bold text-[var(--color-primary)]">10</span>
+                                                </div>
+                                                <div class="flex items-center gap-3">
+                                                    <input type="range" id="number_of_rungs" min="2" max="50" value="10" class="flex-1">
+                                                    <input type="number" id="number_of_rungs_input" value="10" min="2" max="50" class="form-input w-14 rounded-md p-1 text-center text-xs">
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-wrap items-end gap-4">
+                                                <div class="flex-1 min-w-[140px]">
+                                                    <label class="text-[10px] font-medium text-[var(--color-text-secondary)] mb-1.5 block">Spacing</label>
+                                                    <div class="pill-toggle flex rounded-full border border-[var(--color-border)] overflow-hidden bg-[var(--color-card-muted)] p-0.5">
+                                                        <button type="button" id="spacing_mode_absolute" class="pill-toggle-btn spacing-mode-btn flex-1 py-2 px-3 text-xs font-medium transition-all rounded-full active" data-value="absolute">Absolute</button>
+                                                        <button type="button" id="spacing_mode_relative" class="pill-toggle-btn spacing-mode-btn flex-1 py-2 px-3 text-xs font-medium transition-all rounded-full" data-value="relative">Relative</button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-1 min-w-[140px]">
+                                                    <label class="text-[10px] font-medium text-[var(--color-text-secondary)] mb-1.5 block">Range</label>
+                                                    <div class="pill-toggle flex rounded-full border border-[var(--color-border)] overflow-hidden bg-[var(--color-card-muted)] p-0.5">
+                                                        <button type="button" id="price_range_width" class="pill-toggle-btn range-type-btn flex-1 py-2 px-3 text-xs font-medium transition-all rounded-full" data-value="width">Percentage</button>
+                                                        <button type="button" id="price_range_floor" class="pill-toggle-btn range-type-btn flex-1 py-2 px-3 text-xs font-medium transition-all rounded-full active" data-value="floor">Fixed</button>
+                                                    </div>
+                                                </div>
+                                                <input type="hidden" id="spacing_mode" value="absolute">
+                                                <input type="hidden" id="price_range_mode" value="floor">
+                                            </div>
+                                            <div id="width-mode-container" class="hidden">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="text-[10px] font-mono text-[var(--color-text-muted)]">0.1%</span>
+                                                    <span class="flex-1"></span>
+                                                    <span class="text-[10px] font-mono text-[var(--color-text-muted)]">99%</span>
+                                                </div>
+                                                <div class="flex items-center gap-3">
+                                                    <input type="range" id="depth" min="0.1" max="99" step="0.1" value="20" class="flex-1">
+                                                    <div class="relative">
+                                                        <input type="number" id="depth_input" value="20" step="0.1" class="form-input w-16 rounded-md p-1.5 text-center text-xs pr-5">
+                                                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--color-text-muted)]">%</span>
+                                                    </div>
+                                                </div>
+                                                <div class="text-[10px] text-[var(--color-text-muted)] mt-0.5">Range: <span id="depth_display_label" class="font-mono font-medium text-[var(--color-primary)]">20</span>% each side</div>
+                                            </div>
+                                            <div id="floor-mode-container" class="grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));">
+                                                <div class="floor-buy-field">
+                                                    <div class="flex items-center gap-1 mb-1">
+                                                        <label id="buy-range-label" class="text-[10px] text-[var(--color-text-muted)]">Buy Range Low</label>
+                                                        <button type="button" class="helper-tooltip" title="The lowest price boundary for the buy ladder.">?</button>
+                                                    </div>
+                                                    <div class="relative flex items-center">
+                                                        <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
+                                                        <input type="number" id="buy_floor" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="Low">
+                                                    </div>
+                                                </div>
+                                                <div class="floor-sell-field">
+                                                    <div class="flex items-center gap-1 mb-1">
+                                                        <label id="sell-range-label" class="text-[10px] text-[var(--color-text-muted)]">Sell Range High</label>
+                                                        <button type="button" class="helper-tooltip" title="The highest price boundary for the sell ladder.">?</button>
+                                                    </div>
+                                                    <div class="relative flex items-center">
+                                                        <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
+                                                        <input type="number" id="sell_ceiling" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="High">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                    <details id="allocation-details" class="mt-2">
+                                        <summary class="accordion-summary">
+                                            <span>Allocation</span>
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </summary>
+                                        <div class="accordion-content space-y-4">
+                                            <div>
+                                                <div class="flex justify-between mb-1.5">
+                                                    <div class="flex items-center gap-1">
+                                                        <label class="text-xs font-medium text-[var(--color-text-secondary)]">Capital Skew</label>
+                                                        <button type="button" class="helper-tooltip" title="Adjusts capital distribution. 'Flat' means equal distribution. 'Curved' allocates more capital to lower buy prices (martingale style).">?</button>
+                                                    </div>
+                                                    <span class="text-xs font-medium text-[var(--color-primary)]" id="skew_label">Moderate</span>
+                                                </div>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-[9px] font-bold text-[var(--color-text-muted)] w-8">FLAT</span>
+                                                    <input type="range" id="skew_value" min="0" max="100" value="50" class="flex-1">
+                                                    <span class="text-[9px] font-bold text-[var(--color-text-muted)] w-12 text-right">CURVED</span>
+                                                    <input type="number" id="skew_value_input" min="0" max="100" value="50" class="form-input w-14 rounded-md p-1 text-center text-xs hidden">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Hidden checkbox for compatibility -->
+                        <input type="checkbox" id="sell_only_mode" class="hidden">
+
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Visualization -->
+            <div id="graph-column" class="viz-column lg:col-span-7 space-y-6 min-w-0 overflow-hidden">
+                
+                <!-- Combined Depth Chart -->
+                <div id="depth-chart-card" class="card card-panel chart-card p-4 min-h-[280px] h-[320px] sm:h-[420px] lg:h-[520px] xl:h-[600px] flex flex-col animate-fade-in relative z-0" style="animation-delay: 0.3s;">
+                    <div class="chart-card-head flex flex-wrap justify-between items-center gap-2 mb-2">
+                        <div id="chart-legend" class="flex flex-wrap items-center gap-2 text-[10px]">
+                            <!-- Buy Legend -->
+                            <div id="chart-buy-legend" class="chart-buy-legend buy-only-content flex items-center gap-1.5">
+                                <span class="inline-block w-2 h-2 rounded-sm bg-red-500"></span>
+                                <span id="legend-buy-label" class="text-red-500 font-medium">Buy</span>
+                                <span id="legend-buy-summary" class="text-[var(--color-text-muted)] hidden sm:inline"></span>
+                            </div>
+                            <!-- Sell Legend -->
+                            <div class="chart-sell-legend sell-only-content flex items-center gap-1.5">
+                                <span class="inline-block w-2 h-2 rounded-sm bg-green-500"></span>
+                                <span id="legend-sell-label" class="text-green-500 font-medium">Sell</span>
+                                <span id="legend-sell-summary" class="text-[var(--color-text-muted)] hidden sm:inline"></span>
+                            </div>
+                            <div class="hidden sm:block w-px h-4 bg-[var(--color-border)]"></div>
+                            <div class="flex rounded-md border border-[var(--color-border)] overflow-hidden bg-[var(--color-card-muted)]">
+                                <button type="button" id="chart-unit-volume" class="chart-toggle-btn active px-2 py-1 text-[10px] font-medium transition-all active:scale-95" title="Asset quantity (volume)">Vol</button>
+                                <button type="button" id="chart-unit-value" class="chart-toggle-btn px-2 py-1 text-[10px] font-medium transition-all active:scale-95" title="Dollar value">$</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Chart Display Options (Pro mode: Bars, Cumulative) -->
+                        <div id="chart-display-options" class="hidden flex flex-wrap items-center gap-2 text-[10px]">
+                            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="chart-show-bars" checked class="w-3 h-3 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--focus-ring-color)]">
+                                <span class="text-[var(--color-text-secondary)]">Bars</span>
+                            </label>
+                            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="chart-show-cumulative" checked class="w-3 h-3 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--focus-ring-color)]">
+                                <span class="text-[var(--color-text-secondary)]">Cumulative</span>
+                            </label>
+                        </div>
+                        
+                        <span id="mid-price-label" class="text-xs text-[var(--color-text-muted)]"></span>
+                    </div>
+                    <div id="depth-wrapper" class="d3-chart flex-1 w-full min-h-0 relative">
+                        <svg id="depth-chart" width="100%" height="100%"></svg>
+                        <div id="chart-empty-state" class="outputs-empty-state hidden absolute inset-0 flex items-center justify-center text-center px-4"></div>
+                        
+                        <!-- Projected Results Overlay (always visible) -->
+                        <div id="chart-summary-overlay" class="absolute top-1/2 right-2 sm:right-4 transform -translate-y-1/2 z-10 pointer-events-none">
+                            <div class="bg-[var(--color-card)]/95 backdrop-blur-sm border border-[var(--color-border)] rounded-lg shadow-lg min-w-[140px] sm:min-w-[160px] max-w-[200px] p-2.5 sm:p-3">
+                                <h4 class="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Projected Results</h4>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <p class="text-[9px] text-[var(--color-text-muted)]">Net Profit</p>
+                                        <p id="chart-summary-net-profit" class="text-sm font-bold text-[var(--color-primary)]">-</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] text-[var(--color-text-muted)]">ROI</p>
+                                        <p id="chart-summary-roi" class="text-sm font-bold text-green-600">-</p>
+                                    </div>
+                                </div>
+                                <div class="buy-only-content mt-2 pt-2 border-t border-[var(--color-border)]">
+                                    <p id="label-buy-side" class="text-[9px] font-semibold text-red-400 uppercase tracking-wider mb-0.5">Buy Side</p>
+                                    <div class="grid grid-cols-2 gap-1 text-[9px]">
+                                        <div><span class="text-[var(--color-text-muted)]">Value:</span><span id="chart-summary-buy-value" class="float-right font-mono">-</span></div>
+                                        <div><span class="text-[var(--color-text-muted)]">Vol:</span><span id="chart-summary-buy-volume" class="float-right font-mono">-</span></div>
+                                    </div>
+                                </div>
+                                <div class="sell-only-content mt-2 pt-2 border-t border-[var(--color-border)]">
+                                    <p id="label-sell-side" class="text-[9px] font-semibold text-green-400 uppercase tracking-wider mb-0.5">Sell Side</p>
+                                    <div class="grid grid-cols-2 gap-1 text-[9px]">
+                                        <div><span class="text-[var(--color-text-muted)]">Value:</span><span id="chart-summary-sell-value" class="float-right font-mono">-</span></div>
+                                        <div><span class="text-[var(--color-text-muted)]">Vol:</span><span id="chart-summary-sell-volume" class="float-right font-mono">-</span></div>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 pt-2 mt-2 border-t border-[var(--color-border)]">
+                                    <div><p id="label-avg-buy" class="text-[9px] text-[var(--color-text-muted)]">Avg Buy</p><p id="chart-summary-avg-buy" class="text-xs font-semibold text-[var(--color-text)]">-</p></div>
+                                    <div class="avg-sell-section"><p id="label-avg-sell" class="text-[9px] text-[var(--color-text-muted)]">Avg Sell</p><p id="chart-summary-avg-sell" class="text-xs font-semibold text-[var(--color-text)]">-</p></div>
+                                </div>
+                                <div class="text-[9px] text-[var(--color-text-muted)] space-y-0.5 pt-2 mt-2 border-t border-[var(--color-border)]">
+                                    <div class="flex justify-between"><span>Fees:</span><span id="chart-summary-total-fees">-</span></div>
+                                    <div class="flex justify-between"><span>Total Vol:</span><span id="chart-summary-total-quantity">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Tables -->
+                <div id="data-tables-card" class="card card-panel table-card overflow-hidden animate-fade-in mb-48 lg:mb-8" style="animation-delay: 0.5s;">
+                    <div class="table-card-head border-b border-[var(--color-border)] flex flex-col sm:flex-row justify-between items-stretch sm:items-center">
+                        <div id="table-tabs" class="table-tab-strip flex flex-1">
+                            <button id="tab-buy" class="table-tab-btn buy-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] transition-colors"><span id="tab-buy-label">Buy Orders</span></button>
+                            <button id="tab-sell" class="table-tab-btn sell-only-content flex-1 py-3 sm:py-2.5 text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] border-b-2 border-transparent transition-colors"><span id="tab-sell-label">Sell Orders</span></button>
+                        </div>
+                        <div id="table-options" class="hidden px-3 py-2 sm:py-2 flex flex-wrap items-center justify-center sm:justify-end gap-2 sm:gap-3 border-t sm:border-t-0 border-[var(--color-border)]">
+                            <label class="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-[var(--color-text-secondary)]">
+                                <input type="checkbox" id="show-fees-toggle" class="w-3 h-3 rounded border-[var(--color-border)] text-[var(--color-primary)] focus:ring-[var(--focus-ring-color)]">
+                                Show Fees
+                            </label>
+                            <div class="flex items-center gap-1">
+                                <label for="copy-decimal-places" class="text-[10px] text-[var(--color-text-secondary)] whitespace-nowrap">Copy Decimals:</label>
+                                <input type="number" id="copy-decimal-places" min="0" max="8" value="8" class="form-input w-10 rounded p-1 text-center text-[10px]">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="relative w-full overflow-x-auto pb-32 lg:pb-8">
+                        <div id="panel-buy" class="p-0">
+                            <table class="w-full text-sm text-left whitespace-nowrap">
+                                <thead class="table-header uppercase">
+                                    <tr>
+                                        <th class="px-3 py-2">#</th>
+                                        <th class="px-3 py-2 text-right">Price</th>
+                                        <th class="px-3 py-2 text-right">Vol</th>
+                                        <th class="px-3 py-2 text-right">Value ($)</th>
+                                        <th class="hidden fee-col px-3 py-2 text-right">Fee</th>
+                                        <th id="buy-table-last-col" class="px-3 py-2 text-right">Avg Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="buy-ladder-body" class="divide-y divide-[var(--color-border)]"></tbody>
+                            </table>
+                        </div>
+                        <div id="panel-sell" class="hidden p-0">
+                            <table class="w-full text-sm text-left whitespace-nowrap">
+                                <thead class="table-header uppercase">
+                                    <tr>
+                                        <th class="px-3 py-2">#</th>
+                                        <th class="px-3 py-2 text-right">Price</th>
+                                        <th class="px-3 py-2 text-right">Vol</th>
+                                        <th class="px-3 py-2 text-right">Value ($)</th>
+                                        <th class="hidden fee-col px-3 py-2 text-right">Fee</th>
+                                        <th id="sell-table-last-col" class="px-3 py-2 text-right text-green-600">Profit</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sell-ladder-body" class="divide-y divide-[var(--color-border)]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Tooltip Element -->
+    <div id="tooltip" class="tooltip"></div>
+
+    <!-- Load External Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="app.js"></script>
+    <script src="wizard-questions.js"></script>
+    <script src="wizard.js"></script>
+    <script src="charts.js"></script>
+    <script src="charts-how-it-works.js"></script>
+    <script src="main.navigation.js"></script>
+    <script src="main.ui.js"></script>
+    <script src="main.calculator.js"></script>
+    <script src="main.events.chart.js"></script>
+    <script src="main.events.intro.js"></script>
+    <script src="main.events.js"></script>
+    <script src="main.js"></script>
+    <script src="fix-vscode-links.js"></script>
+    <script src="page-frame.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d060f66be95f0d0',t:'MTc3MTUwNzIxMQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015" integrity="sha512-ZpsOmlRQV6y907TI0dKBHq9Md29nnaEIPlkf84rnaERnq6zvWvPUqr2ft8M1aS28oN72PdrCzSjY4U6VaAw1EQ==" data-cf-beacon='{"version":"2024.11.0","token":"09a67fdbcf5941059436a3209cd416a6","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
