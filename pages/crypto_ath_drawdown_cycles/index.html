@@ -24,7 +24,7 @@
         <section class="card">
             <h2>Run Analysis</h2>
             <p class="hint">
-                Methodology: top 20 non-stable by market cap (CoinGecko USD proxy), Binance spot <code>&lt;BASE&gt;USDT</code> daily candles, major ATH cycles via adaptive thresholds on daily highs, trough by daily close.
+                Methodology: top 20 non-stable by market cap (CoinGecko USD proxy), Binance spot <code>&lt;BASE&gt;USDT</code> daily candles, and major-cycle inclusion only when ATH-to-trough range meets the fixed threshold.
             </p>
             <div class="controls">
                 <button id="start-btn" class="btn btn-primary" type="button">Run Analysis</button>
@@ -72,6 +72,14 @@
             <pre id="json-output" class="json-output">No results yet.</pre>
         </section>
     </main>
+
+    <footer class="page-footer">
+        <div class="footer-links">
+            <a href="../../index.html">OrderSkew main page</a>
+            <a href="../index.html">Other tools page</a>
+        </div>
+        <p id="repo-commit-stamp" class="commit-stamp">Latest GitHub commit (main): loading...</p>
+    </footer>
 
     <script src="app.js"></script>
 </body>
