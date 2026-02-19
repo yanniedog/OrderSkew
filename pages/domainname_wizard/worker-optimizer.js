@@ -432,19 +432,26 @@ class Optimizer {
     const total = pool.length;
     let assessedOnce = 0;
     let assessedTarget = 0;
+    let exposureProgress = 0;
     for (const token of pool) {
       const seen = Number(this._runExposure.get(token) || 0);
       if (seen >= 1) assessedOnce += 1;
       if (seen >= this._minAssessmentsPerSearch) assessedTarget += 1;
+      exposureProgress += Math.min(this._minAssessmentsPerSearch, Math.max(0, seen));
     }
-    const coverage01 = total > 0 ? clamp(assessedTarget / total, 0, 1) : 0;
+    const targetExposures = total > 0 ? total * this._minAssessmentsPerSearch : 0;
+    const coverageProgress01 = targetExposures > 0 ? clamp(exposureProgress / targetExposures, 0, 1) : 0;
+    const coverageTarget01 = total > 0 ? clamp(assessedTarget / total, 0, 1) : 0;
     return {
       total,
       assessedOnce,
       assessedTarget,
       targetPerKeyword: this._minAssessmentsPerSearch,
-      coverage01,
-      coveragePct: round(coverage01 * 100, 1),
+      // Progressive coverage used for UI/reward so it updates every loop.
+      coverage01: coverageProgress01,
+      coveragePct: round(coverageProgress01 * 100, 1),
+      coverageTarget01,
+      coverageTargetPct: round(coverageTarget01 * 100, 1),
       needRemaining: this._remainingAssessmentNeed(),
     };
   }

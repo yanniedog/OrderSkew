@@ -833,6 +833,7 @@
     const loopSummaries = Array.isArray(results.loopSummaries) ? results.loopSummaries : [];
     const latestLoop = loopSummaries.length ? loopSummaries[loopSummaries.length - 1] : null;
     const curatedCoveragePct = latestLoop ? Number(latestLoop.curatedCoveragePct || 0) : 0;
+    const curatedCoverageTargetPct = latestLoop ? Number(latestLoop.curatedCoverageTargetPct || 0) : 0;
     const curatedCoverageAssessed = latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0;
     const curatedCoverageTotal = latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0;
 
@@ -842,7 +843,7 @@
       { label: 'Underpriced', value: String(underpricedCount) },
       { label: 'Avg Est. Value', value: avgEstValue > 0 ? '$' + Math.round(avgEstValue).toLocaleString() : '-' },
       { label: 'Best Value Ratio', value: bestRatio > 0 ? formatScore(bestRatio, 1) + 'x' : '-' },
-      { label: 'Curated Coverage', value: curatedCoverageTotal > 0 ? `${formatScore(curatedCoveragePct, 1)}% (${curatedCoverageAssessed}/${curatedCoverageTotal})` : '-' },
+      { label: 'Curated Coverage', value: curatedCoverageTotal > 0 ? `${formatScore(curatedCoveragePct, 1)}% | target ${formatScore(curatedCoverageTargetPct, 1)}% (${curatedCoverageAssessed}/${curatedCoverageTotal})` : '-' },
       { label: 'Avg Intrinsic', value: formatScore(avg('intrinsicValue'), 1) },
       { label: 'Avg Liquidity', value: formatScore(avg('liquidityScore'), 0) },
       { label: 'Top Domain', value: top ? escapeHtml(top.domain) : '-' },
@@ -948,7 +949,7 @@
             ${th('Loop', 'Loop index within the current search run.')}
             ${th('Keywords', 'Keywords used by this loop. Tokens are colored by learned term performance (blue low -> red high).')}
             ${th('Strategy', 'Style, randomness, and mutation used in this loop.')}
-            ${th('Explore', 'Exploration rate, elite pool size, and curated keyword coverage for this loop.')}
+            ${th('Explore', 'Exploration rate, elite pool size, curated coverage progress, and strict target coverage (keywords assessed at least target times).')}
             ${th('Quota', 'Required and in-budget available names for this loop (max names/loop target).')}
             ${th('Results', 'Considered candidates, available split (in-budget/over-budget), and average score for this loop.')}
             ${th('Top', 'Top domain and top score for this loop.')}
@@ -962,7 +963,7 @@
                 <td>${row.loop}</td>
                 <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
                 <td>${escapeHtml(`${row.style || '-'} | ${row.randomness || '-'} | ${row.mutationIntensity || '-'}`)}</td>
-                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)} | cov=${formatScore(Number(row.curatedCoveragePct || 0), 1)}%`)}</td>
+                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)} | cov=${formatScore(Number(row.curatedCoveragePct || 0), 1)}% | target=${formatScore(Number(row.curatedCoverageTargetPct || 0), 1)}%`)}</td>
                 <td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.withinBudgetCount || 0)}`)}</span></td>
                 <td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avail=${Number(row.withinBudgetCount || 0)}/${Number(row.overBudgetCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>
                 <td>${escapeHtml(`${row.topDomain || '-'} | ${formatScore(row.topScore, 1)}`)}</td>
