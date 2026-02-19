@@ -156,15 +156,6 @@ h1 {
     font-weight: 700;
 }
 
-.footer {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    color: var(--muted);
-    font-size: 0.85rem;
-    padding: 14px 20px 22px;
-}
-
 @media (max-width: 680px) {
     .hero {
         padding: 22px 16px;

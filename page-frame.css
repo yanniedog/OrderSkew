@@ -1,0 +1,116 @@
+/* ── OrderSkew Page Frame ──
+   Shared nav bar + commit-stamp footer for every page in the project.
+   Adopt in any new tool with a single <script> tag — see page-frame.js. */
+
+.os-frame-nav {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(200, 215, 235, 0.6);
+    position: relative;
+    z-index: 200;
+}
+
+.os-frame-nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+    gap: 12px;
+}
+
+.os-frame-brand {
+    font-family: 'Sora', 'Segoe UI', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #172235;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.os-frame-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.os-frame-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 7px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: #1b5d95;
+    background: rgba(10, 132, 255, 0.07);
+    border: 1px solid rgba(10, 132, 255, 0.13);
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+    font-family: 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif;
+    line-height: 1;
+}
+
+.os-frame-link:hover {
+    background: rgba(10, 132, 255, 0.14);
+    border-color: rgba(10, 132, 255, 0.28);
+    transform: translateY(-1px);
+}
+
+.os-frame-link svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+}
+
+/* ── Footer ── */
+
+.os-frame-footer {
+    border-top: 1px solid rgba(200, 215, 235, 0.5);
+    padding: 14px 20px;
+    margin-top: 24px;
+    background: rgba(255, 255, 255, 0.45);
+}
+
+.os-frame-footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.os-frame-commit {
+    font-size: 0.73rem;
+    color: #5a7390;
+    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+    letter-spacing: 0.01em;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 480px) {
+    .os-frame-nav-inner {
+        height: auto;
+        padding: 8px 14px;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .os-frame-link {
+        padding: 4px 10px;
+        font-size: 0.76rem;
+    }
+
+    .os-frame-footer {
+        padding: 12px 14px;
+    }
+
+    .os-frame-commit {
+        font-size: 0.68rem;
+    }
+}

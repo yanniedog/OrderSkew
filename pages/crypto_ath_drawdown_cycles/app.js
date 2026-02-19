@@ -14,7 +14,6 @@
     analyzedAssets: document.getElementById('analyzed-assets'),
     skippedAssets: document.getElementById('skipped-assets'),
     generatedAt: document.getElementById('generated-at'),
-    repoCommitStamp: document.getElementById('repo-commit-stamp'),
   };
 
   let worker = null;
@@ -161,39 +160,8 @@
     URL.revokeObjectURL(url);
   }
 
-  function formatUtcStamp(iso) {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    const pad = function (n) { return String(n).padStart(2, '0'); };
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())} UTC`;
-  }
-
-  async function loadLatestCommitStamp() {
-    if (!els.repoCommitStamp) return;
-    try {
-      const response = await fetch('https://api.github.com/repos/yanniedog/orderskew/commits/main', {
-        method: 'GET',
-        headers: { Accept: 'application/vnd.github+json' },
-      });
-      if (!response.ok) {
-        els.repoCommitStamp.textContent = `Latest GitHub commit (main): unavailable (${response.status})`;
-        return;
-      }
-      const payload = await response.json();
-      const sha = payload && payload.sha ? String(payload.sha).slice(0, 7) : 'unknown';
-      const dateIso = payload && payload.commit && payload.commit.committer ? payload.commit.committer.date : null;
-      const formatted = dateIso ? formatUtcStamp(dateIso) : null;
-      els.repoCommitStamp.textContent = formatted
-        ? `Latest GitHub commit (main): ${formatted} • ${sha}`
-        : `Latest GitHub commit (main): unknown date • ${sha}`;
-    } catch (_) {
-      els.repoCommitStamp.textContent = 'Latest GitHub commit (main): unavailable (network error)';
-    }
-  }
-
   els.startBtn.addEventListener('click', startRun);
   els.cancelBtn.addEventListener('click', cancelRun);
   els.copyBtn.addEventListener('click', copyJson);
   els.downloadBtn.addEventListener('click', downloadJson);
-  loadLatestCommitStamp();
 })();
