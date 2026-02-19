@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "test:domainname_wizard": "node test-domainname-wizard.js",
+    "test:domainname_wizard:production": "node pages/domainname_wizard/source/e2e-production-curated-coverage.js https://www.orderskew.com/pages/domainname_wizard/",
     "test:frame_clock": "node test-frame-clock.js"
   }
 }
