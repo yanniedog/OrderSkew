@@ -310,6 +310,7 @@ class Optimizer {
     this._recentKeywordSignatures = [];
     this._recentKeywordSets = [];
     this._recentHistoryMax = 18;
+    this._coverageCursor = 0;
 
     this._themeTokenScores = this._buildThemeTokenScores();
     this._themeTokenSet = new Set(this._themeTokenScores.keys());
@@ -392,6 +393,51 @@ class Optimizer {
       })
       .sort((a, b) => b.score - a.score || a.token.localeCompare(b.token))
       .map((x) => x.token);
+  }
+
+  _coveragePool(loop) {
+    const l = Math.max(1, Number(loop) || 1);
+    return dedupeTokens(this._themeTokenPool.slice(0, 180))
+      .map((token) => normalizeThemeToken(token))
+      .filter((token) => token && this._isThemeToken(token))
+      .map((token) => {
+        const stat = this.model.tokens[token] || {};
+        const plays = Math.max(0, Number(stat.plays) || 0);
+        const lastLoop = stat.lastLoop == null ? -1 : Number(stat.lastLoop);
+        const recencyGap = lastLoop >= 0 ? Math.max(0, l - lastLoop) : 999;
+        const theme = clamp(Number(this._themeTokenScores.get(token) || 0) / 5, 0, 1);
+        const score = (plays === 0 ? 1.0 : 0.0) * 0.55
+          + clamp(1 / Math.sqrt(1 + plays), 0, 1) * 0.25
+          + clamp(recencyGap / 14, 0, 1) * 0.10
+          + theme * 0.10;
+        return { token, score, plays };
+      })
+      .sort((a, b) => b.score - a.score || a.plays - b.plays || a.token.localeCompare(b.token));
+  }
+
+  _injectCoverage(next, options) {
+    const opts = options || {};
+    const loop = Number(opts.loop) || 1;
+    const minInject = Math.max(0, Number(opts.minInject) || 0);
+    if (minInject <= 0) return;
+    const lockedSet = opts.lockedSet instanceof Set ? opts.lockedSet : new Set();
+    const coverage = this._coveragePool(loop).map((x) => x.token);
+    if (!coverage.length) return;
+
+    let injected = 0;
+    let cursor = this._coverageCursor % coverage.length;
+    for (let step = 0; step < coverage.length && injected < minInject; step += 1) {
+      const candidate = coverage[cursor];
+      cursor = (cursor + 1) % coverage.length;
+      if (!candidate || next.includes(candidate) || lockedSet.has(candidate)) continue;
+      let idx = next.findIndex((t) => !lockedSet.has(t) && !this._baseKeywordTokenSet.has(t));
+      if (idx < 0) idx = next.findIndex((t) => !lockedSet.has(t));
+      if (idx < 0) break;
+      if (next.some((prior, pidx) => pidx !== idx && isMirroredThemeToken(candidate, prior))) continue;
+      next[idx] = candidate;
+      injected += 1;
+    }
+    this._coverageCursor = cursor;
   }
 
   _injectNovelty(next, options) {
@@ -773,7 +819,8 @@ class Optimizer {
   }
 
   next(loop) {
-    const explorationRate = Math.max(0.12, 0.38 * Math.pow(0.84, loop - 1));
+    const explorationRate = Math.max(0.18, 0.42 * Math.pow(0.88, loop - 1));
+    const explorationBurst = loop <= 10 || (loop % 4 === 0);
     const styleOptions = this.base.preferEnglish !== false
       ? STYLE_VALUES.filter((value) => value !== 'nonenglish')
       : STYLE_VALUES;
@@ -785,9 +832,16 @@ class Optimizer {
       ? pick(RANDOMNESS_VALUES, this.rand)
       : this.thompsonChoose(this.model.randomness, RANDOMNESS_VALUES);
 
-    const tokenEntries = Object.entries(this.model.tokens).filter(([token]) => this._isThemeToken(token));
-    const tokenRank = tokenEntries
-      .map(([token, stat]) => {
+    // Rank across the full theme pool so unseen tokens can be sampled and assessed.
+    const tokenUniverse = dedupeTokens(
+      this._themeTokenPool
+        .concat(Object.keys(this.model.tokens || {}))
+        .concat(this._themeSeedTokens),
+    ).slice(0, 200);
+    const tokenRank = tokenUniverse
+      .filter((token) => this._isThemeToken(token))
+      .map((token) => {
+        const stat = this.model.tokens[token] || { plays: 0, reward: 0 };
         const perf = this._tokenPerformance(stat);
         const selectionScore = this._tokenSelectionScore({ ...stat, _token: token }, perf, explorationRate);
         return { token, ucb: this.ucbScore(stat), perf, selectionScore, plays: perf.plays };
@@ -810,15 +864,19 @@ class Optimizer {
     const adaptivePool = dedupeTokens(tokenRank.slice(0, 40).map(function (x) { return x.token; }).concat(anchorPool));
     const eliteTokens = this._collectEliteThemeTokens();
 
-    const intensity = this.rand() < explorationRate ? 'high' : this.rand() > 0.35 ? 'medium' : 'low';
-    const mut = intensity === 'high' ? 6 : intensity === 'medium' ? 4 : 2;
+    const intensity = explorationBurst || this.rand() < explorationRate
+      ? 'high'
+      : this.rand() > 0.25 ? 'medium' : 'low';
+    const mut = intensity === 'high' ? 7 : intensity === 'medium' ? 5 : 3;
     const locked = this._lockedSeedTokens.slice();
     const lockedSet = new Set(locked);
     const prevTokens = (this.curTokens || []).slice();
 
     const next = [];
     for (const t of locked) if (!next.includes(t) && this._isThemeToken(t)) next.push(t);
-    const carryBudget = Math.max(0, Math.min(3, Math.floor(1 + (1 - explorationRate) * 2)));
+    const carryBudget = explorationBurst
+      ? 1
+      : Math.max(0, Math.min(2, Math.floor(1 + (1 - explorationRate) * 1.5)));
     for (const t of this.curTokens) {
       const clean = normalizeThemeToken(t);
       if (!clean || next.includes(clean) || !this._isThemeToken(clean)) continue;
@@ -858,11 +916,16 @@ class Optimizer {
     this._injectNovelty(next, {
       loop,
       prevTokens,
-      targetOverlap: explorationRate >= 0.24 ? 3 : 4,
+      targetOverlap: explorationBurst ? 2 : (explorationRate >= 0.24 ? 3 : 4),
       lockedSet,
       candidatePool: dedupeTokens(adaptivePool.concat(good, eliteTokens, baseTokens)),
       fallbackPool: dedupeTokens(this._themeTokenPool.concat(baseTokens)),
     });
+    // Coverage quota: force a few low/never-played tokens into each loop plan.
+    const coverageQuota = explorationBurst
+      ? 4
+      : explorationRate >= 0.30 ? 3 : explorationRate >= 0.20 ? 2 : 1;
+    this._injectCoverage(next, { loop, minInject: coverageQuota, lockedSet });
 
     this.curTokens = dedupeTokens(next.map(normalizeThemeToken).filter((t) => t && this._isThemeToken(t))).slice(0, 8);
     if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(8, baseTokens.length));
@@ -875,8 +938,11 @@ class Optimizer {
       overlapWithPrevious: this._countOverlap(prevTokens, this.curTokens),
       signature: this._keywordSignature(this.curTokens),
       recentSignatureCount: this._recentKeywordSignatures.length,
+      explorationBurst,
       carryBudget,
       mutationPasses: mut,
+      coverageQuota,
+      unplayedInSelection: this.curTokens.filter((t) => !this.model.tokens[t] || !this.model.tokens[t].plays).length,
       poolSize: this._themeTokenPool.length,
     });
 
