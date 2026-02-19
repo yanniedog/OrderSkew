@@ -416,16 +416,24 @@ async function fetchDevEcosystemScores(words, input) {
           const val = Number(total) || 0;
           scores.set(word, val);
           DEV_ECOSYSTEM_CACHE.set(word, val);
-          if (!DEV_ECOSYSTEM_DETAIL_CACHE.has(word)) {
-            DEV_ECOSYSTEM_DETAIL_CACHE.set(word, {
-              word,
-              total: val,
-              githubRepos: null,
-              npmPackages: null,
-              source: 'backend',
-              githubTokenUsed: false,
-            });
-          }
+          const details = data.details && typeof data.details === 'object' ? data.details[word] : null;
+          DEV_ECOSYSTEM_DETAIL_CACHE.set(word, {
+            word,
+            total: details && Number.isFinite(Number(details.total)) ? Number(details.total) : val,
+            githubRepos: details && Number.isFinite(Number(details.githubRepos)) ? Number(details.githubRepos) : null,
+            npmPackages: details && Number.isFinite(Number(details.npmPackages)) ? Number(details.npmPackages) : null,
+            source: details && details.source ? String(details.source) : 'backend',
+            githubTokenUsed: Boolean(details && details.githubTokenUsed),
+          });
+        }
+        if (data._debug && typeof data._debug === 'object') {
+          meta.githubCalls = Number(data._debug.githubCalls || 0);
+          meta.githubSuccess = Number(data._debug.githubSuccess || 0);
+          meta.githubFailures = Number(data._debug.githubFailures || 0);
+          meta.npmCalls = Number(data._debug.npmCalls || 0);
+          meta.npmSuccess = Number(data._debug.npmSuccess || 0);
+          meta.npmFailures = Number(data._debug.npmFailures || 0);
+          meta.githubTokenUsed = Boolean(data._debug.githubTokenPresent);
         }
         DEV_ECOSYSTEM_LAST_META = meta;
         emitDebugLog('worker-api.js:fetchDevEcosystemScores', 'Developer ecosystem scoring via backend', meta);

@@ -132,12 +132,16 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
   let keywordLibrary = null;
   if (keywordState && keywordState.optimizer && typeof keywordState.optimizer.getKeywordLibraryRows === 'function') {
     const lib = keywordState.library || {};
+    const coverage = typeof keywordState.optimizer.getCoverageMetrics === 'function'
+      ? keywordState.optimizer.getCoverageMetrics()
+      : null;
     keywordLibrary = {
       seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
       currentKeywords: Array.isArray(keywordState.optimizer.curTokens) ? keywordState.optimizer.curTokens.slice(0, 8) : [],
       tokens: keywordState.optimizer.getKeywordLibraryRows(120),
       apiStatus: lib.apiStatus || null,
       devEcosystemStatus: keywordState.devEcosystemStatus || null,
+      coverageMetrics: coverage || null,
     };
   } else if (keywordState && keywordState.library) {
     const lib = keywordState.library || {};
@@ -172,6 +176,7 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
       }),
       apiStatus: lib.apiStatus || null,
       devEcosystemStatus: keywordState.devEcosystemStatus || null,
+      coverageMetrics: null,
     };
   }
   return {

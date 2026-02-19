@@ -373,6 +373,70 @@
           };
           issues.push('Name generation API preflight failed');
         }
+
+        try {
+          const dev = await fetchJsonWithTimeout(`${backendBaseUrl}/api/dev-ecosystem`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ words: ['cloud', 'fintech'] }),
+          }, 8000);
+          const scoresObj = dev.json && dev.json.scores && typeof dev.json.scores === 'object' ? dev.json.scores : null;
+          const debug = dev.json && dev.json._debug && typeof dev.json._debug === 'object' ? dev.json._debug : null;
+          const ok = Boolean(dev.response && dev.response.ok && scoresObj);
+          dataSourceState.devEcosystem = {
+            attemptedWords: scoresObj ? Object.keys(scoresObj).length : 0,
+            fetchedWords: scoresObj ? Object.keys(scoresObj).length : 0,
+            cacheHits: 0,
+            mode: 'backend-preflight',
+            githubTokenUsed: Boolean(debug && debug.githubTokenPresent),
+            githubCalls: debug ? Number(debug.githubCalls || 0) : 0,
+            githubSuccess: debug ? Number(debug.githubSuccess || 0) : 0,
+            githubFailures: debug ? Number(debug.githubFailures || 0) : 0,
+            npmCalls: debug ? Number(debug.npmCalls || 0) : 0,
+            npmSuccess: debug ? Number(debug.npmSuccess || 0) : 0,
+            npmFailures: debug ? Number(debug.npmFailures || 0) : 0,
+            backendAttempted: true,
+            backendUsed: ok,
+            backendStatus: dev.response ? dev.response.status : null,
+            sampleWords: scoresObj
+              ? Object.keys(scoresObj).slice(0, 5).map(function (w) {
+                const details = dev.json && dev.json.details && dev.json.details[w] ? dev.json.details[w] : null;
+                return {
+                  word: w,
+                  total: Number(scoresObj[w] || 0),
+                  githubRepos: details && details.githubRepos != null ? Number(details.githubRepos) : null,
+                  npmPackages: details && details.npmPackages != null ? Number(details.npmPackages) : null,
+                };
+              })
+              : [],
+          };
+          if (!ok) {
+            issues.push('GitHub evaluation preflight failed');
+          } else if (dataSourceState.devEcosystem.githubCalls > 0 && dataSourceState.devEcosystem.githubSuccess === 0) {
+            issues.push('GitHub evaluation preflight abnormal');
+          }
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err || 'unknown error');
+          dataSourceState.devEcosystem = {
+            attemptedWords: 0,
+            fetchedWords: 0,
+            cacheHits: 0,
+            mode: 'backend-preflight',
+            githubTokenUsed: false,
+            githubCalls: 0,
+            githubSuccess: 0,
+            githubFailures: 0,
+            npmCalls: 0,
+            npmSuccess: 0,
+            npmFailures: 0,
+            backendAttempted: true,
+            backendUsed: false,
+            backendStatus: null,
+            sampleWords: [],
+            error: msg,
+          };
+          issues.push('GitHub evaluation preflight failed');
+        }
       } else {
         dataSourceState.availability = {
           source: 'Backend not configured',
@@ -830,12 +894,13 @@
     const underpricedCount = allRanked.filter(r => r.underpricedFlag).length;
     const avgEstValue = allRanked.filter(r => r.estimatedValueUSD > 0).reduce((s, r) => s + r.estimatedValueUSD, 0) / Math.max(1, allRanked.filter(r => r.estimatedValueUSD > 0).length);
     const bestRatio = allRanked.reduce((best, r) => Math.max(best, r.valueRatio || 0), 0);
+    const liveCoverage = results.keywordLibrary && results.keywordLibrary.coverageMetrics ? results.keywordLibrary.coverageMetrics : null;
     const loopSummaries = Array.isArray(results.loopSummaries) ? results.loopSummaries : [];
     const latestLoop = loopSummaries.length ? loopSummaries[loopSummaries.length - 1] : null;
-    const curatedCoveragePct = latestLoop ? Number(latestLoop.curatedCoveragePct || 0) : 0;
-    const curatedCoverageTargetPct = latestLoop ? Number(latestLoop.curatedCoverageTargetPct || 0) : 0;
-    const curatedCoverageAssessed = latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0;
-    const curatedCoverageTotal = latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0;
+    const curatedCoveragePct = liveCoverage ? Number(liveCoverage.coveragePct || 0) : (latestLoop ? Number(latestLoop.curatedCoveragePct || 0) : 0);
+    const curatedCoverageTargetPct = liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTargetPct || 0) : 0);
+    const curatedCoverageAssessed = liveCoverage ? Number(liveCoverage.assessedTarget || 0) : (latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0);
+    const curatedCoverageTotal = liveCoverage ? Number(liveCoverage.total || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0);
 
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
