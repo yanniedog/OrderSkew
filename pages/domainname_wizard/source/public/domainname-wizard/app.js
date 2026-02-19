@@ -924,10 +924,12 @@
     const liveCoverage = results.keywordLibrary && results.keywordLibrary.coverageMetrics ? results.keywordLibrary.coverageMetrics : null;
     const loopSummaries = Array.isArray(results.loopSummaries) ? results.loopSummaries : [];
     const latestLoop = loopSummaries.length ? loopSummaries[loopSummaries.length - 1] : null;
-    const curatedCoveragePct = liveCoverage ? Number(liveCoverage.coveragePct || 0) : (latestLoop ? Number(latestLoop.curatedCoveragePct || 0) : 0);
-    const curatedCoverageTargetPct = liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTargetPct || 0) : 0);
-    const curatedCoverageAssessed = liveCoverage ? Number(liveCoverage.assessedTarget || 0) : (latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0);
-    const curatedCoverageTotal = liveCoverage ? Number(liveCoverage.total || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0);
+    // Prefer loop summary for curated coverage so the metric updates every loop even if keywordLibrary.coverageMetrics is missing from payload.
+    const hasLoopCoverage = latestLoop && Number(latestLoop.curatedCoverageTotal || 0) > 0;
+    const curatedCoveragePct = hasLoopCoverage ? Number(latestLoop.curatedCoveragePct || 0) : (liveCoverage ? Number(liveCoverage.coveragePct || 0) : 0);
+    const curatedCoverageTargetPct = hasLoopCoverage ? Number(latestLoop.curatedCoverageTargetPct || 0) : (liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : 0);
+    const curatedCoverageAssessed = hasLoopCoverage ? Number(latestLoop.curatedCoverageAssessed || 0) : (liveCoverage ? Number(liveCoverage.assessedTarget || 0) : 0);
+    const curatedCoverageTotal = hasLoopCoverage ? Number(latestLoop.curatedCoverageTotal || 0) : (liveCoverage ? Number(liveCoverage.total || 0) : 0);
 
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
