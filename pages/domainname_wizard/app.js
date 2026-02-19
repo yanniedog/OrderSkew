@@ -616,7 +616,7 @@
   function rainbowColorForScore01(score01) {
     const s = clamp(Number(score01) || 0, 0, 1);
     const hue = Math.round(240 - 240 * s);
-    return `hsl(${hue} 88% 48%)`;
+    return `hsl(${hue}, 88%, 48%)`;
   }
 
   function buildTokenPerformanceLookup(keywordLibrary) {
