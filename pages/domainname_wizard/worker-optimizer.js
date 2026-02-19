@@ -311,6 +311,62 @@ class Optimizer {
     return avg + Math.sqrt(2 * Math.log(this.totalPlays) / stat.plays);
   }
 
+  _wilsonLowerBound(successes, trials, z) {
+    const n = Math.max(0, Number(trials) || 0);
+    if (n <= 0) return 0;
+    const s = Math.max(0, Math.min(n, Number(successes) || 0));
+    const zz = Number(z) || 1.96;
+    const p = s / n;
+    const denom = 1 + (zz * zz) / n;
+    const center = p + (zz * zz) / (2 * n);
+    const margin = zz * Math.sqrt((p * (1 - p) + (zz * zz) / (4 * n)) / n);
+    return clamp((center - margin) / denom, 0, 1);
+  }
+
+  _tokenPerformance(stat) {
+    const s = stat || {};
+    const plays = Math.max(0, Math.floor(Number(s.plays) || 0));
+    const reward = Number(s.reward) || 0;
+    const avgReward = plays > 0 ? reward / plays : 0;
+    const winCount = Math.max(0, Number(s.winCount) || 0);
+    const successRate = plays > 0 ? clamp(winCount / plays, 0, 1) : 0;
+    const domainMatches = Math.max(0, Number(s.domainMatches) || 0);
+    const domainScoreSum = Number(s.domainScoreSum) || 0;
+    const meanDomainScoreNorm = domainMatches > 0 ? clamp((domainScoreSum / domainMatches) / 100, 0, 1) : 0;
+    const confidence = clamp(Math.log10(plays + 1) / 2, 0, 1);
+    const wilson = this._wilsonLowerBound(winCount, plays, 1.96);
+    const score = clamp(
+      avgReward * 0.40
+        + meanDomainScoreNorm * 0.25
+        + wilson * 0.20
+        + confidence * 0.15,
+      0,
+      1,
+    );
+    return {
+      plays,
+      reward,
+      avgReward,
+      winCount,
+      successRate,
+      domainMatches,
+      meanDomainScoreNorm,
+      meanDomainScore: meanDomainScoreNorm * 100,
+      confidence,
+      wilson,
+      score,
+    };
+  }
+
+  _tokenSelectionScore(stat, perf, explorationRate) {
+    const s = stat || {};
+    const p = perf || this._tokenPerformance(s);
+    const plays = Math.max(0, Number(s.plays) || 0);
+    const explorationBonus = explorationRate * (plays > 0 ? clamp(1 / Math.sqrt(plays), 0, 1) : 1);
+    const exploitation = p.score * (1 - explorationRate * 0.65);
+    return clamp(exploitation + explorationBonus * 0.22, 0, 1.6);
+  }
+
   _isThemeToken(token) {
     const clean = normalizeThemeToken(token);
     if (!clean) return false;
@@ -508,10 +564,9 @@ class Optimizer {
       const clean = normalizeThemeToken(token);
       if (!clean || !this._isThemeToken(clean)) continue;
       const stat = this.model.tokens[clean] || { plays: 0, reward: 0, lastLoop: null };
-      const plays = Math.max(0, Math.floor(Number(stat.plays) || 0));
-      const reward = Number(stat.reward) || 0;
-      const avgReward = plays > 0 ? reward / plays : 0;
+      const perf = this._tokenPerformance(stat);
       const ucb = this.ucbScore(stat);
+      const selectionScore = this._tokenSelectionScore(stat, perf, 0.08);
       let source = 'theme';
       if (this._baseKeywordTokenSet.has(clean)) source = 'seed';
       else if (this._libraryTokenSet.has(clean)) source = 'synonym_api';
@@ -522,9 +577,15 @@ class Optimizer {
         isSeed: this._baseKeywordTokenSet.has(clean),
         inCurrentKeywords: currentSet.has(clean),
         themeScore: Number(this._themeTokenScores.get(clean) || 0),
-        plays,
-        reward: round(reward, 4),
-        avgReward: round(avgReward, 4),
+        plays: perf.plays,
+        reward: round(perf.reward, 4),
+        avgReward: round(perf.avgReward, 4),
+        successRate: round(perf.successRate, 4),
+        confidence: round(perf.confidence, 4),
+        wilson: round(perf.wilson, 4),
+        meanDomainScore: round(perf.meanDomainScore, 2),
+        performanceScore: round(perf.score * 100, 2),
+        selectionScore: round(selectionScore * 100, 2),
         ucb: Number.isFinite(ucb) ? round(ucb, 4) : null,
         lastLoop: stat.lastLoop != null ? Number(stat.lastLoop) : null,
       });
@@ -532,6 +593,8 @@ class Optimizer {
 
     rows.sort((a, b) => {
       if (a.inCurrentKeywords !== b.inCurrentKeywords) return a.inCurrentKeywords ? -1 : 1;
+      if ((a.selectionScore || 0) !== (b.selectionScore || 0)) return (b.selectionScore || 0) - (a.selectionScore || 0);
+      if ((a.performanceScore || 0) !== (b.performanceScore || 0)) return (b.performanceScore || 0) - (a.performanceScore || 0);
       if (a.plays !== b.plays) return b.plays - a.plays;
       if (a.avgReward !== b.avgReward) return b.avgReward - a.avgReward;
       if ((a.themeScore || 0) !== (b.themeScore || 0)) return (b.themeScore || 0) - (a.themeScore || 0);
@@ -556,22 +619,27 @@ class Optimizer {
 
     const tokenEntries = Object.entries(this.model.tokens).filter(([token]) => this._isThemeToken(token));
     const tokenRank = tokenEntries
-      .map(([token, stat]) => ({ token, ucb: this.ucbScore(stat) }))
-      .sort((a, b) => b.ucb - a.ucb);
+      .map(([token, stat]) => {
+        const perf = this._tokenPerformance(stat);
+        const selectionScore = this._tokenSelectionScore(stat, perf, explorationRate);
+        return { token, ucb: this.ucbScore(stat), perf, selectionScore, plays: perf.plays };
+      })
+      .sort((a, b) => (b.selectionScore - a.selectionScore) || (b.ucb - a.ucb));
 
     const good = tokenRank
-      .filter((x) => x.ucb >= 0.58)
+      .filter((x) => x.selectionScore >= 0.62)
       .map((x) => x.token)
-      .slice(0, 20);
+      .slice(0, 30);
 
     const weak = new Set(
       tokenRank
-        .filter((x) => x.ucb <= 0.35 && (this.model.tokens[x.token] || {}).plays >= 3)
+        .filter((x) => x.selectionScore <= 0.38 && (this.model.tokens[x.token] || {}).plays >= 4)
         .map((x) => x.token),
     );
 
     const baseTokens = this._baseKeywordTokens.length ? this._baseKeywordTokens.slice(0, 12) : this._themeSeedTokens.slice(0, 8);
     const anchorPool = this._themeTokenPool.slice(0, 60);
+    const adaptivePool = dedupeTokens(tokenRank.slice(0, 40).map(function (x) { return x.token; }).concat(anchorPool));
     const eliteTokens = this._collectEliteThemeTokens();
 
     const intensity = this.rand() < explorationRate ? 'high' : this.rand() > 0.5 ? 'medium' : 'low';
@@ -596,8 +664,8 @@ class Optimizer {
       this._removeOneMutable(next, weak, lockedSet);
       let src;
       const r = this.rand();
-      if (good.length && r < 0.38) src = good;
-      else if (anchorPool.length && r < 0.86) src = anchorPool;
+      if (good.length && r < 0.30 + (1 - explorationRate) * 0.35) src = good;
+      else if (adaptivePool.length && r < 0.90) src = adaptivePool;
       else if (eliteTokens.length && r < 0.96) src = eliteTokens;
       else src = baseTokens;
       const t = pick((src && src.length) ? src : baseTokens, this.rand);
@@ -609,12 +677,12 @@ class Optimizer {
     this._ensureLockedTokens(next, locked);
     this._refillThemeTokens(
       next,
-      dedupeTokens(good.concat(anchorPool, eliteTokens, baseTokens, this._themeSeedTokens)),
+      dedupeTokens(good.concat(adaptivePool, eliteTokens, baseTokens, this._themeSeedTokens)),
     );
     this._mutateAndReorder(next, intensity, lockedSet);
     this._dedupeMirroredTokens(next, lockedSet);
     this._limitBaseSeedCarry(next, 1);
-    this._refillThemeTokens(next, dedupeTokens(anchorPool.concat(good, eliteTokens, this._themeSeedTokens)));
+    this._refillThemeTokens(next, dedupeTokens(adaptivePool.concat(good, eliteTokens, this._themeSeedTokens)));
     this._dedupeMirroredTokens(next, lockedSet);
     this._limitBaseSeedCarry(next, 1);
 
@@ -657,11 +725,41 @@ class Optimizer {
       .slice(0, 12);
     if (tokens.length === 0) tokens = this._lockedSeedTokens.slice(0, 3);
 
-    for (const token of tokens) {
-      if (!this.model.tokens[token]) this.model.tokens[token] = { plays: 0, reward: 0, lastLoop: null };
+    const tokenSet = new Set(tokens);
+    const loopDomainsArr = Array.isArray(loopDomains) ? loopDomains : [];
+    const domainStatsByStem = new Map();
+    for (const dom of loopDomainsArr) {
+      if (!dom || !dom.domain) continue;
+      const label = String(dom.domain || '').split('.')[0] || '';
+      const score = Number(dom.overallScore) || 0;
+      const stems = new Set(findMorphemes(label).map(tokenStem).filter(Boolean));
+      for (const stem of stems) {
+        const prev = domainStatsByStem.get(stem) || { matches: 0, scoreSum: 0 };
+        prev.matches += 1;
+        prev.scoreSum += score;
+        domainStatsByStem.set(stem, prev);
+      }
+    }
+
+    for (const token of tokenSet) {
+      if (!this.model.tokens[token]) {
+        this.model.tokens[token] = {
+          plays: 0, reward: 0, lastLoop: null,
+          winCount: 0, lossCount: 0,
+          domainMatches: 0, domainScoreSum: 0,
+        };
+      }
       this.model.tokens[token].plays += 1;
       this.model.tokens[token].reward += r;
       this.model.tokens[token].lastLoop = plan.loop;
+      if (r >= 0.55) this.model.tokens[token].winCount += 1;
+      else this.model.tokens[token].lossCount += 1;
+      const stem = tokenStem(token);
+      const domainStats = stem ? domainStatsByStem.get(stem) : null;
+      if (domainStats) {
+        this.model.tokens[token].domainMatches += domainStats.matches;
+        this.model.tokens[token].domainScoreSum += domainStats.scoreSum;
+      }
     }
     this.totalPlays = Object.values(this.model.tokens).reduce((s, t) => s + t.plays, 0) || 1;
 

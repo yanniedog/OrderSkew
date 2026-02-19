@@ -4,7 +4,7 @@
 const jobs = new Map();
 const canceled = new Set();
 let dbPromise = null;
-const WORKER_ASSET_VERSION = '2026-02-19-4';
+const WORKER_ASSET_VERSION = '2026-02-19-5';
 
 importScripts(
   `worker-utils.js?v=${WORKER_ASSET_VERSION}`,
@@ -65,6 +65,10 @@ function sanitizeModel(source) {
         plays: Math.max(0, Math.floor(Number(v.plays) || 0)),
         reward: Number(v.reward) || 0,
         lastLoop: v && v.lastLoop != null ? Math.max(0, Math.floor(Number(v.lastLoop) || 0)) : null,
+        winCount: Math.max(0, Math.floor(Number(v.winCount) || 0)),
+        lossCount: Math.max(0, Math.floor(Number(v.lossCount) || 0)),
+        domainMatches: Math.max(0, Math.floor(Number(v.domainMatches) || 0)),
+        domainScoreSum: Number(v.domainScoreSum) || 0,
       };
     }
   }
@@ -151,6 +155,12 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
           plays: 0,
           reward: 0,
           avgReward: 0,
+          successRate: 0,
+          confidence: 0,
+          wilson: 0,
+          meanDomainScore: 0,
+          performanceScore: 0,
+          selectionScore: 0,
           ucb: null,
           lastLoop: null,
         };
