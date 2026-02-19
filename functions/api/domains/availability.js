@@ -39,6 +39,17 @@ export async function onRequestPost(context) {
     return json({ code: "INVALID_REQUEST", message: "JSON body required." }, 400);
   }
 
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b6c715'},body:JSON.stringify({sessionId:'b6c715',location:'availability.js:after-parse',message:'after request.json',data:{bodyIsNull:body===null,bodyType:typeof body},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+  // #endregion
+
+  if (body == null || typeof body !== "object") {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b6c715'},body:JSON.stringify({sessionId:'b6c715',location:'availability.js:body-guard',message:'body not object, returning 400',data:{bodyIsNull:body===null,bodyType:typeof body},timestamp:Date.now(),hypothesisId:'H4',runId:'post-fix'})}).catch(()=>{});
+    // #endregion
+    return json({ code: "INVALID_REQUEST", message: "JSON body must be an object." }, 400);
+  }
+
   const raw = Array.isArray(body.domains) ? body.domains : [];
   const domains = raw.filter((d) => typeof d === "string" && d.trim().length > 0).map((d) => d.trim().toLowerCase());
   const unique = [...new Set(domains)];
