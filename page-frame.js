@@ -1,20 +1,16 @@
-/* ── OrderSkew Page Frame ──
-   Drop-in nav bar + commit-stamp footer for every page in the project.
-   Config is centralised here; all main and subpages use the same behaviour.
+/* ── OrderSkew Page Frame (single source of truth) ──
+   This file and page-frame.css are the only frame implementation. Do not
+   duplicate nav bar, footer, or commit-stamp logic elsewhere.
+
+   Drop-in nav bar + commit-stamp footer for every page. Config is centralised
+   here; all main and subpages use the same behaviour.
 
    Usage — add ONE script tag (JS auto-injects companion CSS). Prefer root-relative
-   so the same tag works everywhere when served from site root:
+   when served from site root: <script src="/page-frame.js"></script>
+   Or relative: <script src="../../page-frame.js"></script>
 
-     <script src="/page-frame.js"></script>
-
-   Or use a relative path and optional data-page-type (override for auto-detect):
-     <script src="../../page-frame.js" data-page-type="tool"></script>
-
-   data-page-type (optional; auto-detected from location.pathname if omitted):
-     "main"       – root index.html  (shows "Tools" button)
-     "tools-hub"  – pages/index.html (shows "OrderSkew Home" button)
-     "tool"       – pages/<name>/    (shows "All Tools" + "OrderSkew Home")
-   data-repo (optional): GitHub owner/repo for commit stamp (default from CONFIG).
+   Page type is auto-detected from location.pathname. Optional overrides:
+   data-page-type="main"|"tools-hub"|"tool"  data-repo="owner/repo"
 */
 (function () {
     'use strict';

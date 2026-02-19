@@ -1,6 +1,6 @@
-/* ── OrderSkew Page Frame ──
-   Shared nav bar + commit-stamp footer for every page in the project.
-   Adopt in any new tool with a single <script> tag — see page-frame.js. */
+/* ── OrderSkew Page Frame (single source of truth) ──
+   Shared with page-frame.js only. Do not duplicate frame styles elsewhere.
+   Nav bar + commit-stamp footer; one <script src=".../page-frame.js"> per page. */
 
 .os-frame-nav {
     background: rgba(255, 255, 255, 0.88);
