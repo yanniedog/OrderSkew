@@ -536,7 +536,8 @@ class Optimizer {
         const theme = clamp(Number(this._themeTokenScores.get(token) || 0) / 5, 0, 1);
         let score = rarity * 0.60 + freshness * 0.25 + theme * 0.15;
         const consecutiveLoops = Math.max(0, Number(stat.consecutiveLoops) || 0);
-        score *= 1 - this._repetitionPenalty(consecutiveLoops);
+        const plays = Math.max(0, Number(stat.plays) || 0);
+        score *= 1 - this._repetitionPenalty(consecutiveLoops, plays);
         return { token, score };
       })
       .sort((a, b) => b.score - a.score || a.token.localeCompare(b.token))
@@ -559,7 +560,8 @@ class Optimizer {
           + clamp(recencyGap / 14, 0, 1) * 0.10
           + theme * 0.10;
         const consecutiveLoops = Math.max(0, Number(stat.consecutiveLoops) || 0);
-        score *= 1 - this._repetitionPenalty(consecutiveLoops);
+        const playsCount = Math.max(0, Number(stat.plays) || 0);
+        score *= 1 - this._repetitionPenalty(consecutiveLoops, playsCount);
         return { token, score, plays };
       })
       .sort((a, b) => b.score - a.score || a.plays - b.plays || a.token.localeCompare(b.token));
@@ -765,10 +767,13 @@ class Optimizer {
     };
   }
 
-  _repetitionPenalty(consecutiveLoops) {
-    if (!consecutiveLoops || consecutiveLoops <= 0) return 0;
+  _repetitionPenalty(consecutiveLoops, plays) {
+    const consec = Math.max(0, Number(consecutiveLoops) || 0);
+    const playCount = Math.max(0, Math.floor(Number(plays) || 0));
+    const effectiveReuse = consec + (playCount > 0 ? Math.min(8, Math.floor(Math.log2(1 + playCount))) : 0);
+    if (effectiveReuse <= 0) return 0;
     const params = REPETITION_PENALTY_PARAMS[this._repetitionPenaltyLevel] || REPETITION_PENALTY_PARAMS.strong;
-    return clamp(params.baseMult * Math.pow(params.expBase, Math.min(consecutiveLoops, 6)), 0, params.cap);
+    return clamp(params.baseMult * Math.pow(params.expBase, Math.min(effectiveReuse, 6)), 0, params.cap);
   }
 
   getRepetitionPenaltyForTokens(tokens) {
@@ -780,7 +785,8 @@ class Optimizer {
       if (!clean) continue;
       const stat = this.model.tokens[clean] || {};
       const consecutiveLoops = Math.max(0, Number(stat.consecutiveLoops) || 0);
-      sum += this._repetitionPenalty(consecutiveLoops);
+      const plays = Math.max(0, Number(stat.plays) || 0);
+      sum += this._repetitionPenalty(consecutiveLoops, plays);
     }
     return list.length ? sum / list.length : 0;
   }
@@ -797,7 +803,7 @@ class Optimizer {
     const githubPrior = githubRepos > 0 ? clamp(Math.log10(1 + githubRepos) / 10, 0, 0.18) : 0;
     const raw = clamp(exploitation + explorationBonus * 0.22 + githubPrior, 0, 1.6);
     const consecutiveLoops = Math.max(0, Math.floor(Number(s.consecutiveLoops) || 0));
-    const repPenalty = this._repetitionPenalty(consecutiveLoops);
+    const repPenalty = this._repetitionPenalty(consecutiveLoops, plays);
     return clamp(raw * (1 - repPenalty), 0, 1.6);
   }
 
