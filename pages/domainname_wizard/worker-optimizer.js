@@ -221,11 +221,11 @@ class Optimizer {
       .map(([token]) => token);
 
     this.curTokens = this._seedCurrentTokens();
-    emitDebugLog('worker-optimizer.js', 'Initialized theme-locked keyword pool', {
+    emitDebugLog('worker-optimizer.js', 'Initialized strict keyword pool', {
       seedTokens: this._themeSeedTokens.slice(0, 12),
       lockedTokens: this._lockedSeedTokens.slice(),
       poolSize: this._themeTokenPool.length,
-      poolSample: this._themeTokenPool.slice(0, 20),
+      poolTokens: this._themeTokenPool.slice(0, 40),
     });
 
     const toDelete = [];
@@ -240,6 +240,8 @@ class Optimizer {
       });
       for (const t of toDelete) delete this.model.tokens[t];
     }
+
+    this.model.elitePool = [];
   }
 
   thompsonChoose(map, keys) {
@@ -267,62 +269,33 @@ class Optimizer {
   _isThemeToken(token) {
     const clean = normalizeThemeToken(token);
     if (!clean) return false;
-    if (this._baseTokenSet.has(clean) || this._themeTokenSet.has(clean)) return true;
-    return scoreThemeAffinity(clean, this._themeSeedTokens, this._themeSeedStems) >= 1.8;
+    return this._baseTokenSet.has(clean) || this._themeTokenSet.has(clean);
   }
 
-  _addThemeToken(scored, token, weight, allowLoose) {
+  _addThemeToken(scored, token, weight) {
     const clean = normalizeThemeToken(token);
     if (!clean) return;
-    const affinity = scoreThemeAffinity(clean, this._themeSeedTokens, this._themeSeedStems);
-    if (affinity <= 0 && !this._baseTokenSet.has(clean) && !allowLoose) return;
-    if (!isValidToken(clean) && affinity < 1.6 && !this._baseTokenSet.has(clean) && !allowLoose) return;
-    const nextWeight = round(weight + affinity, 4);
     const prev = scored.get(clean) || 0;
-    if (nextWeight > prev) scored.set(clean, nextWeight);
+    if (weight > prev) scored.set(clean, weight);
   }
 
   _buildThemeTokenScores() {
     const scored = new Map();
 
     for (const seed of this._themeSeedTokens) {
-      this._addThemeToken(scored, seed, 5.0, true);
-      for (const variant of buildTokenVariants(seed)) this._addThemeToken(scored, variant, 3.0, true);
+      this._addThemeToken(scored, seed, 5.0);
+      for (const variant of buildTokenVariants(seed)) this._addThemeToken(scored, variant, 3.0);
 
       const directSynonyms = BUSINESS_SYNONYMS[seed] || [];
       for (const syn of directSynonyms) {
-        this._addThemeToken(scored, syn, 3.6, true);
-        for (const variant of buildTokenVariants(syn)) this._addThemeToken(scored, variant, 2.4, true);
+        this._addThemeToken(scored, syn, 3.6);
+        for (const variant of buildTokenVariants(syn)) this._addThemeToken(scored, variant, 2.4);
       }
 
       const reverseRoots = REVERSE_BUSINESS_SYNONYMS[seed] || [];
       for (const root of reverseRoots) {
-        this._addThemeToken(scored, root, 3.4, true);
-        for (const sibling of BUSINESS_SYNONYMS[root] || []) this._addThemeToken(scored, sibling, 2.8, true);
-      }
-
-      const seg = segmentWords(seed);
-      for (const part of seg.words || []) this._addThemeToken(scored, part, 2.8, false);
-    }
-
-    const compoundSource = dedupeTokens(
-      this._themeSeedTokens.concat(
-        Array.from(scored.entries())
-          .sort((a, b) => b[1] - a[1])
-          .map((e) => e[0])
-          .slice(0, 18),
-      ),
-    ).slice(0, 24);
-
-    for (let i = 0; i < compoundSource.length; i += 1) {
-      for (let j = i + 1; j < compoundSource.length; j += 1) {
-        const a = compoundSource[i];
-        const b = compoundSource[j];
-        if (!a || !b || a === b || a.length < 3 || b.length < 3) continue;
-        const ab = normalizeThemeToken(`${a}${b}`);
-        const ba = normalizeThemeToken(`${b}${a}`);
-        if (ab && ab.length <= 16) this._addThemeToken(scored, ab, 2.2, false);
-        if (ba && ba.length <= 16) this._addThemeToken(scored, ba, 2.0, false);
+        this._addThemeToken(scored, root, 3.4);
+        for (const sibling of BUSINESS_SYNONYMS[root] || []) this._addThemeToken(scored, sibling, 2.8);
       }
     }
 
@@ -354,20 +327,14 @@ class Optimizer {
 
   _collectEliteThemeTokens() {
     const out = [];
-    const add = (token) => {
-      const clean = normalizeThemeToken(token);
-      if (!clean || out.includes(clean)) return;
-      if (this._isThemeToken(clean)) out.push(clean);
-    };
-
     for (const elite of this.model.elitePool.slice(0, 12)) {
       const label = String(elite.domain || '').split('.')[0] || '';
-      for (const m of findMorphemes(label)) add(m);
-      if (label.includes('-')) {
-        for (const part of label.split('-').filter(Boolean)) add(part);
+      for (const m of findMorphemes(label)) {
+        const clean = normalizeThemeToken(m);
+        if (!clean || out.includes(clean)) continue;
+        if (this._themeTokenSet.has(clean) || this._baseTokenSet.has(clean)) out.push(clean);
       }
     }
-
     return out.slice(0, 24);
   }
 
@@ -488,6 +455,12 @@ class Optimizer {
 
     this.curTokens = dedupeTokens(next.map(normalizeThemeToken).filter((t) => t && this._isThemeToken(t))).slice(0, 8);
     if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(8, baseTokens.length));
+
+    emitDebugLog('worker-optimizer.js', 'Loop keyword selection', {
+      loop,
+      selectedKeywords: this.curTokens.slice(),
+      poolSize: this._themeTokenPool.length,
+    });
 
     return {
       loop,

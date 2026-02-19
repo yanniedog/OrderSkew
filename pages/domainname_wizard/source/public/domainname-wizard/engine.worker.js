@@ -288,14 +288,90 @@ async function saveModel(model) {
   }
 }
 
+const BUSINESS_SYNONYMS_SIMPLE = {
+  ai: ['artificial','intelligence','smart','machine','learn','neural','auto'],
+  tech: ['technology','digital','software','hardware','code','compute','cyber'],
+  cloud: ['server','host','deploy','saas','infra','platform','scale'],
+  data: ['analytics','insight','metric','warehouse','pipeline','lake','stream'],
+  analytics: ['data','insight','metric','intelligence','reporting','forecast','model'],
+  web: ['internet','online','site','browser','http','app','portal'],
+  app: ['application','mobile','software','tool','program','service','utility'],
+  health: ['medical','wellness','care','fit','bio','vital','cure'],
+  fitness: ['health','wellness','training','workout','active','athletic','vital'],
+  finance: ['money','bank','pay','invest','fund','capital','trade'],
+  fintech: ['finance','payment','banking','wallet','credit','lending','capital'],
+  payment: ['pay','wallet','checkout','billing','invoice','merchant','transfer'],
+  market: ['commerce','sell','buy','shop','store','retail','brand'],
+  ecommerce: ['market','commerce','retail','shop','store','checkout','catalog'],
+  retail: ['shop','store','market','commerce','merchant','sale','outlet'],
+  learn: ['education','study','teach','course','skill','tutor','academy'],
+  education: ['learn','study','teach','course','training','academy','school'],
+  build: ['construct','create','make','craft','forge','develop','design'],
+  startup: ['launch','venture','founder','build','growth','scale','incubator'],
+  fast: ['quick','rapid','speed','swift','instant','turbo','flash'],
+  growth: ['scale','expand','boost','accelerate','uplift','momentum','traction'],
+  secure: ['safe','protect','guard','shield','trust','vault','lock'],
+  security: ['secure','protect','defend','shield','safety','privacy','trust'],
+  connect: ['link','network','bridge','sync','join','unite','mesh'],
+  social: ['community','network','share','connect','engage','circle','tribe'],
+  green: ['eco','sustain','clean','renew','solar','earth','nature'],
+  creative: ['design','art','craft','studio','canvas','pixel','media'],
+  media: ['content','video','audio','stream','creative','studio','broadcast'],
+  video: ['media','stream','watch','clip','film','motion','channel'],
+  audio: ['sound','voice','podcast','music','stream','listen','sonic'],
+  productivity: ['workflow','task','manage','plan','organize','track','focus'],
+  automation: ['auto','workflow','bot','orchestrate','process','pipeline','streamline'],
+  saas: ['cloud','software','platform','service','subscription','b2b','tool'],
+  b2b: ['enterprise','business','saas','workflow','platform','service','team'],
+  b2c: ['consumer','retail','commerce','market','brand','shop','mobile'],
+  logistics: ['shipping','delivery','supply','freight','route','dispatch','transport'],
+  supply: ['inventory','stock','warehouse','logistics','fulfill','procure','chain'],
+  legal: ['law','attorney','counsel','compliance','contract','rights','policy'],
+  realestate: ['property','home','realty','mortgage','housing','listing','rent'],
+  travel: ['trip','journey','tour','hotel','booking','vacation','route'],
+  food: ['meal','kitchen','restaurant','dining','snack','taste','chef'],
+  coffee: ['cafe','brew','espresso','roast','bean','barista','latte'],
+  gaming: ['game','esports','play','arcade','stream','quest','guild'],
+  crypto: ['blockchain','token','wallet','defi','coin','ledger','chain'],
+  hiring: ['talent','recruit','career','job','staff','workforce','people'],
+  support: ['help','assist','service','care','success','desk','guidance'],
+  sales: ['revenue','pipeline','deal','prospect','crm','growth','conversion'],
+  brand: ['identity','name','logo','image','position','story','voice']
+};
+
 class Optimizer {
   constructor(base, model, seed) {
     this.base = { ...base };
     this.model = sanitizeModel(model);
     this.rand = rng(seed || now());
-    this.curTokens = tokenize(`${base.keywords} ${base.description}`).slice(0, 8);
     this.bestLoop = undefined;
     this.bestReward = -1;
+
+    this._baseKeywordTokens = tokenize(base.keywords).map(t => t.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(t => t.length >= 2).slice(0, 12);
+    this._baseDescTokens = tokenize(base.description || '').map(t => t.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(t => t.length >= 2).slice(0, 12);
+    this._seedTokens = [...new Set(this._baseKeywordTokens.concat(this._baseDescTokens))].slice(0, 24);
+    if (!this._seedTokens.length) this._seedTokens = ['brand'];
+    this._allowedTokens = this._buildAllowedTokens();
+    this.curTokens = this._seedTokens.slice(0, 8);
+
+    const toDelete = [];
+    for (const token of Object.keys(this.model.tokens)) {
+      if (!this._allowedTokens.has(token)) toDelete.push(token);
+    }
+    for (const t of toDelete) delete this.model.tokens[t];
+  }
+
+  _buildAllowedTokens() {
+    const allowed = new Set(this._seedTokens);
+    for (const seed of this._seedTokens) {
+      const syns = BUSINESS_SYNONYMS_SIMPLE[seed] || [];
+      for (const s of syns) allowed.add(s);
+    }
+    return allowed;
+  }
+
+  _isAllowed(token) {
+    return token && this._allowedTokens.has(token);
   }
 
   avg(stat) { return stat.plays ? stat.reward / stat.plays : 0.55; }
@@ -319,15 +395,17 @@ class Optimizer {
     const randomness = this.choose(this.model.randomness, RANDOMNESS_VALUES, 0.24);
 
     const tokenRank = Object.entries(this.model.tokens)
+      .filter(([token]) => this._isAllowed(token))
       .map(([token, stat]) => ({ token, avg: this.avg(stat) }))
       .sort((a, b) => b.avg - a.avg);
     const good = tokenRank.filter((x) => x.avg >= 0.58).map((x) => x.token).slice(0, 12);
     const weak = new Set(tokenRank.filter((x) => x.avg <= 0.4).map((x) => x.token).slice(0, 20));
 
-    const baseTokens = tokenize(this.base.keywords).slice(0, 12);
+    const baseTokens = this._baseKeywordTokens.slice(0, 12);
+    const allowedArr = Array.from(this._allowedTokens);
     const intensity = this.rand() > 0.66 ? 'high' : this.rand() > 0.33 ? 'medium' : 'low';
     const mut = intensity === 'high' ? 3 : intensity === 'medium' ? 2 : 1;
-    const next = this.curTokens.length ? this.curTokens.slice() : baseTokens.slice(0, 4);
+    const next = this.curTokens.length ? this.curTokens.filter(t => this._isAllowed(t)).slice() : baseTokens.slice(0, 4);
 
     for (let i = 0; i < mut; i += 1) {
       if (next.length > 2) {
@@ -335,12 +413,13 @@ class Optimizer {
         const idx = weakIdx >= 0 ? weakIdx : Math.floor(this.rand() * next.length);
         next.splice(idx, 1);
       }
-      const src = good.length && this.rand() > 0.2 ? good : baseTokens;
-      const t = pick(src.length ? src : ['brand', 'company'], this.rand);
-      if (t && !next.includes(t)) next.push(t);
+      const src = good.length && this.rand() > 0.2 ? good : (allowedArr.length ? allowedArr : baseTokens);
+      const t = pick(src.length ? src : baseTokens, this.rand);
+      if (t && !next.includes(t) && this._isAllowed(t)) next.push(t);
     }
 
-    this.curTokens = next.slice(0, 8);
+    this.curTokens = next.filter(t => this._isAllowed(t)).slice(0, 8);
+    if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(4, baseTokens.length));
 
     return {
       loop,
@@ -364,7 +443,9 @@ class Optimizer {
     this.model.randomness[plan.selectedRandomness].plays += 1;
     this.model.randomness[plan.selectedRandomness].reward += r;
 
-    const tokens = tokenize(`${plan.input.keywords} ${plan.input.description}`).slice(0, 12);
+    const tokens = tokenize(`${plan.input.keywords} ${plan.input.description}`)
+      .filter(t => this._isAllowed(t))
+      .slice(0, 12);
     for (const token of tokens) {
       if (!this.model.tokens[token]) this.model.tokens[token] = { plays: 0, reward: 0 };
       this.model.tokens[token].plays += 1;
@@ -391,6 +472,7 @@ class Optimizer {
   snapshot() {
     this.model.tokens = Object.fromEntries(
       Object.entries(this.model.tokens)
+        .filter(([token]) => this._isAllowed(token))
         .sort((a, b) => ((b[1].plays ? b[1].reward / b[1].plays : 0.55) - (a[1].plays ? a[1].reward / a[1].plays : 0.55)))
         .slice(0, 300),
     );

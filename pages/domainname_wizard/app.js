@@ -41,7 +41,7 @@
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
-  const ENGINE_WORKER_VERSION = '2026-02-19-2';
+  const ENGINE_WORKER_VERSION = '2026-02-19-3';
 
   function showFormError(message) {
     if (!message) {
