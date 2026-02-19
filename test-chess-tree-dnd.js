@@ -48,6 +48,19 @@ async function dragPiece(page, fromSquare, toSquare) {
   await page.dragAndDrop(from, to);
 }
 
+async function pickDragPair(page) {
+  return page.evaluate(() => {
+    const squares = Array.from(document.querySelectorAll("#board .board-square[data-square]"));
+    const withPieces = squares.filter((square) => square.querySelector(".board-piece"));
+    const empty = squares.filter((square) => !square.querySelector(".board-piece"));
+    if (withPieces.length === 0 || empty.length === 0) return null;
+    return {
+      from: withPieces[0].getAttribute("data-square"),
+      to: empty[0].getAttribute("data-square")
+    };
+  });
+}
+
 async function run(url) {
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch({ headless: true });
@@ -83,9 +96,13 @@ async function run(url) {
       throw new Error(`Square not square after start: ${afterStart.first.width}x${afterStart.first.height}`);
     }
 
-    // Select root to ensure initial start position is shown, then drag a2->a3.
+    // Select ROOT then drag any available piece to any empty square.
     await page.click("text=ROOT");
-    await dragPiece(page, "a2", "a3");
+    const pair = await pickDragPair(page);
+    if (!pair) {
+      throw new Error("Drag test failed: board does not expose draggable pieces/squares.");
+    }
+    await dragPiece(page, pair.from, pair.to);
 
     const afterDrag = await readBoardMetrics(page);
     if (!closeEnough(afterDrag.board.width, afterDrag.board.height)) {

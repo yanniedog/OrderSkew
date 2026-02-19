@@ -66,6 +66,19 @@ function closeEnough(a, b, tolerance = 1.25) {
   return Math.abs(a - b) <= tolerance;
 }
 
+async function pickDragPair(page) {
+  return page.evaluate(() => {
+    const squares = Array.from(document.querySelectorAll("#board .board-square[data-square]"));
+    const withPieces = squares.filter((square) => square.querySelector(".board-piece"));
+    const empty = squares.filter((square) => !square.querySelector(".board-piece"));
+    if (withPieces.length === 0 || empty.length === 0) return null;
+    return {
+      from: withPieces[0].getAttribute("data-square"),
+      to: empty[0].getAttribute("data-square")
+    };
+  });
+}
+
 async function runE2E(url) {
   const { chromium } = loadPlaywright();
   const browser = await chromium.launch({ headless: true });
@@ -92,8 +105,12 @@ async function runE2E(url) {
     }
 
     await page.click("text=ROOT");
-    await page.waitForSelector("#board .board-square[data-square='a2'] .board-piece", { timeout: 20000 });
-    await page.dragAndDrop("#board .board-square[data-square='a2'] .board-piece", "#board .board-square[data-square='a3']");
+    const pair = await pickDragPair(page);
+    if (!pair) throw new Error("Drag test failed: board does not expose draggable pieces/squares.");
+    await page.dragAndDrop(
+      `#board .board-square[data-square='${pair.from}'] .board-piece`,
+      `#board .board-square[data-square='${pair.to}']`
+    );
 
     const afterDrag = await readBoardMetrics(page);
     if (!closeEnough(afterDrag.board.width, afterDrag.board.height)) {
