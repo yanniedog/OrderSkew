@@ -429,7 +429,7 @@
       tld: String(data.get('tld') || 'com').trim(),
       maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 100)), 1, 250),
       yearlyBudget: clamp(parseNumber(data.get('yearlyBudget'), 50), 1, 100000),
-      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 10)), 1, 25),
+      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 10)), 1, 250),
       apiBaseUrl: BACKEND_URL,
     };
   }
@@ -959,7 +959,7 @@
           tld: String(input.tld || 'com').trim().replace(/^\./, '').toLowerCase(),
           maxNames: clamp(Math.round(Number(input.maxNames) || 100), 1, 250),
           yearlyBudget: clamp(Number(input.yearlyBudget) || 50, 1, 100000),
-          loopCount: clamp(Math.round(Number(input.loopCount) || 10), 1, 25),
+          loopCount: clamp(Math.round(Number(input.loopCount) || 10), 1, 250),
         };
         if (!parsedInput.keywords || parsedInput.keywords.length < 2) {
           throw new Error('Keywords must be at least 2 characters.');

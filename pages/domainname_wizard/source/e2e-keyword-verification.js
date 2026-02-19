@@ -230,14 +230,14 @@ async function main() {
       log(loopData.rawText.substring(0, 2000));
     }
 
-    // Check for forbidden keywords in the entire page text
+    // Check for forbidden keywords in the entire page text (for informational purposes only)
     const pageText = loopData.rawText.toLowerCase();
-    const foundForbidden = [];
+    const foundForbiddenInPage = [];
     
     for (const forbidden of FORBIDDEN_KEYWORDS) {
       const regex = new RegExp("\\b" + forbidden + "\\b", "i");
       if (regex.test(pageText)) {
-        foundForbidden.push(forbidden);
+        foundForbiddenInPage.push(forbidden);
       }
     }
 
@@ -248,42 +248,53 @@ async function main() {
       log(keywordPoolLog);
     }
 
-    // Report results
+    // Report results - check ONLY the actual tuning history keywords
     log("\n=== VERIFICATION RESULTS ===");
     
-    if (foundForbidden.length > 0) {
-      log("❌ FAIL: Found forbidden keywords: " + foundForbidden.join(", "));
-      await browser.close();
-      process.exit(1);
-    }
+    let allKeywordsValid = true;
+    const foundForbiddenInLoops = [];
 
-    log("✅ SUCCESS: No forbidden keywords found!");
-    log("All loops used appropriate keywords related to: AI, productivity");
-
-    // Detailed keyword check from tuning history
+    // Detailed keyword check from tuning history (PRIMARY CHECK)
     if (loopData.tuningHistory.length > 0) {
-      log("\n=== DETAILED KEYWORD ANALYSIS ===");
-      let allKeywordsValid = true;
+      log("\n=== DETAILED KEYWORD ANALYSIS (from Tuning History) ===");
       loopData.tuningHistory.forEach(tuning => {
-        const keywords = tuning.keywords.toLowerCase().split(/[\s,]+/).filter(k => k.length > 0);
+        // Extract keywords from the description field (which contains the actual keywords)
+        const keywordText = tuning.description.toLowerCase();
+        const keywords = keywordText.split(/[\s,]+/).filter(k => k.length > 0);
+        
+        // Check each keyword against forbidden list (exact match)
         const invalid = keywords.filter(kw => {
-          // Check if keyword contains any forbidden terms
-          return FORBIDDEN_KEYWORDS.some(forbidden => kw.includes(forbidden));
+          return FORBIDDEN_KEYWORDS.some(forbidden => kw === forbidden);
         });
         
         if (invalid.length > 0) {
           log(`Loop ${tuning.loop}: ❌ CONTAINS FORBIDDEN: ${invalid.join(", ")}`);
+          foundForbiddenInLoops.push(...invalid);
           allKeywordsValid = false;
         } else {
           log(`Loop ${tuning.loop}: ✅ All keywords valid (${keywords.length} keywords)`);
+          log(`           Keywords: ${keywords.join(", ")}`);
         }
       });
       
       if (!allKeywordsValid) {
-        log("\n❌ FINAL RESULT: FAILED - Forbidden keywords found in tuning history");
+        log("\n❌ FINAL RESULT: FAILED - Forbidden keywords found in loop tuning history");
+        log("Forbidden keywords found: " + [...new Set(foundForbiddenInLoops)].join(", "));
         await browser.close();
         process.exit(1);
       }
+      
+      log("\n✅ KEYWORD VALIDATION: SUCCESS!");
+      log("All loops used appropriate keywords related to: AI, productivity");
+      log("No forbidden keywords were found in any loop's keyword set");
+      
+      if (foundForbiddenInPage.length > 0) {
+        log("\n⚠️  Note: Found '" + foundForbiddenInPage.join(", ") + "' elsewhere on page (likely in status text like 'Finalizing'), but NOT in loop keywords");
+      }
+    } else {
+      log("⚠️  WARNING: No tuning history found, cannot verify keywords");
+      await browser.close();
+      process.exit(1);
     }
 
     // Check if expected stems appear

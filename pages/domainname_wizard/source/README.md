@@ -9,7 +9,7 @@ Namelix-to-GoDaddy iterative domain optimizer.
 - Normalizes names into domain candidates (`<name>.<tld>`).
 - Enforces `maxLength` in backend before availability checks and scoring.
 - Checks domain availability in bulk using official GoDaddy Domains API.
-- Runs iterative AI-style tuning loops (`loopCount`, default `10`, max `25`):
+- Runs iterative AI-style tuning loops (`loopCount`, default `10`, max `250`):
   - Evolutionary keyword/description mutation.
   - Epsilon-greedy bandit selection for style/randomness/mutation intensity.
   - Local persistent learning model in `data/optimizer-state.json`.
@@ -84,7 +84,7 @@ Open **`index.html`** in the project root directly in a browser or host it on an
 
 ### POST payload highlights
 
-- `loopCount`: integer `1..25` (default `10`)
+- `loopCount`: integer `1..250` (default `10`)
 - `maxLength`: strict backend-enforced label length cap (`5..25`)
 
 ## Validate

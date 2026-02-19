@@ -412,7 +412,7 @@ export default function Page() {
             <input
               type="number"
               min={1}
-              max={25}
+              max={250}
               value={form.loopCount}
               onChange={(event) =>
                 setForm((previous) => ({

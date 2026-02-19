@@ -18,7 +18,7 @@ export const searchRequestSchema = z.object({
     .transform((value) => value.replace(/^\./, "").toLowerCase()),
   maxNames: z.number().int().min(1).max(250).default(100),
   yearlyBudget: z.number().positive().max(100_000),
-  loopCount: z.number().int().min(1).max(25).default(10),
+  loopCount: z.number().int().min(1).max(250).default(10),
 });
 
 export type SearchRequestInput = z.input<typeof searchRequestSchema>;
