@@ -210,10 +210,6 @@ class Optimizer {
 
     this.curTokens = next.slice(0, 8);
 
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f925fd'},body:JSON.stringify({sessionId:'f925fd',location:'worker-optimizer.js:Optimizer.next',message:'Keyword generation',data:{loop,curTokens:this.curTokens.slice(),keywordsString:this.curTokens.join(' ')||this.base.keywords,eliteTokens:eliteTokens.slice(0,10),goodTokens:good.slice(0,10),synonymsUsed:synonymPool.slice(0,10),style,randomness,intensity},timestamp:Date.now(),runId:'run1',hypothesisId:'H1_fix'})}).catch(function(){});
-    // #endregion
-
     return {
       loop,
       sourceLoop: this.bestLoop,

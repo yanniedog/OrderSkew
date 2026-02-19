@@ -578,11 +578,6 @@
       };
     });
     const combinedRanked = allRanked.concat(pendingRows);
-    // #region agent log
-    allRanked.slice(0, 2).forEach(function (row, i) {
-      debugLogs.push({ sessionId: '437d46', location: 'app.js:renderResults', message: 'UI row', data: { index: i, domain: row.domain, price: row.price, premiumPricing: row.premiumPricing, hypothesisId: 'H4' }, timestamp: Date.now() });
-    });
-    // #endregion
     const sortedRanked = sortRows(combinedRanked, currentSortMode);
     const withinBudget = sortRows(results.withinBudget || [], currentSortMode);
     const overBudget = sortRows(results.overBudget || [], currentSortMode);
@@ -785,11 +780,6 @@
 
     if (message.type === 'debugLog' && message.payload) {
       debugLogs.push(message.payload);
-      // #region agent log
-      if (message.payload.sessionId === 'efbcb6') {
-        fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'efbcb6' }, body: JSON.stringify(message.payload) }).catch(function () {});
-      }
-      // #endregion
       updateDataSourcePanel(message.payload);
       return;
     }
