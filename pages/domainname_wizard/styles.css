@@ -378,6 +378,17 @@ tbody tr:nth-child(odd) {
 #data-source-panel {
   border-left: 4px solid var(--accent, #2563eb);
 }
+#data-source-panel .ds-toggle {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f2f7ff;
+  color: #214361;
+  font-weight: 700;
+  padding: 8px 10px;
+  cursor: pointer;
+}
 #data-source-panel h3 {
   margin: 0 0 0.75rem 0;
   font-size: 1rem;

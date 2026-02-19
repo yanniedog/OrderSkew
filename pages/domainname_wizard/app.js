@@ -43,6 +43,7 @@
   let latestRunExport = null;
   const ENGINE_WORKER_VERSION = '2026-02-19-3';
   const tableSortState = new WeakMap();
+  let dataSourceCollapsed = true;
 
   function showFormError(message) {
     if (!message) {
@@ -131,56 +132,67 @@
     el.hidden = false;
 
     const parts = [];
+    const bodyParts = [];
 
-    parts.push('<h3>Data Source Confirmation</h3>');
+    parts.push('<button type="button" id="data-source-toggle" class="ds-toggle" aria-expanded="' + (!dataSourceCollapsed ? 'true' : 'false') + '">Data Source Confirmation</button>');
 
     if (dataSourceState.nameGeneration) {
       const ng = dataSourceState.nameGeneration;
       const cls = ng.namelixApiCalled ? 'good' : 'warn';
-      parts.push('<div class="ds-block">');
-      parts.push('<strong>Name Generation:</strong> ');
-      parts.push('<span class="' + cls + '">' + escapeHtml(ng.source) + '</span>');
-      parts.push('<br>Namelix API called: <strong>' + (ng.namelixApiCalled ? 'YES' : 'NO') + '</strong>');
-      parts.push('<br>Premium pricing source: <strong>GoDaddy API</strong>');
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Name Generation:</strong> ');
+      bodyParts.push('<span class="' + cls + '">' + escapeHtml(ng.source) + '</span>');
+      bodyParts.push('<br>Namelix API called: <strong>' + (ng.namelixApiCalled ? 'YES' : 'NO') + '</strong>');
+      bodyParts.push('<br>Premium pricing source: <strong>GoDaddy API</strong>');
       if (ng.syntheticNameGeneration) {
-        parts.push('<br><span class="warn">Names are generated locally, not from Namelix.</span>');
+        bodyParts.push('<br><span class="warn">Names are generated locally, not from Namelix.</span>');
       }
-      parts.push('</div>');
+      bodyParts.push('</div>');
     }
 
     if (dataSourceState.availability) {
       const av = dataSourceState.availability;
       const cls = av.syntheticData ? 'bad' : 'good';
-      parts.push('<div class="ds-block">');
-      parts.push('<strong>Availability &amp; Pricing:</strong> ');
-      parts.push('<span class="' + cls + '">' + escapeHtml(av.source || 'Unknown') + '</span>');
-      if (av.endpoint) parts.push('<br>Endpoint: <code>' + escapeHtml(av.endpoint) + '</code>');
-      if (av.env) parts.push('<br>GoDaddy Environment: <strong>' + escapeHtml(av.env) + '</strong>');
-      if (av.credentialsSource) parts.push('<br>Credentials from: <strong>' + escapeHtml(av.credentialsSource) + '</strong>');
-      parts.push('<br>API Key present: <strong>' + (av.apiKeyPresent ? 'YES' : 'NO') + '</strong>');
-      if (av.status) parts.push('<br>GoDaddy response status: <strong>' + escapeHtml(String(av.status)) + '</strong>');
-      if (av.resultCount != null) parts.push('<br>Results returned: <strong>' + av.resultCount + '</strong>');
-      parts.push('<br>Synthetic data: <strong class="' + (av.syntheticData ? 'bad' : 'good') + '">' + (av.syntheticData ? 'YES' : 'NO') + '</strong>');
-      parts.push('</div>');
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Availability &amp; Pricing:</strong> ');
+      bodyParts.push('<span class="' + cls + '">' + escapeHtml(av.source || 'Unknown') + '</span>');
+      if (av.endpoint) bodyParts.push('<br>Endpoint: <code>' + escapeHtml(av.endpoint) + '</code>');
+      if (av.env) bodyParts.push('<br>GoDaddy Environment: <strong>' + escapeHtml(av.env) + '</strong>');
+      if (av.credentialsSource) bodyParts.push('<br>Credentials from: <strong>' + escapeHtml(av.credentialsSource) + '</strong>');
+      bodyParts.push('<br>API Key present: <strong>' + (av.apiKeyPresent ? 'YES' : 'NO') + '</strong>');
+      if (av.status) bodyParts.push('<br>GoDaddy response status: <strong>' + escapeHtml(String(av.status)) + '</strong>');
+      if (av.resultCount != null) bodyParts.push('<br>Results returned: <strong>' + av.resultCount + '</strong>');
+      bodyParts.push('<br>Synthetic data: <strong class="' + (av.syntheticData ? 'bad' : 'good') + '">' + (av.syntheticData ? 'YES' : 'NO') + '</strong>');
+      bodyParts.push('</div>');
     }
 
     if (dataSourceState.godaddyDebug && dataSourceState.godaddyDebug.sampleRawResponse) {
-      parts.push('<div class="ds-block">');
-      parts.push('<strong>Sample GoDaddy Raw Response:</strong><br>');
-      parts.push('<pre style="font-size:0.75rem;overflow-x:auto;max-width:100%;">' + escapeHtml(JSON.stringify(dataSourceState.godaddyDebug.sampleRawResponse, null, 2)) + '</pre>');
-      parts.push('</div>');
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Sample GoDaddy Raw Response:</strong><br>');
+      bodyParts.push('<pre style="font-size:0.75rem;overflow-x:auto;max-width:100%;">' + escapeHtml(JSON.stringify(dataSourceState.godaddyDebug.sampleRawResponse, null, 2)) + '</pre>');
+      bodyParts.push('</div>');
     }
 
     if (dataSourceState.syntheticFlags.length > 0) {
-      parts.push('<div class="ds-block warn-block">');
-      parts.push('<strong>Synthetic/Simulated Data Warnings:</strong><ul>');
+      bodyParts.push('<div class="ds-block warn-block">');
+      bodyParts.push('<strong>Synthetic/Simulated Data Warnings:</strong><ul>');
       dataSourceState.syntheticFlags.forEach(function (f) {
-        parts.push('<li>' + escapeHtml(f) + '</li>');
+        bodyParts.push('<li>' + escapeHtml(f) + '</li>');
       });
-      parts.push('</ul></div>');
+      bodyParts.push('</ul></div>');
     }
 
+    parts.push('<div id="data-source-body"' + (dataSourceCollapsed ? ' hidden' : '') + '>' + bodyParts.join('') + '</div>');
     el.innerHTML = parts.join('');
+    const toggle = document.getElementById('data-source-toggle');
+    const body = document.getElementById('data-source-body');
+    if (toggle && body) {
+      toggle.addEventListener('click', function () {
+        dataSourceCollapsed = !dataSourceCollapsed;
+        toggle.setAttribute('aria-expanded', dataSourceCollapsed ? 'false' : 'true');
+        body.hidden = dataSourceCollapsed;
+      });
+    }
   }
 
   function pushDebugLog(location, message, data) {
@@ -768,6 +780,7 @@
     dataSourceState.availability = null;
     dataSourceState.godaddyDebug = null;
     dataSourceState.syntheticFlags = [];
+    dataSourceCollapsed = true;
     var dsPanel = document.getElementById('data-source-panel');
     if (dsPanel) { dsPanel.hidden = true; dsPanel.innerHTML = ''; }
 
