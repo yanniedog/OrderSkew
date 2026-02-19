@@ -924,12 +924,16 @@
     const liveCoverage = results.keywordLibrary && results.keywordLibrary.coverageMetrics ? results.keywordLibrary.coverageMetrics : null;
     const loopSummaries = Array.isArray(results.loopSummaries) ? results.loopSummaries : [];
     const latestLoop = loopSummaries.length ? loopSummaries[loopSummaries.length - 1] : null;
-    // Prefer loop summary for curated coverage so the metric updates every loop even if keywordLibrary.coverageMetrics is missing from payload.
-    const hasLoopCoverage = latestLoop && Number(latestLoop.curatedCoverageTotal || 0) > 0;
-    const curatedCoveragePct = hasLoopCoverage ? Number(latestLoop.curatedCoveragePct || 0) : (liveCoverage ? Number(liveCoverage.coveragePct || 0) : 0);
-    const curatedCoverageTargetPct = hasLoopCoverage ? Number(latestLoop.curatedCoverageTargetPct || 0) : (liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : 0);
-    const curatedCoverageAssessed = hasLoopCoverage ? Number(latestLoop.curatedCoverageAssessed || 0) : (liveCoverage ? Number(liveCoverage.assessedTarget || 0) : 0);
-    const curatedCoverageTotal = hasLoopCoverage ? Number(latestLoop.curatedCoverageTotal || 0) : (liveCoverage ? Number(liveCoverage.total || 0) : 0);
+    // Use loop summary whenever we have any completed loop so the metric updates every loop; fall back to keywordLibrary.coverageMetrics only before any loop.
+    const useLoopCoverage = !!latestLoop;
+    const curatedCoveragePct = useLoopCoverage ? Number(latestLoop.curatedCoveragePct || 0) : (liveCoverage ? Number(liveCoverage.coveragePct || 0) : 0);
+    const curatedCoverageTargetPct = useLoopCoverage ? Number(latestLoop.curatedCoverageTargetPct || 0) : (liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : 0);
+    const curatedCoverageAssessed = useLoopCoverage ? Number(latestLoop.curatedCoverageAssessed || 0) : (liveCoverage ? Number(liveCoverage.assessedTarget || 0) : 0);
+    const curatedCoverageTotal = useLoopCoverage ? Number(latestLoop.curatedCoverageTotal || 0) : (liveCoverage ? Number(liveCoverage.total || 0) : 0);
+    const hasCuratedCoverageData = useLoopCoverage || (curatedCoverageTotal > 0);
+    const curatedCoverageValue = hasCuratedCoverageData
+      ? `${formatScore(curatedCoveragePct, 1)}% | target ${formatScore(curatedCoverageTargetPct, 1)}% (${curatedCoverageAssessed}/${curatedCoverageTotal})`
+      : '-';
 
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
@@ -937,7 +941,7 @@
       { label: 'Underpriced', value: String(underpricedCount) },
       { label: 'Avg Est. Value', value: avgEstValue > 0 ? '$' + Math.round(avgEstValue).toLocaleString() : '-' },
       { label: 'Best Value Ratio', value: bestRatio > 0 ? formatScore(bestRatio, 1) + 'x' : '-' },
-      { label: 'Curated Coverage', value: curatedCoverageTotal > 0 ? `${formatScore(curatedCoveragePct, 1)}% | target ${formatScore(curatedCoverageTargetPct, 1)}% (${curatedCoverageAssessed}/${curatedCoverageTotal})` : '-' },
+      { label: 'Curated Coverage', value: curatedCoverageValue },
       { label: 'Avg Intrinsic', value: formatScore(avg('intrinsicValue'), 1) },
       { label: 'Avg Liquidity', value: formatScore(avg('liquidityScore'), 0) },
       { label: 'Top Domain', value: top ? escapeHtml(top.domain) : '-' },
