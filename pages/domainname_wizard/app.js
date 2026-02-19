@@ -330,6 +330,7 @@
     if (!payload || !payload.data) return;
     const d = payload.data;
     const msg = payload.message || '';
+    let dirty = false;
 
     if (msg === 'Name generation source' || d.source === 'LOCAL (makeBatch combinatorics)') {
       dataSourceState.nameGeneration = {
@@ -341,6 +342,7 @@
       if (d.syntheticNameGeneration) {
         dataSourceState.syntheticFlags.push('Name generation is LOCAL (not Namelix API)');
       }
+      dirty = true;
     }
 
     if (msg === 'GoDaddy API debug info' || d.dataSource || d.godaddyEndpoint) {
@@ -354,6 +356,7 @@
         status: d.godaddyStatus || null,
         syntheticData: Boolean(d.syntheticData),
       };
+      dirty = true;
     }
 
     if (msg === 'Availability API success response' && d._debug) {
@@ -368,6 +371,7 @@
         syntheticData: Boolean(d._debug.syntheticData),
         resultCount: d.resultCount,
       };
+      dirty = true;
     }
 
     if (msg === 'Synonym API accessibility') {
@@ -379,10 +383,40 @@
         failed: Number(d.failed || 0),
         sampleErrors: Array.isArray(d.sampleErrors) ? d.sampleErrors.slice(0, 5) : [],
       };
+      dirty = true;
     }
 
+    if (!dirty) return;
     ensureDataSourceExpandedForIssues();
     renderDataSourcePanel();
+  }
+
+  function captureResultsScrollState() {
+    const ids = [
+      'all-ranked-table',
+      'within-budget-table',
+      'over-budget-table',
+      'unavailable-table',
+      'loop-summary-table',
+      'keyword-library-table',
+      'tuning-table',
+    ];
+    const wrapScroll = {};
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) wrapScroll[id] = el.scrollTop || 0;
+    }
+    return { pageY: window.scrollY || 0, wrapScroll };
+  }
+
+  function restoreResultsScrollState(state) {
+    if (!state || typeof state !== 'object') return;
+    const wrapScroll = state.wrapScroll || {};
+    for (const [id, top] of Object.entries(wrapScroll)) {
+      const el = document.getElementById(id);
+      if (el) el.scrollTop = Number(top) || 0;
+    }
+    window.scrollTo(0, Number(state.pageY) || 0);
   }
 
   function renderDataSourcePanel() {
@@ -839,6 +873,7 @@
       resultsPanelEl.hidden = true;
       return;
     }
+    const scrollState = captureResultsScrollState();
 
     const allRanked = results.allRanked || [];
     const pending = results.pending || [];
@@ -897,6 +932,7 @@
     tuningTableEl.innerHTML = renderTuningTable(results.tuningHistory || []);
     if (keywordLibraryTableEl) keywordLibraryTableEl.innerHTML = renderKeywordLibraryTable(results.keywordLibrary || null);
     wireTableSorting();
+    restoreResultsScrollState(scrollState);
 
     resultsPanelEl.hidden = false;
   }
