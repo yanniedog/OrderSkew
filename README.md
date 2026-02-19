@@ -47,5 +47,8 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - Imported source snapshot from `C:\code\domainname-wizard` is stored at `pages/domainname_wizard/source/` (excluding `.next`, `node_modules`, and local env/debug artifacts).
 - Full automated test (unit + E2E): from repo root run `node test-domainname-wizard.js`. Requires `npm install` in `pages/domainname_wizard/source/` and Playwright browsers (`npx playwright install chromium` in that directory) for E2E.
 - `pages/crypto_ath_drawdown_cycles/` hosts the Top 20 Ex-Stable ATH Drawdown Cycles tool (CoinGecko non-stable top-20 ranking + Binance daily USDT cycle analysis with structured JSON output).
+- `pages/chess_tree/` hosts the Chess Tree tool with browser-engine and optional remote API modes.
+- Imported source snapshot from `C:\code\chess-move-tree` is stored at `tools/chess_tree/source/` (excluding `target`, local DB artifacts, and installers).
+- Canonical Chess Tree frontend source lives under `tools/chess_tree/frontend/`; publish/sync to `pages/chess_tree/` with `tools/chess_tree/deploy-to-orderskew.ps1`.
 
 

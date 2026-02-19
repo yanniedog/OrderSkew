@@ -1,0 +1,58 @@
+# Chess Move Tree Generator - Configuration File
+# This file makes the tool super easy to use!
+
+# 🎯 Generation Settings - How deep to explore
+[generation]
+# Start with 4 moves deep (good for learning)
+max_depth = 4
+
+# Use all CPU cores (0 = auto-detect)
+threads = 0
+
+# Buffer size - smaller = less memory, larger = faster
+buffer_size = 500
+
+# 💾 Storage Settings - Where to save your data
+[storage]
+# Your database file name
+path = "my_chess_tree.db"
+
+# 🔍 Evaluation Settings - Stockfish analysis
+[evaluation]
+# Enable position evaluation (requires Stockfish)
+enabled = true
+
+# Path to Stockfish (leave empty for auto-detection)
+stockfish_path = ""
+
+# How deep Stockfish should analyze (higher = better but slower)
+depth = 10
+
+# 🌐 Web Server Settings
+[server]
+# Port for web interface
+port = 8080
+
+# Auto-start web server after generation
+enabled = true
+
+# 🎮 Preset Modes - Uncomment one to use
+
+# # Light Mode - Quick demo
+# [generation]
+# max_depth = 3
+# threads = 2
+# buffer_size = 100
+
+# # Standard Mode - Good balance
+# [generation]
+# max_depth = 6
+# threads = 4
+# buffer_size = 1000
+
+# # Deep Mode - Research quality
+# [generation]
+# max_depth = 10
+# threads = 8
+# buffer_size = 5000
+

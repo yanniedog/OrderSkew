@@ -1,0 +1,39 @@
+[package]
+name = "chess-move-tree"
+version = "0.1.0"
+edition = "2021"
+authors = ["Chess Move Tree Team"]
+description = "A comprehensive chess move tree generator with position evaluation"
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "fs"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+anyhow = "1.0"
+thiserror = "1.0"
+rand = "0.8"
+rayon = "1.7"
+bloomfilter = "1.0"
+fastrand = "2.0"
+lru = "0.12"
+rusqlite = { version = "0.31", features = ["bundled"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.24"
+shakmaty = "0.26"
+sysinfo = "0.30"
+toml = "0.8"
+ctrlc = "3.4"
+num_cpus = "1.16"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

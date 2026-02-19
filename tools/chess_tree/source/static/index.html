@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Move Tree Visualization</title>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .stat-item {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 5px;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .controls button:hover {
+            background: #5568d3;
+        }
+
+        .controls button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .controls input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .tree-container {
+            position: relative;
+            padding: 20px;
+            overflow: auto;
+            max-height: calc(100vh - 250px);
+            background: #fafafa;
+        }
+
+        .tree-node {
+            margin: 5px 0;
+            user-select: none;
+        }
+
+        .node-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 20px;
+        }
+
+        .node-content:hover {
+            background: #f0f0f0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .node-content.selected {
+            background: #e3f2fd;
+            border-color: #667eea;
+        }
+
+        .expand-toggle {
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #999;
+            border-radius: 3px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .expand-toggle:hover {
+            background: #f0f0f0;
+        }
+
+        .expand-toggle.no-children {
+            visibility: hidden;
+        }
+
+        .move-label {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 60px;
+        }
+
+        .fen-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #666;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .depth-badge {
+            background: #764ba2;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .children {
+            margin-left: 40px;
+            border-left: 2px solid #e0e0e0;
+            padding-left: 10px;
+            display: none;
+        }
+
+        .children.expanded {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #c62828;
+        }
+
+        .breadcrumb {
+            padding: 15px 20px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .breadcrumb-item {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .breadcrumb-item:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb-separator {
+            color: #999;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .board-section {
+            flex-shrink: 0;
+            width: 400px;
+        }
+
+        .board-container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .board-info {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .info-item {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+            margin-right: 10px;
+        }
+
+        .evaluation-score {
+            font-size: 18px;
+            font-weight: bold;
+            color: #764ba2;
+        }
+
+        .tree-section {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .board-info.loading .info-value {
+            color: transparent;
+            position: relative;
+        }
+
+        .board-info.loading .info-value::after,
+        .node-content.loading::after,
+        .tree-container.is-loading::before,
+        .children.loading::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -150px;
+            height: 100%;
+            width: 150px;
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%);
+            animation: shimmer 1.2s infinite;
+        }
+
+        .board-info.loading .info-value,
+        .node-content.loading {
+            background: #e8e8e8;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .tree-container.is-loading::before {
+            z-index: 1;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            background: rgba(250, 250, 250, 0.85);
+        }
+
+        .tree-container.is-loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 36px;
+            height: 36px;
+            margin: -18px 0 0 -18px;
+            border: 4px solid #d5d5d5;
+            border-top-color: #764ba2;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            z-index: 2;
+        }
+
+        .children.loading {
+            position: relative;
+        }
+
+        .children.loading::after {
+            left: 20px;
+            right: 20px;
+            margin: 0 auto;
+            max-width: 240px;
+            height: 48px;
+            opacity: 0.6;
+        }
+
+        .info-value {
+            display: inline-block;
+            min-width: 80px;
+            position: relative;
+        }
+
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(118, 75, 162, 0.2);
+            border-top-color: #764ba2;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 32px 0;
+            color: #666;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes shimmer {
+            100% {
+                transform: translateX(300px);
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .main-content {
+                flex-direction: column;
+            }
+            .board-section {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>♟️ Chess Move Tree Visualization</h1>
+            <div class="stats" id="stats">
+                <div class="stat-item">Loading...</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="loadRoot()">🏠 Root Position</button>
+            <button onclick="expandAll()">📖 Expand All</button>
+            <button onclick="collapseAll()">📕 Collapse All</button>
+            <input type="text" id="searchInput" placeholder="Search by FEN or move sequence..." onkeypress="handleSearchKeypress(event)">
+            <button onclick="search()">🔍 Search</button>
+        </div>
+
+        <div class="breadcrumb" id="breadcrumb"></div>
+
+        <div class="main-content">
+            <div class="board-section">
+                <div class="board-container">
+                    <div id="board" style="width: 360px; margin: 0 auto;"></div>
+                </div>
+                <div class="board-info" id="boardInfo">
+                    <div class="info-item">
+                        <span class="info-label">FEN:</span>
+                        <span class="info-value" id="fenDisplay">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Evaluation:</span>
+                        <span class="info-value evaluation-score" id="evaluationDisplay">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Best Move:</span>
+                        <span class="info-value" id="bestMoveDisplay">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Game Result:</span>
+                        <span class="info-value" id="gameResultDisplay">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Move Sequence:</span>
+                        <span class="info-value" id="moveSequenceDisplay">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="tree-section">
+                <div class="tree-container" id="treeContainer">
+                    <div class="loading">Loading tree...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script>
+        const CHILD_RENDER_CHUNK = 12;
+        const STATS_REFRESH_INTERVAL = 10000;
+
+        let currentHash = null;
+        let focusedRootHash = null;
+        let expandedNodes = new Set();
+        let nodeCache = new Map();
+        let board = null;
+        let game = new Chess();
+        let renderGeneration = 0;
+        let activePositionController = null;
+        let searchDebounceHandle = null;
+        let lastSearchQuery = "";
+        let statsIntervalHandle = null;
+
+        document.getElementById('searchInput').addEventListener('input', handleSearchInput);
+
+        async function loadRoot() {
+            lastSearchQuery = "";
+            await loadPosition(null);
+        }
+
+        function setBoardLoading(isLoading) {
+            const boardInfo = document.getElementById('boardInfo');
+            boardInfo.classList.toggle('loading', isLoading);
+        }
+
+        function setTreeLoading(isLoading) {
+            const container = document.getElementById('treeContainer');
+            container.classList.toggle('is-loading', isLoading);
+
+            if (isLoading && container.childElementCount === 0) {
+                container.innerHTML = `
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <div>Loading position...</div>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadPosition(hash) {
+            const container = document.getElementById('treeContainer');
+            const generation = ++renderGeneration;
+            setTreeLoading(true);
+            setBoardLoading(true);
+
+            if (activePositionController) {
+                activePositionController.abort();
+            }
+            const controller = new AbortController();
+            activePositionController = controller;
+
+            try {
+                const url = hash ? `/api/position/${hash}` : '/api/position';
+                const response = await fetch(url, { signal: controller.signal });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load position');
+                }
+
+                const node = await response.json();
+                nodeCache.set(node.hash, node);
+                focusedRootHash = node.hash;
+                currentHash = node.hash;
+                expandedNodes = new Set([node.hash]);
+
+                updateBoard(node.fen);
+                updateBoardInfo(node);
+                renderTree(node, generation);
+                updateStats();
+                updateBreadcrumb();
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    return;
+                }
+                container.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                if (activePositionController === controller) {
+                    activePositionController = null;
+                }
+                if (generation === renderGeneration) {
+                    setTreeLoading(false);
+                    setBoardLoading(false);
+                }
+            }
+        }
+
+        function renderTree(rootNode, generation = renderGeneration) {
+            if (generation !== renderGeneration) {
+                return;
+            }
+            const container = document.getElementById('treeContainer');
+            container.innerHTML = '';
+
+            const fragment = document.createDocumentFragment();
+            fragment.appendChild(createNodeElement(rootNode, true));
+            container.appendChild(fragment);
+
+            if (rootNode.children.length > 0) {
+                requestAnimationFrame(() => loadChildren(rootNode, container.firstElementChild, generation));
+            }
+
+            requestAnimationFrame(highlightSelectedNode);
+        }
+
+        function createNodeElement(node, isRoot = false) {
+            const nodeDiv = document.createElement('div');
+            nodeDiv.className = 'tree-node';
+            nodeDiv.dataset.hash = node.hash;
+
+            const content = document.createElement('div');
+            content.className = 'node-content' + (currentHash === node.hash ? ' selected' : '');
+            content.onclick = () => selectNode(node.hash);
+
+            const toggle = document.createElement('span');
+            toggle.className = 'expand-toggle' + (node.children.length === 0 ? ' no-children' : '');
+            toggle.textContent = expandedNodes.has(node.hash) ? '−' : '+';
+            toggle.onclick = (event) => {
+                event.stopPropagation();
+                toggleNode(node.hash);
+            };
+
+            const moveLabel = document.createElement('span');
+            moveLabel.className = 'move-label';
+            moveLabel.textContent = isRoot ? 'ROOT' : (node.move_sequence.split(' ').pop() || '');
+
+            const fenDisplay = document.createElement('span');
+            fenDisplay.className = 'fen-display';
+            fenDisplay.textContent = node.fen;
+            fenDisplay.title = node.fen;
+
+            const depthBadge = document.createElement('span');
+            depthBadge.className = 'depth-badge';
+            depthBadge.textContent = `Depth ${node.depth}`;
+
+            content.append(toggle, moveLabel, fenDisplay, depthBadge);
+            nodeDiv.appendChild(content);
+
+            const childrenDiv = document.createElement('div');
+            const isExpanded = expandedNodes.has(node.hash);
+            childrenDiv.className = 'children' + (isExpanded ? ' expanded' : '');
+            childrenDiv.id = `children-${node.hash}`;
+            nodeDiv.appendChild(childrenDiv);
+
+            if (isExpanded && node.children.length > 0 && childrenDiv.children.length === 0) {
+                requestAnimationFrame(() => loadChildren(node, nodeDiv, renderGeneration));
+            }
+
+            return nodeDiv;
+        }
+
+        async function toggleNode(hash) {
+            if (expandedNodes.has(hash)) {
+                expandedNodes.delete(hash);
+            } else {
+                expandedNodes.add(hash);
+            }
+
+            const nodeDiv = document.querySelector(`[data-hash="${hash}"]`);
+            if (!nodeDiv) {
+                return;
+            }
+
+            const toggle = nodeDiv.querySelector('.expand-toggle');
+            const childrenDiv = nodeDiv.querySelector('.children');
+            const isExpanded = expandedNodes.has(hash);
+
+            toggle.textContent = isExpanded ? '−' : '+';
+            childrenDiv.classList.toggle('expanded', isExpanded);
+
+            if (isExpanded) {
+                const node = nodeCache.get(hash);
+                if (node && node.children.length > 0 && childrenDiv.children.length === 0) {
+                    await loadChildren(node, nodeDiv, renderGeneration);
+                }
+            }
+        }
+
+        async function loadChildren(node, parentDiv, generation) {
+            if (generation !== renderGeneration) {
+                return;
+            }
+            const childrenDiv = parentDiv.querySelector('.children');
+            if (!childrenDiv || !node.children || node.children.length === 0 || childrenDiv.children.length > 0) {
+                return;
+            }
+
+            childrenDiv.classList.add('loading');
+            const edges = node.children.slice();
+
+            const renderChunk = async (startIndex) => {
+                if (generation !== renderGeneration) {
+                    childrenDiv.classList.remove('loading');
+                    return;
+                }
+
+                const slice = edges.slice(startIndex, startIndex + CHILD_RENDER_CHUNK);
+                if (slice.length === 0) {
+                    childrenDiv.classList.remove('loading');
+                    return;
+                }
+
+                try {
+                    const childNodes = await Promise.all(
+                        slice.map((edge) => fetchPosition(edge.child_hash))
+                    );
+                    const fragment = document.createDocumentFragment();
+                    childNodes.forEach((childNode) => {
+                        fragment.appendChild(createNodeElement(childNode));
+                    });
+                    if (generation === renderGeneration) {
+                        childrenDiv.appendChild(fragment);
+                    }
+                } catch (error) {
+                    console.error('Error loading child nodes:', error);
+                }
+
+                if (generation !== renderGeneration) {
+                    childrenDiv.classList.remove('loading');
+                    return;
+                }
+
+                if (startIndex + CHILD_RENDER_CHUNK < edges.length) {
+                    requestAnimationFrame(() => renderChunk(startIndex + CHILD_RENDER_CHUNK));
+                } else {
+                    childrenDiv.classList.remove('loading');
+                }
+            };
+
+            requestAnimationFrame(() => renderChunk(0));
+        }
+
+        async function fetchPosition(hash) {
+            if (nodeCache.has(hash)) {
+                return nodeCache.get(hash);
+            }
+            const response = await fetch(`/api/position/${hash}`);
+            if (!response.ok) {
+                throw new Error('Failed to load position');
+            }
+            const node = await response.json();
+            nodeCache.set(node.hash, node);
+            return node;
+        }
+
+        async function selectNode(hash) {
+            try {
+                const node = await fetchPosition(hash);
+                currentHash = node.hash;
+                updateBoard(node.fen);
+                updateBoardInfo(node);
+                highlightSelectedNode();
+                updateBreadcrumb();
+            } catch (error) {
+                console.error('Error selecting node:', error);
+            }
+        }
+
+        function highlightSelectedNode() {
+            document.querySelectorAll('.node-content.selected').forEach((el) => el.classList.remove('selected'));
+            if (!currentHash) {
+                return;
+            }
+            const selected = document.querySelector(`[data-hash="${currentHash}"] .node-content`);
+            if (selected) {
+                selected.classList.add('selected');
+            }
+        }
+
+        function expandAll() {
+            if (!focusedRootHash) {
+                return;
+            }
+            expandedNodes = new Set(nodeCache.keys());
+            const rootNode = nodeCache.get(focusedRootHash);
+            if (rootNode) {
+                renderTree(rootNode);
+            }
+        }
+
+        function collapseAll() {
+            if (!focusedRootHash) {
+                return;
+            }
+            expandedNodes = new Set([focusedRootHash]);
+            const rootNode = nodeCache.get(focusedRootHash);
+            if (rootNode) {
+                renderTree(rootNode);
+            }
+        }
+
+        async function search() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                lastSearchQuery = "";
+                return;
+            }
+            if (query === lastSearchQuery) {
+                return;
+            }
+
+            lastSearchQuery = query;
+
+            try {
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                if (!response.ok) {
+                    throw new Error('Search failed');
+                }
+
+                const hashes = await response.json();
+                if (hashes.length > 0) {
+                    await loadPosition(hashes[0]);
+                } else {
+                    alert('No positions found');
+                }
+            } catch (error) {
+                alert('Search error: ' + error.message);
+            }
+        }
+
+        function handleSearchInput(event) {
+            const query = event.target.value.trim();
+            if (searchDebounceHandle) {
+                clearTimeout(searchDebounceHandle);
+            }
+            if (!query) {
+                lastSearchQuery = "";
+                return;
+            }
+            searchDebounceHandle = setTimeout(() => {
+                if (query === event.target.value.trim()) {
+                    search();
+                }
+            }, 250);
+        }
+
+        function handleSearchKeypress(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (searchDebounceHandle) {
+                    clearTimeout(searchDebounceHandle);
+                    searchDebounceHandle = null;
+                }
+                search();
+            }
+        }
+
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/stats');
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('stats').innerHTML = `
+                        <div class="stat-item">Positions: ${stats.total_positions.toLocaleString()}</div>
+                        <div class="stat-item">Edges: ${stats.total_edges.toLocaleString()}</div>
+                        <div class="stat-item">Max Depth: ${stats.max_depth}</div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            if (!focusedRootHash) {
+                breadcrumb.innerHTML = '<span>Root</span>';
+                return;
+            }
+
+            const trail = [];
+            const visited = new Set();
+            let walker = currentHash;
+            while (walker && !visited.has(walker)) {
+                const node = nodeCache.get(walker);
+                if (!node) {
+                    break;
+                }
+                trail.push(node);
+                visited.add(walker);
+                if (!node.parent_hash || node.hash === focusedRootHash) {
+                    break;
+                }
+                walker = node.parent_hash;
+            }
+
+            trail.reverse();
+
+            if (trail.length === 0 || (trail.length === 1 && trail[0].hash === focusedRootHash)) {
+                breadcrumb.innerHTML = '<span>Root</span>';
+                return;
+            }
+
+            let html = '<span class="breadcrumb-item" onclick="loadRoot()">Root</span>';
+            trail.forEach((node, index) => {
+                const isLast = index === trail.length - 1;
+                const moveLabel = node.move_sequence ? node.move_sequence.split(' ').pop() || `#${node.hash}` : 'ROOT';
+                html += '<span class="breadcrumb-separator">→</span>';
+                if (isLast) {
+                    html += `<span>${moveLabel}</span>`;
+                } else {
+                    html += `<span class="breadcrumb-item" onclick="selectNode(${node.hash})">${moveLabel}</span>`;
+                }
+            });
+
+            breadcrumb.innerHTML = html;
+        }
+
+        function initBoard() {
+            const config = {
+                position: 'start',
+                draggable: false,
+                moveSpeed: 'fast',
+                snapbackSpeed: 500,
+                snapSpeed: 100,
+                onDragStart: () => false
+            };
+            board = Chessboard('board', config);
+        }
+
+        function updateBoard(fen) {
+            if (board) {
+                board.position(fen);
+            }
+            if (game) {
+                try {
+                    game.load(fen);
+                } catch (error) {
+                    console.error('Error loading FEN:', error);
+                }
+            }
+        }
+
+        function updateBoardInfo(node) {
+            document.getElementById('fenDisplay').textContent = node.fen || '-';
+
+            const evaluationDisplay = document.getElementById('evaluationDisplay');
+            if (node.evaluation_score !== null && node.evaluation_score !== undefined) {
+                const score = node.evaluation_score;
+                const scoreText = score > 0 ? `+${(score / 100).toFixed(2)}` : (score / 100).toFixed(2);
+                evaluationDisplay.textContent = scoreText;
+                evaluationDisplay.style.color = score > 0 ? '#4caf50' : score < 0 ? '#f44336' : '#666';
+            } else {
+                evaluationDisplay.textContent = '-';
+                evaluationDisplay.style.color = '#666';
+            }
+
+            document.getElementById('bestMoveDisplay').textContent = node.best_move || '-';
+            document.getElementById('gameResultDisplay').textContent = node.game_result || '-';
+            document.getElementById('moveSequenceDisplay').textContent = node.move_sequence || 'ROOT';
+        }
+
+        function initialise() {
+            initBoard();
+            setBoardLoading(true);
+            setTreeLoading(true);
+            loadRoot();
+            updateStats();
+            statsIntervalHandle = setInterval(updateStats, STATS_REFRESH_INTERVAL);
+        }
+
+        initialise();
+    </script>
+</body>
+</html>
+
+
