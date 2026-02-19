@@ -162,6 +162,10 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
           meanDomainScore: 0,
           performanceScore: 0,
           selectionScore: 0,
+          githubRepos: null,
+          npmPackages: null,
+          githubPrior: 0,
+          devEvidenceSource: null,
           ucb: null,
           lastLoop: null,
         };

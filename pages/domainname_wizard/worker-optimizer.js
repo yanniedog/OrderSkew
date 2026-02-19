@@ -256,6 +256,9 @@ class Optimizer {
     this._libraryTokenSet = new Set(this._libraryTokens);
     this._libraryPhraseTokenSet = new Set(this._libraryPhraseTokens);
     this._lockedSeedTokens = [];
+    this._recentKeywordSignatures = [];
+    this._recentKeywordSets = [];
+    this._recentHistoryMax = 18;
 
     this._themeTokenScores = this._buildThemeTokenScores();
     this._themeTokenSet = new Set(this._themeTokenScores.keys());
@@ -264,6 +267,7 @@ class Optimizer {
       .map(([token]) => token);
 
     this.curTokens = this._seedCurrentTokens();
+    this._rememberKeywordSet(this.curTokens);
     emitDebugLog('worker-optimizer.js', 'Initialized strict keyword pool', {
       seedTokens: this._themeSeedTokens.slice(0, 12),
       lockedTokens: this._lockedSeedTokens.slice(),
@@ -287,6 +291,99 @@ class Optimizer {
     }
 
     this.model.elitePool = [];
+  }
+
+  _keywordSignature(tokens) {
+    const normalized = dedupeTokens((tokens || []).map(normalizeThemeToken).filter(Boolean))
+      .sort((a, b) => a.localeCompare(b));
+    return normalized.join('|');
+  }
+
+  _rememberKeywordSet(tokens) {
+    const clean = dedupeTokens((tokens || []).map(normalizeThemeToken).filter(Boolean)).slice(0, 8);
+    if (!clean.length) return;
+    const sig = this._keywordSignature(clean);
+    const prevIdx = this._recentKeywordSignatures.indexOf(sig);
+    if (prevIdx >= 0) {
+      this._recentKeywordSignatures.splice(prevIdx, 1);
+      this._recentKeywordSets.splice(prevIdx, 1);
+    }
+    this._recentKeywordSignatures.push(sig);
+    this._recentKeywordSets.push(clean);
+    while (this._recentKeywordSignatures.length > this._recentHistoryMax) {
+      this._recentKeywordSignatures.shift();
+      this._recentKeywordSets.shift();
+    }
+  }
+
+  _countOverlap(a, b) {
+    const aa = new Set((a || []).map(normalizeThemeToken).filter(Boolean));
+    const bb = new Set((b || []).map(normalizeThemeToken).filter(Boolean));
+    let shared = 0;
+    for (const t of aa) if (bb.has(t)) shared += 1;
+    return shared;
+  }
+
+  _noveltyPool(candidates, loop) {
+    return dedupeTokens(candidates || [])
+      .map((token) => normalizeThemeToken(token))
+      .filter((token) => token && this._isThemeToken(token))
+      .map((token) => {
+        const stat = this.model.tokens[token] || {};
+        const plays = Math.max(0, Number(stat.plays) || 0);
+        const lastLoop = stat.lastLoop == null ? -1 : Number(stat.lastLoop);
+        const age = lastLoop >= 0 ? Math.max(0, Number(loop || 1) - lastLoop) : 999;
+        const freshness = clamp(age / 12, 0, 1);
+        const rarity = 1 / Math.sqrt(1 + plays);
+        const theme = clamp(Number(this._themeTokenScores.get(token) || 0) / 5, 0, 1);
+        const score = rarity * 0.60 + freshness * 0.25 + theme * 0.15;
+        return { token, score };
+      })
+      .sort((a, b) => b.score - a.score || a.token.localeCompare(b.token))
+      .map((x) => x.token);
+  }
+
+  _injectNovelty(next, options) {
+    const opts = options || {};
+    const loop = Number(opts.loop) || 1;
+    const targetOverlap = Math.max(2, Math.min(6, Number(opts.targetOverlap) || 4));
+    const prevTokens = Array.isArray(opts.prevTokens) ? opts.prevTokens : [];
+    const lockedSet = opts.lockedSet instanceof Set ? opts.lockedSet : new Set();
+    const fallbackPool = Array.isArray(opts.fallbackPool) ? opts.fallbackPool : [];
+    const novelPool = this._noveltyPool(
+      dedupeTokens((opts.candidatePool || []).concat(fallbackPool, this._themeTokenPool.slice(0, 120))),
+      loop,
+    );
+
+    let passes = 0;
+    while (passes < 5) {
+      passes += 1;
+      const overlap = this._countOverlap(next, prevTokens);
+      const sig = this._keywordSignature(next);
+      const recentDup = this._recentKeywordSignatures.includes(sig);
+      if (overlap <= targetOverlap && !recentDup) break;
+
+      const replaceCount = recentDup ? 3 : Math.max(1, overlap - targetOverlap);
+      for (let i = 0; i < replaceCount; i += 1) {
+        const replaceIdx = next.findIndex((token) => !lockedSet.has(token));
+        if (replaceIdx < 0) break;
+        let replacement = '';
+        for (const cand of novelPool) {
+          if (!cand || next.includes(cand) || lockedSet.has(cand)) continue;
+          if (next.some((prior, idx) => idx !== replaceIdx && isMirroredThemeToken(cand, prior))) continue;
+          replacement = cand;
+          break;
+        }
+        if (!replacement) {
+          replacement = pickDistinctToken(fallbackPool, this.rand, next) || pickDistinctToken(this._themeTokenPool, this.rand, next);
+        }
+        if (!replacement) break;
+        next[replaceIdx] = replacement;
+      }
+      this._dedupeMirroredTokens(next, lockedSet);
+      this._refillThemeTokens(next, novelPool.concat(fallbackPool, this._themeTokenPool));
+      if (next.length > 8) next.length = 8;
+    }
   }
 
   thompsonChoose(map, keys) {
@@ -483,18 +580,25 @@ class Optimizer {
   }
 
   _mutateAndReorder(next, intensity, lockedSet) {
-    if (intensity !== 'high' || next.length <= Math.max(3, lockedSet.size + 1)) return;
-    const locked = [];
-    const mutable = [];
-    for (const token of next) {
-      if (lockedSet.has(token)) locked.push(token);
-      else mutable.push(token);
-    }
-    mutable.sort(() => (this.rand() > 0.5 ? 1 : -1));
-    next.length = 0;
-    for (const token of locked.concat(mutable)) {
-      if (!next.includes(token)) next.push(token);
-      if (next.length >= 8) break;
+    if (!next.length) return;
+    const mutableIdx = [];
+    for (let i = 0; i < next.length; i += 1) if (!lockedSet.has(next[i])) mutableIdx.push(i);
+    if (!mutableIdx.length) return;
+
+    const replacements = intensity === 'high' ? 3 : intensity === 'medium' ? 2 : 1;
+    const pool = this._noveltyPool(this._themeTokenPool.slice(0, 140), this.bestLoop || 1);
+    for (let i = 0; i < replacements; i += 1) {
+      const idx = mutableIdx[Math.floor(this.rand() * mutableIdx.length)];
+      let replacement = '';
+      for (const candidate of pool) {
+        if (!candidate || next.includes(candidate)) continue;
+        if (next.some((prior, pidx) => pidx !== idx && isMirroredThemeToken(candidate, prior))) continue;
+        replacement = candidate;
+        break;
+      }
+      if (!replacement) replacement = pickDistinctToken(this._themeTokenPool, this.rand, next);
+      if (!replacement) continue;
+      next[idx] = replacement;
     }
   }
 
@@ -618,7 +722,7 @@ class Optimizer {
   }
 
   next(loop) {
-    const explorationRate = Math.max(0.05, 0.35 * Math.pow(0.82, loop - 1));
+    const explorationRate = Math.max(0.12, 0.38 * Math.pow(0.84, loop - 1));
     const styleOptions = this.base.preferEnglish !== false
       ? STYLE_VALUES.filter((value) => value !== 'nonenglish')
       : STYLE_VALUES;
@@ -655,14 +759,15 @@ class Optimizer {
     const adaptivePool = dedupeTokens(tokenRank.slice(0, 40).map(function (x) { return x.token; }).concat(anchorPool));
     const eliteTokens = this._collectEliteThemeTokens();
 
-    const intensity = this.rand() < explorationRate ? 'high' : this.rand() > 0.5 ? 'medium' : 'low';
-    const mut = intensity === 'high' ? 4 : intensity === 'medium' ? 2 : 1;
+    const intensity = this.rand() < explorationRate ? 'high' : this.rand() > 0.35 ? 'medium' : 'low';
+    const mut = intensity === 'high' ? 6 : intensity === 'medium' ? 4 : 2;
     const locked = this._lockedSeedTokens.slice();
     const lockedSet = new Set(locked);
+    const prevTokens = (this.curTokens || []).slice();
 
     const next = [];
     for (const t of locked) if (!next.includes(t) && this._isThemeToken(t)) next.push(t);
-    const carryBudget = Math.max(1, Math.min(4, Math.floor(2 + (1 - explorationRate) * 2)));
+    const carryBudget = Math.max(0, Math.min(3, Math.floor(1 + (1 - explorationRate) * 2)));
     for (const t of this.curTokens) {
       const clean = normalizeThemeToken(t);
       if (!clean || next.includes(clean) || !this._isThemeToken(clean)) continue;
@@ -699,12 +804,28 @@ class Optimizer {
     this._dedupeMirroredTokens(next, lockedSet);
     this._limitBaseSeedCarry(next, 1);
 
+    this._injectNovelty(next, {
+      loop,
+      prevTokens,
+      targetOverlap: explorationRate >= 0.24 ? 3 : 4,
+      lockedSet,
+      candidatePool: dedupeTokens(adaptivePool.concat(good, eliteTokens, baseTokens)),
+      fallbackPool: dedupeTokens(this._themeTokenPool.concat(baseTokens)),
+    });
+
     this.curTokens = dedupeTokens(next.map(normalizeThemeToken).filter((t) => t && this._isThemeToken(t))).slice(0, 8);
     if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(8, baseTokens.length));
+    this._rememberKeywordSet(this.curTokens);
 
     emitDebugLog('worker-optimizer.js', 'Loop keyword selection', {
       loop,
+      previousKeywords: prevTokens.slice(0, 8),
       selectedKeywords: this.curTokens.slice(),
+      overlapWithPrevious: this._countOverlap(prevTokens, this.curTokens),
+      signature: this._keywordSignature(this.curTokens),
+      recentSignatureCount: this._recentKeywordSignatures.length,
+      carryBudget,
+      mutationPasses: mut,
       poolSize: this._themeTokenPool.length,
     });
 

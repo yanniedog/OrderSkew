@@ -85,6 +85,7 @@
     availability: null,
     synonymApi: null,
     githubApi: null,
+    devEcosystem: null,
     godaddyDebug: null,
     syntheticFlags: [],
   };
@@ -96,6 +97,9 @@
     }
     if (dataSourceState.synonymApi && !dataSourceState.synonymApi.accessible) issues.push('Synonym API unreachable');
     if (dataSourceState.githubApi && !dataSourceState.githubApi.accessible) issues.push('GitHub API unreachable');
+    if (dataSourceState.devEcosystem && Number(dataSourceState.devEcosystem.githubCalls || 0) > 0 && Number(dataSourceState.devEcosystem.githubSuccess || 0) === 0) {
+      issues.push('GitHub enrichment calls failed');
+    }
     if (dataSourceState.availability && (dataSourceState.availability.syntheticData || Number(dataSourceState.availability.status || 0) >= 400)) {
       issues.push('Availability API abnormal');
     }
@@ -386,6 +390,27 @@
       dirty = true;
     }
 
+    if (msg === 'Developer ecosystem scoring complete' || msg === 'Developer ecosystem scoring via backend' || msg === 'Developer ecosystem scoring (cache hit)') {
+      dataSourceState.devEcosystem = {
+        attemptedWords: Number(d.attemptedWords || 0),
+        fetchedWords: Number(d.fetchedWords || 0),
+        cacheHits: Number(d.cacheHits || 0),
+        mode: d.mode || 'unknown',
+        githubTokenUsed: Boolean(d.githubTokenUsed),
+        githubCalls: Number(d.githubCalls || 0),
+        githubSuccess: Number(d.githubSuccess || 0),
+        githubFailures: Number(d.githubFailures || 0),
+        npmCalls: Number(d.npmCalls || 0),
+        npmSuccess: Number(d.npmSuccess || 0),
+        npmFailures: Number(d.npmFailures || 0),
+        backendAttempted: Boolean(d.backendAttempted),
+        backendUsed: Boolean(d.backendUsed),
+        backendStatus: d.backendStatus == null ? null : Number(d.backendStatus),
+        sampleWords: Array.isArray(d.sampleWords) ? d.sampleWords.slice(0, 8) : [],
+      };
+      dirty = true;
+    }
+
     if (!dirty) return;
     ensureDataSourceExpandedForIssues();
     renderDataSourcePanel();
@@ -496,6 +521,27 @@
       if (gh.limit != null) bodyParts.push('<br>Rate limit: <strong>' + gh.remaining + '</strong> / ' + gh.limit);
       if (gh.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(gh.error)) + '</span>');
       if (gh.abnormal) bodyParts.push('<br><span class="warn">Abnormal result detected.</span>');
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.devEcosystem) {
+      const de = dataSourceState.devEcosystem;
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>GitHub Value Evidence:</strong> ');
+      bodyParts.push('<span class="' + (de.githubSuccess > 0 ? 'good' : 'warn') + '">' + escapeHtml(String(de.mode || 'unknown')) + '</span>');
+      bodyParts.push('<br>Words queried: <strong>' + escapeHtml(String(de.attemptedWords)) + '</strong> (fetched ' + escapeHtml(String(de.fetchedWords)) + ', cache hits ' + escapeHtml(String(de.cacheHits)) + ')');
+      bodyParts.push('<br>GitHub token used in enrichment: <strong>' + (de.githubTokenUsed ? 'YES' : 'NO') + '</strong>');
+      bodyParts.push('<br>GitHub calls: <strong>' + escapeHtml(String(de.githubSuccess)) + '</strong> / ' + escapeHtml(String(de.githubCalls)) + ' success');
+      bodyParts.push('<br>npm calls: <strong>' + escapeHtml(String(de.npmSuccess)) + '</strong> / ' + escapeHtml(String(de.npmCalls)) + ' success');
+      if (de.backendAttempted) bodyParts.push('<br>Backend attempted: <strong>YES</strong> (status ' + escapeHtml(String(de.backendStatus == null ? '-' : de.backendStatus)) + ')');
+      if (de.backendUsed) bodyParts.push('<br>Backend used: <strong>YES</strong>');
+      if (Array.isArray(de.sampleWords) && de.sampleWords.length) {
+        bodyParts.push('<br>Sample evidence:<ul class="ds-errors">');
+        de.sampleWords.forEach(function (w) {
+          bodyParts.push('<li>' + escapeHtml(String(w.word || '?')) + ': total=' + escapeHtml(String(w.total == null ? '-' : w.total)) + ', GH=' + escapeHtml(String(w.githubRepos == null ? '-' : w.githubRepos)) + ', npm=' + escapeHtml(String(w.npmPackages == null ? '-' : w.npmPackages)) + '</li>');
+        });
+        bodyParts.push('</ul>');
+      }
       bodyParts.push('</div>');
     }
 
@@ -635,6 +681,9 @@
         selectionScore: Number(row.selectionScore) || 0,
         successRate: Number(row.successRate) || 0,
         confidence: Number(row.confidence) || 0,
+        githubRepos: row.githubRepos == null ? null : Number(row.githubRepos),
+        npmPackages: row.npmPackages == null ? null : Number(row.npmPackages),
+        githubPrior: row.githubPrior == null ? null : Number(row.githubPrior),
       });
     }
     return out;
@@ -658,6 +707,9 @@
         `AvgReward ${formatScore(m.avgReward, 3)}`,
         `Success ${formatScore((m.successRate || 0) * 100, 1)}%`,
         `Plays ${Math.round(m.plays || 0)}`,
+        `GitHub ${m.githubRepos == null ? '-' : Number(m.githubRepos).toLocaleString()}`,
+        `npm ${m.npmPackages == null ? '-' : Number(m.npmPackages).toLocaleString()}`,
+        `GH Prior ${m.githubPrior == null ? '-' : formatScore(m.githubPrior, 1)}`,
       ].join(' | ');
       return `<span class="perf-token" style="background:${color}" title="${escapeHtml(title)}">${escapeHtml(part)}</span>`;
     }).join('');
@@ -726,6 +778,8 @@
         ].join(' | ');
         const signalsCell = [
           `Dev:${row.devEcosystemScore > 0 ? Number(row.devEcosystemScore).toLocaleString() : '-'}`,
+          `GH:${row.devEcosystemEvidence && row.devEcosystemEvidence.githubRepos != null ? Number(row.devEcosystemEvidence.githubRepos).toLocaleString() : '-'}`,
+          `NPM:${row.devEcosystemEvidence && row.devEcosystemEvidence.npmPackages != null ? Number(row.devEcosystemEvidence.npmPackages).toLocaleString() : '-'}`,
           `Arc:${row.hasArchiveHistory ? 'Y' : 'N'}`,
           `Syl:${Number(row.syllableCount || 0)}`,
           `Len:${Number(row.labelLength || 0)}`,
@@ -765,7 +819,7 @@
             ${th('Value Metrics', 'Compact view: Intrinsic, Liquidity, and Marketability.')}
             ${th('Finance', 'Compact view: EV (24m) and expected ROI.')}
             ${th('Quality', 'Compact view: Phonetic, Brandability, SEO, Commercial.')}
-            ${th('Signals', 'Compact view: Dev signal, archive flag, syllables, length.')}
+            ${th('Signals', 'Compact view: Dev ecosystem total, GitHub repos, npm packages, archive flag, syllables, length.')}
             ${th('Words', 'Detected meaningful morphemes/word segments in the domain label.')}
             ${th('Notes', 'Top positive and negative value factors (trimmed).')}
           </tr>
@@ -852,6 +906,7 @@
     const rows = Array.isArray(lib.tokens) ? lib.tokens : [];
     const current = Array.isArray(lib.currentKeywords) ? lib.currentKeywords : [];
     const seeds = Array.isArray(lib.seedTokens) ? lib.seedTokens : [];
+    const dev = lib.devEcosystemStatus || null;
 
     if (!rows.length) {
       return '<p>No keyword library metrics yet.</p>';
@@ -859,17 +914,20 @@
 
     const seedBadge = seeds.length ? `<p class="keyword-library-meta"><strong>Seeds:</strong> ${escapeHtml(seeds.join(', '))}</p>` : '';
     const activeBadge = current.length ? `<p class="keyword-library-meta"><strong>Current loop keywords:</strong> ${escapeHtml(current.join(' '))}</p>` : '';
+    const devBadge = dev
+      ? `<p class="keyword-library-meta"><strong>GitHub enrichment:</strong> mode=${escapeHtml(String(dev.mode || 'unknown'))}, words=${escapeHtml(String(dev.attemptedWords || 0))}, github=${escapeHtml(String(dev.githubSuccess || 0))}/${escapeHtml(String(dev.githubCalls || 0))}, token=${dev.githubTokenUsed ? 'YES' : 'NO'}</p>`
+      : '';
     const body = rows.map(function (row) {
       const perf01 = clamp((Number(row.performanceScore) || 0) / 100, 0, 1);
       const wordColor = rainbowColorForScore01(perf01);
-      const wordTitle = `Perf ${formatScore(row.performanceScore || 0, 1)} | AvgReward ${formatScore(row.avgReward || 0, 3)} | Success ${formatScore((row.successRate || 0) * 100, 1)}% | Plays ${row.plays || 0}`;
+      const wordTitle = `Perf ${formatScore(row.performanceScore || 0, 1)} | AvgReward ${formatScore(row.avgReward || 0, 3)} | Success ${formatScore((row.successRate || 0) * 100, 1)}% | Plays ${row.plays || 0} | GitHub ${row.githubRepos == null ? '-' : Number(row.githubRepos).toLocaleString()} | npm ${row.npmPackages == null ? '-' : Number(row.npmPackages).toLocaleString()} | GHPrior ${formatScore(row.githubPrior || 0, 1)}`;
       return `
         <tr${row.inCurrentKeywords ? ' class="keyword-row-active"' : ''}>
           <td>${row.rank || '-'}</td>
           <td><span class="perf-token" style="background:${wordColor}" title="${escapeHtml(wordTitle)}">${escapeHtml(row.token || '-')}</span></td>
           <td>${escapeHtml(`${row.source || '-'} | ${row.inCurrentKeywords ? 'active' : 'idle'}`)}</td>
-          <td>${escapeHtml(`plays=${row.plays || 0} | avg=${formatScore(row.avgReward || 0, 4)} | succ=${formatScore((row.successRate || 0) * 100, 1)}%`)}</td>
-          <td>${escapeHtml(`conf=${formatScore((row.confidence || 0) * 100, 1)}% | dom=${formatScore(row.meanDomainScore || 0, 1)} | perf=${formatScore(row.performanceScore || 0, 1)} | sel=${formatScore(row.selectionScore || 0, 1)} | ucb=${row.ucb == null ? '-' : formatScore(row.ucb, 4)} | theme=${formatScore(row.themeScore || 0, 2)}`)}</td>
+          <td>${escapeHtml(`plays=${row.plays || 0} | avg=${formatScore(row.avgReward || 0, 4)} | succ=${formatScore((row.successRate || 0) * 100, 1)}% | gh=${row.githubRepos == null ? '-' : Number(row.githubRepos).toLocaleString()} | npm=${row.npmPackages == null ? '-' : Number(row.npmPackages).toLocaleString()}`)}</td>
+          <td>${escapeHtml(`conf=${formatScore((row.confidence || 0) * 100, 1)}% | dom=${formatScore(row.meanDomainScore || 0, 1)} | perf=${formatScore(row.performanceScore || 0, 1)} | sel=${formatScore(row.selectionScore || 0, 1)} | ghPrior=${formatScore(row.githubPrior || 0, 1)} | ucb=${row.ucb == null ? '-' : formatScore(row.ucb, 4)} | theme=${formatScore(row.themeScore || 0, 2)}`)}</td>
           <td>${row.lastLoop == null ? '-' : row.lastLoop}</td>
         </tr>
       `;
@@ -878,14 +936,15 @@
     return `
       ${seedBadge}
       ${activeBadge}
+      ${devBadge}
       <table>
         <thead>
           <tr>
             ${th('Rank', 'Ranking order in the current curated keyword library view.')}
             ${th('Word', 'Keyword token. Color shows learned performance (blue worst -> red best).')}
             ${th('State', 'Source and whether token is active in current loop keywords.')}
-            ${th('Usage', 'Core usage metrics: plays, average reward, success rate.')}
-            ${th('Evidence', 'Confidence and composite evidence metrics used for RL prioritization.')}
+            ${th('Usage', 'Core usage metrics plus GitHub/npm ecosystem counts for this token.')}
+            ${th('Evidence', 'Confidence and composite evidence metrics used for RL prioritization, including GitHub prior contribution.')}
             ${th('Last Loop', 'Most recent loop index where this token was selected.')}
           </tr>
         </thead>
@@ -948,6 +1007,10 @@
     const overBudget = sortRows(results.overBudget || [], currentSortMode);
     const unavailable = sortRows(results.unavailable || [], currentSortMode);
     const tokenPerfLookup = buildTokenPerformanceLookup(results.keywordLibrary || null);
+    if (results.keywordLibrary && results.keywordLibrary.devEcosystemStatus) {
+      dataSourceState.devEcosystem = results.keywordLibrary.devEcosystemStatus;
+      renderDataSourcePanel();
+    }
 
     renderSummary(results);
     allRankedTableEl.innerHTML = renderDomainTable(sortedRanked, false);
