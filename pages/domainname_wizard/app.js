@@ -26,7 +26,7 @@
 
   let currentJob = null;
   let currentResults = null;
-  let currentSortMode = 'intrinsicValue';
+  let currentSortMode = 'valueRatio';
   const debugLogs = [];
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
@@ -271,15 +271,31 @@
     const copy = Array.isArray(rows) ? rows.slice() : [];
     copy.sort((a, b) => {
       if (mode === 'financialValue') {
-        if ((a.financialValueScore || 0) !== (b.financialValueScore || 0)) {
-          return (b.financialValueScore || 0) - (a.financialValueScore || 0);
-        }
+        if ((a.financialValueScore || 0) !== (b.financialValueScore || 0)) return (b.financialValueScore || 0) - (a.financialValueScore || 0);
         return compareOverallTieBreak(a, b);
       }
       if (mode === 'intrinsicValue') {
-        if ((a.intrinsicValue || 0) !== (b.intrinsicValue || 0)) {
-          return (b.intrinsicValue || 0) - (a.intrinsicValue || 0);
-        }
+        if ((a.intrinsicValue || 0) !== (b.intrinsicValue || 0)) return (b.intrinsicValue || 0) - (a.intrinsicValue || 0);
+        return compareOverallTieBreak(a, b);
+      }
+      if (mode === 'estimatedValue') {
+        if ((a.estimatedValueUSD || 0) !== (b.estimatedValueUSD || 0)) return (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0);
+        return compareOverallTieBreak(a, b);
+      }
+      if (mode === 'valueRatio') {
+        if ((a.valueRatio || 0) !== (b.valueRatio || 0)) return (b.valueRatio || 0) - (a.valueRatio || 0);
+        return (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0);
+      }
+      if (mode === 'expectedValue') {
+        if ((a.ev24m || 0) !== (b.ev24m || 0)) return (b.ev24m || 0) - (a.ev24m || 0);
+        return (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0);
+      }
+      if (mode === 'liquidityScore') {
+        if ((a.liquidityScore || 0) !== (b.liquidityScore || 0)) return (b.liquidityScore || 0) - (a.liquidityScore || 0);
+        return compareOverallTieBreak(a, b);
+      }
+      if (mode === 'devEcosystem') {
+        if ((a.devEcosystemScore || 0) !== (b.devEcosystemScore || 0)) return (b.devEcosystemScore || 0) - (a.devEcosystemScore || 0);
         return compareOverallTieBreak(a, b);
       }
       if (mode === 'alphabetical') {
@@ -288,20 +304,14 @@
         return compareOverallTieBreak(a, b);
       }
       if (mode === 'syllableCount') {
-        if ((a.syllableCount || 0) !== (b.syllableCount || 0)) {
-          return (a.syllableCount || 0) - (b.syllableCount || 0);
-        }
+        if ((a.syllableCount || 0) !== (b.syllableCount || 0)) return (a.syllableCount || 0) - (b.syllableCount || 0);
         return compareOverallTieBreak(a, b);
       }
       if (mode === 'labelLength') {
-        if ((a.labelLength || 0) !== (b.labelLength || 0)) {
-          return (a.labelLength || 0) - (b.labelLength || 0);
-        }
+        if ((a.labelLength || 0) !== (b.labelLength || 0)) return (a.labelLength || 0) - (b.labelLength || 0);
         return compareOverallTieBreak(a, b);
       }
-      if ((a.marketabilityScore || 0) !== (b.marketabilityScore || 0)) {
-        return (b.marketabilityScore || 0) - (a.marketabilityScore || 0);
-      }
+      if ((a.marketabilityScore || 0) !== (b.marketabilityScore || 0)) return (b.marketabilityScore || 0) - (a.marketabilityScore || 0);
       return compareOverallTieBreak(a, b);
     });
     return copy;
@@ -317,15 +327,19 @@
     const avg = (field) => allRanked.reduce((sum, row) => sum + (Number(row[field]) || 0), 0) / allRanked.length;
     const top = sortRows(allRanked, currentSortMode)[0];
     const positiveBudget = (results.withinBudget || []).length;
-
     const overBudgetCount = (results.overBudget || []).length;
+    const underpricedCount = allRanked.filter(r => r.underpricedFlag).length;
+    const avgEstValue = allRanked.filter(r => r.estimatedValueUSD > 0).reduce((s, r) => s + r.estimatedValueUSD, 0) / Math.max(1, allRanked.filter(r => r.estimatedValueUSD > 0).length);
+    const bestRatio = allRanked.reduce((best, r) => Math.max(best, r.valueRatio || 0), 0);
+
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
       { label: 'Within Budget', value: String(positiveBudget) },
-      { label: 'Over Budget', value: String(overBudgetCount) },
-      { label: 'Avg Intrinsic Value', value: formatScore(avg('intrinsicValue'), 2) },
-      { label: 'Avg Marketability', value: formatScore(avg('marketabilityScore'), 2) },
-      { label: 'Avg Financial', value: formatScore(avg('financialValueScore'), 2) },
+      { label: 'Underpriced', value: String(underpricedCount) },
+      { label: 'Avg Est. Value', value: avgEstValue > 0 ? '$' + Math.round(avgEstValue).toLocaleString() : '-' },
+      { label: 'Best Value Ratio', value: bestRatio > 0 ? formatScore(bestRatio, 1) + 'x' : '-' },
+      { label: 'Avg Intrinsic', value: formatScore(avg('intrinsicValue'), 1) },
+      { label: 'Avg Liquidity', value: formatScore(avg('liquidityScore'), 0) },
       { label: 'Top Domain', value: top ? escapeHtml(top.domain) : '-' },
     ]
       .map((item) => `<article class="summary-card"><span>${item.label}</span><strong>${item.value}</strong></article>`)
@@ -346,25 +360,38 @@
     const body = rows
       .map((row) => {
         const priceCell = row._pending ? '...' : formatMoney(row.price, row.currency);
+        const estVal = row.estimatedValueUSD ? '$' + Number(row.estimatedValueUSD).toLocaleString() : '-';
+        const estRange = row.estimatedValueLow && row.estimatedValueHigh ? '$' + Number(row.estimatedValueLow).toLocaleString() + ' - $' + Number(row.estimatedValueHigh).toLocaleString() : '';
+        const vrCell = row.valueRatio != null ? formatScore(row.valueRatio, 1) + 'x' : '-';
+        const flagCell = row.underpricedFlag ? '<span class="underpriced-badge">' + escapeHtml(row.underpricedFlag.replace(/_/g, ' ')) + '</span>' : '';
+        const liqCell = row.liquidityScore != null ? formatScore(row.liquidityScore, 0) : '-';
+        const evCell = row.ev24m != null ? '$' + Number(row.ev24m).toLocaleString() : '-';
+        const roiCell = row.expectedROI != null ? formatScore(row.expectedROI, 1) + '%' : '-';
+        const devCell = row.devEcosystemScore > 0 ? Number(row.devEcosystemScore).toLocaleString() : '-';
+        const archiveCell = row.hasArchiveHistory ? 'Yes' : '-';
+        const wordsCell = (row.segmentedWords || []).join(' + ') || '-';
         return `
-          <tr>
-            <td>${escapeHtml(row.domain)}</td>
+          <tr class="${row.underpricedFlag ? 'underpriced-row' : ''}">
+            <td>${escapeHtml(row.domain)} ${flagCell}</td>
             ${availabilityCell(row)}
             <td>${priceCell}</td>
-            <td>${row.overBudget ? '<span class="bad">Yes</span>' : 'No'}</td>
-            <td>${row.premiumPricing ? 'Yes' : 'No'}</td>
+            <td class="est-val" title="${escapeHtml(estRange)}">${estVal}</td>
+            <td class="${row.valueRatio >= 3 ? 'good' : ''}">${vrCell}</td>
             <td>${formatScore(row.intrinsicValue, 1)}</td>
+            <td>${liqCell}</td>
+            <td>${evCell}</td>
+            <td>${roiCell}</td>
             <td>${formatScore(row.marketabilityScore, 1)}</td>
-            <td>${formatScore(row.financialValueScore, 1)}</td>
             <td>${formatScore(row.phoneticScore, 1)}</td>
             <td>${formatScore(row.brandabilityScore, 1)}</td>
             <td>${formatScore(row.seoScore, 1)}</td>
+            <td>${formatScore(row.commercialScore || 0, 1)}</td>
             <td>${formatScore(row.memorabilityScore, 1)}</td>
+            <td>${devCell}</td>
+            <td>${archiveCell}</td>
+            <td>${escapeHtml(wordsCell)}</td>
             <td>${Number(row.syllableCount || 0)}</td>
             <td>${Number(row.labelLength || 0)}</td>
-            <td>${Number(row.timesDiscovered || 0)}</td>
-            <td>${Number(row.firstSeenLoop || 0)}</td>
-            <td>${Number(row.lastSeenLoop || 0)}</td>
             <td>${escapeHtml((row.valueDrivers || []).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', ') || '-')}</td>
             <td>${escapeHtml((row.valueDetractors || []).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', ') || '-')}</td>
           </tr>
@@ -379,20 +406,23 @@
             <th>Domain</th>
             ${availabilityHeader}
             <th>Price</th>
-            <th>Over Budget</th>
-            <th>Premium Price</th>
-            <th>Intrinsic Value</th>
+            <th>Est. Value</th>
+            <th>Value Ratio</th>
+            <th>Intrinsic</th>
+            <th>Liquidity</th>
+            <th>EV (24m)</th>
+            <th>ROI</th>
             <th>Marketability</th>
-            <th>Financial</th>
             <th>Phonetic</th>
-            <th>Brandability</th>
+            <th>Brand</th>
             <th>SEO</th>
-            <th>Memorability</th>
-            <th>Syllables</th>
-            <th>Label Len</th>
-            <th>Seen</th>
-            <th>First Loop</th>
-            <th>Last Loop</th>
+            <th>Commercial</th>
+            <th>Memory</th>
+            <th>Dev Ecosystem</th>
+            <th>Archive</th>
+            <th>Words</th>
+            <th>Syl</th>
+            <th>Len</th>
             <th>Value Drivers</th>
             <th>Detractors</th>
           </tr>
@@ -523,6 +553,7 @@
         phoneticScore: 0,
         brandabilityScore: 0,
         seoScore: 0,
+        commercialScore: 0,
         memorabilityScore: 0,
         overallScore: 0,
         syllableCount: 0,
@@ -530,6 +561,17 @@
         timesDiscovered: 0,
         firstSeenLoop: 0,
         lastSeenLoop: 0,
+        estimatedValueUSD: 0,
+        estimatedValueLow: 0,
+        estimatedValueHigh: 0,
+        valueRatio: null,
+        underpricedFlag: null,
+        liquidityScore: 0,
+        ev24m: 0,
+        expectedROI: null,
+        devEcosystemScore: 0,
+        hasArchiveHistory: false,
+        segmentedWords: [],
         valueDrivers: [],
         valueDetractors: [],
         _pending: true,
@@ -572,6 +614,7 @@
       yearlyBudget: clamp(parseNumber(data.get('yearlyBudget'), 50), 1, 100000),
       loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 10)), 1, 25),
       apiBaseUrl: BACKEND_URL,
+      githubToken: String(data.get('githubToken') || '').trim(),
     };
   }
 

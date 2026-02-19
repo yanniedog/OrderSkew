@@ -354,6 +354,32 @@ tbody tr:nth-child(odd) {
 }
 .warn-block ul { margin: 0.25rem 0 0 1.2rem; padding: 0; }
 
+/* Underpriced domain highlighting */
+.underpriced-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  background: #059669;
+  color: #fff;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.underpriced-row {
+  background: rgba(5, 150, 105, 0.06);
+}
+.underpriced-row:hover {
+  background: rgba(5, 150, 105, 0.12);
+}
+td.est-val {
+  font-weight: 600;
+  color: #1d4ed8;
+  cursor: help;
+}
+
 @media (max-width: 900px) {
   .container {
     padding: 14px 10px 20px;

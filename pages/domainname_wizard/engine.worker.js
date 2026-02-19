@@ -17,65 +17,25 @@ const SUFFIX = ['labs', 'works', 'base', 'flow', 'stack', 'hub', 'gen', 'pilot',
 const DICT = ['horizon', 'ember', 'vector', 'harbor', 'beacon', 'origin', 'summit', 'apex'];
 
 // ---------------------------------------------------------------------------
-// Scoring data tables
+// Valuation data layer (loaded from valuation_data.json)
 // ---------------------------------------------------------------------------
 
-const BIGRAM_FREQ = {
-  th:87,he:78,in:72,er:67,an:63,re:57,on:56,at:51,en:51,nd:50,
-  ti:50,es:49,or:47,te:46,of:44,ed:43,is:42,it:41,al:40,ar:39,
-  st:38,to:37,nt:37,ng:36,se:35,ha:34,as:32,ou:32,io:31,le:31,
-  ve:31,co:30,me:30,de:30,hi:29,ri:29,ro:29,ic:28,ne:27,ea:27,
-  ra:26,ce:26,li:25,ch:25,ll:24,be:24,ma:23,si:23,om:22,ur:22,
-  ca:21,el:21,ta:21,la:20,ns:20,ge:19,ly:19,wi:19,no:19,ol:18,
-  ut:18,ad:17,di:17,wa:17,pe:17,na:17,tr:16,ec:16,ni:16,pr:16,
-  ct:16,sp:15,ac:15,ot:15,il:15,us:15,em:14,op:14,fo:14,ow:14,
-  ag:14,id:13,un:13,pl:13,up:13,po:13,sh:13,ts:13,bl:12,ab:12,
-  pa:12,fi:12,oo:12,ig:12,ty:11,ss:11,cr:11,iv:11,am:11,ho:11
-};
-const BIGRAM_MAX = 87;
+let WORD_FREQ = null;
+let TRIGRAM_LM = null;
+let CPC_TIERS_MAP = null;
+let SALES_COMPS = null;
+let CONCRETENESS_MAP = null;
+let MODEL_WEIGHTS = null;
+let LOADED_TLD_TIERS = null;
+let LIQUIDITY_PARAMS = null;
+let VDATA_LOADED = false;
+let DEV_ECOSYSTEM_CACHE = new Map();
+let ARCHIVE_CACHE = new Map();
 
-const HARD_CLUSTERS = new Set([
-  'bz','cbd','cg','cz','dk','dz','fb','fg','fk','fn','fp','fz',
-  'gd','gf','gk','gm','gp','gz','hk','hz','jb','jd','jf','jg',
-  'jk','jl','jm','jn','jp','jq','jr','jt','jv','jw','jx','jz',
-  'kb','kd','kf','kg','kj','kp','kq','kv','kz','lb','lf','lg',
-  'lk','lp','lq','lv','lz','mb','md','mf','mg','mk','mp','mq',
-  'mv','mz','nb','nf','ng','nk','nm','np','nq','nv','nz','pb',
-  'pd','pf','pg','pk','pm','pn','pq','pv','pw','pz','qb','qd',
-  'qf','qg','qk','qm','qp','qv','qw','qx','qz','rq','rz','sb',
-  'sd','sf','sg','sj','sz','tb','td','tf','tg','tj','tz','vb',
-  'vd','vf','vg','vk','vm','vn','vp','vq','vr','vt','vw','vz',
-  'wb','wd','wf','wg','wk','wm','wp','wq','wv','wz','xb','xd',
-  'xf','xg','xj','xk','xm','xn','xq','xr','xw','xz','zb','zd',
-  'zf','zg','zk','zm','zn','zp','zq','zr','zv','zw','zx'
-]);
-
-const MORPHEMES = new Set(
-  'able ace act add age aid aim air all amp app apt arc art auto back band bank bar base bay beam beat bell best big bio bit blast blaze block bloom blue bold bolt bond boom boost born box brand brave break brew bridge bright bring broad build bulk burn burst buzz call calm camp care cart cast chain change charge chart check chief chip choice city claim class clean clear click climb clip clock close cloud club clue coach code cold color come cool copy core cost craft crave crew cross crown crush cube cure curve cut cyber dash data dawn deal deck deep delta demo design dev dial dig direct disc dock dose down draft draw dream drift drive drop drum dual dusk dust dyna early earth east echo edge elite ember end energy era ever exact exit face fact fair fame fast fault feed field fill film find fine fire firm first fit five flash flat flex flip float flock flow flux focus fold font force forge form fort found fox frame free fresh front fuel full fund fuse gain gate gear gem ghost gift glow goal gold good grab grade grand graph grasp green grid grip group grow guide hack half hand hard hat haven head heal heap heart heat help hero high hike hint hold home hook hope host hub hunt idea impact index info ink input iron isle jade jet join jump just keen keep key kind king kit knit know lab lake lamp land lane laser last launch law layer lead leaf lean leap learn lens let level lever life lift light lime line link lion list live load lock logic long look loop loud love luck lumen luna lux made magic main make map mark mass master match mate maze media meet meld merge mesh metal mind mine mint mix mode model mold moon more motion mount move much muse name native near nest net new next node north note nova null oak one open opera orbit order origin outer over pace pack page pair palm park parse pass past path pave peak pen pick pilot pine pixel plan plant play plot plug plus point polar pole poll pond pool pop port post pour power press price prime print prize probe profit proof proto pulse pump pure push quad quest quick quote race radar rail raise range rank rapid rate raw ray reach read real reef reel rest rich ride ridge rift ring rise risk river road rock role roll roof root rope rose round route rover rule rush safe sage sail salt sand save scale scan scene scope score scout sea seal search seed self sense serve set shade shape share sharp shed shift shine ship shore short show side sign silk simple site size skill skip sky slice slim slot smart snap solar sole solve sonic sort soul sound source south space span spark spec speed sphere spin spot spring squad stack stage stamp stand star start state stay steam steel step stock stone store storm street strike strip strong style sum sun super surge swift sync table talk tank tap target task team tech tempo tend term terra test theme thick tide tight time titan tone tool top torch total touch tower trace track trade trail train trend tribe trick trim true trust tube tune turn twist type ultra union unit urban use vale value vault vector vein vent verse view vigor vine vision visit vista vital vivid voice void volt vortex vote wake walk wall want ward warm watch wave way wealth web well west wide wild win wind wire wise wolf wonder wood word work world worth yard year yield zen zero zone'.split(' ')
-);
-
-const IMAGEABLE_WORDS = new Set(
-  'air anchor apple arrow badge ball banner basket beam bear bell bird blade blaze bolt bone book bow box bridge bull cage castle chain clock cloud coat coin compass crown crystal cup dart deer diamond door dragon drum eagle egg eye falcon feather fire fish flag flame flower forest fox gate gem ghost globe gold hammer harbor hawk heart hill horn horse ice island jade jewel key king knight lake lamp leaf lighthouse lion lock lotus map mask mirror moon mountain nest oak ocean owl palm pearl phoenix pine planet plume pulse rain raven reef ring river rock root rose sail sand sea seed shadow shell shield ship silk silver skull sky snake snow spark sphere star stone storm sun swan sword temple thunder tiger torch tower tree turtle vine volcano wall water wave whale wheel wind wing wolf'.split(' ')
-);
-
-const TLD_SEO_FACTOR = {
-  com: 1.0, org: 0.92, net: 0.88, io: 0.90, ai: 0.93, co: 0.87,
-  app: 0.89, dev: 0.88, tech: 0.85, xyz: 0.78, me: 0.82, info: 0.80,
-  biz: 0.76, us: 0.81, uk: 0.83, de: 0.82, ca: 0.82, au: 0.81,
-  store: 0.79, shop: 0.79, cloud: 0.84, design: 0.82, online: 0.77,
-  site: 0.76, space: 0.78, world: 0.77, pro: 0.83, tools: 0.80
-};
-
-const TLD_VALUE_MULT = {
+const FALLBACK_TLD_TIERS = {
   com: 1.0, ai: 0.85, io: 0.70, co: 0.55, net: 0.40, org: 0.42,
   app: 0.45, dev: 0.40, tech: 0.30, xyz: 0.12, me: 0.25, info: 0.15,
   biz: 0.10, pro: 0.20, cloud: 0.22, design: 0.18
-};
-
-const LENGTH_VALUE_CURVE = {
-  2: 100, 3: 95, 4: 90, 5: 82, 6: 70, 7: 58, 8: 46, 9: 36,
-  10: 28, 11: 22, 12: 17, 13: 13, 14: 10, 15: 8, 16: 6, 17: 5,
-  18: 4, 19: 3, 20: 2
 };
 
 const AMBIGUOUS_PAIRS = [
@@ -105,6 +65,7 @@ const BUSINESS_SYNONYMS = {
 
 const VOWELS_SET = new Set('aeiouy'.split(''));
 const CONSONANTS_SET = new Set('bcdfghjklmnpqrstvwxz'.split(''));
+
 
 // ---------------------------------------------------------------------------
 // Core utilities
@@ -219,8 +180,49 @@ function parseInput(raw) {
     yearlyBudget: clamp(Number(input.yearlyBudget) || 50, 1, 100000),
     loopCount: clamp(Math.round(Number(input.loopCount) || 10), 1, 25),
     apiBaseUrl: text(input.apiBaseUrl),
+    githubToken: text(input.githubToken),
   };
 }
+
+
+// ---------------------------------------------------------------------------
+// Load valuation data
+// ---------------------------------------------------------------------------
+
+async function loadValuationData() {
+  if (VDATA_LOADED) return;
+  try {
+    const resp = await fetch('valuation_data.json');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const d = await resp.json();
+    WORD_FREQ = new Map(Object.entries(d.wordFreq || {}));
+    TRIGRAM_LM = new Map(Object.entries(d.trigrams || {}));
+    CPC_TIERS_MAP = new Map();
+    for (const [k, v] of Object.entries(d.cpcTiers || {})) CPC_TIERS_MAP.set(k, Number(v));
+    SALES_COMPS = d.salesComps || [];
+    CONCRETENESS_MAP = new Map(Object.entries(d.concreteness || {}));
+    MODEL_WEIGHTS = d.modelWeights || {};
+    LOADED_TLD_TIERS = d.tldTiers || {};
+    LIQUIDITY_PARAMS = d.liquidityParams || {};
+    VDATA_LOADED = true;
+    emitDebugLog('engine.worker.js', 'Valuation data loaded', {
+      words: WORD_FREQ.size, trigrams: TRIGRAM_LM.size, comps: SALES_COMPS.length
+    });
+  } catch (err) {
+    emitDebugLog('engine.worker.js', 'Valuation data load failed, using fallback', { error: err.message });
+    VDATA_LOADED = false;
+  }
+}
+
+function getTldTier(tld) {
+  if (LOADED_TLD_TIERS && LOADED_TLD_TIERS[tld] !== undefined) return LOADED_TLD_TIERS[tld];
+  return FALLBACK_TLD_TIERS[tld] || 0.10;
+}
+
+
+// ---------------------------------------------------------------------------
+// Scoring Engine v2 - Data-driven valuation
+// ---------------------------------------------------------------------------
 
 function estimateSyllables(label) {
   const parts = String(label || '').split('-').filter(Boolean);
@@ -231,18 +233,68 @@ function estimateSyllables(label) {
   }, 0);
 }
 
-// ---------------------------------------------------------------------------
-// Sub-scorer: Phonetic Quality
-// ---------------------------------------------------------------------------
-
-function cvPattern(label) {
-  let pattern = '';
-  for (const ch of label) {
-    if (VOWELS_SET.has(ch)) pattern += 'V';
-    else if (CONSONANTS_SET.has(ch)) pattern += 'C';
+// DP word segmentation - finds optimal decomposition weighted by word frequency
+function segmentWords(label) {
+  const clean = (label || '').replace(/[-0-9]/g, '').toLowerCase();
+  if (!clean.length || !WORD_FREQ || WORD_FREQ.size === 0) {
+    return { words: [], allParts: [], maxZipf: 0, totalZipf: 0, quality: 0 };
   }
-  return pattern;
+  const n = clean.length;
+  const dp = new Float64Array(n + 1).fill(-Infinity);
+  const back = new Int32Array(n + 1).fill(-1);
+  dp[0] = 0;
+  for (let i = 1; i <= n; i++) {
+    for (let j = Math.max(0, i - 15); j < i; j++) {
+      const w = clean.slice(j, i);
+      const freq = WORD_FREQ.get(w);
+      if (freq !== undefined && w.length >= 2) {
+        const cappedFreq = w.length <= 2 ? Math.min(freq, 4.0) : w.length === 3 ? Math.min(freq, 4.5) : freq;
+        const lengthBonus = Math.max(0, w.length - 2) * 2.5;
+        const s = dp[j] + cappedFreq + lengthBonus;
+        if (s > dp[i]) { dp[i] = s; back[i] = j; }
+      }
+    }
+    if (dp[i - 1] - 3 > dp[i]) { dp[i] = dp[i - 1] - 3; back[i] = i - 1; }
+  }
+  const parts = [];
+  let pos = n;
+  while (pos > 0 && back[pos] >= 0) {
+    parts.unshift(clean.slice(back[pos], pos));
+    pos = back[pos];
+  }
+  if (pos > 0) parts.unshift(clean.slice(0, pos));
+  const dictWords = parts.filter(w => WORD_FREQ.has(w) && w.length >= 2);
+  const maxZipf = dictWords.length > 0 ? Math.max(...dictWords.map(w => WORD_FREQ.get(w))) : 0;
+  const totalZipf = dictWords.reduce((s, w) => s + (WORD_FREQ.get(w) || 0), 0);
+  const coverage = dictWords.reduce((s, w) => s + w.length, 0) / Math.max(1, n);
+  return { words: dictWords, allParts: parts, maxZipf, totalZipf, quality: coverage };
 }
+
+// Compatibility wrapper for Optimizer
+function findMorphemes(label) {
+  const seg = segmentWords(label);
+  return seg.words;
+}
+
+// Character trigram language model score
+function trigramScore(label) {
+  const clean = (label || '').replace(/-/g, '').toLowerCase();
+  if (!clean.length || !TRIGRAM_LM || TRIGRAM_LM.size === 0) return -2.0;
+  const padded = '^' + clean + '$';
+  let total = 0;
+  let count = 0;
+  for (let i = 0; i < padded.length - 2; i++) {
+    const tri = padded.slice(i, i + 3);
+    const lp = TRIGRAM_LM.get(tri);
+    total += lp !== undefined ? lp : -3.0;
+    count++;
+  }
+  return count > 0 ? total / count : -2.0;
+}
+
+// ---------------------------------------------------------------------------
+// Sub-scorer: Phonetic Quality (trigram-based)
+// ---------------------------------------------------------------------------
 
 function scorePhoneticQuality(label) {
   const drivers = [];
@@ -250,47 +302,32 @@ function scorePhoneticQuality(label) {
   const clean = label.replace(/-/g, '').toLowerCase();
   if (!clean.length) return { score: 0, drivers, detractors };
 
-  const cv = cvPattern(clean);
-  let transitions = 0;
-  for (let i = 1; i < cv.length; i++) {
-    if (cv[i] !== cv[i - 1]) transitions++;
+  const triScore = trigramScore(clean);
+  const triNorm = clamp((triScore + 2.0) * 50, 0, 100);
+  if (triNorm >= 60) drivers.push({ component: 'Natural English sound', impact: round(triNorm * 0.3, 1) });
+  if (triNorm < 25) detractors.push({ component: 'Unnatural sound', impact: round((25 - triNorm) * 0.3, 1) });
+
+  let cv = '';
+  for (const ch of clean) {
+    if (VOWELS_SET.has(ch)) cv += 'V';
+    else if (CONSONANTS_SET.has(ch)) cv += 'C';
   }
+  let transitions = 0;
+  for (let i = 1; i < cv.length; i++) if (cv[i] !== cv[i - 1]) transitions++;
   const altRatio = cv.length > 1 ? transitions / (cv.length - 1) : 0;
   const altScore = clamp(altRatio * 120, 0, 100);
-  if (altScore >= 70) drivers.push({ component: 'CV alternation', impact: round(altScore * 0.3, 1) });
-  if (altScore < 40) detractors.push({ component: 'Poor CV flow', impact: round((40 - altScore) * 0.3, 1) });
-
-  let clusterPenalty = 0;
-  for (let i = 0; i < clean.length - 1; i++) {
-    const bi = clean.slice(i, i + 2);
-    if (HARD_CLUSTERS.has(bi)) clusterPenalty += 18;
-  }
-  clusterPenalty = Math.min(clusterPenalty, 60);
-  if (clusterPenalty > 15) detractors.push({ component: 'Hard clusters', impact: round(clusterPenalty * 0.25, 1) });
-
-  let bigramSum = 0;
-  let bigramCount = 0;
-  for (let i = 0; i < clean.length - 1; i++) {
-    const bi = clean.slice(i, i + 2);
-    bigramSum += (BIGRAM_FREQ[bi] || 0) / BIGRAM_MAX;
-    bigramCount++;
-  }
-  const bigramAvg = bigramCount > 0 ? (bigramSum / bigramCount) * 100 : 30;
-  if (bigramAvg >= 40) drivers.push({ component: 'Natural letter flow', impact: round(bigramAvg * 0.2, 1) });
+  if (altScore >= 70) drivers.push({ component: 'Good CV flow', impact: round(altScore * 0.15, 1) });
 
   const vowelCount = (clean.match(/[aeiouy]/g) || []).length;
   const vowelRatio = vowelCount / clean.length;
   const vowelScore = clamp(100 - Math.abs(vowelRatio - 0.40) * 250, 0, 100);
 
-  const score = clamp(
-    altScore * 0.30 + (100 - clusterPenalty) * 0.25 + bigramAvg * 0.25 + vowelScore * 0.20,
-    0, 100
-  );
+  const score = clamp(triNorm * 0.50 + altScore * 0.30 + vowelScore * 0.20, 0, 100);
   return { score: round(score, 1), drivers, detractors };
 }
 
 // ---------------------------------------------------------------------------
-// Sub-scorer: Brandability
+// Sub-scorer: Brandability (word-frequency + concreteness enhanced)
 // ---------------------------------------------------------------------------
 
 function scoreBrandability(label, keyTokens) {
@@ -313,31 +350,20 @@ function scoreBrandability(label, keyTokens) {
   const rhythmScore = trochaic ? 100 : syl === 1 ? 75 : syl === 4 ? 60 : 40;
   if (trochaic) drivers.push({ component: 'Good rhythm', impact: round(rhythmScore * 0.15, 1) });
 
-  let alliterationBonus = 0;
-  const words = label.split('-').filter(Boolean);
-  if (words.length >= 2) {
-    const initials = words.map(w => w[0]);
-    if (new Set(initials).size < initials.length) alliterationBonus = 20;
-  }
-  const vowelGroups = clean.match(/[aeiouy]+/g) || [];
-  let assonanceBonus = 0;
-  if (vowelGroups.length >= 2) {
-    const vs = vowelGroups.map(g => g[0]);
-    if (new Set(vs).size < vs.length) assonanceBonus = 15;
-  }
-  const soundRepeat = Math.min(alliterationBonus + assonanceBonus, 30);
-  if (soundRepeat >= 15) drivers.push({ component: 'Sound repetition', impact: round(soundRepeat * 0.1, 1) });
+  const seg = segmentWords(clean);
+  const wordQuality = seg.quality > 0.7 ? clamp(seg.maxZipf * 15, 0, 100) : seg.quality * 50;
+  if (seg.maxZipf >= 4.5) drivers.push({ component: 'Common word parts', impact: round(wordQuality * 0.15, 1) });
+  if (seg.quality < 0.2 && seg.words.length === 0) detractors.push({ component: 'No recognizable words', impact: 8.0 });
 
-  const phonemes = new Set(clean.split('')).size;
-  const cogLoad = clamp(100 - Math.max(0, phonemes - 8) * 8, 30, 100);
-
-  let bigramTotal = 0;
-  for (let i = 0; i < clean.length - 1; i++) {
-    bigramTotal += (BIGRAM_FREQ[clean.slice(i, i + 2)] || 0) / BIGRAM_MAX;
+  let maxConcr = 0;
+  if (CONCRETENESS_MAP) {
+    for (const w of seg.words) {
+      const c = CONCRETENESS_MAP.get(w) || 0;
+      if (c > maxConcr) maxConcr = c;
+    }
   }
-  const avgBigram = len > 1 ? bigramTotal / (len - 1) : 0.3;
-  const uniqueness = clamp((1 - avgBigram) * 130, 0, 100);
-  if (uniqueness >= 60) drivers.push({ component: 'Distinctive spelling', impact: round(uniqueness * 0.1, 1) });
+  const concrScore = clamp(maxConcr * 20, 0, 100);
+  if (maxConcr >= 4.0) drivers.push({ component: 'Concrete/visual word', impact: round(concrScore * 0.1, 1) });
 
   const lengthScore = clamp(100 - Math.abs(len - 8) * 9, 10, 100);
   if (len <= 6) drivers.push({ component: 'Short name', impact: round(lengthScore * 0.12, 1) });
@@ -353,17 +379,12 @@ function scoreBrandability(label, keyTokens) {
   const relevance = keyTokens.length ? clamp(25 + (matches / keyTokens.length) * 75, 0, 100) : 30;
   if (matches > 0) drivers.push({ component: 'Keyword match', impact: round(relevance * 0.12, 1) });
 
+  const charDiv = (new Set(clean.split('')).size / Math.max(1, len)) * 60;
   const score = clamp(
-    visualClarity * 0.12 +
-    rhythmScore * 0.15 +
-    soundRepeat * 0.08 +
-    cogLoad * 0.10 +
-    uniqueness * 0.10 +
-    lengthScore * 0.15 +
-    relevance * 0.14 +
-    (100 - hyphenPen) * 0.06 +
-    (100 - digitPen) * 0.05 +
-    (new Set(clean.split('')).size / Math.max(1, len)) * 60 * 0.05,
+    visualClarity * 0.10 + rhythmScore * 0.13 + wordQuality * 0.20 +
+    concrScore * 0.08 + lengthScore * 0.15 + relevance * 0.12 +
+    (100 - hyphenPen) * 0.06 + (100 - digitPen) * 0.05 + charDiv * 0.05 +
+    (trigramScore(clean) > -1.5 ? 6 : 0),
     0, 100
   );
   return { score: round(score, 1), drivers, detractors };
@@ -372,16 +393,6 @@ function scoreBrandability(label, keyTokens) {
 // ---------------------------------------------------------------------------
 // Sub-scorer: SEO / Search Potential
 // ---------------------------------------------------------------------------
-
-function findMorphemes(label) {
-  const clean = label.replace(/-/g, '').toLowerCase();
-  const found = [];
-  for (const m of MORPHEMES) {
-    if (m.length >= 3 && clean.includes(m)) found.push(m);
-  }
-  found.sort((a, b) => b.length - a.length);
-  return found;
-}
 
 function expandKeywords(keyTokens) {
   const expanded = new Set(keyTokens);
@@ -398,11 +409,10 @@ function scoreSeo(label, keyTokens, tld) {
   const clean = label.replace(/-/g, '').toLowerCase();
   if (!clean.length) return { score: 0, drivers, detractors };
 
-  const morphs = findMorphemes(clean);
-  const morphCoverage = morphs.reduce((s, m) => s + m.length, 0) / Math.max(1, clean.length);
-  const realWordScore = clamp(morphCoverage * 130, 0, 100);
-  if (morphs.length >= 2) drivers.push({ component: 'Real word parts', impact: round(realWordScore * 0.25, 1) });
-  if (morphs.length === 0) detractors.push({ component: 'No recognizable words', impact: 8.0 });
+  const seg = segmentWords(clean);
+  const realWordScore = clamp(seg.quality * 130, 0, 100);
+  if (seg.words.length >= 2) drivers.push({ component: 'Real word parts', impact: round(realWordScore * 0.25, 1) });
+  if (seg.words.length === 0) detractors.push({ component: 'No recognizable words', impact: 8.0 });
 
   const expanded = expandKeywords(keyTokens);
   let kwHits = 0;
@@ -416,23 +426,130 @@ function scoreSeo(label, keyTokens, tld) {
   for (const token of keyTokens) if (clean.includes(token)) directMatch++;
   const directRel = keyTokens.length ? clamp(20 + (directMatch / keyTokens.length) * 80, 0, 100) : 25;
 
-  const tldSeo = (TLD_SEO_FACTOR[tld] || 0.75) * 100;
+  const tldSeo = getTldTier(tld) * 100;
   if (tld === 'com') drivers.push({ component: '.com TLD', impact: 10.0 });
-  if (tldSeo < 80) detractors.push({ component: 'Weak TLD for SEO', impact: round((80 - tldSeo) * 0.2, 1) });
+  if (tldSeo < 50) detractors.push({ component: 'Weak TLD for SEO', impact: round((50 - tldSeo) * 0.15, 1) });
 
-  const hasImageable = morphs.some(m => IMAGEABLE_WORDS.has(m));
-  const imageBonus = hasImageable ? 12 : 0;
-  if (hasImageable) drivers.push({ component: 'Concrete/visual word', impact: 3.0 });
+  let maxConcr = 0;
+  if (CONCRETENESS_MAP) {
+    for (const w of seg.words) {
+      const c = CONCRETENESS_MAP.get(w) || 0;
+      if (c > maxConcr) maxConcr = c;
+    }
+  }
+  const imageBonus = maxConcr >= 4.0 ? 12 : 0;
+  if (maxConcr >= 4.0) drivers.push({ component: 'Concrete/visual word', impact: 3.0 });
 
   const score = clamp(
-    realWordScore * 0.30 + kwDensity * 0.15 + directRel * 0.15 + tldSeo * 0.25 + imageBonus + (clean.length <= 12 ? 10 : 0) * 0.15,
+    realWordScore * 0.30 + kwDensity * 0.15 + directRel * 0.15 +
+    tldSeo * 0.25 + imageBonus + (clean.length <= 12 ? 10 : 0) * 0.15,
     0, 100
   );
   return { score: round(score, 1), drivers, detractors };
 }
 
 // ---------------------------------------------------------------------------
-// Sub-scorer: Financial / Aftermarket Value
+// Sub-scorer: Commercial Value (CPC-based)
+// ---------------------------------------------------------------------------
+
+function scoreCommercialValue(label, tld) {
+  const drivers = [];
+  const detractors = [];
+  const seg = segmentWords(label);
+
+  let bestTier = 0;
+  let bestWord = '';
+  if (CPC_TIERS_MAP) {
+    for (const w of seg.words) {
+      const tier = CPC_TIERS_MAP.get(w);
+      if (tier && (bestTier === 0 || tier < bestTier)) {
+        bestTier = tier;
+        bestWord = w;
+      }
+    }
+  }
+
+  const cpcScore = bestTier > 0 ? clamp((6 - bestTier) * 25, 0, 100) : 0;
+  if (bestTier === 1) drivers.push({ component: 'Very high CPC keyword: ' + bestWord, impact: 25.0 });
+  else if (bestTier === 2) drivers.push({ component: 'High CPC keyword: ' + bestWord, impact: 18.0 });
+  else if (bestTier === 3) drivers.push({ component: 'Medium CPC keyword: ' + bestWord, impact: 10.0 });
+  else if (bestTier === 0) detractors.push({ component: 'No commercial keyword', impact: 5.0 });
+
+  const isSingleDict = seg.words.length === 1 && seg.quality >= 0.9;
+  const categoryKiller = isSingleDict && seg.maxZipf >= 4.5 ? 30 : 0;
+  if (categoryKiller > 0) drivers.push({ component: 'Category-killer domain', impact: 15.0 });
+
+  const tldMult = getTldTier(tld);
+  if (tld === 'com') drivers.push({ component: '.com premium', impact: 12.0 });
+  if (tldMult < 0.3) detractors.push({ component: 'Low-value TLD', impact: round((0.3 - tldMult) * 20, 1) });
+
+  const score = clamp(cpcScore * 0.40 + categoryKiller + tldMult * 40 * 0.30 + seg.quality * 30, 0, 100);
+  return {
+    score: round(score, 1), drivers, detractors,
+    bestCpcTier: bestTier, bestCpcWord: bestWord,
+    cpcScoreRaw: bestTier > 0 ? 6 - bestTier : 0,
+    isCategoryKiller: categoryKiller > 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Sub-scorer: Memorability (concreteness + frequency enhanced)
+// ---------------------------------------------------------------------------
+
+function scoreMemorability(label) {
+  const drivers = [];
+  const detractors = [];
+  const clean = label.replace(/-/g, '').toLowerCase();
+  if (!clean.length) return { score: 0, drivers, detractors };
+  const len = clean.length;
+  const syl = estimateSyllables(clean);
+
+  const chunkScore = clamp(100 - Math.max(0, syl - 3) * 18, 20, 100);
+  if (syl <= 2) drivers.push({ component: 'Few syllables', impact: round(chunkScore * 0.15, 1) });
+  if (syl >= 5) detractors.push({ component: 'Too many syllables', impact: round((syl - 4) * 8, 1) });
+
+  let repeatBonus = 0;
+  for (let i = 0; i < clean.length - 1; i++) if (clean[i] === clean[i + 1]) repeatBonus += 5;
+  const bigramPairs = {};
+  for (let i = 0; i < clean.length - 1; i++) {
+    const bi = clean.slice(i, i + 2);
+    bigramPairs[bi] = (bigramPairs[bi] || 0) + 1;
+  }
+  for (const count of Object.values(bigramPairs)) if (count >= 2) repeatBonus += 10;
+  repeatBonus = Math.min(repeatBonus, 30);
+  if (repeatBonus >= 10) drivers.push({ component: 'Pattern repetition', impact: round(repeatBonus * 0.12, 1) });
+
+  const seg = segmentWords(clean);
+  let maxConcr = 0;
+  if (CONCRETENESS_MAP) {
+    for (const w of seg.words) {
+      const c = CONCRETENESS_MAP.get(w) || 0;
+      if (c > maxConcr) maxConcr = c;
+    }
+  }
+  const imageScore = maxConcr >= 3.5 ? 25 : maxConcr > 0 ? maxConcr * 5 : 0;
+  if (maxConcr >= 4.0) drivers.push({ component: 'Visual/concrete word', impact: 5.0 });
+
+  const wordFamiliarity = seg.maxZipf >= 5.0 ? 20 : seg.maxZipf >= 4.0 ? 12 : seg.maxZipf > 0 ? 5 : 0;
+  if (seg.maxZipf >= 5.0) drivers.push({ component: 'Very common word', impact: round(wordFamiliarity * 0.3, 1) });
+
+  const uniqueChars = new Set(clean.split('')).size;
+  const simplicity = clamp(100 - Math.max(0, uniqueChars - 7) * 10, 20, 100);
+
+  const recallLen = clamp(100 - Math.max(0, len - 7) * 8, 15, 100);
+  if (len <= 6) drivers.push({ component: 'Easy to recall', impact: round(recallLen * 0.1, 1) });
+  if (len >= 13) detractors.push({ component: 'Hard to recall', impact: round((len - 12) * 4, 1) });
+
+  const score = clamp(
+    chunkScore * 0.22 + repeatBonus * 0.08 + imageScore * 0.12 +
+    wordFamiliarity * 0.12 + simplicity * 0.16 + recallLen * 0.30,
+    0, 100
+  );
+  return { score: round(score, 1), drivers, detractors };
+}
+
+// ---------------------------------------------------------------------------
+// Sub-scorer: Financial / Structural
 // ---------------------------------------------------------------------------
 
 function scoreFinancial(label, tld, price, available, yearlyBudget, definitive) {
@@ -441,11 +558,15 @@ function scoreFinancial(label, tld, price, available, yearlyBudget, definitive) 
   const clean = label.replace(/-/g, '').toLowerCase();
   const len = clean.length;
 
-  const lengthVal = LENGTH_VALUE_CURVE[Math.min(len, 20)] || 2;
+  const lengthVal = len <= 2 ? 100 : len <= 3 ? 95 : len <= 4 ? 90 : len <= 5 ? 82 :
+    len <= 6 ? 70 : len <= 7 ? 58 : len <= 8 ? 46 : len <= 9 ? 36 :
+    len <= 10 ? 28 : len <= 11 ? 22 : len <= 12 ? 17 : len <= 13 ? 13 :
+    len <= 14 ? 10 : len <= 15 ? 8 : len <= 16 ? 6 : len <= 17 ? 5 :
+    len <= 18 ? 4 : len <= 19 ? 3 : 2;
   if (len <= 5) drivers.push({ component: 'Short domain premium', impact: round(lengthVal * 0.15, 1) });
   if (len >= 12) detractors.push({ component: 'Long domain discount', impact: round((100 - lengthVal) * 0.1, 1) });
 
-  const tldMult = (TLD_VALUE_MULT[tld] || 0.08) * 100;
+  const tldMult = getTldTier(tld) * 100;
   if (tld === 'com') drivers.push({ component: '.com premium', impact: 12.0 });
 
   const allAlpha = /^[a-z]+$/.test(clean);
@@ -455,9 +576,9 @@ function scoreFinancial(label, tld, price, available, yearlyBudget, definitive) 
   if (allAlpha) drivers.push({ component: 'Pure alpha', impact: 5.0 });
   if (hasHyphen) detractors.push({ component: 'Hyphen reduces value', impact: 7.0 });
 
-  const morphs = findMorphemes(clean);
-  const dictBonus = morphs.some(m => m.length >= 4 && MORPHEMES.has(m)) ? 20 : 0;
-  const singleWord = morphs.length === 1 && morphs[0].length === clean.length;
+  const seg = segmentWords(clean);
+  const dictBonus = seg.words.some(w => w.length >= 4) ? 20 : 0;
+  const singleWord = seg.words.length === 1 && seg.quality >= 0.9;
   const singleWordBonus = singleWord ? 25 : 0;
   if (singleWord) drivers.push({ component: 'Dictionary word domain', impact: 10.0 });
 
@@ -475,105 +596,196 @@ function scoreFinancial(label, tld, price, available, yearlyBudget, definitive) 
   const defScore = definitive ? 100 : 60;
 
   const score = clamp(
-    availScore * 0.25 + affordability * 0.25 + estimatedValue * 0.01 * 20 + defScore * 0.08 + charComp * 0.07 + tldMult * 0.10 + lengthVal * 0.05,
+    availScore * 0.25 + affordability * 0.25 + estimatedValue * 0.01 * 20 +
+    defScore * 0.08 + charComp * 0.07 + tldMult * 0.10 + lengthVal * 0.05,
     0, 100
   );
   return { score: round(score, 1), drivers, detractors };
 }
 
 // ---------------------------------------------------------------------------
-// Sub-scorer: Memorability
+// Comparable sales engine (k-nearest-neighbor)
 // ---------------------------------------------------------------------------
 
-function scoreMemorability(label) {
-  const drivers = [];
-  const detractors = [];
-  const clean = label.replace(/-/g, '').toLowerCase();
-  if (!clean.length) return { score: 0, drivers, detractors };
-  const len = clean.length;
-  const syl = estimateSyllables(clean);
+function findComparables(features) {
+  if (!SALES_COMPS || SALES_COMPS.length === 0) return { comps: [], medianPrice: 0 };
 
-  const chunkScore = clamp(100 - Math.max(0, syl - 3) * 18, 20, 100);
-  if (syl <= 2) drivers.push({ component: 'Few syllables', impact: round(chunkScore * 0.15, 1) });
-  if (syl >= 5) detractors.push({ component: 'Too many syllables', impact: round((syl - 4) * 8, 1) });
+  const weights = { len: 3, tldTier: 5, maxZipf: 2, decompQuality: 3, wordCount: 2, cpcScore: 4 };
+  const scored = SALES_COMPS.map(comp => {
+    const dist =
+      weights.len * Math.pow(Math.log10(Math.max(2, features.len)) - Math.log10(Math.max(2, comp.len)), 2) +
+      weights.tldTier * Math.pow(features.tldTier - comp.tldTier, 2) +
+      weights.maxZipf * Math.pow((features.maxZipf - comp.maxZipf) / 7, 2) +
+      weights.decompQuality * Math.pow(features.decompQuality - comp.decompQuality, 2) +
+      weights.wordCount * Math.pow(Math.min(features.wordCount, 3) - Math.min(comp.wordCount, 3), 2) +
+      weights.cpcScore * Math.pow((features.cpcScore - comp.cpcScore) / 5, 2);
+    return { ...comp, _dist: dist };
+  });
 
-  let repeatBonus = 0;
-  for (let i = 0; i < clean.length - 1; i++) {
-    if (clean[i] === clean[i + 1]) repeatBonus += 5;
-  }
-  const bigramPairs = {};
-  for (let i = 0; i < clean.length - 1; i++) {
-    const bi = clean.slice(i, i + 2);
-    bigramPairs[bi] = (bigramPairs[bi] || 0) + 1;
-  }
-  for (const count of Object.values(bigramPairs)) {
-    if (count >= 2) repeatBonus += 10;
-  }
-  repeatBonus = Math.min(repeatBonus, 30);
-  if (repeatBonus >= 10) drivers.push({ component: 'Pattern repetition', impact: round(repeatBonus * 0.12, 1) });
-
-  const morphs = findMorphemes(clean);
-  const hasImageable = morphs.some(m => IMAGEABLE_WORDS.has(m));
-  const imageScore = hasImageable ? 25 : 0;
-  if (hasImageable) drivers.push({ component: 'Visual/concrete word', impact: 5.0 });
-
-  const uniqueChars = new Set(clean.split('')).size;
-  const simplicity = clamp(100 - Math.max(0, uniqueChars - 7) * 10, 20, 100);
-
-  const recallLen = clamp(100 - Math.max(0, len - 7) * 8, 15, 100);
-  if (len <= 6) drivers.push({ component: 'Easy to recall', impact: round(recallLen * 0.1, 1) });
-  if (len >= 13) detractors.push({ component: 'Hard to recall', impact: round((len - 12) * 4, 1) });
-
-  const score = clamp(
-    chunkScore * 0.25 + repeatBonus * 0.12 + imageScore * 0.15 + simplicity * 0.18 + recallLen * 0.30,
-    0, 100
-  );
-  return { score: round(score, 1), drivers, detractors };
+  scored.sort((a, b) => a._dist - b._dist);
+  const top5 = scored.slice(0, 5);
+  const prices = top5.map(c => c.price).sort((a, b) => a - b);
+  const medianPrice = prices.length > 0 ? prices[Math.floor(prices.length / 2)] : 0;
+  return { comps: top5.map(c => ({ label: c.label, tld: c.tld, price: c.price, year: c.year, similarity: round(1 / (1 + c._dist), 3) })), medianPrice };
 }
 
 // ---------------------------------------------------------------------------
-// Composite: scoreDomain
+// Market value regression: estimateValueUSD
 // ---------------------------------------------------------------------------
 
-function scoreDomain(row, input) {
+function estimateValueUSD(features) {
+  const w = MODEL_WEIGHTS || {};
+  const logPrice =
+    (w.intercept || 1.8) +
+    (w.logLength || -2.5) * Math.log10(Math.max(2, features.len)) +
+    (w.tldTier || 1.2) * features.tldTier +
+    (w.maxWordZipf || 0.3) * features.maxZipf +
+    (w.decompQuality || 0.5) * features.decompQuality +
+    (w.wordCount || -0.2) * Math.min(features.wordCount, 3) +
+    (w.cpcScore || 0.15) * features.cpcScore +
+    (w.singleDictWord || 0.5) * (features.singleDictWord ? 1 : 0) +
+    (w.hyphenPenalty || -0.5) * (features.hasHyphen ? 1 : 0) +
+    (w.digitPenalty || -0.3) * (features.hasDigit ? 1 : 0) +
+    (features.devEcosystemScore > 0 ? 0.1 * Math.log10(1 + features.devEcosystemScore) : 0) +
+    (features.archiveHistory ? 0.3 : 0);
+
+  const rmse = w._rmse || 0.8;
+  const estimated = Math.pow(10, logPrice);
+  const low = Math.pow(10, logPrice - rmse);
+  const high = Math.pow(10, logPrice + rmse);
+
+  return {
+    estimated: Math.round(estimated),
+    low: Math.round(low),
+    high: Math.round(high),
+    logPrice: round(logPrice, 3),
+    confidence: rmse <= 0.7 ? 'high' : rmse <= 1.0 ? 'medium' : 'low',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Expected Value & Liquidity
+// ---------------------------------------------------------------------------
+
+function calculateEV(estimatedValue, askingPrice, tld, features) {
+  const lp = LIQUIDITY_PARAMS || {};
+  const tldLiq = (lp.tldLiquidity || {})[tld] || 0.15;
+
+  let bracket = 'over100000';
+  if (estimatedValue < 100) bracket = 'under100';
+  else if (estimatedValue < 500) bracket = 'under500';
+  else if (estimatedValue < 1000) bracket = 'under1000';
+  else if (estimatedValue < 5000) bracket = 'under5000';
+  else if (estimatedValue < 10000) bracket = 'under10000';
+  else if (estimatedValue < 50000) bracket = 'under50000';
+  else if (estimatedValue < 100000) bracket = 'under100000';
+  const bracketVelocity = ((lp.priceBracketVelocity || {})[bracket]) || 0.15;
+
+  const wordBonus = features.decompQuality > 0.8 ? 1.3 : features.decompQuality > 0.5 ? 1.1 : 0.9;
+  const baseSaleProb = lp.baseSaleProbability24m || 0.18;
+  const saleProbability24m = clamp(baseSaleProb * tldLiq * (1 + bracketVelocity) * wordBonus, 0.01, 0.85);
+  const saleProbability12m = saleProbability24m * 0.55;
+  const saleProbability36m = clamp(saleProbability24m * 1.4, 0, 0.92);
+
+  const annualCost = ((lp.annualRenewalCost || {})[tld]) || 15;
+  const holdingCost24m = annualCost * 2;
+
+  const ev24m = saleProbability24m * estimatedValue - holdingCost24m;
+  const roi = typeof askingPrice === 'number' && askingPrice > 0
+    ? round((ev24m - askingPrice) / askingPrice * 100, 1)
+    : null;
+
+  const liquidityScore = round(clamp(
+    tldLiq * 35 + bracketVelocity * 120 + (features.decompQuality > 0.7 ? 20 : 5) +
+    (features.maxZipf > 4.5 ? 10 : 0),
+    0, 100
+  ), 1);
+
+  const timeToSaleMonths = liquidityScore > 60 ? 12 : liquidityScore > 35 ? 24 : 36;
+
+  return {
+    saleProbability12m: round(saleProbability12m, 3),
+    saleProbability24m: round(saleProbability24m, 3),
+    saleProbability36m: round(saleProbability36m, 3),
+    ev24m: Math.round(ev24m),
+    expectedROI: roi,
+    holdingCost24m,
+    liquidityScore,
+    timeToSaleMonths,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Composite: scoreDomain (v2 - price-independent intrinsic value)
+// ---------------------------------------------------------------------------
+
+function scoreDomain(row, input, enrichment) {
   const parts = row.domain.split('.');
   const label = parts[0] || '';
   const tld = parts.slice(1).join('.') || input.tld;
   const len = label.length;
   const syl = estimateSyllables(label);
-  const keyTokens = tokenize(`${input.keywords} ${input.description}`);
+  const keyTokens = tokenize(input.keywords + ' ' + input.description);
+  const enrich = enrichment || {};
 
   const phonetic = scorePhoneticQuality(label);
   const brand = scoreBrandability(label, keyTokens);
   const seo = scoreSeo(label, keyTokens, tld);
+  const commercial = scoreCommercialValue(label, tld);
   const financial = scoreFinancial(label, tld, row.price, row.available, input.yearlyBudget, row.definitive);
   const memo = scoreMemorability(label);
 
-  const afford = typeof row.price === 'number'
-    ? clamp(110 - (row.price / Math.max(1, input.yearlyBudget)) * 60, 0, 100)
-    : 50;
+  const seg = segmentWords(label);
+  const tldTier = getTldTier(tld);
+  const clean = label.replace(/-/g, '').toLowerCase();
+
+  const features = {
+    len: clean.length,
+    tldTier,
+    maxZipf: seg.maxZipf,
+    decompQuality: seg.quality,
+    wordCount: seg.words.length,
+    cpcScore: commercial.cpcScoreRaw || 0,
+    singleDictWord: seg.words.length === 1 && seg.quality >= 0.9,
+    hasHyphen: label.includes('-'),
+    hasDigit: /\d/.test(label),
+    devEcosystemScore: enrich.devEcosystemScore || 0,
+    archiveHistory: Boolean(enrich.archiveHistory),
+    phoneticScore: phonetic.score,
+  };
+
+  const comps = findComparables(features);
+  const valuation = estimateValueUSD(features);
+  const evData = calculateEV(valuation.estimated, row.price, tld, features);
+
+  const valueRatio = typeof row.price === 'number' && row.price > 0
+    ? round(valuation.estimated / row.price, 2) : null;
+
+  let underpricedFlag = null;
+  if (valueRatio !== null) {
+    if (valueRatio >= 10) underpricedFlag = 'STRONGLY_UNDERPRICED';
+    else if (valueRatio >= 3) underpricedFlag = 'UNDERPRICED';
+  }
 
   const marketabilityScore = round(clamp(
     phonetic.score * 0.18 + brand.score * 0.35 + seo.score * 0.22 + memo.score * 0.25,
-    0, 100
-  ), 1);
-
+    0, 100), 1);
   const financialValueScore = round(clamp(financial.score, 0, 100), 1);
 
   const intrinsicValue = round(clamp(
-    phonetic.score * 0.12 + brand.score * 0.25 + seo.score * 0.15 +
-    financial.score * 0.20 + memo.score * 0.13 + afford * 0.15,
-    0, 100
-  ), 1);
+    phonetic.score * 0.15 + brand.score * 0.25 + seo.score * 0.15 +
+    commercial.score * 0.20 + memo.score * 0.15 +
+    (seg.quality > 0.7 ? 10 : 0),
+    0, 100), 1);
 
   const overallScore = round(clamp(intrinsicValue, 0, 100), 1);
 
   const valueDrivers = [].concat(
-    phonetic.drivers, brand.drivers, seo.drivers, financial.drivers, memo.drivers
+    phonetic.drivers, brand.drivers, seo.drivers, commercial.drivers, financial.drivers, memo.drivers
   ).sort((a, b) => b.impact - a.impact).slice(0, 5);
 
   const valueDetractors = [].concat(
-    phonetic.detractors, brand.detractors, seo.detractors, financial.detractors, memo.detractors
+    phonetic.detractors, brand.detractors, seo.detractors, commercial.detractors, financial.detractors, memo.detractors
   ).sort((a, b) => b.impact - a.impact).slice(0, 5);
 
   return {
@@ -584,9 +796,26 @@ function scoreDomain(row, input) {
     phoneticScore: phonetic.score,
     brandabilityScore: brand.score,
     seoScore: seo.score,
+    commercialScore: commercial.score,
     memorabilityScore: memo.score,
     syllableCount: syl,
     labelLength: len,
+    estimatedValueUSD: valuation.estimated,
+    estimatedValueLow: valuation.low,
+    estimatedValueHigh: valuation.high,
+    valueConfidence: valuation.confidence,
+    valueRatio,
+    underpricedFlag,
+    liquidityScore: evData.liquidityScore,
+    timeToSaleMonths: evData.timeToSaleMonths,
+    saleProbability24m: evData.saleProbability24m,
+    ev24m: evData.ev24m,
+    expectedROI: evData.expectedROI,
+    comparableSales: comps.comps,
+    comparableMedianPrice: comps.medianPrice,
+    devEcosystemScore: enrich.devEcosystemScore || 0,
+    hasArchiveHistory: Boolean(enrich.archiveHistory),
+    segmentedWords: seg.words,
     valueDrivers,
     valueDetractors,
   };
@@ -601,6 +830,11 @@ function sortRanked(rows, mode) {
   out.sort((a, b) => {
     if (mode === 'financialValue') return (b.financialValueScore || 0) - (a.financialValueScore || 0) || (b.overallScore || 0) - (a.overallScore || 0) || String(a.domain).localeCompare(String(b.domain));
     if (mode === 'intrinsicValue') return (b.intrinsicValue || 0) - (a.intrinsicValue || 0) || (b.overallScore || 0) - (a.overallScore || 0) || String(a.domain).localeCompare(String(b.domain));
+    if (mode === 'estimatedValue') return (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0) || (b.overallScore || 0) - (a.overallScore || 0) || String(a.domain).localeCompare(String(b.domain));
+    if (mode === 'valueRatio') return (b.valueRatio || 0) - (a.valueRatio || 0) || (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0) || String(a.domain).localeCompare(String(b.domain));
+    if (mode === 'expectedValue') return (b.ev24m || 0) - (a.ev24m || 0) || (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0) || String(a.domain).localeCompare(String(b.domain));
+    if (mode === 'liquidityScore') return (b.liquidityScore || 0) - (a.liquidityScore || 0) || (b.overallScore || 0) - (a.overallScore || 0) || String(a.domain).localeCompare(String(b.domain));
+    if (mode === 'devEcosystem') return (b.devEcosystemScore || 0) - (a.devEcosystemScore || 0) || (b.overallScore || 0) - (a.overallScore || 0) || String(a.domain).localeCompare(String(b.domain));
     if (mode === 'alphabetical') return String(a.domain).localeCompare(String(b.domain)) || (b.overallScore || 0) - (a.overallScore || 0);
     if (mode === 'syllableCount') return (a.syllableCount || 0) - (b.syllableCount || 0) || (b.overallScore || 0) - (a.overallScore || 0);
     if (mode === 'labelLength') return (a.labelLength || 0) - (b.labelLength || 0) || (b.overallScore || 0) - (a.overallScore || 0);
@@ -638,15 +872,100 @@ function scoreReward(rows, eliteSet) {
   const scores = rows.map((x) => x.overallScore || 0).sort((a, b) => b - a);
   const top = scores.slice(0, Math.min(5, scores.length));
   const avgTop = top.reduce((s, v) => s + v, 0) / top.length / 100;
-
   const novelty = eliteSet
     ? rows.filter((r) => !eliteSet.has(r.domain.toLowerCase())).length / Math.max(1, rows.length)
     : 0.5;
-
   const sylSet = new Set(rows.map((r) => r.syllableCount || 0));
   const diversity = sylSet.size / Math.min(5, rows.length);
-
   return round(clamp(avgTop * 0.60 + novelty * 0.25 + diversity * 0.15, 0, 1), 4);
+}
+
+// ---------------------------------------------------------------------------
+// API Enrichment: Developer Ecosystem (GitHub, npm, PyPI)
+// ---------------------------------------------------------------------------
+
+async function fetchDevEcosystemScores(words, input) {
+  const scores = new Map();
+  if (!words || words.length === 0) return scores;
+  const unique = [...new Set(words.filter(w => w.length >= 3))].slice(0, 30);
+  const githubToken = input.githubToken || '';
+
+  for (const word of unique) {
+    if (DEV_ECOSYSTEM_CACHE.has(word)) { scores.set(word, DEV_ECOSYSTEM_CACHE.get(word)); continue; }
+    let total = 0;
+    try {
+      const headers = { Accept: 'application/vnd.github.v3+json' };
+      if (githubToken) headers.Authorization = 'token ' + githubToken;
+      const ghResp = await fetch('https://api.github.com/search/repositories?q=' + encodeURIComponent(word) + '&per_page=1', { headers });
+      if (ghResp.ok) {
+        const ghData = await ghResp.json();
+        total += Math.min(ghData.total_count || 0, 500000);
+      }
+    } catch (_) {}
+    try {
+      const npmResp = await fetch('https://registry.npmjs.org/-/v1/search?text=' + encodeURIComponent(word) + '&size=1');
+      if (npmResp.ok) {
+        const npmData = await npmResp.json();
+        total += Math.min((npmData.total || 0) * 10, 100000);
+      }
+    } catch (_) {}
+    scores.set(word, total);
+    DEV_ECOSYSTEM_CACHE.set(word, total);
+    await new Promise(r => setTimeout(r, 600));
+  }
+  return scores;
+}
+
+// ---------------------------------------------------------------------------
+// API Enrichment: Wayback Machine archive check
+// ---------------------------------------------------------------------------
+
+async function checkArchiveHistory(domains) {
+  const hits = new Set();
+  if (!domains || domains.length === 0) return hits;
+  const toCheck = domains.slice(0, 100);
+  for (const domain of toCheck) {
+    if (ARCHIVE_CACHE.has(domain)) { if (ARCHIVE_CACHE.get(domain)) hits.add(domain); continue; }
+    try {
+      const resp = await fetch('https://archive.org/wayback/available?url=' + encodeURIComponent(domain));
+      if (resp.ok) {
+        const data = await resp.json();
+        const hasSnap = data.archived_snapshots && data.archived_snapshots.closest && data.archived_snapshots.closest.available;
+        ARCHIVE_CACHE.set(domain, Boolean(hasSnap));
+        if (hasSnap) hits.add(domain);
+      } else {
+        ARCHIVE_CACHE.set(domain, false);
+      }
+    } catch (_) {
+      ARCHIVE_CACHE.set(domain, false);
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return hits;
+}
+
+// ---------------------------------------------------------------------------
+// API Enrichment: DataMuse word validation
+// ---------------------------------------------------------------------------
+
+async function enrichWithDataMuse(words) {
+  const validated = new Map();
+  if (!words || words.length === 0) return validated;
+  const toCheck = [...new Set(words.filter(w => w.length >= 3))].slice(0, 50);
+  for (const word of toCheck) {
+    try {
+      const resp = await fetch('https://api.datamuse.com/words?sp=' + encodeURIComponent(word) + '&md=f&max=1');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.length > 0 && data[0].word === word && data[0].tags) {
+          const fTag = data[0].tags.find(t => t.startsWith('f:'));
+          if (fTag) validated.set(word, parseFloat(fTag.slice(2)) || 0);
+        }
+      }
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 50));
+  }
+  return validated;
 }
 
 // ---------------------------------------------------------------------------
@@ -1206,6 +1525,7 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
 // ---------------------------------------------------------------------------
 
 async function run(job) {
+  await loadValuationData();
   const input = job.input;
   const backendBaseUrl = String(input.apiBaseUrl || '').trim();
   let useBackend = Boolean(backendBaseUrl);
@@ -1444,6 +1764,39 @@ async function run(job) {
 
     await new Promise((resolve) => setTimeout(resolve, 50 + Math.floor(Math.random() * 120)));
   }
+
+
+    // ── API Enrichment Phase ──
+    if (VDATA_LOADED) {
+      patch(job, { phase: 'enrichment', progress: 96 });
+      try {
+        const allDomains = [...availableMap.values(), ...overBudgetMap.values()];
+        const allWords = new Set();
+        for (const dom of allDomains) {
+          const seg = segmentWords((dom.domain || '').split('.')[0]);
+          for (const w of seg.words) allWords.add(w);
+        }
+        const devScores = await fetchDevEcosystemScores([...allWords], input);
+        const topDomains = sortRanked(allDomains, 'intrinsicValue').slice(0, 100).map(d => d.domain);
+        const archiveHits = await checkArchiveHistory(topDomains);
+        for (const dom of allDomains) {
+          const seg = segmentWords((dom.domain || '').split('.')[0]);
+          let devMax = 0;
+          for (const w of seg.words) devMax = Math.max(devMax, devScores.get(w) || 0);
+          const enrich = { devEcosystemScore: devMax, archiveHistory: archiveHits.has(dom.domain) };
+          const updated = scoreDomain(dom, input, enrich);
+          Object.assign(dom, updated);
+          const key = dom.domain.toLowerCase();
+          if (availableMap.has(key)) availableMap.set(key, dom);
+          if (overBudgetMap.has(key)) overBudgetMap.set(key, dom);
+        }
+        emitDebugLog('engine.worker.js:run', 'API enrichment complete', {
+          wordsQueried: allWords.size, devScoresReturned: devScores.size, archiveHits: archiveHits.size,
+        });
+      } catch (enrichErr) {
+        emitDebugLog('engine.worker.js:run', 'API enrichment failed (non-fatal)', { error: enrichErr.message || String(enrichErr) });
+      }
+    }
 
   await saveModel(optimizer.snapshot());
 

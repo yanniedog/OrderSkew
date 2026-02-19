@@ -69,6 +69,9 @@
         <label>Loop Count
           <input name="loopCount" type="number" min="1" max="25" value="10">
         </label>
+        <label>GitHub Token <small>(optional, for dev ecosystem scoring)</small>
+          <input name="githubToken" type="password" placeholder="ghp_... (increases API rate limit)">
+        </label>
       </form>
       <div class="controls">
         <button id="start-btn" class="btn btn-primary" type="button">Start Search</button>
@@ -108,12 +111,17 @@
         <h2>Results</h2>
         <label>Sort ranked domains
           <select id="sort-mode">
-            <option value="intrinsicValue">intrinsicValue</option>
-            <option value="marketability">marketability</option>
-            <option value="financialValue">financialValue</option>
-            <option value="alphabetical">alphabetical</option>
-            <option value="syllableCount">syllableCount</option>
-            <option value="labelLength">labelLength</option>
+            <option value="valueRatio">Value Ratio (underpriced first)</option>
+            <option value="estimatedValue">Estimated Value ($)</option>
+            <option value="expectedValue">Expected Value (EV 24m)</option>
+            <option value="intrinsicValue">Intrinsic Score</option>
+            <option value="liquidityScore">Liquidity</option>
+            <option value="devEcosystem">Dev Ecosystem</option>
+            <option value="marketability">Marketability</option>
+            <option value="financialValue">Financial</option>
+            <option value="alphabetical">Alphabetical</option>
+            <option value="syllableCount">Syllable Count</option>
+            <option value="labelLength">Label Length</option>
           </select>
         </label>
       </div>
