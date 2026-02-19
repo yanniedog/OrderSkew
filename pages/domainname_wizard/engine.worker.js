@@ -467,6 +467,8 @@ async function run(job) {
       overBudgetRows: loopOverBudget,
       consideredCount: considered,
       requiredQuota: plan.input.maxNames,
+      selectedKeywords: (optimizer.curTokens || []).slice(),
+      tokenPlaysMap: optimizer.model && optimizer.model.tokens ? optimizer.model.tokens : {},
     });
     const step = optimizer.record(plan, reward, loopAllDomains);
     tuningHistory.push(step);

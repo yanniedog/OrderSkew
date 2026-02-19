@@ -50,9 +50,18 @@ function scoreReward(rows, eliteSet, context) {
     : 0.5;
   const sylSet = new Set(availableRows.map((r) => r.syllableCount || 0));
   const diversity = availableRows.length ? sylSet.size / Math.min(5, availableRows.length) : 0;
+  const testedKeywords = dedupeTokens((ctx.selectedKeywords || []).map(normalizeThemeToken).filter(Boolean));
+  const tokenPlaysMap = (ctx.tokenPlaysMap && typeof ctx.tokenPlaysMap === 'object') ? ctx.tokenPlaysMap : {};
+  const lowTestRate = testedKeywords.length
+    ? testedKeywords.filter((t) => (Number((tokenPlaysMap[t] && tokenPlaysMap[t].plays) || 0) <= 2)).length / testedKeywords.length
+    : 0;
+  const virginRate = testedKeywords.length
+    ? testedKeywords.filter((t) => (Number((tokenPlaysMap[t] && tokenPlaysMap[t].plays) || 0) === 0)).length / testedKeywords.length
+    : 0;
+  const explorationKeywordBonus = clamp(lowTestRate * 0.7 + virginRate * 0.3, 0, 1);
 
   const reward = clamp(
-    topWithin * 0.24
+    topWithin * 0.22
     + quotaCompletion * 0.20
     + availabilityRate * 0.13
     + inBudgetRate * 0.12
@@ -61,7 +70,8 @@ function scoreReward(rows, eliteSet, context) {
     + topAvailable * 0.05
     + undervAvailable * 0.02
     + novelty * 0.01
-    + diversity * 0.01,
+    + diversity * 0.01
+    + explorationKeywordBonus * 0.02,
     0,
     1,
   );
@@ -313,6 +323,8 @@ class Optimizer {
     this._coverageCursor = 0;
     this._minAssessmentsPerSearch = 2;
     this._keywordsPerLoop = 10;
+    this._keywordsPerLoopMin = 8;
+    this._keywordsPerLoopMax = 12;
     this._runExposure = new Map();
 
     this._themeTokenScores = this._buildThemeTokenScores();
@@ -321,7 +333,7 @@ class Optimizer {
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([token]) => token);
     const totalLoops = Math.max(1, Number(this.base.loopCount) || 30);
-    const assessableCap = Math.max(this._keywordsPerLoop, Math.floor((totalLoops * this._keywordsPerLoop) / this._minAssessmentsPerSearch));
+    const assessableCap = Math.max(this._keywordsPerLoopMax, Math.floor((totalLoops * this._keywordsPerLoop) / this._minAssessmentsPerSearch));
     this._assessmentPool = this._themeTokenPool.slice(0, assessableCap);
     for (const token of this._assessmentPool) this._runExposure.set(token, 0);
 
@@ -403,6 +415,17 @@ class Optimizer {
     const freeSlots = Math.max(0, this._keywordsPerLoop - lockedCount);
     if (remainingNeed <= 0 || freeSlots <= 0) return 0;
     return clamp(Math.ceil(remainingNeed / loopsRemaining), 0, freeSlots);
+  }
+
+  _targetKeywordsForLoop(loop, explorationRate, explorationBurst) {
+    const totalLoops = Math.max(1, Number(this.base.loopCount) || 100);
+    const progress = totalLoops <= 1 ? 1 : clamp((Number(loop) - 1) / (totalLoops - 1), 0, 1);
+    // Gradually taper from broader exploration to tighter exploitation.
+    let target = this._keywordsPerLoopMax - (this._keywordsPerLoopMax - this._keywordsPerLoopMin) * progress;
+    if (Number(explorationRate) >= 0.30) target += 0.7;
+    else if (Number(explorationRate) >= 0.24) target += 0.3;
+    if (explorationBurst) target += 0.8;
+    return Math.max(this._keywordsPerLoopMin, Math.min(this._keywordsPerLoopMax, Math.round(target)));
   }
 
   _tokenSimilarity(a, b) {
@@ -934,6 +957,7 @@ class Optimizer {
   next(loop) {
     const explorationRate = Math.max(0.18, 0.42 * Math.pow(0.88, loop - 1));
     const explorationBurst = loop <= 10 || (loop % 4 === 0);
+    this._keywordsPerLoop = this._targetKeywordsForLoop(loop, explorationRate, explorationBurst);
     const styleOptions = this.base.preferEnglish !== false
       ? STYLE_VALUES.filter((value) => value !== 'nonenglish')
       : STYLE_VALUES;
@@ -1056,6 +1080,7 @@ class Optimizer {
       signature: this._keywordSignature(this.curTokens),
       recentSignatureCount: this._recentKeywordSignatures.length,
       explorationBurst,
+      keywordsPerLoop: this._keywordsPerLoop,
       carryBudget,
       mutationPasses: mut,
       coverageQuota,
