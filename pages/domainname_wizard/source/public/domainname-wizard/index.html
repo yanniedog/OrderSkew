@@ -13,11 +13,11 @@
       <p class="eyebrow">OrderSkew Toolkit</p>
       <h1>Domain Name Wizard</h1>
       <p class="subtitle">
-        Browser-native domain discovery lab. Name generation,
-        iterative tuning, scoring, and ranking run in your browser; availability and price from this app.
+        Browser-native domain discovery lab adapted from your <code>domainname-wizard</code> repo. Name generation,
+        iterative tuning, scoring, and ranking all execute locally in your browser worker.
       </p>
       <div class="hero-actions">
-        <a class="btn btn-secondary" href="/">Back</a>
+        <a class="btn btn-secondary" href="DEPLOY.md" target="_blank" rel="noreferrer">Deployment guide</a>
       </div>
     </header>
 
@@ -43,6 +43,12 @@
             <option value="dictionary">dictionary</option>
           </select>
         </label>
+        <label class="checkbox-label">Prefer English
+          <span class="checkbox-row">
+            <input name="preferEnglish" type="checkbox" checked>
+            <small>Bias generated names and keyword library toward English tokens/phrases.</small>
+          </span>
+        </label>
         <label>Randomness
           <select name="randomness">
             <option value="low">low</option>
@@ -54,19 +60,22 @@
           <input name="blacklist" placeholder="comma,separated,blocked,terms">
         </label>
         <label>Maximum Name Length
-          <input name="maxLength" type="number" min="5" max="25" value="25">
+          <input name="maxLength" type="number" min="5" max="25" value="10">
         </label>
         <label>TLD
           <input name="tld" placeholder="com" value="com">
         </label>
         <label>Max Names / Loop
-          <input name="maxNames" type="number" min="1" max="250" value="100">
+          <input name="maxNames" type="number" min="1" max="250" value="5">
         </label>
         <label>Yearly Budget (USD)
           <input name="yearlyBudget" type="number" min="1" max="100000" value="50">
         </label>
         <label>Loop Count
-          <input name="loopCount" type="number" min="1" max="250" value="10">
+          <input name="loopCount" type="number" min="1" max="250" value="100">
+        </label>
+        <label>GitHub Token <small>(optional, for dev ecosystem scoring)</small>
+          <input name="githubToken" type="password" placeholder="ghp_... (increases API rate limit)">
         </label>
       </form>
       <div class="controls">
@@ -75,6 +84,9 @@
         <button id="download-json-btn" class="btn btn-secondary" type="button" disabled>Download Results JSON</button>
       </div>
       <p id="form-error" class="error" hidden></p>
+    </section>
+
+    <section class="card" id="data-source-panel" hidden>
     </section>
 
     <section class="card" id="status-card">
@@ -104,42 +116,94 @@
         <h2>Results</h2>
         <label>Sort ranked domains
           <select id="sort-mode">
-            <option value="marketability">marketability</option>
-            <option value="financialValue">financialValue</option>
-            <option value="alphabetical">alphabetical</option>
-            <option value="syllableCount">syllableCount</option>
-            <option value="labelLength">labelLength</option>
+            <option value="valueRatio">Value Ratio (underpriced first)</option>
+            <option value="estimatedValue">Estimated Value ($)</option>
+            <option value="expectedValue">Expected Value (EV 24m)</option>
+            <option value="intrinsicValue">Intrinsic Score</option>
+            <option value="liquidityScore">Liquidity</option>
+            <option value="devEcosystem">Dev Ecosystem</option>
+            <option value="marketability">Marketability</option>
+            <option value="financialValue">Financial</option>
+            <option value="alphabetical">Alphabetical</option>
+            <option value="syllableCount">Syllable Count</option>
+            <option value="labelLength">Label Length</option>
           </select>
         </label>
       </div>
 
       <div id="summary-kpis" class="summary-grid"></div>
 
-      <h3>All Ranked Available Domains</h3>
-      <div id="all-ranked-table" class="table-wrap"></div>
+      <section class="table-section is-collapsed" data-table-section>
+        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="all-ranked-table-panel">
+          All Ranked Available Domains
+        </button>
+        <div id="all-ranked-table-panel" class="table-section-panel" hidden>
+          <div id="all-ranked-table" class="table-wrap"></div>
+        </div>
+      </section>
 
-      <h3>Within Budget</h3>
-      <div id="within-budget-table" class="table-wrap"></div>
+      <section class="table-section is-collapsed" data-table-section>
+        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="within-budget-table-panel">
+          Within Budget
+        </button>
+        <div id="within-budget-table-panel" class="table-section-panel" hidden>
+          <div id="within-budget-table" class="table-wrap"></div>
+        </div>
+      </section>
 
-      <h3>Over Budget</h3>
-      <div id="over-budget-table" class="table-wrap"></div>
+      <section class="table-section is-collapsed" data-table-section>
+        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="over-budget-table-panel">
+          Over Budget
+        </button>
+        <div id="over-budget-table-panel" class="table-section-panel" hidden>
+          <div id="over-budget-table" class="table-wrap"></div>
+        </div>
+      </section>
 
-      <h3>Unavailable / Unknown</h3>
-      <div id="unavailable-table" class="table-wrap"></div>
+      <section class="table-section is-collapsed" data-table-section>
+        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="unavailable-table-panel">
+          Unavailable / Unknown
+        </button>
+        <div id="unavailable-table-panel" class="table-section-panel" hidden>
+          <div id="unavailable-table" class="table-wrap"></div>
+        </div>
+      </section>
 
-      <h3>Loop Summaries</h3>
-      <div id="loop-summary-table" class="table-wrap"></div>
+      <section class="table-section is-collapsed" data-table-section>
+        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="loop-summary-table-panel">
+          Loop Summaries
+        </button>
+        <div id="loop-summary-table-panel" class="table-section-panel" hidden>
+          <div id="loop-summary-table" class="table-wrap"></div>
+        </div>
+      </section>
 
-      <h3>Tuning History</h3>
-      <div id="tuning-table" class="table-wrap"></div>
+      <section class="table-section is-collapsed" data-table-section>
+        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="keyword-library-table-panel">
+          Keyword Library (Live)
+        </button>
+        <div id="keyword-library-table-panel" class="table-section-panel" hidden>
+          <div id="keyword-library-table" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="table-section is-collapsed" data-table-section>
+        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="tuning-table-panel">
+          Tuning History
+        </button>
+        <div id="tuning-table-panel" class="table-section-panel" hidden>
+          <div id="tuning-table" class="table-wrap"></div>
+        </div>
+      </section>
     </section>
 
     <p class="debug-log-footer" style="margin-top:2rem;font-size:0.8rem;color:var(--muted, #666);">
       <a href="#" id="download-debug-log">Debug log</a>
-      <span id="repo-updated-datetime" style="margin-left:0.5rem;font-size:0.7rem;opacity:0.85;"></span>
     </p>
   </main>
 
+  <script src="domainname_wizard_utils.js"></script>
   <script src="app.js"></script>
+  <script src="../../page-frame.js"></script>
 </body>
 </html>

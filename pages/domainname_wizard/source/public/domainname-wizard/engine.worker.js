@@ -1,223 +1,28 @@
-const STYLE_VALUES = ['default', 'brandable', 'twowords', 'threewords', 'compound', 'spelling', 'nonenglish', 'dictionary'];
-const RANDOMNESS_VALUES = ['low', 'medium', 'high'];
-const LOOP_LIMIT = 251;
-const MAX_STALL = 3;
-const MAX_BATCH = 12;
-
-const DB_NAME = 'domainname-wizard-browser';
-const STORE = 'kv';
-const MODEL_KEY = 'optimizer_v1';
+// Domain Name Wizard - Web Worker Entry Point
+// Loads modules and orchestrates the main run loop
 
 const jobs = new Map();
 const canceled = new Set();
 let dbPromise = null;
+const WORKER_ASSET_VERSION = '2026-02-19-5';
 
-const PREFIX = ['neo', 'prime', 'terra', 'ultra', 'atlas', 'delta', 'signal', 'lumen', 'forge', 'orbit'];
-const SUFFIX = ['labs', 'works', 'base', 'flow', 'stack', 'hub', 'gen', 'pilot', 'ly', 'io'];
-const DICT = ['horizon', 'ember', 'vector', 'harbor', 'beacon', 'origin', 'summit', 'apex'];
-function now() { return Date.now(); }
-function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
-function round(v, d = 2) { return Number(v.toFixed(d)); }
-function text(v) { return String(v || '').trim(); }
+importScripts(
+  `worker-utils.js?v=${WORKER_ASSET_VERSION}`,
+  `worker-scoring.js?v=${WORKER_ASSET_VERSION}`,
+  `worker-optimizer.js?v=${WORKER_ASSET_VERSION}`,
+  `worker-api.js?v=${WORKER_ASSET_VERSION}`,
+);
 
-function id() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '').slice(0, 12);
-  return Math.random().toString(36).slice(2, 14);
-}
-
-function hash(s) {
-  let h = 2166136261;
-  const t = String(s || '');
-  for (let i = 0; i < t.length; i += 1) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return h >>> 0;
-}
-
-function rng(seed) {
-  let t = seed >>> 0;
-  return () => {
-    t += 0x6d2b79f5;
-    let x = t;
-    x = Math.imul(x ^ (x >>> 15), x | 1);
-    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function pick(arr, rand) { return arr[Math.floor(rand() * arr.length)] || ''; }
-
-function emitError(message, jobId) { self.postMessage({ type: 'error', message: String(message || 'Worker error'), jobId: jobId || null }); }
-function emitJob(job) { self.postMessage({ type: 'state', job: JSON.parse(JSON.stringify(job)) }); }
-function emitDebugLog(location, message, data) {
-  self.postMessage({
-    type: 'debugLog',
-    payload: {
-      sessionId: '437d46',
-      location: String(location || 'engine.worker.js'),
-      message: String(message || 'log'),
-      data: data || {},
-      timestamp: Date.now(),
-    },
-  });
-}
-
-function patch(job, fields, emit = true) {
-  Object.assign(job, fields);
-  job.updatedAt = now();
-  if (emit) emitJob(job);
-}
-
-function normalizeTld(v) {
-  const tld = text(v).toLowerCase().replace(/^\./, '');
-  if (!/^[a-z0-9-]{2,24}$/.test(tld)) return null;
-  if (tld.startsWith('-') || tld.endsWith('-')) return null;
-  return tld;
-}
-
-const COMB = /[\u0300-\u036f]/g;
-function toLabel(v) {
-  const s = text(v)
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(COMB, '')
-    .replace(/&/g, ' and ')
-    .replace(/['\u2019]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  if (!s || s.length > 63 || !/^[a-z0-9-]+$/.test(s)) return null;
-  return s;
-}
-
-function tokenize(v) {
-  return text(v)
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]+/g, ' ')
-    .split(/[\s-]+/)
-    .map((x) => x.trim())
-    .filter((x) => x.length >= 2);
-}
-
-function parseInput(raw) {
-  const input = raw || {};
-  const keywords = text(input.keywords);
-  if (keywords.length < 2) throw new Error('Keywords must be at least 2 characters.');
-  const style = STYLE_VALUES.includes(input.style) ? input.style : 'default';
-  const randomness = RANDOMNESS_VALUES.includes(input.randomness) ? input.randomness : 'medium';
-  const tld = normalizeTld(input.tld || 'com');
-  if (!tld) throw new Error('Invalid TLD.');
-  return {
-    keywords,
-    description: text(input.description),
-    style,
-    randomness,
-    blacklist: text(input.blacklist),
-    tld,
-    maxLength: clamp(Math.round(Number(input.maxLength) || 25), 5, 25),
-    maxNames: clamp(Math.round(Number(input.maxNames) || 100), 1, 250),
-    yearlyBudget: clamp(Number(input.yearlyBudget) || 50, 1, 100000),
-    loopCount: clamp(Math.round(Number(input.loopCount) || 10), 1, 250),
-    apiBaseUrl: text(input.apiBaseUrl),
-  };
-}
-
-function estimateSyllables(label) {
-  const parts = String(label || '').split('-').filter(Boolean);
-  if (!parts.length) return 1;
-  return parts.reduce((sum, part) => {
-    const groups = part.match(/[aeiouy]+/g);
-    return sum + Math.max(1, groups ? groups.length : 0);
-  }, 0);
-}
-
-function scoreDomain(row, input) {
-  const parts = row.domain.split('.');
-  const label = parts[0] || '';
-  const tld = parts.slice(1).join('.') || input.tld;
-  const len = label.length;
-  const syl = estimateSyllables(label);
-  const keyTokens = tokenize(`${input.keywords} ${input.description}`);
-
-  const vowels = (label.match(/[aeiouy]/g) || []).length;
-  const vowelRatio = vowels / Math.max(1, len);
-  const pronounce = clamp(100 - Math.abs(vowelRatio - 0.42) * 210, 0, 100);
-  const lengthScore = clamp(100 - Math.abs(len - 9) * 10, 0, 100);
-  const sylScore = syl >= 2 && syl <= 3 ? 100 : syl === 1 || syl === 4 ? 78 : 52;
-  let matches = 0;
-  for (const token of keyTokens) if (label.includes(token)) matches += 1;
-  const rel = keyTokens.length ? clamp(30 + (matches / keyTokens.length) * 70, 0, 100) : 35;
-  const distinct = clamp((new Set(label.replace(/-/g, '').split('')).size / Math.max(1, label.replace(/-/g, '').length)) * 120, 0, 100);
-
-  const tldFactor = ({ com: 1, io: 0.95, co: 0.93, ai: 0.94, net: 0.9, org: 0.9, app: 0.92 }[tld] || 0.85);
-  const marketabilityScore = round(clamp((lengthScore * 0.22 + sylScore * 0.18 + pronounce * 0.2 + rel * 0.16 + distinct * 0.1 + (label.includes('-') ? 28 : 100) * 0.08 + (/\d/.test(label) ? 24 : 100) * 0.06) * tldFactor, 0, 100));
-
-  const afford = typeof row.price === 'number' ? clamp(112 - (row.price / Math.max(1, input.yearlyBudget)) * 65, 0, 100) : 50;
-  let financialValueScore = round(clamp((row.available ? 100 : 0) * 0.35 + (row.definitive ? 100 : 62) * 0.12 + afford * 0.38 + (row.isNamelixPremium ? 35 : 100) * 0.15, 0, 100));
-  if (row.overBudget) financialValueScore = round(financialValueScore * 0.82);
-  if (!row.available) financialValueScore = round(financialValueScore * 0.45);
-
-  const overallScore = round(clamp(financialValueScore * 0.62 + marketabilityScore * 0.38, 0, 100));
-
-  return {
-    marketabilityScore,
-    financialValueScore,
-    overallScore,
-    syllableCount: syl,
-    labelLength: len,
-    valueDrivers: [],
-    valueDetractors: [],
-  };
-}
-
-function sortRanked(rows, mode) {
-  const out = (rows || []).slice();
-  out.sort((a, b) => {
-    if (mode === 'financialValue') return (b.financialValueScore || 0) - (a.financialValueScore || 0) || (b.overallScore || 0) - (a.overallScore || 0) || String(a.domain).localeCompare(String(b.domain));
-    if (mode === 'alphabetical') return String(a.domain).localeCompare(String(b.domain)) || (b.overallScore || 0) - (a.overallScore || 0);
-    if (mode === 'syllableCount') return (a.syllableCount || 0) - (b.syllableCount || 0) || (b.overallScore || 0) - (a.overallScore || 0);
-    if (mode === 'labelLength') return (a.labelLength || 0) - (b.labelLength || 0) || (b.overallScore || 0) - (a.overallScore || 0);
-    return (b.marketabilityScore || 0) - (a.marketabilityScore || 0) || (b.overallScore || 0) - (a.overallScore || 0) || String(a.domain).localeCompare(String(b.domain));
-  });
-  return out;
-}
-
-function sortByPrice(a, b) {
-  const ap = typeof a.price === 'number' ? a.price : Number.POSITIVE_INFINITY;
-  const bp = typeof b.price === 'number' ? b.price : Number.POSITIVE_INFINITY;
-  return ap - bp || String(a.domain).localeCompare(String(b.domain));
-}
-
-function mergeBest(existing, next, loop) {
-  if (!existing) return next;
-  const nextPrice = typeof next.price === 'number' ? next.price : Number.POSITIVE_INFINITY;
-  const existingPrice = typeof existing.price === 'number' ? existing.price : Number.POSITIVE_INFINITY;
-  const better = (next.overallScore || 0) > (existing.overallScore || 0) || ((next.overallScore || 0) === (existing.overallScore || 0) && nextPrice < existingPrice);
-  const chosen = better ? next : existing;
-  // #region agent log
-  if (existing.isNamelixPremium !== next.isNamelixPremium || existingPrice !== nextPrice) {
-    self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:mergeBest', message: 'Merge diff premium/price', data: { domain: next.domain, existingPremium: existing.isNamelixPremium, nextPremium: next.isNamelixPremium, chosenPremium: chosen.isNamelixPremium, existingPrice: existing.price, nextPrice: next.price, chosenPrice: chosen.price, hypothesisId: 'H2' }, timestamp: Date.now() } });
-  }
-  // #endregion
-  return {
-    ...chosen,
-    firstSeenLoop: Math.min(existing.firstSeenLoop || loop, next.firstSeenLoop || loop),
-    lastSeenLoop: loop,
-    timesDiscovered: (existing.timesDiscovered || 1) + 1,
-  };
-}
-
-function scoreReward(rows) {
-  if (!rows.length) return 0;
-  const scores = rows.map((x) => x.overallScore || 0).sort((a, b) => b - a);
-  const top = scores.slice(0, Math.min(5, scores.length));
-  return round(clamp(top.reduce((s, v) => s + v, 0) / top.length / 100, 0, 1), 4);
-}
+// ---------------------------------------------------------------------------
+// Database
+// ---------------------------------------------------------------------------
 
 function openDb() {
   if (dbPromise) return dbPromise;
   if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   dbPromise = new Promise((resolve) => {
     try {
-      const req = indexedDB.open(DB_NAME, 1);
+      const req = indexedDB.open(DB_NAME, 2);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'key' });
@@ -238,6 +43,13 @@ function defaultModel() {
     style: Object.fromEntries(STYLE_VALUES.map((k) => [k, { plays: 0, reward: 0 }])),
     randomness: Object.fromEntries(RANDOMNESS_VALUES.map((k) => [k, { plays: 0, reward: 0 }])),
     tokens: {},
+    elitePool: [],
+    featureStats: {
+      lengthBuckets: { short: { plays: 0, reward: 0 }, medium: { plays: 0, reward: 0 }, long: { plays: 0, reward: 0 } },
+      syllableBuckets: { '1': { plays: 0, reward: 0 }, '2': { plays: 0, reward: 0 }, '3': { plays: 0, reward: 0 }, '4plus': { plays: 0, reward: 0 } },
+      hasRealWord: { plays: 0, reward: 0 },
+      noRealWord: { plays: 0, reward: 0 },
+    },
   };
 }
 
@@ -249,8 +61,30 @@ function sanitizeModel(source) {
   if (source.tokens && typeof source.tokens === 'object') {
     for (const [k, v] of Object.entries(source.tokens)) {
       if (!k || k.length > 32) continue;
-      d.tokens[k] = { plays: Math.max(0, Math.floor(Number(v.plays) || 0)), reward: Number(v.reward) || 0 };
+      d.tokens[k] = {
+        plays: Math.max(0, Math.floor(Number(v.plays) || 0)),
+        reward: Number(v.reward) || 0,
+        lastLoop: v && v.lastLoop != null ? Math.max(0, Math.floor(Number(v.lastLoop) || 0)) : null,
+        winCount: Math.max(0, Math.floor(Number(v.winCount) || 0)),
+        lossCount: Math.max(0, Math.floor(Number(v.lossCount) || 0)),
+        domainMatches: Math.max(0, Math.floor(Number(v.domainMatches) || 0)),
+        domainScoreSum: Number(v.domainScoreSum) || 0,
+      };
     }
+  }
+  if (Array.isArray(source.elitePool)) {
+    d.elitePool = source.elitePool.filter(e => e && e.domain && typeof e.score === 'number').slice(0, 30);
+  }
+  if (source.featureStats && typeof source.featureStats === 'object') {
+    const fs = source.featureStats;
+    for (const bk of ['short', 'medium', 'long']) {
+      if (fs.lengthBuckets && fs.lengthBuckets[bk]) d.featureStats.lengthBuckets[bk] = { plays: Number(fs.lengthBuckets[bk].plays) || 0, reward: Number(fs.lengthBuckets[bk].reward) || 0 };
+    }
+    for (const bk of ['1', '2', '3', '4plus']) {
+      if (fs.syllableBuckets && fs.syllableBuckets[bk]) d.featureStats.syllableBuckets[bk] = { plays: Number(fs.syllableBuckets[bk].plays) || 0, reward: Number(fs.syllableBuckets[bk].reward) || 0 };
+    }
+    if (fs.hasRealWord) d.featureStats.hasRealWord = { plays: Number(fs.hasRealWord.plays) || 0, reward: Number(fs.hasRealWord.reward) || 0 };
+    if (fs.noRealWord) d.featureStats.noRealWord = { plays: Number(fs.noRealWord.plays) || 0, reward: Number(fs.noRealWord.reward) || 0 };
   }
   d.runCount = Number(source.runCount) || 0;
   d.updatedAt = Number(source.updatedAt) || now();
@@ -288,355 +122,63 @@ async function saveModel(model) {
   }
 }
 
-const BUSINESS_SYNONYMS_SIMPLE = {
-  ai: ['artificial','intelligence','smart','machine','learn','neural','auto'],
-  tech: ['technology','digital','software','hardware','code','compute','cyber'],
-  cloud: ['server','host','deploy','saas','infra','platform','scale'],
-  data: ['analytics','insight','metric','warehouse','pipeline','lake','stream'],
-  analytics: ['data','insight','metric','intelligence','reporting','forecast','model'],
-  web: ['internet','online','site','browser','http','app','portal'],
-  app: ['application','mobile','software','tool','program','service','utility'],
-  health: ['medical','wellness','care','fit','bio','vital','cure'],
-  fitness: ['health','wellness','training','workout','active','athletic','vital'],
-  finance: ['money','bank','pay','invest','fund','capital','trade'],
-  fintech: ['finance','payment','banking','wallet','credit','lending','capital'],
-  payment: ['pay','wallet','checkout','billing','invoice','merchant','transfer'],
-  market: ['commerce','sell','buy','shop','store','retail','brand'],
-  ecommerce: ['market','commerce','retail','shop','store','checkout','catalog'],
-  retail: ['shop','store','market','commerce','merchant','sale','outlet'],
-  learn: ['education','study','teach','course','skill','tutor','academy'],
-  education: ['learn','study','teach','course','training','academy','school'],
-  build: ['construct','create','make','craft','forge','develop','design'],
-  startup: ['launch','venture','founder','build','growth','scale','incubator'],
-  fast: ['quick','rapid','speed','swift','instant','turbo','flash'],
-  growth: ['scale','expand','boost','accelerate','uplift','momentum','traction'],
-  secure: ['safe','protect','guard','shield','trust','vault','lock'],
-  security: ['secure','protect','defend','shield','safety','privacy','trust'],
-  connect: ['link','network','bridge','sync','join','unite','mesh'],
-  social: ['community','network','share','connect','engage','circle','tribe'],
-  green: ['eco','sustain','clean','renew','solar','earth','nature'],
-  creative: ['design','art','craft','studio','canvas','pixel','media'],
-  media: ['content','video','audio','stream','creative','studio','broadcast'],
-  video: ['media','stream','watch','clip','film','motion','channel'],
-  audio: ['sound','voice','podcast','music','stream','listen','sonic'],
-  productivity: ['workflow','task','manage','plan','organize','track','focus'],
-  automation: ['auto','workflow','bot','orchestrate','process','pipeline','streamline'],
-  saas: ['cloud','software','platform','service','subscription','b2b','tool'],
-  b2b: ['enterprise','business','saas','workflow','platform','service','team'],
-  b2c: ['consumer','retail','commerce','market','brand','shop','mobile'],
-  logistics: ['shipping','delivery','supply','freight','route','dispatch','transport'],
-  supply: ['inventory','stock','warehouse','logistics','fulfill','procure','chain'],
-  legal: ['law','attorney','counsel','compliance','contract','rights','policy'],
-  realestate: ['property','home','realty','mortgage','housing','listing','rent'],
-  travel: ['trip','journey','tour','hotel','booking','vacation','route'],
-  food: ['meal','kitchen','restaurant','dining','snack','taste','chef'],
-  coffee: ['cafe','brew','espresso','roast','bean','barista','latte'],
-  gaming: ['game','esports','play','arcade','stream','quest','guild'],
-  crypto: ['blockchain','token','wallet','defi','coin','ledger','chain'],
-  hiring: ['talent','recruit','career','job','staff','workforce','people'],
-  support: ['help','assist','service','care','success','desk','guidance'],
-  sales: ['revenue','pipeline','deal','prospect','crm','growth','conversion'],
-  brand: ['identity','name','logo','image','position','story','voice']
-};
+// ---------------------------------------------------------------------------
+// Snapshot
+// ---------------------------------------------------------------------------
 
-class Optimizer {
-  constructor(base, model, seed) {
-    this.base = { ...base };
-    this.model = sanitizeModel(model);
-    this.rand = rng(seed || now());
-    this.bestLoop = undefined;
-    this.bestReward = -1;
-
-    this._baseKeywordTokens = tokenize(base.keywords).map(t => t.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(t => t.length >= 2).slice(0, 12);
-    this._baseDescTokens = tokenize(base.description || '').map(t => t.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(t => t.length >= 2).slice(0, 12);
-    this._seedTokens = [...new Set(this._baseKeywordTokens.concat(this._baseDescTokens))].slice(0, 24);
-    if (!this._seedTokens.length) this._seedTokens = ['brand'];
-    this._allowedTokens = this._buildAllowedTokens();
-    this.curTokens = this._seedTokens.slice(0, 8);
-
-    const toDelete = [];
-    for (const token of Object.keys(this.model.tokens)) {
-      if (!this._allowedTokens.has(token)) toDelete.push(token);
-    }
-    for (const t of toDelete) delete this.model.tokens[t];
-  }
-
-  _buildAllowedTokens() {
-    const allowed = new Set(this._seedTokens);
-    for (const seed of this._seedTokens) {
-      const syns = BUSINESS_SYNONYMS_SIMPLE[seed] || [];
-      for (const s of syns) allowed.add(s);
-    }
-    return allowed;
-  }
-
-  _isAllowed(token) {
-    return token && this._allowedTokens.has(token);
-  }
-
-  avg(stat) { return stat.plays ? stat.reward / stat.plays : 0.55; }
-
-  choose(map, keys, eps) {
-    if (this.rand() < eps) return pick(keys, this.rand);
-    let best = keys[0];
-    let bestVal = -Infinity;
-    for (const key of keys) {
-      const value = this.avg(map[key]);
-      if (value > bestVal || (value === bestVal && this.rand() > 0.5)) {
-        best = key;
-        bestVal = value;
-      }
-    }
-    return best;
-  }
-
-  next(loop) {
-    const style = this.choose(this.model.style, STYLE_VALUES, 0.24);
-    const randomness = this.choose(this.model.randomness, RANDOMNESS_VALUES, 0.24);
-
-    const tokenRank = Object.entries(this.model.tokens)
-      .filter(([token]) => this._isAllowed(token))
-      .map(([token, stat]) => ({ token, avg: this.avg(stat) }))
-      .sort((a, b) => b.avg - a.avg);
-    const good = tokenRank.filter((x) => x.avg >= 0.58).map((x) => x.token).slice(0, 12);
-    const weak = new Set(tokenRank.filter((x) => x.avg <= 0.4).map((x) => x.token).slice(0, 20));
-
-    const baseTokens = this._baseKeywordTokens.slice(0, 12);
-    const allowedArr = Array.from(this._allowedTokens);
-    const intensity = this.rand() > 0.66 ? 'high' : this.rand() > 0.33 ? 'medium' : 'low';
-    const mut = intensity === 'high' ? 3 : intensity === 'medium' ? 2 : 1;
-    const next = this.curTokens.length ? this.curTokens.filter(t => this._isAllowed(t)).slice() : baseTokens.slice(0, 4);
-
-    for (let i = 0; i < mut; i += 1) {
-      if (next.length > 2) {
-        const weakIdx = next.findIndex((t) => weak.has(t));
-        const idx = weakIdx >= 0 ? weakIdx : Math.floor(this.rand() * next.length);
-        next.splice(idx, 1);
-      }
-      const src = good.length && this.rand() > 0.2 ? good : (allowedArr.length ? allowedArr : baseTokens);
-      const t = pick(src.length ? src : baseTokens, this.rand);
-      if (t && !next.includes(t) && this._isAllowed(t)) next.push(t);
-    }
-
-    this.curTokens = next.filter(t => this._isAllowed(t)).slice(0, 8);
-    if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(4, baseTokens.length));
-
-    return {
-      loop,
-      sourceLoop: this.bestLoop,
-      selectedStyle: style,
-      selectedRandomness: randomness,
-      selectedMutationIntensity: intensity,
-      input: {
-        ...this.base,
-        style,
-        randomness,
-        keywords: this.curTokens.join(' ') || this.base.keywords,
-      },
-    };
-  }
-
-  record(plan, reward) {
-    const r = clamp(Number(reward) || 0, 0, 1);
-    this.model.style[plan.selectedStyle].plays += 1;
-    this.model.style[plan.selectedStyle].reward += r;
-    this.model.randomness[plan.selectedRandomness].plays += 1;
-    this.model.randomness[plan.selectedRandomness].reward += r;
-
-    const tokens = tokenize(`${plan.input.keywords} ${plan.input.description}`)
-      .filter(t => this._isAllowed(t))
-      .slice(0, 12);
-    for (const token of tokens) {
-      if (!this.model.tokens[token]) this.model.tokens[token] = { plays: 0, reward: 0 };
-      this.model.tokens[token].plays += 1;
-      this.model.tokens[token].reward += r;
-    }
-
-    if (r >= this.bestReward) {
-      this.bestReward = r;
-      this.bestLoop = plan.loop;
-    }
-
-    return {
-      loop: plan.loop,
-      sourceLoop: plan.sourceLoop,
-      keywords: plan.input.keywords,
-      description: plan.input.description || '',
-      selectedStyle: plan.selectedStyle,
-      selectedRandomness: plan.selectedRandomness,
-      selectedMutationIntensity: plan.selectedMutationIntensity,
-      reward: round(r, 4),
-    };
-  }
-
-  snapshot() {
-    this.model.tokens = Object.fromEntries(
-      Object.entries(this.model.tokens)
-        .filter(([token]) => this._isAllowed(token))
-        .sort((a, b) => ((b[1].plays ? b[1].reward / b[1].plays : 0.55) - (a[1].plays ? a[1].reward / a[1].plays : 0.55)))
-        .slice(0, 300),
-    );
-    this.model.runCount += 1;
-    this.model.updatedAt = now();
-    return this.model;
-  }
-}
-
-function styleName(style, a, b, c, rand) {
-  if (style === 'twowords') return `${a}${b}`;
-  if (style === 'threewords') return `${a}${b}${c}`;
-  if (style === 'compound') return `${a}${pick(SUFFIX, rand)}`;
-  if (style === 'brandable') return `${a.slice(0, Math.ceil(a.length / 2))}${b.slice(Math.floor(b.length / 2))}`;
-  if (style === 'spelling') {
-    let out = `${a}${b}`;
-    out = out.replace(/ph/g, 'f').replace(/c/g, 'k').replace(/x/g, 'ks');
-    if (out.length > 3 && rand() > 0.6) out = `${out.slice(0, -1)}${pick(['i', 'y', 'o'], rand)}`;
-    return out;
-  }
-  if (style === 'nonenglish') return `${a.slice(0, Math.ceil(a.length / 2))}${b.slice(Math.floor(b.length / 2))}${pick(['a', 'o', 'i', 'u'], rand)}`;
-  if (style === 'dictionary') return `${pick(DICT, rand)}${a}`;
-  return `${pick(PREFIX, rand)}${a}${pick(SUFFIX, rand)}`;
-}
-
-function makeBatch(plan, seed, target, seen) {
-  const rand = rng(seed >>> 0);
-  const tokens = tokenize(`${plan.keywords} ${plan.description}`).map((t) => t.replace(/[^a-z0-9]/g, '')).filter((t) => t.length >= 2);
-  const pool = tokens.length ? tokens : ['nova', 'orbit', 'lumen', 'quant', 'forge', 'signal'];
-  const blocked = new Set(text(plan.blacklist).split(',').map((x) => x.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean));
-  const out = [];
-  let tries = 0;
-  while (out.length < target && tries < target * 20) {
-    tries += 1;
-    const a = pick(pool, rand);
-    const b = pick(pool, rand);
-    const c = pick(pool, rand);
-    let sourceName = styleName(plan.style, a, b, c, rand);
-    if (plan.randomness === 'high' && rand() > 0.45) sourceName += pick(SUFFIX, rand);
-    if (plan.randomness === 'low' && sourceName.length > 16) sourceName = sourceName.slice(0, 16);
-    const label = toLabel(sourceName);
-    if (!label || label.length > plan.maxLength) continue;
-    let isBlocked = false;
-    for (const tok of blocked) if (tok && label.includes(tok)) { isBlocked = true; break; }
-    if (isBlocked) continue;
-    const domain = `${label}.${plan.tld}`;
-    const key = domain.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const premium = (hash(`${domain}|premium`) % 100) < (plan.style === 'brandable' ? 22 : 12);
-    const candidate = { domain, sourceName, isNamelixPremium: premium };
-    // #region agent log
-    if (out.length < 2) {
-      self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:makeBatch', message: 'Candidate premium', data: { domain: candidate.domain, seed, isNamelixPremium: candidate.isNamelixPremium, hypothesisId: 'H1' }, timestamp: Date.now() } });
-    }
-    // #endregion
-    out.push(candidate);
-  }
-  return out;
-}
-
-function progress(totalLoops, currentLoop, fraction) {
-  if (totalLoops <= 0) return 100;
-  const norm = (Math.max(0, currentLoop - 1) + clamp(fraction, 0, 1)) / totalLoops;
-  return Math.round(5 + norm * 90);
-}
-
-const AVAILABILITY_CHUNK = 100;
-const RDAP_DELAY_MS = 1200;
-const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
-
-async function fetchAvailability(apiBaseUrl, domains) {
-  const base = String(apiBaseUrl).replace(/\/+$/, '');
-  const url = base + '/api/domains/availability';
-  const out = {};
-  for (let i = 0; i < domains.length; i += AVAILABILITY_CHUNK) {
-    const chunk = domains.slice(i, i + AVAILABILITY_CHUNK);
-    let res;
-    try {
-      res = await fetch(url, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domains: chunk }),
-      });
-    } catch (err) {
-      const msg = err && err.message ? err.message : 'Network error';
-      emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API fetch exception', {
-        url,
-        chunkSize: chunk.length,
-        chunkOffset: i,
-        error: msg,
-      });
-      throw new Error('Availability request failed: ' + msg);
-    }
-    const data = await res.json().catch(function () { return {}; });
-    if (!res.ok) {
-      const statusMsg = String(res.status || 0) + (res.statusText ? ` ${res.statusText}` : '');
-      const msg = data.message || data.code || statusMsg || 'Availability request failed.';
-      emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API non-OK response', {
-        url,
-        chunkSize: chunk.length,
-        chunkOffset: i,
-        status: res.status,
-        statusText: res.statusText,
-        errorMessage: msg,
-      });
-      throw new Error('Availability API error (' + statusMsg + '): ' + msg);
-    }
-    const results = data.results || {};
-    if (!results || typeof results !== 'object') {
-      emitDebugLog('engine.worker.js:fetchAvailability', 'Availability API invalid payload', {
-        url,
-        chunkSize: chunk.length,
-        chunkOffset: i,
-      });
-    }
-    for (const key of Object.keys(results)) Object.assign(out, { [key]: results[key] });
-  }
-  return out;
-}
-
-async function fetchRdapAvailability(domains, jobId) {
-  const out = {};
-  for (let i = 0; i < domains.length; i += 1) {
-    if (jobId && canceled.has(jobId)) break;
-    const domain = domains[i];
-    const key = domain.toLowerCase();
-    const url = 'https://rdap.org/domain/' + encodeURIComponent(domain);
-    let res;
-    try {
-      res = await fetch(url, { method: 'GET', headers: { Accept: 'application/rdap+json, application/json' } });
-    } catch (e) {
-      out[key] = { available: false, definitive: false, reason: (e && e.message) || 'RDAP request failed.' };
-      await new Promise(function (r) { setTimeout(r, RDAP_DELAY_MS); });
-      continue;
-    }
-    if (res.status === 429) {
-      await new Promise(function (r) { setTimeout(r, 11000); });
-      i -= 1;
-      continue;
-    }
-    const body = await res.text();
-    let parsed = null;
-    try { parsed = body ? JSON.parse(body) : null; } catch (_) {}
-    const registered = res.status === 200 && parsed && parsed.objectClassName === 'domain';
-    out[key] = {
-      available: !registered,
-      definitive: res.status === 200 || res.status === 404,
-      reason: registered ? 'Registered (RDAP).' : (res.status === 404 ? 'No registration (RDAP).' : 'Unknown (RDAP).'),
-    };
-    if (i < domains.length - 1) await new Promise(function (r) { setTimeout(r, RDAP_DELAY_MS); });
-  }
-  return out;
-}
-
-function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending) {
+function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending, keywordState) {
   const allRanked = sortRanked(Array.from(availableMap.values()), 'marketability');
-  // #region agent log
-  allRanked.slice(0, 2).forEach(function (r, i) {
-    self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:snapshot', message: 'Snapshot row', data: { index: i, domain: r.domain, price: r.price, isNamelixPremium: r.isNamelixPremium, hypothesisId: 'H4' }, timestamp: Date.now() } });
-  });
-  // #endregion
   const withinBudgetOnly = allRanked.filter(function (r) { return r.overBudget !== true; });
+  let keywordLibrary = null;
+  if (keywordState && keywordState.optimizer && typeof keywordState.optimizer.getKeywordLibraryRows === 'function') {
+    const lib = keywordState.library || {};
+    const coverage = typeof keywordState.optimizer.getCoverageMetrics === 'function'
+      ? keywordState.optimizer.getCoverageMetrics()
+      : null;
+    keywordLibrary = {
+      seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
+      currentKeywords: Array.isArray(keywordState.optimizer.curTokens) ? keywordState.optimizer.curTokens.slice(0, 8) : [],
+      tokens: keywordState.optimizer.getKeywordLibraryRows(120),
+      apiStatus: lib.apiStatus || null,
+      devEcosystemStatus: keywordState.devEcosystemStatus || null,
+      coverageMetrics: coverage || null,
+    };
+  } else if (keywordState && keywordState.library) {
+    const lib = keywordState.library || {};
+    const fallbackTokens = Array.isArray(lib.tokens) ? lib.tokens.slice(0, 120) : [];
+    keywordLibrary = {
+      seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
+      currentKeywords: [],
+      tokens: fallbackTokens.map(function (token, idx) {
+        return {
+          rank: idx + 1,
+          token: String(token || ''),
+          source: 'library',
+          isSeed: Array.isArray(lib.seedTokens) ? lib.seedTokens.includes(token) : false,
+          inCurrentKeywords: false,
+          themeScore: 0,
+          plays: 0,
+          reward: 0,
+          avgReward: 0,
+          successRate: 0,
+          confidence: 0,
+          wilson: 0,
+          meanDomainScore: 0,
+          performanceScore: 0,
+          selectionScore: 0,
+          githubRepos: null,
+          npmPackages: null,
+          githubPrior: 0,
+          devEvidenceSource: null,
+          ucb: null,
+          lastLoop: null,
+        };
+      }),
+      apiStatus: lib.apiStatus || null,
+      devEcosystemStatus: keywordState.devEcosystemStatus || null,
+      coverageMetrics: null,
+    };
+  }
   return {
     withinBudget: withinBudgetOnly.slice().sort(sortByPrice),
     overBudget: sortRanked(Array.from(overBudgetMap.values()), 'financialValue'),
@@ -645,10 +187,16 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
     loopSummaries: loopSummaries.slice(),
     tuningHistory: tuningHistory.slice(),
     pending: Array.isArray(pending) ? pending : [],
+    keywordLibrary,
   };
 }
 
+// ---------------------------------------------------------------------------
+// Main run loop
+// ---------------------------------------------------------------------------
+
 async function run(job) {
+  await loadValuationData();
   const input = job.input;
   const backendBaseUrl = String(input.apiBaseUrl || '').trim();
   let useBackend = Boolean(backendBaseUrl);
@@ -663,10 +211,45 @@ async function run(job) {
   const loopSummaries = [];
   const tuningHistory = [];
 
-  const model = await loadModel();
-  const optimizer = new Optimizer(input, model, hash(job.id));
+  let keywordLibrary = {
+    seedTokens: tokenize(`${input.keywords} ${input.description || ''}`).slice(0, 8),
+    tokens: tokenize(`${input.keywords} ${input.description || ''}`).slice(0, 24),
+    phrases: [],
+    keywordString: input.keywords,
+  };
+  try {
+    keywordLibrary = await fetchAssociatedKeywordLibrary(`${input.keywords} ${input.description || ''}`, {
+      preferEnglish: input.preferEnglish !== false,
+      maxSeeds: 8,
+    });
+    emitDebugLog('engine.worker.js:run', 'Keyword library enriched via APIs', {
+      seedCount: keywordLibrary.seedTokens.length,
+      tokenCount: keywordLibrary.tokens.length,
+      phraseCount: keywordLibrary.phrases.length,
+      preferEnglish: input.preferEnglish !== false,
+      sampleTokens: keywordLibrary.tokens.slice(0, 16),
+      samplePhrases: keywordLibrary.phrases.slice(0, 8),
+    });
+  } catch (libraryErr) {
+    emitDebugLog('engine.worker.js:run', 'Keyword library API enrichment failed; using normalized seed tokens', {
+      error: libraryErr && libraryErr.message ? libraryErr.message : String(libraryErr || 'unknown'),
+    });
+  }
 
-  patch(job, { status: 'running', phase: 'looping', progress: 5, currentLoop: 0, totalLoops: input.loopCount, results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, []) });
+  const model = await loadModel();
+  const optimizerInput = {
+    ...input,
+    keywordLibraryTokens: keywordLibrary.tokens.slice(0, 120),
+    keywordLibraryPhrases: keywordLibrary.phrases.slice(0, 60),
+  };
+  const optimizer = new Optimizer(optimizerInput, model, hash(job.id));
+  const keywordState = { optimizer, library: keywordLibrary };
+  let prevCoverage01 = optimizer.getCoverageMetrics ? (optimizer.getCoverageMetrics().coverage01 || 0) : 0;
+  const makeSnapshot = function (pending) {
+    return snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending, keywordState);
+  };
+
+  patch(job, { status: 'running', phase: 'looping', progress: 5, currentLoop: 0, totalLoops: input.loopCount, results: makeSnapshot([]) });
 
   for (let loop = 1; loop <= input.loopCount; loop += 1) {
     if (canceled.has(job.id)) throw new Error('Run canceled by user.');
@@ -674,69 +257,116 @@ async function run(job) {
     const plan = optimizer.next(loop);
     const seen = new Set();
     const loopAvail = [];
+    const loopOverBudget = [];
+    const loopAllDomains = [];
 
     let considered = 0;
     let batches = 0;
     let limitHit = false;
     let stalls = 0;
     let skipReason;
+    const nameSources = new Set();
+    const seenLabels = new Set();
+    const prevNamesBase = Array.from(availableMap.keys())
+      .concat(Array.from(overBudgetMap.keys()), Array.from(unavailableMap.keys()))
+      .map(function (k) { return k.split('.')[0]; });
+    for (const label of prevNamesBase) if (label) seenLabels.add(label.toLowerCase());
 
-    while (loopAvail.length < plan.input.maxNames) {
-      if (canceled.has(job.id)) throw new Error('Run canceled by user.');
-      if (considered >= LOOP_LIMIT) { limitHit = true; skipReason = `Considered-name cap of ${LOOP_LIMIT} reached.`; break; }
-      if (batches >= MAX_BATCH) { skipReason = `Batch attempt cap (${MAX_BATCH}) reached before quota.`; break; }
+    while (loopAvail.length < plan.input.maxNames && batches < MAX_BATCH && stalls < MAX_STALL) {
+      patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03), currentLoop: loop, totalLoops: input.loopCount });
 
-      const remaining = plan.input.maxNames - loopAvail.length;
-      const batchMax = clamp(Math.floor(Math.max(remaining * 3, remaining, Math.min(plan.input.maxNames, 80))), remaining, 250);
-      const seed = hash(`${job.id}|${loop}|${batches}|${considered}`);
+      const prevNames = Array.from(new Set(prevNamesBase.concat(Array.from(seenLabels)))).slice(0, 320);
+      let cands = [];
+      let nameSourceBatch = 'unknown';
 
-      patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03 + 0.72 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount });
+      if (backendBaseUrl) {
+        try {
+          const namelixNames = await fetchNamelixNames(backendBaseUrl, plan.input, prevNames);
+          cands = namelixNames.map(function (n) {
+            const key = String(n.domain || '').toLowerCase();
+            const label = key.split('.')[0] || '';
+            if (!key || seen.has(key)) return null;
+            if (label && seenLabels.has(label)) return null;
+            seen.add(key);
+            if (label) seenLabels.add(label);
+            return { domain: n.domain, sourceName: n.sourceName || n.businessName, premiumPricing: false };
+          }).filter(Boolean);
+          nameSourceBatch = 'Namelix API (namelix.com)';
+          nameSources.add(nameSourceBatch);
+          sendIngest('engine.worker.js:run', 'Name generation source', {
+            source: nameSourceBatch, namelixApiCalled: true, syntheticNameGeneration: false,
+            candidateCount: cands.length,
+            sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, sourceName: c.sourceName }; }),
+          }, 'H3');
+        } catch (namelixErr) {
+          const namelixErrMsg = namelixErr instanceof Error ? namelixErr.message : String(namelixErr || 'unknown');
+          sendIngest('engine.worker.js:run', 'Namelix API failed, falling back to local generation', { error: namelixErrMsg }, 'H3');
+          emitDebugLog('engine.worker.js:run', 'Namelix API failed, using local fallback', { error: namelixErrMsg });
+        }
+      }
 
-      const cands = makeBatch(plan.input, seed, batchMax, seen);
+      if (cands.length === 0) {
+        const seed = hash(`${job.id}|${loop}|${batches}|${seen.size}`);
+        const batchMax = clamp(Math.floor(Math.max(plan.input.maxNames * 3, plan.input.maxNames, 80)), plan.input.maxNames, 250);
+        cands = makeBatch(plan.input, seed, batchMax, seen)
+          .filter(function (n) {
+            const key = String(n.domain || '').toLowerCase();
+            const label = key.split('.')[0] || '';
+            if (!key) return false;
+            if (label && seenLabels.has(label)) return false;
+            if (label) seenLabels.add(label);
+            return true;
+          });
+        nameSourceBatch = 'LOCAL (makeBatch fallback)';
+        nameSources.add(nameSourceBatch);
+        sendIngest('engine.worker.js:run', 'Name generation source', {
+          source: nameSourceBatch, namelixApiCalled: false, syntheticNameGeneration: true,
+          candidateCount: cands.length,
+          sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, premiumPricing: c.premiumPricing }; }),
+        }, 'H3');
+      }
+
+      if (!cands.length) {
+        stalls += 1;
+        skipReason = 'No new candidates generated';
+        continue;
+      }
+
       considered += cands.length;
       batches += 1;
+      const pendingRows = cands.map(function (c) { return { domain: c.domain, sourceName: c.sourceName, premiumPricing: c.premiumPricing }; });
+      patch(job, { status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount, results: makeSnapshot(pendingRows) });
 
-      const pendingRows = cands.map(function (c) { return { domain: c.domain, sourceName: c.sourceName, isNamelixPremium: c.isNamelixPremium }; });
-      patch(job, { status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount, results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pendingRows) });
-
-      let got = 0;
-      let logCount = 0;
+      let gotWithinBudget = 0;
+      let gotAvailableAny = 0;
       const domainList = cands.map(function (c) { return c.domain; });
       let availabilityByDomain;
       if (useBackend) {
+        sendIngest('engine.worker.js:run', 'About to call primary availability API', { url: backendBaseUrl + '/api/domains/availability', domainCount: domainList.length }, 'H5');
         try {
           availabilityByDomain = await fetchAvailability(backendBaseUrl, domainList);
+          if (availabilityByDomain._debug) {
+            sendIngest('engine.worker.js:run', 'GoDaddy backend _debug metadata', { _debug: availabilityByDomain._debug }, 'H1');
+            self.postMessage({ type: 'debugLog', payload: { sessionId: 'efbcb6', location: 'engine.worker.js:run', message: 'GoDaddy API debug info', data: availabilityByDomain._debug, timestamp: Date.now() } });
+          }
+          delete availabilityByDomain._debug;
         } catch (error) {
           const primaryError = error instanceof Error ? error.message : String(error || 'unknown');
-          if (backendBaseUrl && backendBaseUrl !== LEGACY_VERCEL_BACKEND_URL) {
-            try {
-              availabilityByDomain = await fetchAvailability(LEGACY_VERCEL_BACKEND_URL, domainList);
-              emitDebugLog('engine.worker.js:run', 'Primary backend unavailable, switched to Vercel backend', {
-                backendBaseUrl,
-                fallbackBackendBaseUrl: LEGACY_VERCEL_BACKEND_URL,
-                error: primaryError,
-              });
-            } catch (fallbackError) {
-              useBackend = false;
-              availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
-              emitDebugLog('engine.worker.js:run', 'Both backends unavailable, switched to RDAP', {
-                backendBaseUrl,
-                fallbackBackendBaseUrl: LEGACY_VERCEL_BACKEND_URL,
-                primaryError,
-                fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError || 'unknown'),
-              });
-            }
-          } else {
-            useBackend = false;
-            availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
-            emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP', {
-              backendBaseUrl,
-              error: primaryError,
-            });
-          }
+          sendIngest('engine.worker.js:run', 'Primary availability failed, falling back to RDAP', { primaryError, backendBaseUrl }, 'H4');
+          useBackend = false;
+          patch(job, { phase: 'rdap' });
+          availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
+            const frac = total > 0 ? done / total : 0;
+            patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+          });
+          emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP (no prices available)', { backendBaseUrl, error: primaryError });
         }
       } else {
-        availabilityByDomain = await fetchRdapAvailability(domainList, job.id);
+        patch(job, { phase: 'rdap' });
+        availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
+          const frac = total > 0 ? done / total : 0;
+          patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+        });
       }
 
       for (const cand of cands) {
@@ -745,11 +375,11 @@ async function run(job) {
         const res = availabilityByDomain[key] || {};
         if (useBackend && (typeof res.price === 'number' && Number.isFinite(res.price))) {
           const price = round(res.price, 2);
-          const isNamelixPremium = price > plan.input.yearlyBudget || price > 500;
+          const premiumPricing = price > plan.input.yearlyBudget || price > 500;
           result = {
             domain: cand.domain,
             sourceName: cand.sourceName,
-            isNamelixPremium,
+            premiumPricing,
             available: Boolean(res.available),
             definitive: Boolean(res.definitive),
             price,
@@ -760,11 +390,11 @@ async function run(job) {
           };
         } else if (res && typeof res.available === 'boolean') {
           const price = useBackend && typeof res.price === 'number' && Number.isFinite(res.price) ? round(res.price, 2) : undefined;
-          const isNamelixPremium = typeof price === 'number' && (price > plan.input.yearlyBudget || price > 500);
+          const premiumPricing = typeof price === 'number' && (price > plan.input.yearlyBudget || price > 500);
           result = {
             domain: cand.domain,
             sourceName: cand.sourceName,
-            isNamelixPremium: price != null ? isNamelixPremium : false,
+            premiumPricing: price != null ? premiumPricing : false,
             available: res.available,
             definitive: Boolean(res.definitive),
             price,
@@ -777,7 +407,7 @@ async function run(job) {
           result = {
             domain: cand.domain,
             sourceName: cand.sourceName,
-            isNamelixPremium: false,
+            premiumPricing: false,
             available: false,
             definitive: false,
             price: undefined,
@@ -787,38 +417,36 @@ async function run(job) {
             overBudget: false,
           };
         }
-        // #region agent log
-        if (logCount < 2) {
-          logCount += 1;
-          self.postMessage({ type: 'debugLog', payload: { sessionId: '437d46', location: 'engine.worker.js:resultRow', message: 'Result price/premium', data: { domain: result.domain, isNamelixPremium: result.isNamelixPremium, price: result.price, hypothesisId: 'H4' }, timestamp: Date.now() } });
-        }
-        // #endregion
+
         const ranked = { ...result, ...scoreDomain(result, plan.input), firstSeenLoop: loop, lastSeenLoop: loop, timesDiscovered: 1 };
+        loopAllDomains.push(ranked);
 
         if (result.available && !result.overBudget) {
-          got += 1;
+          gotWithinBudget += 1;
+          gotAvailableAny += 1;
           loopAvail.push(ranked);
-          const key = ranked.domain.toLowerCase();
           overBudgetMap.delete(key);
           availableMap.set(key, mergeBest(availableMap.get(key), ranked, loop));
         } else if (result.available && result.overBudget) {
-          const key = ranked.domain.toLowerCase();
+          gotAvailableAny += 1;
+          loopOverBudget.push(ranked);
           availableMap.delete(key);
           overBudgetMap.set(key, mergeBest(overBudgetMap.get(key), ranked, loop));
         } else {
-          const key = ranked.domain.toLowerCase();
           unavailableMap.set(key, mergeBest(unavailableMap.get(key), ranked, loop));
         }
 
         const nextPending = (job.results && job.results.pending) ? job.results.pending.filter(function (p) { return String(p.domain || '').toLowerCase() !== key; }) : [];
-        patch(job, { results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, nextPending) });
-
-        if (loopAvail.length >= plan.input.maxNames) break;
+        patch(job, { results: makeSnapshot(nextPending) });
       }
 
-      stalls = got === 0 ? stalls + 1 : 0;
-      if (considered >= LOOP_LIMIT) { limitHit = true; skipReason = `Considered-name cap of ${LOOP_LIMIT} reached.`; }
-      if (stalls >= MAX_STALL) { skipReason = `No newly qualifying domains across ${MAX_STALL} consecutive batches.`; break; }
+      if (gotWithinBudget > 0) stalls = 0;
+      else stalls += 1;
+
+      if (loopAvail.length >= plan.input.maxNames) {
+        limitHit = true;
+        break;
+      }
 
       patch(job, {
         status: 'running',
@@ -826,19 +454,41 @@ async function run(job) {
         progress: progress(input.loopCount, loop, 0.2 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))),
         currentLoop: loop,
         totalLoops: input.loopCount,
-        results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, []),
+        results: makeSnapshot([]),
       });
+    }
 
-      await new Promise((resolve) => setTimeout(resolve, 40 + Math.floor(Math.random() * 80)));
+    const nameSource = nameSources.size ? Array.from(nameSources).join(' + ') : 'unknown';
+    if (!skipReason && loopAvail.length < plan.input.maxNames) {
+      if (stalls >= MAX_STALL) skipReason = 'Stall limit reached before in-budget quota';
+      else if (batches >= MAX_BATCH) skipReason = 'Batch limit reached before in-budget quota';
+      else skipReason = 'In-budget quota not reached';
     }
 
     const rankedLoop = sortRanked(loopAvail, 'marketability');
-    const reward = scoreReward(rankedLoop);
-    const step = optimizer.record(plan, reward);
+    const rankedAvailableAll = sortRanked(loopAvail.concat(loopOverBudget), 'marketability');
+    const coverage = optimizer.getCoverageMetrics ? optimizer.getCoverageMetrics() : { coverage01: 0, coveragePct: 0, total: 0, assessedTarget: 0, targetPerKeyword: 2, needRemaining: 0 };
+    const reward = scoreReward(rankedLoop, optimizer.eliteSet, {
+      withinBudgetRows: rankedLoop,
+      availableRows: rankedAvailableAll,
+      overBudgetRows: loopOverBudget,
+      consideredCount: considered,
+      requiredQuota: plan.input.maxNames,
+      selectedKeywords: (optimizer.curTokens || []).slice(),
+      tokenPlaysMap: optimizer.model && optimizer.model.tokens ? optimizer.model.tokens : {},
+      rewardPolicy: (plan.input && plan.input.rewardPolicy) || input.rewardPolicy || null,
+      curatedCoverage01: Number(coverage.coverage01 || 0),
+      curatedCoverageDelta01: Number(coverage.coverage01 || 0) - Number(prevCoverage01 || 0),
+    });
+    prevCoverage01 = Number(coverage.coverage01 || 0);
+    const step = optimizer.record(plan, reward, loopAllDomains);
     tuningHistory.push(step);
 
-    const avg = rankedLoop.length ? round(rankedLoop.reduce((s, r) => s + (r.overallScore || 0), 0) / rankedLoop.length, 2) : 0;
-    const top = rankedLoop[0];
+    const avg = rankedAvailableAll.length ? round(rankedAvailableAll.reduce((s, r) => s + (r.overallScore || 0), 0) / rankedAvailableAll.length, 2) : 0;
+    const valueRatios = rankedLoop.map((r) => Number(r.valueRatio) || 0).filter((v) => v > 0);
+    const avgValueRatio = valueRatios.length ? round(valueRatios.reduce((s, v) => s + v, 0) / valueRatios.length, 3) : 0;
+    const underpricedCount = rankedLoop.filter((r) => Boolean(r.underpricedFlag)).length;
+    const top = rankedAvailableAll[0];
 
     loopSummaries.push({
       loop,
@@ -847,6 +497,8 @@ async function run(job) {
       style: plan.selectedStyle,
       randomness: plan.selectedRandomness,
       mutationIntensity: plan.selectedMutationIntensity,
+      explorationRate: plan.explorationRate,
+      elitePoolSize: plan.elitePoolSize,
       requiredQuota: plan.input.maxNames,
       quotaMet: loopAvail.length >= plan.input.maxNames,
       skipped: loopAvail.length < plan.input.maxNames,
@@ -854,12 +506,22 @@ async function run(job) {
       skipReason,
       consideredCount: considered,
       batchCount: batches,
-      discoveredCount: rankedLoop.length,
-      availableCount: rankedLoop.length,
+      discoveredCount: rankedAvailableAll.length,
+      availableCount: rankedAvailableAll.length,
       withinBudgetCount: rankedLoop.length,
+      overBudgetCount: loopOverBudget.length,
       averageOverallScore: avg,
+      averageValueRatio: avgValueRatio,
+      underpricedCount,
+      curatedCoveragePct: Number(coverage.coveragePct || 0),
+      curatedCoverageTargetPct: Number(coverage.coverageTargetPct || 0),
+      curatedCoverageAssessed: Number(coverage.assessedTarget || 0),
+      curatedCoverageAssessedOnce: Number(coverage.assessedOnce || 0),
+      curatedCoverageTotal: Number(coverage.total || 0),
+      curatedCoverageNeedRemaining: Number(coverage.needRemaining || 0),
       topDomain: top ? top.domain : undefined,
       topScore: top ? top.overallScore : undefined,
+      nameSource,
     });
 
     patch(job, {
@@ -868,10 +530,71 @@ async function run(job) {
       progress: progress(input.loopCount, loop, 1),
       currentLoop: loop,
       totalLoops: input.loopCount,
-      results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, []),
+      results: makeSnapshot([]),
     });
 
     await new Promise((resolve) => setTimeout(resolve, 50 + Math.floor(Math.random() * 120)));
+  }
+
+  if (VDATA_LOADED) {
+    patch(job, { phase: 'enrichment', progress: 96 });
+    try {
+      const allDomains = [...availableMap.values(), ...overBudgetMap.values()];
+      const allWords = new Set();
+      for (const dom of allDomains) {
+        const seg = segmentWords((dom.domain || '').split('.')[0]);
+        for (const w of seg.words) allWords.add(w);
+      }
+      const keywordTokensForEvidence = new Set();
+      for (const token of (optimizer.curTokens || [])) keywordTokensForEvidence.add(String(token || '').toLowerCase());
+      if (keywordLibrary && Array.isArray(keywordLibrary.tokens)) {
+        for (const token of keywordLibrary.tokens.slice(0, 40)) keywordTokensForEvidence.add(String(token || '').toLowerCase());
+      }
+      const wordsForDev = [...new Set([...allWords, ...keywordTokensForEvidence].filter(Boolean))];
+      const devScores = await fetchDevEcosystemScores(wordsForDev, input);
+      keywordState.devEcosystemStatus = DEV_ECOSYSTEM_LAST_META || null;
+      const topDomains = sortRanked(allDomains, 'intrinsicValue').slice(0, 100).map(d => d.domain);
+      const archiveHits = await checkArchiveHistory(topDomains);
+      for (const dom of allDomains) {
+        const seg = segmentWords((dom.domain || '').split('.')[0]);
+        let devMax = 0;
+        let bestDevWord = null;
+        let bestDevDetail = null;
+        for (const w of seg.words) {
+          const wordScore = devScores.get(w) || 0;
+          if (wordScore > devMax) {
+            devMax = wordScore;
+            bestDevWord = w;
+            bestDevDetail = DEV_ECOSYSTEM_DETAIL_CACHE.get(w) || null;
+          }
+        }
+        const enrich = {
+          devEcosystemScore: devMax,
+          archiveHistory: archiveHits.has(dom.domain),
+          devEcosystemEvidence: bestDevWord ? {
+            word: bestDevWord,
+            total: devMax,
+            githubRepos: bestDevDetail && Number.isFinite(bestDevDetail.githubRepos) ? bestDevDetail.githubRepos : null,
+            npmPackages: bestDevDetail && Number.isFinite(bestDevDetail.npmPackages) ? bestDevDetail.npmPackages : null,
+            source: bestDevDetail && bestDevDetail.source ? bestDevDetail.source : null,
+            githubTokenUsed: Boolean(bestDevDetail && bestDevDetail.githubTokenUsed),
+          } : null,
+        };
+        const updated = scoreDomain(dom, input, enrich);
+        Object.assign(dom, updated);
+        const key = dom.domain.toLowerCase();
+        if (availableMap.has(key)) availableMap.set(key, dom);
+        if (overBudgetMap.has(key)) overBudgetMap.set(key, dom);
+      }
+      emitDebugLog('engine.worker.js:run', 'API enrichment complete', {
+        wordsQueried: wordsForDev.length,
+        devScoresReturned: devScores.size,
+        archiveHits: archiveHits.size,
+        githubEvidence: keywordState.devEcosystemStatus || null,
+      });
+    } catch (enrichErr) {
+      emitDebugLog('engine.worker.js:run', 'API enrichment failed (non-fatal)', { error: enrichErr.message || String(enrichErr) });
+    }
   }
 
   await saveModel(optimizer.snapshot());
@@ -883,9 +606,13 @@ async function run(job) {
     currentLoop: input.loopCount,
     totalLoops: input.loopCount,
     completedAt: now(),
-    results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, []),
+    results: makeSnapshot([]),
   });
 }
+
+// ---------------------------------------------------------------------------
+// Entry points
+// ---------------------------------------------------------------------------
 
 async function start(rawInput) {
   const active = Array.from(jobs.values()).find((job) => job.status === 'queued' || job.status === 'running');
@@ -906,7 +633,7 @@ async function start(rawInput) {
     startedAt: createdAt,
     currentLoop: 0,
     totalLoops: input.loopCount,
-    results: { withinBudget: [], overBudget: [], unavailable: [], allRanked: [], loopSummaries: [], tuningHistory: [] },
+    results: { withinBudget: [], overBudget: [], unavailable: [], allRanked: [], loopSummaries: [], tuningHistory: [], pending: [], keywordLibrary: null },
     error: null,
   };
 
@@ -917,12 +644,8 @@ async function start(rawInput) {
     await run(job);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected run error.';
-    emitDebugLog('engine.worker.js:start', 'Run failed', {
-      jobId: job.id,
-      error: message,
-      progress: Number(job.progress || 0),
-      phase: job.phase || null,
-    });
+    sendIngest('engine.worker.js:start', 'Run failed (caught in start)', { jobId: job.id, errorMessage: message, progress: Number(job.progress || 0), phase: job.phase || null }, 'H7');
+    emitDebugLog('engine.worker.js:start', 'Run failed', { jobId: job.id, error: message, progress: Number(job.progress || 0), phase: job.phase || null });
     patch(job, {
       status: 'failed',
       phase: 'finalize',
@@ -936,12 +659,12 @@ async function start(rawInput) {
 }
 
 function cancel(jobId) {
-  const id = text(jobId);
-  if (!id) return;
-  const job = jobs.get(id);
+  const jid = text(jobId);
+  if (!jid) return;
+  const job = jobs.get(jid);
   if (!job) return;
   if (job.status !== 'running' && job.status !== 'queued') return;
-  canceled.add(id);
+  canceled.add(jid);
 }
 
 self.onmessage = (event) => {

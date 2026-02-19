@@ -1,4 +1,14 @@
 (function () {
+  const U = window.DomainNameWizardUtils || {};
+  const BACKEND_URL = U.BACKEND_URL != null ? U.BACKEND_URL : '';
+  const escapeHtml = U.escapeHtml || (function (input) { const div = document.createElement('div'); div.textContent = input == null ? '' : String(input); return div.innerHTML; });
+  const clamp = U.clamp || (function (value, min, max) { return Math.min(max, Math.max(min, value)); });
+  const parseNumber = U.parseNumber || (function (value, fallback) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : fallback; });
+  const formatMoney = U.formatMoney || (function (value, currency) { if (typeof value !== 'number' || !Number.isFinite(value)) return '-'; return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 2 }).format(value); });
+  const formatScore = U.formatScore || (function (value, digits) { if (typeof value !== 'number' || !Number.isFinite(value)) return '-'; return value.toFixed(digits == null ? 1 : digits); });
+  const formatElapsed = U.formatElapsed || (function (ms) { if (!Number.isFinite(ms) || ms < 0) return '00:00'; const seconds = Math.floor(ms / 1000); const hours = Math.floor(seconds / 3600); const minutes = Math.floor((seconds % 3600) / 60); const remSeconds = seconds % 60; if (hours > 0) return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remSeconds).padStart(2, '0')}`; return `${String(minutes).padStart(2, '0')}:${String(remSeconds).padStart(2, '0')}`; });
+  const phaseLabel = U.phaseLabel || (function (status, phase) { return status || 'Idle'; });
+
   const formEl = document.getElementById('search-form');
   const startBtn = document.getElementById('start-btn');
   const cancelBtn = document.getElementById('cancel-btn');
@@ -23,92 +33,24 @@
   const unavailableTableEl = document.getElementById('unavailable-table');
   const loopSummaryTableEl = document.getElementById('loop-summary-table');
   const tuningTableEl = document.getElementById('tuning-table');
+  const keywordLibraryTableEl = document.getElementById('keyword-library-table');
 
   let currentJob = null;
   let currentResults = null;
-  let currentSortMode = 'marketability';
+  let currentInput = null;
+  let currentSortMode = 'valueRatio';
   const debugLogs = [];
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
-  const ENGINE_WORKER_VERSION = '2026-02-18-2';
-
-  const LEGACY_VERCEL_BACKEND_URL = 'https://order-skew-p3cuhj7l0-yanniedogs-projects.vercel.app';
-  const BACKEND_URL = (function () {
-    if (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol || '') && window.location.origin) {
-      return window.location.origin;
-    }
-    return LEGACY_VERCEL_BACKEND_URL;
-  })();
-
-  (function setRepoUpdatedDatetime() {
-    const el = document.getElementById('repo-updated-datetime');
-    if (!el) return;
-    const raw = typeof document.lastModified === 'string' && document.lastModified ? document.lastModified : '';
-    if (!raw) return;
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return;
-    const pad = function (n) { return String(n).padStart(2, '0'); };
-    el.textContent = '(' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ')';
-  })();
-
-  function escapeHtml(input) {
-    const div = document.createElement('div');
-    div.textContent = input == null ? '' : String(input);
-    return div.innerHTML;
-  }
-
-  function clamp(value, min, max) {
-    return Math.min(max, Math.max(min, value));
-  }
-
-  function parseNumber(value, fallback) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  }
-
-  function formatMoney(value, currency) {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return '-';
-    }
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      maximumFractionDigits: 2,
-    }).format(value);
-  }
-
-  function formatScore(value, digits) {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return '-';
-    }
-    return value.toFixed(digits == null ? 1 : digits);
-  }
-
-  function formatElapsed(ms) {
-    if (!Number.isFinite(ms) || ms < 0) {
-      return '00:00';
-    }
-    const seconds = Math.floor(ms / 1000);
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remSeconds = seconds % 60;
-    if (hours > 0) {
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remSeconds).padStart(2, '0')}`;
-    }
-    return `${String(minutes).padStart(2, '0')}:${String(remSeconds).padStart(2, '0')}`;
-  }
-
-  function phaseLabel(status, phase) {
-    if (status === 'queued') return 'Queued';
-    if (status === 'running' && phase === 'looping') return 'Iterative tuning';
-    if (status === 'running' && phase === 'namelix') return 'Generating candidates';
-    if (status === 'running' && phase === 'godaddy') return 'Checking availability (GoDaddy or RDAP)';
-    if (status === 'running' && phase === 'finalize') return 'Finalizing';
-    if (status === 'done') return 'Done';
-    if (status === 'failed') return 'Failed';
-    return status || 'Idle';
-  }
+  const ENGINE_WORKER_VERSION = '2026-02-19-5';
+  const tableSortState = new WeakMap();
+  let dataSourceCollapsed = true;
+  let diagnosticsInFlight = null;
+  let diagnosticsDebounceTimer = null;
+  let persistentRewardPolicy = null;
+  let persistentRewardPolicyMeta = null;
+  let persistedRunIds = new Set();
 
   function showFormError(message) {
     if (!message) {
@@ -137,6 +79,675 @@
     return String(a.domain || '').localeCompare(String(b.domain || ''));
   }
 
+  const dataSourceState = {
+    diagnostics: {
+      running: false,
+      completedAt: null,
+      issues: [],
+    },
+    nameGeneration: null,
+    availability: null,
+    synonymApi: null,
+    githubApi: null,
+    devEcosystem: null,
+    persistence: null,
+    godaddyDebug: null,
+    syntheticFlags: [],
+  };
+
+  function hasDataSourceIssues() {
+    const issues = [];
+    if (dataSourceState.diagnostics && Array.isArray(dataSourceState.diagnostics.issues)) {
+      for (const issue of dataSourceState.diagnostics.issues) issues.push(String(issue));
+    }
+    if (dataSourceState.synonymApi && !dataSourceState.synonymApi.accessible) issues.push('Synonym API unreachable');
+    if (dataSourceState.githubApi && !dataSourceState.githubApi.accessible) issues.push('GitHub API unreachable');
+    if (dataSourceState.devEcosystem && Number(dataSourceState.devEcosystem.githubCalls || 0) > 0 && Number(dataSourceState.devEcosystem.githubSuccess || 0) === 0) {
+      issues.push('GitHub enrichment calls failed');
+    }
+    if (dataSourceState.availability && (dataSourceState.availability.syntheticData || Number(dataSourceState.availability.status || 0) >= 400)) {
+      issues.push('Availability API abnormal');
+    }
+    if (dataSourceState.nameGeneration && dataSourceState.nameGeneration.namelixApiCalled === false && BACKEND_URL) {
+      issues.push('Namelix API unavailable');
+    }
+    return issues;
+  }
+
+  function ensureDataSourceExpandedForIssues() {
+    const issues = hasDataSourceIssues();
+    if (issues.length > 0) dataSourceCollapsed = false;
+  }
+
+  async function fetchJsonWithTimeout(url, options, timeoutMs) {
+    const controller = new AbortController();
+    const timeout = setTimeout(function () { controller.abort(); }, Math.max(500, Number(timeoutMs) || 6000));
+    try {
+      const response = await fetch(url, { ...(options || {}), signal: controller.signal });
+      const json = await response.json().catch(function () { return null; });
+      return { response, json };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async function loadPersistentRunProfile(reason) {
+    const base = String(BACKEND_URL || '').trim().replace(/\/+$/, '');
+    if (!base) return;
+    try {
+      const resp = await fetchJsonWithTimeout(`${base}/api/runs/profile?limit=15`, { method: 'GET' }, 7000);
+      if (!resp.response || !resp.response.ok || !resp.json || resp.json.enabled !== true) {
+        dataSourceState.persistence = {
+          enabled: false,
+          reason: (resp.json && resp.json.message) ? String(resp.json.message) : 'Profile endpoint unavailable',
+        };
+        renderDataSourcePanel();
+        return;
+      }
+      persistentRewardPolicy = resp.json.rewardPolicy && typeof resp.json.rewardPolicy === 'object' ? resp.json.rewardPolicy : null;
+      persistentRewardPolicyMeta = resp.json.rewardPolicyMeta && typeof resp.json.rewardPolicyMeta === 'object' ? resp.json.rewardPolicyMeta : null;
+      dataSourceState.persistence = {
+        enabled: true,
+        runCount: Number(resp.json.runCount || 0),
+        topUndervaluedCount: Array.isArray(resp.json.topUndervaluedDomains) ? resp.json.topUndervaluedDomains.length : 0,
+        rewardPolicyMeta: persistentRewardPolicyMeta,
+      };
+      pushDebugLog('app.js:loadPersistentRunProfile', 'Loaded persistent run profile', {
+        reason: reason || 'unknown',
+        runCount: dataSourceState.persistence.runCount,
+        hasRewardPolicy: Boolean(persistentRewardPolicy),
+      });
+      renderDataSourcePanel();
+    } catch (err) {
+      dataSourceState.persistence = {
+        enabled: false,
+        reason: err && err.message ? err.message : String(err || 'profile load failed'),
+      };
+      renderDataSourcePanel();
+    }
+  }
+
+  async function ingestCompletedRun(job, input) {
+    const base = String(BACKEND_URL || '').trim().replace(/\/+$/, '');
+    if (!base || !job || !job.id || !job.results) return;
+    if (persistedRunIds.has(job.id)) return;
+    persistedRunIds.add(job.id);
+    try {
+      const payload = {
+        runId: String(job.id),
+        run: {
+          id: job.id,
+          createdAt: job.createdAt,
+          completedAt: job.completedAt,
+          totalLoops: job.totalLoops,
+          status: job.status,
+        },
+        input: input || currentInput || {},
+        results: {
+          withinBudget: Array.isArray(job.results.withinBudget) ? job.results.withinBudget.slice(0, 1200) : [],
+          overBudget: Array.isArray(job.results.overBudget) ? job.results.overBudget.slice(0, 1200) : [],
+          allRanked: Array.isArray(job.results.allRanked) ? job.results.allRanked.slice(0, 1500) : [],
+          loopSummaries: Array.isArray(job.results.loopSummaries) ? job.results.loopSummaries.slice(0, 500) : [],
+          tuningHistory: Array.isArray(job.results.tuningHistory) ? job.results.tuningHistory.slice(0, 500) : [],
+        },
+      };
+      const resp = await fetchJsonWithTimeout(`${base}/api/runs/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }, 12000);
+      if (resp.response && resp.response.ok && resp.json && resp.json.ok) {
+        if (resp.json.rewardPolicy && typeof resp.json.rewardPolicy === 'object') persistentRewardPolicy = resp.json.rewardPolicy;
+        if (resp.json.rewardPolicyMeta && typeof resp.json.rewardPolicyMeta === 'object') persistentRewardPolicyMeta = resp.json.rewardPolicyMeta;
+        dataSourceState.persistence = {
+          enabled: true,
+          runCount: persistentRewardPolicyMeta && Number.isFinite(Number(persistentRewardPolicyMeta.runCount)) ? Number(persistentRewardPolicyMeta.runCount) : (dataSourceState.persistence && dataSourceState.persistence.runCount ? dataSourceState.persistence.runCount : 0),
+          topUndervaluedCount: dataSourceState.persistence && dataSourceState.persistence.topUndervaluedCount ? dataSourceState.persistence.topUndervaluedCount : 0,
+          rewardPolicyMeta: persistentRewardPolicyMeta,
+        };
+        renderDataSourcePanel();
+      }
+    } catch (_) {}
+  }
+
+  function setDiagnosticsRunning(running) {
+    dataSourceState.diagnostics.running = Boolean(running);
+    renderDataSourcePanel();
+  }
+
+  async function runPreflightDiagnostics(reason) {
+    if (diagnosticsInFlight) return diagnosticsInFlight;
+    diagnosticsInFlight = (async function () {
+      const issues = [];
+      setDiagnosticsRunning(true);
+
+      const githubTokenInput = formEl ? formEl.querySelector('input[name="githubToken"]') : null;
+      const githubToken = githubTokenInput ? String(githubTokenInput.value || '').trim() : '';
+      const backendBaseUrl = String(BACKEND_URL || '').trim().replace(/\/+$/, '');
+
+      // Synonym API (DataMuse)
+      try {
+        const syn = await fetchJsonWithTimeout('https://api.datamuse.com/words?ml=code&max=1', { method: 'GET' }, 6500);
+        const ok = Boolean(syn.response && syn.response.ok && Array.isArray(syn.json));
+        dataSourceState.synonymApi = {
+          provider: 'datamuse',
+          accessible: ok,
+          attempted: 1,
+          success: ok ? 1 : 0,
+          failed: ok ? 0 : 1,
+          sampleErrors: ok ? [] : [`HTTP ${syn.response ? syn.response.status : 'n/a'}`],
+          source: 'preflight',
+        };
+        if (!ok) issues.push('Synonym API preflight failed');
+      } catch (err) {
+        const msg = err && err.message ? err.message : String(err || 'unknown error');
+        dataSourceState.synonymApi = {
+          provider: 'datamuse',
+          accessible: false,
+          attempted: 1,
+          success: 0,
+          failed: 1,
+          sampleErrors: [msg],
+          source: 'preflight',
+        };
+        issues.push('Synonym API preflight failed');
+      }
+
+      // GitHub API
+      try {
+        const headers = { Accept: 'application/vnd.github+json' };
+        if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
+        const gh = await fetchJsonWithTimeout('https://api.github.com/rate_limit', { method: 'GET', headers }, 7000);
+        const core = gh.json && gh.json.resources && gh.json.resources.core ? gh.json.resources.core : null;
+        const ok = Boolean(gh.response && gh.response.ok && core && typeof core.remaining === 'number');
+        const abnormal = ok && core.remaining <= 0;
+        dataSourceState.githubApi = {
+          provider: 'github',
+          accessible: ok && !abnormal,
+          status: gh.response ? gh.response.status : null,
+          remaining: core ? Number(core.remaining) : null,
+          limit: core ? Number(core.limit) : null,
+          reset: core ? Number(core.reset) : null,
+          tokenUsed: Boolean(githubToken),
+          abnormal,
+          source: 'preflight',
+        };
+        if (!ok || abnormal) issues.push('GitHub API preflight abnormal');
+      } catch (err) {
+        const msg = err && err.message ? err.message : String(err || 'unknown error');
+        dataSourceState.githubApi = {
+          provider: 'github',
+          accessible: false,
+          status: null,
+          remaining: null,
+          limit: null,
+          reset: null,
+          tokenUsed: Boolean(githubToken),
+          abnormal: true,
+          source: 'preflight',
+          error: msg,
+        };
+        issues.push('GitHub API preflight failed');
+      }
+
+      // Backend APIs (if configured)
+      if (backendBaseUrl) {
+        try {
+          const avail = await fetchJsonWithTimeout(`${backendBaseUrl}/api/domains/availability`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domains: ['example.com'] }),
+          }, 7500);
+          const hasResults = Boolean(avail.json && avail.json.results && typeof avail.json.results === 'object');
+          const ok = Boolean(avail.response && avail.response.ok && hasResults);
+          const debug = avail.json && avail.json._debug ? avail.json._debug : null;
+          dataSourceState.availability = {
+            source: debug && debug.dataSource ? debug.dataSource : 'GoDaddy API',
+            endpoint: `${backendBaseUrl}/api/domains/availability`,
+            env: debug && debug.godaddyEnv ? debug.godaddyEnv : null,
+            credentialsSource: debug && debug.credentialsSource ? debug.credentialsSource : null,
+            apiKeyPresent: debug ? debug.apiKeyPresent : null,
+            status: avail.response ? avail.response.status : null,
+            syntheticData: Boolean(debug && debug.syntheticData),
+            resultCount: hasResults ? Object.keys(avail.json.results).length : 0,
+            preflight: true,
+          };
+          if (!ok || dataSourceState.availability.syntheticData) issues.push('Availability API preflight abnormal');
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err || 'unknown error');
+          dataSourceState.availability = {
+            source: 'GoDaddy API',
+            endpoint: `${backendBaseUrl}/api/domains/availability`,
+            env: null,
+            credentialsSource: null,
+            apiKeyPresent: null,
+            status: null,
+            syntheticData: false,
+            resultCount: 0,
+            preflight: true,
+            error: msg,
+          };
+          issues.push('Availability API preflight failed');
+        }
+
+        try {
+          const names = await fetchJsonWithTimeout(`${backendBaseUrl}/api/names/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              keywords: 'code hub',
+              description: '',
+              blacklist: '',
+              maxLength: 10,
+              tld: 'com',
+              style: 'default',
+              randomness: 'medium',
+              maxNames: 1,
+              prevNames: [],
+              preferEnglish: true,
+            }),
+          }, 7500);
+          const list = names.json && Array.isArray(names.json.names) ? names.json.names : [];
+          const ok = Boolean(names.response && names.response.ok && list.length >= 0);
+          dataSourceState.nameGeneration = {
+            source: ok ? 'Namelix API (preflight)' : 'Name API unavailable',
+            namelixApiCalled: ok,
+            syntheticNameGeneration: !ok,
+            premiumSource: 'GoDaddy API',
+            status: names.response ? names.response.status : null,
+            resultCount: list.length,
+            preflight: true,
+          };
+          if (!ok) issues.push('Name generation API preflight failed');
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err || 'unknown error');
+          dataSourceState.nameGeneration = {
+            source: 'Name API unavailable',
+            namelixApiCalled: false,
+            syntheticNameGeneration: true,
+            premiumSource: 'GoDaddy API',
+            status: null,
+            resultCount: 0,
+            preflight: true,
+            error: msg,
+          };
+          issues.push('Name generation API preflight failed');
+        }
+
+        try {
+          const dev = await fetchJsonWithTimeout(`${backendBaseUrl}/api/dev-ecosystem`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ words: ['cloud', 'fintech'] }),
+          }, 8000);
+          const scoresObj = dev.json && dev.json.scores && typeof dev.json.scores === 'object' ? dev.json.scores : null;
+          const debug = dev.json && dev.json._debug && typeof dev.json._debug === 'object' ? dev.json._debug : null;
+          const ok = Boolean(dev.response && dev.response.ok && scoresObj);
+          dataSourceState.devEcosystem = {
+            attemptedWords: scoresObj ? Object.keys(scoresObj).length : 0,
+            fetchedWords: scoresObj ? Object.keys(scoresObj).length : 0,
+            cacheHits: 0,
+            mode: 'backend-preflight',
+            githubTokenUsed: Boolean(debug && debug.githubTokenPresent),
+            githubCalls: debug ? Number(debug.githubCalls || 0) : 0,
+            githubSuccess: debug ? Number(debug.githubSuccess || 0) : 0,
+            githubFailures: debug ? Number(debug.githubFailures || 0) : 0,
+            npmCalls: debug ? Number(debug.npmCalls || 0) : 0,
+            npmSuccess: debug ? Number(debug.npmSuccess || 0) : 0,
+            npmFailures: debug ? Number(debug.npmFailures || 0) : 0,
+            backendAttempted: true,
+            backendUsed: ok,
+            backendStatus: dev.response ? dev.response.status : null,
+            sampleWords: scoresObj
+              ? Object.keys(scoresObj).slice(0, 5).map(function (w) {
+                const details = dev.json && dev.json.details && dev.json.details[w] ? dev.json.details[w] : null;
+                return {
+                  word: w,
+                  total: Number(scoresObj[w] || 0),
+                  githubRepos: details && details.githubRepos != null ? Number(details.githubRepos) : null,
+                  npmPackages: details && details.npmPackages != null ? Number(details.npmPackages) : null,
+                };
+              })
+              : [],
+          };
+          if (!ok) {
+            issues.push('GitHub evaluation preflight failed');
+          } else if (dataSourceState.devEcosystem.githubCalls > 0 && dataSourceState.devEcosystem.githubSuccess === 0) {
+            issues.push('GitHub evaluation preflight abnormal');
+          }
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err || 'unknown error');
+          dataSourceState.devEcosystem = {
+            attemptedWords: 0,
+            fetchedWords: 0,
+            cacheHits: 0,
+            mode: 'backend-preflight',
+            githubTokenUsed: false,
+            githubCalls: 0,
+            githubSuccess: 0,
+            githubFailures: 0,
+            npmCalls: 0,
+            npmSuccess: 0,
+            npmFailures: 0,
+            backendAttempted: true,
+            backendUsed: false,
+            backendStatus: null,
+            sampleWords: [],
+            error: msg,
+          };
+          issues.push('GitHub evaluation preflight failed');
+        }
+      } else {
+        dataSourceState.availability = {
+          source: 'Backend not configured',
+          endpoint: null,
+          env: null,
+          credentialsSource: null,
+          apiKeyPresent: null,
+          status: null,
+          syntheticData: false,
+          resultCount: 0,
+          preflight: true,
+        };
+        dataSourceState.nameGeneration = {
+          source: 'Backend not configured',
+          namelixApiCalled: false,
+          syntheticNameGeneration: true,
+          premiumSource: 'GoDaddy API',
+          status: null,
+          resultCount: 0,
+          preflight: true,
+        };
+        issues.push('Backend URL not configured');
+      }
+
+      dataSourceState.diagnostics.running = false;
+      dataSourceState.diagnostics.completedAt = new Date().toISOString();
+      dataSourceState.diagnostics.issues = issues;
+      pushDebugLog('app.js:runPreflightDiagnostics', 'Data source preflight complete', {
+        reason: reason || 'unknown',
+        issues: issues.slice(0, 10),
+        completedAt: dataSourceState.diagnostics.completedAt,
+      });
+      ensureDataSourceExpandedForIssues();
+      renderDataSourcePanel();
+    })().finally(function () {
+      diagnosticsInFlight = null;
+      dataSourceState.diagnostics.running = false;
+    });
+    return diagnosticsInFlight;
+  }
+
+  function updateDataSourcePanel(payload) {
+    if (!payload || !payload.data) return;
+    const d = payload.data;
+    const msg = payload.message || '';
+    let dirty = false;
+
+    if (msg === 'Name generation source' || d.source === 'LOCAL (makeBatch combinatorics)') {
+      dataSourceState.nameGeneration = {
+        source: d.source || 'LOCAL',
+        namelixApiCalled: Boolean(d.namelixApiCalled),
+        syntheticNameGeneration: Boolean(d.syntheticNameGeneration),
+        premiumSource: d.sampleCandidates && d.sampleCandidates[0] ? d.sampleCandidates[0].premiumSource : 'hash-based',
+      };
+      if (d.syntheticNameGeneration) {
+        dataSourceState.syntheticFlags.push('Name generation is LOCAL (not Namelix API)');
+      }
+      dirty = true;
+    }
+
+    if (msg === 'GoDaddy API debug info' || d.dataSource || d.godaddyEndpoint) {
+      dataSourceState.godaddyDebug = d;
+      dataSourceState.availability = {
+        source: d.dataSource || 'GoDaddy API',
+        endpoint: d.godaddyEndpoint || null,
+        env: d.godaddyEnv || null,
+        credentialsSource: d.credentialsSource || null,
+        apiKeyPresent: d.apiKeyPresent,
+        status: d.godaddyStatus || null,
+        syntheticData: Boolean(d.syntheticData),
+      };
+      dirty = true;
+    }
+
+    if (msg === 'Availability API success response' && d._debug) {
+      dataSourceState.godaddyDebug = d._debug;
+      dataSourceState.availability = {
+        source: d._debug.dataSource || 'GoDaddy API',
+        endpoint: d._debug.godaddyEndpoint || d.url,
+        env: d._debug.godaddyEnv || null,
+        credentialsSource: d._debug.credentialsSource || null,
+        apiKeyPresent: d._debug.apiKeyPresent,
+        status: d._debug.godaddyStatus || d.status,
+        syntheticData: Boolean(d._debug.syntheticData),
+        resultCount: d.resultCount,
+      };
+      dirty = true;
+    }
+
+    if (msg === 'Synonym API accessibility') {
+      dataSourceState.synonymApi = {
+        provider: d.provider || 'synonym_api',
+        accessible: Boolean(d.accessible),
+        attempted: Number(d.attempted || 0),
+        success: Number(d.success || 0),
+        failed: Number(d.failed || 0),
+        sampleErrors: Array.isArray(d.sampleErrors) ? d.sampleErrors.slice(0, 5) : [],
+      };
+      dirty = true;
+    }
+
+    if (msg === 'Developer ecosystem scoring complete' || msg === 'Developer ecosystem scoring via backend' || msg === 'Developer ecosystem scoring (cache hit)') {
+      dataSourceState.devEcosystem = {
+        attemptedWords: Number(d.attemptedWords || 0),
+        fetchedWords: Number(d.fetchedWords || 0),
+        cacheHits: Number(d.cacheHits || 0),
+        mode: d.mode || 'unknown',
+        githubTokenUsed: Boolean(d.githubTokenUsed),
+        githubCalls: Number(d.githubCalls || 0),
+        githubSuccess: Number(d.githubSuccess || 0),
+        githubFailures: Number(d.githubFailures || 0),
+        npmCalls: Number(d.npmCalls || 0),
+        npmSuccess: Number(d.npmSuccess || 0),
+        npmFailures: Number(d.npmFailures || 0),
+        backendAttempted: Boolean(d.backendAttempted),
+        backendUsed: Boolean(d.backendUsed),
+        backendStatus: d.backendStatus == null ? null : Number(d.backendStatus),
+        sampleWords: Array.isArray(d.sampleWords) ? d.sampleWords.slice(0, 8) : [],
+      };
+      dirty = true;
+    }
+
+    if (!dirty) return;
+    ensureDataSourceExpandedForIssues();
+    renderDataSourcePanel();
+  }
+
+  function captureResultsScrollState() {
+    const ids = [
+      'all-ranked-table',
+      'within-budget-table',
+      'over-budget-table',
+      'unavailable-table',
+      'loop-summary-table',
+      'keyword-library-table',
+      'tuning-table',
+    ];
+    const wrapScroll = {};
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) wrapScroll[id] = el.scrollTop || 0;
+    }
+    return { pageY: window.scrollY || 0, wrapScroll };
+  }
+
+  function restoreResultsScrollState(state) {
+    if (!state || typeof state !== 'object') return;
+    const wrapScroll = state.wrapScroll || {};
+    for (const [id, top] of Object.entries(wrapScroll)) {
+      const el = document.getElementById(id);
+      if (el) el.scrollTop = Number(top) || 0;
+    }
+    window.scrollTo(0, Number(state.pageY) || 0);
+  }
+
+  function renderDataSourcePanel() {
+    const el = document.getElementById('data-source-panel');
+    if (!el) return;
+    el.hidden = false;
+
+    const parts = [];
+    const bodyParts = [];
+
+    parts.push('<button type="button" id="data-source-toggle" class="ds-toggle" aria-expanded="' + (!dataSourceCollapsed ? 'true' : 'false') + '">Data Source Confirmation</button>');
+    if (dataSourceState.diagnostics && dataSourceState.diagnostics.running) {
+      bodyParts.push('<div class="ds-block"><strong>Diagnostics:</strong> <span class="warn">Running preflight checks...</span></div>');
+    } else if (dataSourceState.diagnostics && dataSourceState.diagnostics.completedAt) {
+      bodyParts.push('<div class="ds-block"><strong>Diagnostics:</strong> Last completed at <code>' + escapeHtml(dataSourceState.diagnostics.completedAt) + '</code></div>');
+    }
+
+    if (dataSourceState.nameGeneration) {
+      const ng = dataSourceState.nameGeneration;
+      const cls = ng.namelixApiCalled ? 'good' : 'warn';
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Name Generation:</strong> ');
+      bodyParts.push('<span class="' + cls + '">' + escapeHtml(ng.source) + '</span>');
+      bodyParts.push('<br>Namelix API called: <strong>' + (ng.namelixApiCalled ? 'YES' : 'NO') + '</strong>');
+      bodyParts.push('<br>Premium pricing source: <strong>GoDaddy API</strong>');
+      if (ng.syntheticNameGeneration) {
+        bodyParts.push('<br><span class="warn">Names are generated locally, not from Namelix.</span>');
+      }
+      if (ng.status != null) bodyParts.push('<br>HTTP status: <strong>' + escapeHtml(String(ng.status)) + '</strong>');
+      if (ng.resultCount != null) bodyParts.push('<br>Results returned: <strong>' + escapeHtml(String(ng.resultCount)) + '</strong>');
+      if (ng.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(ng.error)) + '</span>');
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.availability) {
+      const av = dataSourceState.availability;
+      const cls = av.syntheticData ? 'bad' : 'good';
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Availability &amp; Pricing:</strong> ');
+      bodyParts.push('<span class="' + cls + '">' + escapeHtml(av.source || 'Unknown') + '</span>');
+      if (av.endpoint) bodyParts.push('<br>Endpoint: <code>' + escapeHtml(av.endpoint) + '</code>');
+      if (av.env) bodyParts.push('<br>GoDaddy Environment: <strong>' + escapeHtml(av.env) + '</strong>');
+      if (av.credentialsSource) bodyParts.push('<br>Credentials from: <strong>' + escapeHtml(av.credentialsSource) + '</strong>');
+      bodyParts.push('<br>API Key present: <strong>' + (av.apiKeyPresent ? 'YES' : 'NO') + '</strong>');
+      if (av.status) bodyParts.push('<br>GoDaddy response status: <strong>' + escapeHtml(String(av.status)) + '</strong>');
+      if (av.resultCount != null) bodyParts.push('<br>Results returned: <strong>' + av.resultCount + '</strong>');
+      bodyParts.push('<br>Synthetic data: <strong class="' + (av.syntheticData ? 'bad' : 'good') + '">' + (av.syntheticData ? 'YES' : 'NO') + '</strong>');
+      if (av.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(av.error)) + '</span>');
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.synonymApi) {
+      const syn = dataSourceState.synonymApi;
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Synonym APIs:</strong> ');
+      bodyParts.push('<span class="' + (syn.accessible ? 'good' : 'bad') + '">' + (syn.accessible ? 'ACCESSIBLE' : 'UNREACHABLE') + '</span>');
+      bodyParts.push('<br>Provider: <strong>' + escapeHtml(String(syn.provider || 'unknown')) + '</strong>');
+      bodyParts.push('<br>Successful calls: <strong>' + syn.success + '</strong> / ' + syn.attempted);
+      bodyParts.push('<br>Failed calls: <strong>' + syn.failed + '</strong>');
+      if (syn.sampleErrors && syn.sampleErrors.length) {
+        bodyParts.push('<br>Sample errors:<ul class="ds-errors">');
+        for (const err of syn.sampleErrors) bodyParts.push('<li>' + escapeHtml(String(err)) + '</li>');
+        bodyParts.push('</ul>');
+      }
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.githubApi) {
+      const gh = dataSourceState.githubApi;
+      const cls = gh.accessible ? 'good' : 'bad';
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>GitHub API:</strong> ');
+      bodyParts.push('<span class="' + cls + '">' + (gh.accessible ? 'ACCESSIBLE' : 'UNREACHABLE') + '</span>');
+      bodyParts.push('<br>Provider: <strong>github.com</strong>');
+      if (gh.status != null) bodyParts.push('<br>HTTP status: <strong>' + escapeHtml(String(gh.status)) + '</strong>');
+      bodyParts.push('<br>Auth token used: <strong>' + (gh.tokenUsed ? 'YES' : 'NO') + '</strong>');
+      if (gh.limit != null) bodyParts.push('<br>Rate limit: <strong>' + gh.remaining + '</strong> / ' + gh.limit);
+      if (gh.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(gh.error)) + '</span>');
+      if (gh.abnormal) bodyParts.push('<br><span class="warn">Abnormal result detected.</span>');
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.persistence) {
+      const ps = dataSourceState.persistence;
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Persistent Learning DB:</strong> ');
+      bodyParts.push('<span class="' + (ps.enabled ? 'good' : 'warn') + '">' + (ps.enabled ? 'ENABLED' : 'DISABLED') + '</span>');
+      if (ps.runCount != null) bodyParts.push('<br>Stored runs: <strong>' + escapeHtml(String(ps.runCount)) + '</strong>');
+      if (ps.topUndervaluedCount != null) bodyParts.push('<br>Tracked undervalued domains: <strong>' + escapeHtml(String(ps.topUndervaluedCount)) + '</strong>');
+      if (ps.rewardPolicyMeta) {
+        const rpm = ps.rewardPolicyMeta;
+        if (rpm.updatedAt) bodyParts.push('<br>Policy updated: <code>' + escapeHtml(new Date(Number(rpm.updatedAt)).toISOString()) + '</code>');
+        if (rpm.movingCoverage != null) bodyParts.push('<br>Moving coverage: <strong>' + escapeHtml(formatScore(Number(rpm.movingCoverage) * 100, 1)) + '%</strong>');
+        if (rpm.movingPerformance != null) bodyParts.push('<br>Moving performance: <strong>' + escapeHtml(formatScore(Number(rpm.movingPerformance) * 100, 1)) + '%</strong>');
+      }
+      if (ps.reason) bodyParts.push('<br><span class="warn">' + escapeHtml(String(ps.reason)) + '</span>');
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.devEcosystem) {
+      const de = dataSourceState.devEcosystem;
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>GitHub Value Evidence:</strong> ');
+      bodyParts.push('<span class="' + (de.githubSuccess > 0 ? 'good' : 'warn') + '">' + escapeHtml(String(de.mode || 'unknown')) + '</span>');
+      bodyParts.push('<br>Words queried: <strong>' + escapeHtml(String(de.attemptedWords)) + '</strong> (fetched ' + escapeHtml(String(de.fetchedWords)) + ', cache hits ' + escapeHtml(String(de.cacheHits)) + ')');
+      bodyParts.push('<br>GitHub token used in enrichment: <strong>' + (de.githubTokenUsed ? 'YES' : 'NO') + '</strong>');
+      bodyParts.push('<br>GitHub calls: <strong>' + escapeHtml(String(de.githubSuccess)) + '</strong> / ' + escapeHtml(String(de.githubCalls)) + ' success');
+      bodyParts.push('<br>npm calls: <strong>' + escapeHtml(String(de.npmSuccess)) + '</strong> / ' + escapeHtml(String(de.npmCalls)) + ' success');
+      if (de.backendAttempted) bodyParts.push('<br>Backend attempted: <strong>YES</strong> (status ' + escapeHtml(String(de.backendStatus == null ? '-' : de.backendStatus)) + ')');
+      if (de.backendUsed) bodyParts.push('<br>Backend used: <strong>YES</strong>');
+      if (Array.isArray(de.sampleWords) && de.sampleWords.length) {
+        bodyParts.push('<br>Sample evidence:<ul class="ds-errors">');
+        de.sampleWords.forEach(function (w) {
+          bodyParts.push('<li>' + escapeHtml(String(w.word || '?')) + ': total=' + escapeHtml(String(w.total == null ? '-' : w.total)) + ', GH=' + escapeHtml(String(w.githubRepos == null ? '-' : w.githubRepos)) + ', npm=' + escapeHtml(String(w.npmPackages == null ? '-' : w.npmPackages)) + '</li>');
+        });
+        bodyParts.push('</ul>');
+      }
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.godaddyDebug && dataSourceState.godaddyDebug.sampleRawResponse) {
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Sample GoDaddy Raw Response:</strong><br>');
+      bodyParts.push('<pre style="font-size:0.75rem;overflow-x:auto;max-width:100%;">' + escapeHtml(JSON.stringify(dataSourceState.godaddyDebug.sampleRawResponse, null, 2)) + '</pre>');
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.syntheticFlags.length > 0) {
+      bodyParts.push('<div class="ds-block warn-block">');
+      bodyParts.push('<strong>Synthetic/Simulated Data Warnings:</strong><ul>');
+      dataSourceState.syntheticFlags.forEach(function (f) {
+        bodyParts.push('<li>' + escapeHtml(f) + '</li>');
+      });
+      bodyParts.push('</ul></div>');
+    }
+    const currentIssues = hasDataSourceIssues();
+    if (currentIssues.length > 0) {
+      bodyParts.push('<div class="ds-block warn-block">');
+      bodyParts.push('<strong>Service Issues:</strong><ul>');
+      currentIssues.forEach(function (f) {
+        bodyParts.push('<li>' + escapeHtml(f) + '</li>');
+      });
+      bodyParts.push('</ul></div>');
+    }
+
+    parts.push('<div id="data-source-body"' + (dataSourceCollapsed ? ' hidden' : '') + '>' + bodyParts.join('') + '</div>');
+    el.innerHTML = parts.join('');
+    const toggle = document.getElementById('data-source-toggle');
+    const body = document.getElementById('data-source-body');
+    if (toggle && body) {
+      toggle.addEventListener('click', function () {
+        dataSourceCollapsed = !dataSourceCollapsed;
+        toggle.setAttribute('aria-expanded', dataSourceCollapsed ? 'false' : 'true');
+        body.hidden = dataSourceCollapsed;
+      });
+    }
+  }
+
   function pushDebugLog(location, message, data) {
     debugLogs.push({
       sessionId: '437d46',
@@ -159,9 +770,31 @@
     const copy = Array.isArray(rows) ? rows.slice() : [];
     copy.sort((a, b) => {
       if (mode === 'financialValue') {
-        if ((a.financialValueScore || 0) !== (b.financialValueScore || 0)) {
-          return (b.financialValueScore || 0) - (a.financialValueScore || 0);
-        }
+        if ((a.financialValueScore || 0) !== (b.financialValueScore || 0)) return (b.financialValueScore || 0) - (a.financialValueScore || 0);
+        return compareOverallTieBreak(a, b);
+      }
+      if (mode === 'intrinsicValue') {
+        if ((a.intrinsicValue || 0) !== (b.intrinsicValue || 0)) return (b.intrinsicValue || 0) - (a.intrinsicValue || 0);
+        return compareOverallTieBreak(a, b);
+      }
+      if (mode === 'estimatedValue') {
+        if ((a.estimatedValueUSD || 0) !== (b.estimatedValueUSD || 0)) return (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0);
+        return compareOverallTieBreak(a, b);
+      }
+      if (mode === 'valueRatio') {
+        if ((a.valueRatio || 0) !== (b.valueRatio || 0)) return (b.valueRatio || 0) - (a.valueRatio || 0);
+        return (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0);
+      }
+      if (mode === 'expectedValue') {
+        if ((a.ev24m || 0) !== (b.ev24m || 0)) return (b.ev24m || 0) - (a.ev24m || 0);
+        return (b.estimatedValueUSD || 0) - (a.estimatedValueUSD || 0);
+      }
+      if (mode === 'liquidityScore') {
+        if ((a.liquidityScore || 0) !== (b.liquidityScore || 0)) return (b.liquidityScore || 0) - (a.liquidityScore || 0);
+        return compareOverallTieBreak(a, b);
+      }
+      if (mode === 'devEcosystem') {
+        if ((a.devEcosystemScore || 0) !== (b.devEcosystemScore || 0)) return (b.devEcosystemScore || 0) - (a.devEcosystemScore || 0);
         return compareOverallTieBreak(a, b);
       }
       if (mode === 'alphabetical') {
@@ -170,23 +803,81 @@
         return compareOverallTieBreak(a, b);
       }
       if (mode === 'syllableCount') {
-        if ((a.syllableCount || 0) !== (b.syllableCount || 0)) {
-          return (a.syllableCount || 0) - (b.syllableCount || 0);
-        }
+        if ((a.syllableCount || 0) !== (b.syllableCount || 0)) return (a.syllableCount || 0) - (b.syllableCount || 0);
         return compareOverallTieBreak(a, b);
       }
       if (mode === 'labelLength') {
-        if ((a.labelLength || 0) !== (b.labelLength || 0)) {
-          return (a.labelLength || 0) - (b.labelLength || 0);
-        }
+        if ((a.labelLength || 0) !== (b.labelLength || 0)) return (a.labelLength || 0) - (b.labelLength || 0);
         return compareOverallTieBreak(a, b);
       }
-      if ((a.marketabilityScore || 0) !== (b.marketabilityScore || 0)) {
-        return (b.marketabilityScore || 0) - (a.marketabilityScore || 0);
-      }
+      if ((a.marketabilityScore || 0) !== (b.marketabilityScore || 0)) return (b.marketabilityScore || 0) - (a.marketabilityScore || 0);
       return compareOverallTieBreak(a, b);
     });
     return copy;
+  }
+
+  function th(label, tooltip) {
+    return `<th title="${escapeHtml(String(tooltip || ''))}">${escapeHtml(String(label || ''))}</th>`;
+  }
+
+  function normalizePerfToken(token) {
+    return String(token || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function rainbowColorForScore01(score01) {
+    const s = clamp(Number(score01) || 0, 0, 1);
+    const hue = Math.round(240 - 240 * s);
+    return `hsl(${hue}, 88%, 48%)`;
+  }
+
+  function buildTokenPerformanceLookup(keywordLibrary) {
+    const lib = keywordLibrary || {};
+    const rows = Array.isArray(lib.tokens) ? lib.tokens : [];
+    const out = new Map();
+    for (const row of rows) {
+      const key = normalizePerfToken(row && row.token);
+      if (!key) continue;
+      const perf = Number(row.performanceScore);
+      const perf01 = Number.isFinite(perf) ? clamp(perf / 100, 0, 1) : clamp(Number(row.avgReward) || 0, 0, 1);
+      out.set(key, {
+        performanceScore: Number.isFinite(perf) ? perf : perf01 * 100,
+        avgReward: Number(row.avgReward) || 0,
+        plays: Math.max(0, Number(row.plays) || 0),
+        selectionScore: Number(row.selectionScore) || 0,
+        successRate: Number(row.successRate) || 0,
+        confidence: Number(row.confidence) || 0,
+        githubRepos: row.githubRepos == null ? null : Number(row.githubRepos),
+        npmPackages: row.npmPackages == null ? null : Number(row.npmPackages),
+        githubPrior: row.githubPrior == null ? null : Number(row.githubPrior),
+      });
+    }
+    return out;
+  }
+
+  function renderPerformancePhrase(text, perfLookup) {
+    const raw = String(text || '').trim();
+    if (!raw) return '-';
+    if (!(perfLookup instanceof Map) || perfLookup.size === 0) return escapeHtml(raw);
+
+    const parts = raw.split(/(\s+)/);
+    return parts.map(function (part) {
+      if (!part || /^\s+$/.test(part)) return part;
+      const key = normalizePerfToken(part);
+      if (!key || !perfLookup.has(key)) return escapeHtml(part);
+      const m = perfLookup.get(key);
+      const perf01 = clamp((Number(m.performanceScore) || 0) / 100, 0, 1);
+      const color = rainbowColorForScore01(perf01);
+      const title = [
+        `Perf ${formatScore(m.performanceScore, 1)}`,
+        `AvgReward ${formatScore(m.avgReward, 3)}`,
+        `Success ${formatScore((m.successRate || 0) * 100, 1)}%`,
+        `Plays ${Math.round(m.plays || 0)}`,
+        `GitHub ${m.githubRepos == null ? '-' : Number(m.githubRepos).toLocaleString()}`,
+        `npm ${m.npmPackages == null ? '-' : Number(m.npmPackages).toLocaleString()}`,
+        `GH Prior ${m.githubPrior == null ? '-' : formatScore(m.githubPrior, 1)}`,
+      ].join(' | ');
+      return `<span class="perf-token" style="background:${color}" title="${escapeHtml(title)}">${escapeHtml(part)}</span>`;
+    }).join('');
   }
 
   function renderSummary(results) {
@@ -199,13 +890,27 @@
     const avg = (field) => allRanked.reduce((sum, row) => sum + (Number(row[field]) || 0), 0) / allRanked.length;
     const top = sortRows(allRanked, currentSortMode)[0];
     const positiveBudget = (results.withinBudget || []).length;
+    const overBudgetCount = (results.overBudget || []).length;
+    const underpricedCount = allRanked.filter(r => r.underpricedFlag).length;
+    const avgEstValue = allRanked.filter(r => r.estimatedValueUSD > 0).reduce((s, r) => s + r.estimatedValueUSD, 0) / Math.max(1, allRanked.filter(r => r.estimatedValueUSD > 0).length);
+    const bestRatio = allRanked.reduce((best, r) => Math.max(best, r.valueRatio || 0), 0);
+    const liveCoverage = results.keywordLibrary && results.keywordLibrary.coverageMetrics ? results.keywordLibrary.coverageMetrics : null;
+    const loopSummaries = Array.isArray(results.loopSummaries) ? results.loopSummaries : [];
+    const latestLoop = loopSummaries.length ? loopSummaries[loopSummaries.length - 1] : null;
+    const curatedCoveragePct = liveCoverage ? Number(liveCoverage.coveragePct || 0) : (latestLoop ? Number(latestLoop.curatedCoveragePct || 0) : 0);
+    const curatedCoverageTargetPct = liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTargetPct || 0) : 0);
+    const curatedCoverageAssessed = liveCoverage ? Number(liveCoverage.assessedTarget || 0) : (latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0);
+    const curatedCoverageTotal = liveCoverage ? Number(liveCoverage.total || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0);
 
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
       { label: 'Within Budget', value: String(positiveBudget) },
-      { label: 'Avg Overall Score', value: formatScore(avg('overallScore'), 2) },
-      { label: 'Avg Marketability', value: formatScore(avg('marketabilityScore'), 2) },
-      { label: 'Avg Financial', value: formatScore(avg('financialValueScore'), 2) },
+      { label: 'Underpriced', value: String(underpricedCount) },
+      { label: 'Avg Est. Value', value: avgEstValue > 0 ? '$' + Math.round(avgEstValue).toLocaleString() : '-' },
+      { label: 'Best Value Ratio', value: bestRatio > 0 ? formatScore(bestRatio, 1) + 'x' : '-' },
+      { label: 'Curated Coverage', value: curatedCoverageTotal > 0 ? `${formatScore(curatedCoveragePct, 1)}% | target ${formatScore(curatedCoverageTargetPct, 1)}% (${curatedCoverageAssessed}/${curatedCoverageTotal})` : '-' },
+      { label: 'Avg Intrinsic', value: formatScore(avg('intrinsicValue'), 1) },
+      { label: 'Avg Liquidity', value: formatScore(avg('liquidityScore'), 0) },
       { label: 'Top Domain', value: top ? escapeHtml(top.domain) : '-' },
     ]
       .map((item) => `<article class="summary-card"><span>${item.label}</span><strong>${item.value}</strong></article>`)
@@ -217,7 +922,7 @@
       return '<p>No rows.</p>';
     }
 
-    const availabilityHeader = includeAvailability ? '<th>Availability</th>' : '';
+    const availabilityHeader = includeAvailability ? th('Availability', 'Current availability status for this domain based on API response.') : '';
     const availabilityCell = (row) => {
       if (!includeAvailability) return '';
       return `<td class="${row.available ? 'good' : 'bad'}">${row.available ? 'Available' : 'Unavailable'}</td>`;
@@ -226,23 +931,50 @@
     const body = rows
       .map((row) => {
         const priceCell = row._pending ? '...' : formatMoney(row.price, row.currency);
+        const estVal = row.estimatedValueUSD ? '$' + Number(row.estimatedValueUSD).toLocaleString() : '-';
+        const vrCell = row.valueRatio != null ? formatScore(row.valueRatio, 1) + 'x' : '-';
+        const flagCell = row.underpricedFlag ? '<span class="underpriced-badge">' + escapeHtml(row.underpricedFlag.replace(/_/g, ' ')) + '</span>' : '';
+        const valueCell = [
+          `I:${formatScore(row.intrinsicValue, 1)}`,
+          `L:${row.liquidityScore != null ? formatScore(row.liquidityScore, 0) : '-'}`,
+          `M:${formatScore(row.marketabilityScore, 1)}`,
+        ].join(' | ');
+        const financeCell = [
+          `EV:${row.ev24m != null ? '$' + Number(row.ev24m).toLocaleString() : '-'}`,
+          `ROI:${row.expectedROI != null ? formatScore(row.expectedROI, 1) + '%' : '-'}`,
+        ].join(' | ');
+        const qualityCell = [
+          `P:${formatScore(row.phoneticScore, 1)}`,
+          `B:${formatScore(row.brandabilityScore, 1)}`,
+          `S:${formatScore(row.seoScore, 1)}`,
+          `C:${formatScore(row.commercialScore || 0, 1)}`,
+        ].join(' | ');
+        const signalsCell = [
+          `Dev:${row.devEcosystemScore > 0 ? Number(row.devEcosystemScore).toLocaleString() : '-'}`,
+          `GH:${row.devEcosystemEvidence && row.devEcosystemEvidence.githubRepos != null ? Number(row.devEcosystemEvidence.githubRepos).toLocaleString() : '-'}`,
+          `NPM:${row.devEcosystemEvidence && row.devEcosystemEvidence.npmPackages != null ? Number(row.devEcosystemEvidence.npmPackages).toLocaleString() : '-'}`,
+          `Arc:${row.hasArchiveHistory ? 'Y' : 'N'}`,
+          `Syl:${Number(row.syllableCount || 0)}`,
+          `Len:${Number(row.labelLength || 0)}`,
+        ].join(' | ');
+        const wordsCell = (row.segmentedWords || []).join(' + ') || '-';
+        const notes = [
+          (row.valueDrivers || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
+          (row.valueDetractors || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
+        ].filter(Boolean).join(' | ');
         return `
-          <tr>
-            <td>${escapeHtml(row.domain)}</td>
+          <tr class="${row.underpricedFlag ? 'underpriced-row' : ''}">
+            <td>${escapeHtml(row.domain)} ${flagCell}</td>
             ${availabilityCell(row)}
             <td>${priceCell}</td>
-            <td>${row.overBudget ? '<span class="bad">Yes</span>' : 'No'}</td>
-            <td>${row.isNamelixPremium ? 'Yes' : 'No'}</td>
-            <td>${formatScore(row.marketabilityScore, 1)}</td>
-            <td>${formatScore(row.financialValueScore, 1)}</td>
-            <td>${formatScore(row.overallScore, 1)}</td>
-            <td>${Number(row.syllableCount || 0)}</td>
-            <td>${Number(row.labelLength || 0)}</td>
-            <td>${Number(row.timesDiscovered || 0)}</td>
-            <td>${Number(row.firstSeenLoop || 0)}</td>
-            <td>${Number(row.lastSeenLoop || 0)}</td>
-            <td>${escapeHtml((row.valueDrivers || []).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', ') || '-')}</td>
-            <td>${escapeHtml((row.valueDetractors || []).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', ') || '-')}</td>
+            <td>${estVal}</td>
+            <td class="${row.valueRatio >= 3 ? 'good' : ''}">${vrCell}</td>
+            <td>${valueCell}</td>
+            <td>${financeCell}</td>
+            <td>${qualityCell}</td>
+            <td>${signalsCell}</td>
+            <td>${escapeHtml(wordsCell)}</td>
+            <td>${escapeHtml(notes || '-')}</td>
           </tr>
         `;
       })
@@ -252,21 +984,17 @@
       <table>
         <thead>
           <tr>
-            <th>Domain</th>
+            ${th('Domain', 'The full candidate domain name including TLD.')}
             ${availabilityHeader}
-            <th>Price</th>
-            <th>Over Budget</th>
-            <th>Premium</th>
-            <th>Marketability</th>
-            <th>Financial</th>
-            <th>Overall</th>
-            <th>Syllables</th>
-            <th>Label Len</th>
-            <th>Seen</th>
-            <th>First Loop</th>
-            <th>Last Loop</th>
-            <th>Value Drivers</th>
-            <th>Detractors</th>
+            ${th('Price', 'Year-1 registration price from availability provider.')}
+            ${th('Est. Value', 'Model-estimated resale value in USD.')}
+            ${th('Value Ratio', 'Estimated value divided by current price; higher suggests more upside.')}
+            ${th('Value Metrics', 'Compact view: Intrinsic, Liquidity, and Marketability.')}
+            ${th('Finance', 'Compact view: EV (24m) and expected ROI.')}
+            ${th('Quality', 'Compact view: Phonetic, Brandability, SEO, Commercial.')}
+            ${th('Signals', 'Compact view: Dev ecosystem total, GitHub repos, npm packages, archive flag, syllables, length.')}
+            ${th('Words', 'Detected meaningful morphemes/word segments in the domain label.')}
+            ${th('Notes', 'Top positive and negative value factors (trimmed).')}
           </tr>
         </thead>
         <tbody>${body}</tbody>
@@ -274,7 +1002,7 @@
     `;
   }
 
-  function renderLoopSummaryTable(rows) {
+  function renderLoopSummaryTable(rows, tokenPerfLookup) {
     if (!rows || rows.length === 0) {
       return '<p>No loop summaries yet.</p>';
     }
@@ -283,20 +1011,14 @@
       <table>
         <thead>
           <tr>
-            <th>Loop</th>
-            <th>Keywords</th>
-            <th>Style</th>
-            <th>Randomness</th>
-            <th>Mutation</th>
-            <th>Required</th>
-            <th>Available</th>
-            <th>Quota Met</th>
-            <th>251 Hit</th>
-            <th>Considered</th>
-            <th>Batches</th>
-            <th>Avg Score</th>
-            <th>Top Domain</th>
-            <th>Note</th>
+            ${th('Loop', 'Loop index within the current search run.')}
+            ${th('Keywords', 'Keywords used by this loop. Tokens are colored by learned term performance (blue low -> red high).')}
+            ${th('Strategy', 'Style, randomness, and mutation used in this loop.')}
+            ${th('Explore', 'Exploration rate, elite pool size, curated coverage progress, and strict target coverage (keywords assessed at least target times).')}
+            ${th('Quota', 'Required and in-budget available names for this loop (max names/loop target).')}
+            ${th('Results', 'Considered candidates, available split (in-budget/over-budget), and average score for this loop.')}
+            ${th('Top', 'Top domain and top score for this loop.')}
+            ${th('Source/Note', 'Name source and any skip note for this loop.')}
           </tr>
         </thead>
         <tbody>
@@ -304,19 +1026,13 @@
             .map((row) => `
               <tr>
                 <td>${row.loop}</td>
-                <td>${escapeHtml(row.keywords || '-')}</td>
-                <td>${escapeHtml(row.style || '-')}</td>
-                <td>${escapeHtml(row.randomness || '-')}</td>
-                <td>${escapeHtml(row.mutationIntensity || '-')}</td>
-                <td>${Number(row.requiredQuota || 0)}</td>
-                <td>${Number(row.availableCount || 0)}</td>
-                <td>${row.quotaMet ? '<span class="good">Yes</span>' : 'No'}</td>
-                <td>${row.limitHit ? '<span class="bad">Yes</span>' : 'No'}</td>
-                <td>${Number(row.consideredCount || 0)}</td>
-                <td>${Number(row.batchCount || 0)}</td>
-                <td>${formatScore(row.averageOverallScore, 2)}</td>
-                <td>${escapeHtml(row.topDomain || '-')}</td>
-                <td>${escapeHtml(row.skipReason || '-')}</td>
+                <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
+                <td>${escapeHtml(`${row.style || '-'} | ${row.randomness || '-'} | ${row.mutationIntensity || '-'}`)}</td>
+                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)} | cov=${formatScore(Number(row.curatedCoveragePct || 0), 1)}% | target=${formatScore(Number(row.curatedCoverageTargetPct || 0), 1)}%`)}</td>
+                <td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.withinBudgetCount || 0)}`)}</span></td>
+                <td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avail=${Number(row.withinBudgetCount || 0)}/${Number(row.overBudgetCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>
+                <td>${escapeHtml(`${row.topDomain || '-'} | ${formatScore(row.topScore, 1)}`)}</td>
+                <td>${escapeHtml(`${row.nameSource || '-'} | ${row.skipReason || '-'}`)}</td>
               </tr>
             `)
             .join('')}
@@ -325,7 +1041,7 @@
     `;
   }
 
-  function renderTuningTable(rows) {
+  function renderTuningTable(rows, tokenPerfLookup) {
     if (!rows || rows.length === 0) {
       return '<p>No tuning history yet.</p>';
     }
@@ -334,14 +1050,11 @@
       <table>
         <thead>
           <tr>
-            <th>Loop</th>
-            <th>Source Loop</th>
-            <th>Keywords</th>
-            <th>Description</th>
-            <th>Style</th>
-            <th>Randomness</th>
-            <th>Mutation</th>
-            <th>Reward</th>
+            ${th('Loop', 'Loop index where this tuning decision was recorded.')}
+            ${th('Keywords', 'Keyword set chosen for this loop. Tokens are colored by learned performance.')}
+            ${th('Strategy', 'Source loop and selected style/randomness/mutation.')}
+            ${th('Explore', 'Exploration rate and elite pool at decision time.')}
+            ${th('Reward', 'Composite 0-1 RL reward: in-budget quota completion, availability rate, in-budget ratio, undervaluation (value ratio/underpriced), quality of available domains, and curated-keyword coverage progress.')}
           </tr>
         </thead>
         <tbody>
@@ -349,12 +1062,9 @@
             .map((row) => `
               <tr>
                 <td>${row.loop}</td>
-                <td>${row.sourceLoop == null ? '-' : row.sourceLoop}</td>
-                <td>${escapeHtml(row.keywords || '-')}</td>
-                <td>${escapeHtml(row.description || '-')}</td>
-                <td>${escapeHtml(row.selectedStyle || '-')}</td>
-                <td>${escapeHtml(row.selectedRandomness || '-')}</td>
-                <td>${escapeHtml(row.selectedMutationIntensity || '-')}</td>
+                <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
+                <td>${escapeHtml(`src=${row.sourceLoop == null ? '-' : row.sourceLoop} | ${row.selectedStyle || '-'} | ${row.selectedRandomness || '-'} | ${row.selectedMutationIntensity || '-'}`)}</td>
+                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>
                 <td>${formatScore(row.reward, 4)}</td>
               </tr>
             `)
@@ -364,11 +1074,69 @@
     `;
   }
 
+  function renderKeywordLibraryTable(keywordLibrary) {
+    const lib = keywordLibrary || {};
+    const rows = Array.isArray(lib.tokens) ? lib.tokens : [];
+    const current = Array.isArray(lib.currentKeywords) ? lib.currentKeywords : [];
+    const seeds = Array.isArray(lib.seedTokens) ? lib.seedTokens : [];
+    const coverage = lib.coverageMetrics || null;
+    const dev = lib.devEcosystemStatus || null;
+
+    if (!rows.length) {
+      return '<p>No keyword library metrics yet.</p>';
+    }
+
+    const seedBadge = seeds.length ? `<p class="keyword-library-meta"><strong>Seeds:</strong> ${escapeHtml(seeds.join(', '))}</p>` : '';
+    const activeBadge = current.length ? `<p class="keyword-library-meta"><strong>Current loop keywords:</strong> ${escapeHtml(current.join(' '))}</p>` : '';
+    const coverageBadge = coverage && Number(coverage.total || 0) > 0
+      ? `<p class="keyword-library-meta"><strong>Curated coverage:</strong> ${formatScore(Number(coverage.coveragePct || 0), 1)}% | target ${formatScore(Number(coverage.coverageTargetPct || 0), 1)}% (${Number(coverage.assessedTarget || 0)}/${Number(coverage.total || 0)})</p>`
+      : '';
+    const devBadge = dev
+      ? `<p class="keyword-library-meta"><strong>GitHub enrichment:</strong> mode=${escapeHtml(String(dev.mode || 'unknown'))}, words=${escapeHtml(String(dev.attemptedWords || 0))}, github=${escapeHtml(String(dev.githubSuccess || 0))}/${escapeHtml(String(dev.githubCalls || 0))}, token=${dev.githubTokenUsed ? 'YES' : 'NO'}</p>`
+      : '';
+    const body = rows.map(function (row) {
+      const perf01 = clamp((Number(row.performanceScore) || 0) / 100, 0, 1);
+      const wordColor = rainbowColorForScore01(perf01);
+      const wordTitle = `Perf ${formatScore(row.performanceScore || 0, 1)} | AvgReward ${formatScore(row.avgReward || 0, 3)} | Success ${formatScore((row.successRate || 0) * 100, 1)}% | Plays ${row.plays || 0} | GitHub ${row.githubRepos == null ? '-' : Number(row.githubRepos).toLocaleString()} | npm ${row.npmPackages == null ? '-' : Number(row.npmPackages).toLocaleString()} | GHPrior ${formatScore(row.githubPrior || 0, 1)}`;
+      return `
+        <tr${row.inCurrentKeywords ? ' class="keyword-row-active"' : ''}>
+          <td>${row.rank || '-'}</td>
+          <td><span class="perf-token" style="background:${wordColor}" title="${escapeHtml(wordTitle)}">${escapeHtml(row.token || '-')}</span></td>
+          <td>${escapeHtml(`${row.source || '-'} | ${row.inCurrentKeywords ? 'active' : 'idle'}`)}</td>
+          <td>${escapeHtml(`plays=${row.plays || 0} | avg=${formatScore(row.avgReward || 0, 4)} | succ=${formatScore((row.successRate || 0) * 100, 1)}% | gh=${row.githubRepos == null ? '-' : Number(row.githubRepos).toLocaleString()} | npm=${row.npmPackages == null ? '-' : Number(row.npmPackages).toLocaleString()}`)}</td>
+          <td>${escapeHtml(`conf=${formatScore((row.confidence || 0) * 100, 1)}% | dom=${formatScore(row.meanDomainScore || 0, 1)} | perf=${formatScore(row.performanceScore || 0, 1)} | sel=${formatScore(row.selectionScore || 0, 1)} | ghPrior=${formatScore(row.githubPrior || 0, 1)} | ucb=${row.ucb == null ? '-' : formatScore(row.ucb, 4)} | theme=${formatScore(row.themeScore || 0, 2)}`)}</td>
+          <td>${row.lastLoop == null ? '-' : row.lastLoop}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      ${seedBadge}
+      ${activeBadge}
+      ${coverageBadge}
+      ${devBadge}
+      <table>
+        <thead>
+          <tr>
+            ${th('Rank', 'Ranking order in the current curated keyword library view.')}
+            ${th('Word', 'Keyword token. Color shows learned performance (blue worst -> red best).')}
+            ${th('State', 'Source and whether token is active in current loop keywords.')}
+            ${th('Usage', 'Core usage metrics plus GitHub/npm ecosystem counts for this token.')}
+            ${th('Evidence', 'Confidence and composite evidence metrics used for RL prioritization, including GitHub prior contribution.')}
+            ${th('Last Loop', 'Most recent loop index where this token was selected.')}
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    `;
+  }
+
   function renderResults(results) {
     if (!results) {
       resultsPanelEl.hidden = true;
       return;
     }
+    const scrollState = captureResultsScrollState();
 
     const allRanked = results.allRanked || [];
     const pending = results.pending || [];
@@ -377,33 +1145,50 @@
       return {
         domain: p.domain,
         sourceName: p.sourceName,
-        isNamelixPremium: Boolean(p.isNamelixPremium),
+        premiumPricing: Boolean(p.premiumPricing),
         available: null,
         price: undefined,
         overBudget: false,
+        intrinsicValue: 0,
         marketabilityScore: 0,
         financialValueScore: 0,
+        phoneticScore: 0,
+        brandabilityScore: 0,
+        seoScore: 0,
+        commercialScore: 0,
+        memorabilityScore: 0,
         overallScore: 0,
         syllableCount: 0,
         labelLength: label.length,
         timesDiscovered: 0,
         firstSeenLoop: 0,
         lastSeenLoop: 0,
+        estimatedValueUSD: 0,
+        estimatedValueLow: 0,
+        estimatedValueHigh: 0,
+        valueRatio: null,
+        underpricedFlag: null,
+        liquidityScore: 0,
+        ev24m: 0,
+        expectedROI: null,
+        devEcosystemScore: 0,
+        hasArchiveHistory: false,
+        segmentedWords: [],
         valueDrivers: [],
         valueDetractors: [],
         _pending: true,
       };
     });
     const combinedRanked = allRanked.concat(pendingRows);
-    // #region agent log
-    allRanked.slice(0, 2).forEach(function (row, i) {
-      debugLogs.push({ sessionId: '437d46', location: 'app.js:renderResults', message: 'UI row', data: { index: i, domain: row.domain, price: row.price, isNamelixPremium: row.isNamelixPremium, hypothesisId: 'H4' }, timestamp: Date.now() });
-    });
-    // #endregion
     const sortedRanked = sortRows(combinedRanked, currentSortMode);
     const withinBudget = sortRows(results.withinBudget || [], currentSortMode);
     const overBudget = sortRows(results.overBudget || [], currentSortMode);
     const unavailable = sortRows(results.unavailable || [], currentSortMode);
+    const tokenPerfLookup = buildTokenPerformanceLookup(results.keywordLibrary || null);
+    if (results.keywordLibrary && results.keywordLibrary.devEcosystemStatus) {
+      dataSourceState.devEcosystem = results.keywordLibrary.devEcosystemStatus;
+      renderDataSourcePanel();
+    }
 
     renderSummary(results);
     allRankedTableEl.innerHTML = renderDomainTable(sortedRanked, false);
@@ -411,10 +1196,103 @@
     overBudgetTableEl.innerHTML = renderDomainTable(overBudget, false);
     unavailableTableEl.innerHTML = renderDomainTable(unavailable, true);
 
-    loopSummaryTableEl.innerHTML = renderLoopSummaryTable(results.loopSummaries || []);
-    tuningTableEl.innerHTML = renderTuningTable(results.tuningHistory || []);
+    loopSummaryTableEl.innerHTML = renderLoopSummaryTable(results.loopSummaries || [], tokenPerfLookup);
+    tuningTableEl.innerHTML = renderTuningTable(results.tuningHistory || [], tokenPerfLookup);
+    if (keywordLibraryTableEl) keywordLibraryTableEl.innerHTML = renderKeywordLibraryTable(results.keywordLibrary || null);
+    wireTableSorting();
+    restoreResultsScrollState(scrollState);
 
     resultsPanelEl.hidden = false;
+  }
+
+  function toggleTableSection(toggleButton) {
+    if (!toggleButton) return;
+    const section = toggleButton.closest('[data-table-section]');
+    if (!section) return;
+    const panelId = toggleButton.getAttribute('aria-controls');
+    const panel = panelId ? document.getElementById(panelId) : section.querySelector('.table-section-panel');
+    if (!panel) return;
+    const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
+    toggleButton.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    panel.hidden = expanded;
+    section.classList.toggle('is-collapsed', expanded);
+  }
+
+  function initTableSections() {
+    const toggles = document.querySelectorAll('[data-table-toggle]');
+    toggles.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        toggleTableSection(btn);
+      });
+    });
+  }
+
+  function parseSortValue(raw) {
+    const text = String(raw == null ? '' : raw).trim();
+    if (!text || text === '-' || text === '...') return { kind: 'text', value: '' };
+    const normalized = text.replace(/[$,%x,\s]/gi, '');
+    if (/^-?\d+(\.\d+)?$/.test(normalized)) {
+      const num = Number(normalized);
+      if (Number.isFinite(num)) return { kind: 'number', value: num };
+    }
+    return { kind: 'text', value: text.toLowerCase() };
+  }
+
+  function sortTableByColumn(table, columnIndex) {
+    if (!table || !table.tBodies || !table.tBodies[0]) return;
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.rows);
+    if (rows.length < 2) return;
+
+    const prev = tableSortState.get(table) || { index: -1, dir: 'desc' };
+    const nextDir = prev.index === columnIndex && prev.dir === 'desc' ? 'asc' : 'desc';
+    tableSortState.set(table, { index: columnIndex, dir: nextDir });
+
+    const factor = nextDir === 'asc' ? 1 : -1;
+    rows.sort(function (ra, rb) {
+      const aCell = ra.cells[columnIndex];
+      const bCell = rb.cells[columnIndex];
+      const a = parseSortValue(aCell ? aCell.textContent : '');
+      const b = parseSortValue(bCell ? bCell.textContent : '');
+      if (a.kind === 'number' && b.kind === 'number') {
+        if (a.value !== b.value) return (a.value - b.value) * factor;
+      } else {
+        if (a.value !== b.value) return String(a.value).localeCompare(String(b.value)) * factor;
+      }
+      return String(ra.cells[0] ? ra.cells[0].textContent : '').localeCompare(String(rb.cells[0] ? rb.cells[0].textContent : ''));
+    });
+
+    const ths = table.querySelectorAll('thead th');
+    ths.forEach(function (th, idx) {
+      th.classList.remove('sorted-asc', 'sorted-desc');
+      if (idx === columnIndex) th.classList.add(nextDir === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    });
+
+    const frag = document.createDocumentFragment();
+    rows.forEach(function (row) { frag.appendChild(row); });
+    tbody.appendChild(frag);
+  }
+
+  function wireTableSorting() {
+    const tables = resultsPanelEl.querySelectorAll('.table-wrap table');
+    tables.forEach(function (table) {
+      if (table.dataset.sortWired === '1') return;
+      table.dataset.sortWired = '1';
+      const ths = table.querySelectorAll('thead th');
+      ths.forEach(function (th, idx) {
+        th.classList.add('sortable');
+        th.setAttribute('role', 'button');
+        th.setAttribute('tabindex', '0');
+        const runSort = function () { sortTableByColumn(table, idx); };
+        th.addEventListener('click', runSort);
+        th.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            runSort();
+          }
+        });
+      });
+    });
   }
 
   function collectInput() {
@@ -425,632 +1303,22 @@
       style: String(data.get('style') || 'default'),
       randomness: String(data.get('randomness') || 'medium'),
       blacklist: String(data.get('blacklist') || '').trim(),
-      maxLength: clamp(Math.round(parseNumber(data.get('maxLength'), 25)), 5, 25),
+      maxLength: clamp(Math.round(parseNumber(data.get('maxLength'), 10)), 5, 25),
       tld: String(data.get('tld') || 'com').trim(),
-      maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 100)), 1, 250),
+      maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 5)), 1, 250),
       yearlyBudget: clamp(parseNumber(data.get('yearlyBudget'), 50), 1, 100000),
-      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 10)), 1, 250),
+      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 100)), 1, 250),
       apiBaseUrl: BACKEND_URL,
+      githubToken: String(data.get('githubToken') || '').trim(),
+      preferEnglish: String(data.get('preferEnglish') || '').toLowerCase() === 'on',
+      rewardPolicy: persistentRewardPolicy || null,
     };
   }
 
-  function createInPageEngine() {
-    const listeners = { message: [], error: [] };
-    const STYLE_VALUES = ['default', 'brandable', 'twowords', 'threewords', 'compound', 'spelling', 'nonenglish', 'dictionary'];
-    const RANDOMNESS_VALUES = ['low', 'medium', 'high'];
-    const PREFIXES = ['neo', 'prime', 'terra', 'atlas', 'signal', 'lumen', 'delta', 'orbit'];
-    const SUFFIXES = ['labs', 'works', 'flow', 'hub', 'gen', 'base', 'stack', 'pilot', 'ly'];
-    const WORDS = ['horizon', 'ember', 'vector', 'harbor', 'beacon', 'origin', 'summit', 'apex'];
-    const MODEL_STORAGE_KEY = 'domainname_wizard_optimizer_v1';
-    const runningJobs = new Set();
-    const canceledJobs = new Set();
-
-    function emit(type, payload) {
-      for (const handler of listeners[type] || []) {
-        try {
-          handler(payload);
-        } catch (error) {
-          // Keep engine alive if one listener fails.
-        }
-      }
-    }
-
-    function emitState(job) {
-      emit('message', { data: { type: 'state', job: JSON.parse(JSON.stringify(job)) } });
-    }
-
-    function emitError(message, jobId) {
-      emit('message', { data: { type: 'error', message: String(message || 'In-page engine error.'), jobId: jobId || null } });
-    }
-
-    function hash(input) {
-      const raw = String(input || '');
-      let h = 2166136261;
-      for (let i = 0; i < raw.length; i += 1) {
-        h ^= raw.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-      }
-      return h >>> 0;
-    }
-
-    function seeded(seed) {
-      let s = seed >>> 0;
-      return function next() {
-        s += 0x6d2b79f5;
-        let x = s;
-        x = Math.imul(x ^ (x >>> 15), x | 1);
-        x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-        return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-      };
-    }
-
-    function pick(list, random) {
-      if (!list.length) return '';
-      return list[Math.floor(random() * list.length)];
-    }
-
-    function sleep(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
-    }
-
-    function tokenize(input) {
-      return String(input || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]+/g, ' ')
-        .split(/[\s-]+/)
-        .map((token) => token.trim())
-        .filter((token) => token.length >= 2)
-        .slice(0, 12);
-    }
-
-    function labelize(input) {
-      const value = String(input || '')
-        .toLowerCase()
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/&/g, ' and ')
-        .replace(/['\u2019]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-+|-+$/g, '');
-      if (!value || value.length > 63) return null;
-      if (!/^[a-z0-9-]+$/.test(value)) return null;
-      return value;
-    }
-
-    function averageReward(stats) {
-      if (!stats || stats.plays === 0) return 0.55;
-      return stats.reward / stats.plays;
-    }
-
-    function loadModel() {
-      try {
-        const raw = window.localStorage.getItem(MODEL_STORAGE_KEY);
-        const parsed = raw ? JSON.parse(raw) : {};
-        return {
-          style: Object.fromEntries(STYLE_VALUES.map((style) => [style, parsed.style?.[style] || { plays: 0, reward: 0 }])),
-          randomness: Object.fromEntries(RANDOMNESS_VALUES.map((mode) => [mode, parsed.randomness?.[mode] || { plays: 0, reward: 0 }])),
-          tokens: parsed.tokens && typeof parsed.tokens === 'object' ? parsed.tokens : {},
-        };
-      } catch {
-        return {
-          style: Object.fromEntries(STYLE_VALUES.map((style) => [style, { plays: 0, reward: 0 }])),
-          randomness: Object.fromEntries(RANDOMNESS_VALUES.map((mode) => [mode, { plays: 0, reward: 0 }])),
-          tokens: {},
-        };
-      }
-    }
-
-    function saveModel(model) {
-      try {
-        window.localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(model));
-      } catch {
-        // Ignore storage quota or private-mode failures.
-      }
-    }
-
-    function chooseArm(bandit, arms, epsilon, random) {
-      if (random() < epsilon) return pick(arms, random);
-      let best = arms[0];
-      let bestScore = -Infinity;
-      for (const arm of arms) {
-        const score = averageReward(bandit[arm]);
-        if (score > bestScore || (score === bestScore && random() > 0.5)) {
-          best = arm;
-          bestScore = score;
-        }
-      }
-      return best;
-    }
-
-    function updateBanditStat(stats, reward) {
-      stats.plays += 1;
-      stats.reward += reward;
-    }
-
-    function buildSourceName(style, a, b, c, random) {
-      if (style === 'twowords') return `${a}${b}`;
-      if (style === 'threewords') return `${a}${b}${c}`;
-      if (style === 'compound') return `${a}${pick(SUFFIXES, random)}`;
-      if (style === 'brandable') return `${a.slice(0, Math.ceil(a.length / 2))}${b.slice(Math.floor(b.length / 2))}`;
-      if (style === 'spelling') {
-        let out = `${a}${b}`;
-        out = out.replace(/ph/g, 'f').replace(/x/g, 'ks').replace(/c/g, 'k');
-        if (out.length > 3 && random() > 0.6) out = `${out.slice(0, -1)}${pick(['i', 'y', 'o'], random)}`;
-        return out;
-      }
-      if (style === 'nonenglish') return `${a.slice(0, Math.ceil(a.length / 2))}${b.slice(Math.floor(b.length / 2))}${pick(['a', 'o', 'i', 'u'], random)}`;
-      if (style === 'dictionary') return `${pick(WORDS, random)}${a}`;
-      return `${pick(PREFIXES, random)}${a}${pick(SUFFIXES, random)}`;
-    }
-
-    function scoreRow(row, input) {
-      const label = String(row.domain || '').split('.')[0] || '';
-      const tokens = tokenize(`${input.keywords} ${input.description || ''}`);
-      const vowels = (label.match(/[aeiouy]/g) || []).length;
-      const vowelRatio = vowels / Math.max(1, label.length);
-      const pronounceability = clamp(100 - Math.abs(vowelRatio - 0.42) * 220, 0, 100);
-      const lengthScore = clamp(100 - Math.abs(label.length - 9) * 10, 0, 100);
-      const syllableCount = Math.max(1, (label.match(/[aeiouy]+/g) || []).length || 1);
-      const syllableScore = syllableCount >= 2 && syllableCount <= 3 ? 100 : syllableCount === 1 || syllableCount === 4 ? 78 : 52;
-      let matches = 0;
-      for (const token of tokens) if (label.includes(token)) matches += 1;
-      const relevance = tokens.length ? clamp(30 + (matches / tokens.length) * 70, 0, 100) : 35;
-      const distinctiveness = clamp((new Set(label.replace(/-/g, '').split('')).size / Math.max(1, label.replace(/-/g, '').length)) * 120, 0, 100);
-      const marketabilityScore = round2(
-        clamp(
-          lengthScore * 0.22 +
-            syllableScore * 0.18 +
-            pronounceability * 0.2 +
-            relevance * 0.16 +
-            distinctiveness * 0.1 +
-            (label.includes('-') ? 28 : 100) * 0.08 +
-            (/\d/.test(label) ? 24 : 100) * 0.06,
-          0,
-          100,
-        ),
-      );
-      const affordability = typeof row.price === 'number' ? clamp(112 - (row.price / Math.max(1, input.yearlyBudget)) * 65, 0, 100) : 50;
-      let financialValueScore = round2(
-        clamp(
-          (row.available ? 100 : 0) * 0.35 +
-            (row.definitive ? 100 : 62) * 0.12 +
-            affordability * 0.38 +
-            (row.isNamelixPremium ? 35 : 100) * 0.15,
-          0,
-          100,
-        ),
-      );
-      if (row.overBudget) financialValueScore = round2(financialValueScore * 0.82);
-      if (!row.available) financialValueScore = round2(financialValueScore * 0.45);
-      const overallScore = round2(clamp(financialValueScore * 0.62 + marketabilityScore * 0.38, 0, 100));
-      return {
-        marketabilityScore,
-        financialValueScore,
-        overallScore,
-        syllableCount,
-        labelLength: label.length,
-        valueDrivers: [],
-        valueDetractors: [],
-      };
-    }
-
-    function buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory) {
-      const allRanked = sortRows(Array.from(availableMap.values()), 'marketability');
-      const withinBudget = allRanked.slice().sort((a, b) => {
-        const ap = typeof a.price === 'number' ? a.price : Number.POSITIVE_INFINITY;
-        const bp = typeof b.price === 'number' ? b.price : Number.POSITIVE_INFINITY;
-        return ap - bp || String(a.domain || '').localeCompare(String(b.domain || ''));
-      });
-      return {
-        withinBudget,
-        overBudget: sortRows(Array.from(overBudgetMap.values()), 'financialValue'),
-        unavailable: sortRows(Array.from(unavailableMap.values()), 'marketability'),
-        allRanked,
-        loopSummaries: loopSummaries.slice(),
-        tuningHistory: tuningHistory.slice(),
-      };
-    }
-
-    async function runJob(job) {
-      const input = job.input;
-      const availableMap = new Map();
-      const overBudgetMap = new Map();
-      const unavailableMap = new Map();
-      const loopSummaries = [];
-      const tuningHistory = [];
-      const model = loadModel();
-      const random = seeded(hash(job.id));
-      let currentKeywords = tokenize(input.keywords).slice(0, 8);
-      let bestLoop = null;
-      let bestReward = -1;
-
-      patch(job, {
-        status: 'running',
-        phase: 'looping',
-        progress: 5,
-        currentLoop: 0,
-        totalLoops: input.loopCount,
-        results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-      }, false);
-      emitState(job);
-
-      for (let loop = 1; loop <= input.loopCount; loop += 1) {
-        if (canceledJobs.has(job.id)) throw new Error('Run canceled by user.');
-
-        const style = chooseArm(model.style, STYLE_VALUES, 0.24, random);
-        const randomness = chooseArm(model.randomness, RANDOMNESS_VALUES, 0.24, random);
-        const mutationIntensity = random() > 0.66 ? 'high' : random() > 0.33 ? 'medium' : 'low';
-        const mutCount = mutationIntensity === 'high' ? 3 : mutationIntensity === 'medium' ? 2 : 1;
-
-        const tokenRank = Object.entries(model.tokens || {})
-          .map(([token, stats]) => ({ token, avg: averageReward(stats) }))
-          .sort((a, b) => b.avg - a.avg);
-        const positiveTokens = tokenRank.filter((item) => item.avg >= 0.58).map((item) => item.token).slice(0, 12);
-        const weakTokens = new Set(tokenRank.filter((item) => item.avg <= 0.4).map((item) => item.token).slice(0, 20));
-        const baseTokens = tokenize(input.keywords);
-        const poolTokens = currentKeywords.length ? currentKeywords.slice() : baseTokens.slice(0, 6);
-        for (let i = 0; i < mutCount; i += 1) {
-          if (poolTokens.length > 2) {
-            const weakIdx = poolTokens.findIndex((token) => weakTokens.has(token));
-            const removeIdx = weakIdx >= 0 ? weakIdx : Math.floor(random() * poolTokens.length);
-            poolTokens.splice(removeIdx, 1);
-          }
-          const source = positiveTokens.length && random() > 0.2 ? positiveTokens : baseTokens;
-          const candidate = pick(source.length ? source : ['brand', 'company'], random);
-          if (candidate && !poolTokens.includes(candidate)) poolTokens.push(candidate);
-        }
-        currentKeywords = poolTokens.slice(0, 8);
-        const loopInput = { ...input, style, randomness, keywords: currentKeywords.join(' ') || input.keywords };
-
-        const seenDomains = new Set();
-        const loopAvailable = [];
-        let consideredCount = 0;
-        let batchCount = 0;
-        let limitHit = false;
-        let skipReason = undefined;
-        let stalled = 0;
-
-        while (loopAvailable.length < loopInput.maxNames) {
-          if (canceledJobs.has(job.id)) throw new Error('Run canceled by user.');
-          if (consideredCount >= 251) {
-            limitHit = true;
-            skipReason = 'Considered-name cap of 251 reached.';
-            break;
-          }
-          if (batchCount >= 12) {
-            skipReason = 'Batch attempt cap (12) reached before quota.';
-            break;
-          }
-
-          patch(job, {
-            phase: 'namelix',
-            progress: Math.round(5 + ((loop - 1 + loopAvailable.length / Math.max(1, loopInput.maxNames)) / loopInput.loopCount) * 90),
-            currentLoop: loop,
-          }, false);
-          emitState(job);
-
-          const remaining = loopInput.maxNames - loopAvailable.length;
-          const batchTarget = clamp(Math.floor(Math.max(remaining * 3, remaining, Math.min(loopInput.maxNames, 80))), remaining, 250);
-          const loopRandom = seeded(hash(`${job.id}:${loop}:${batchCount}:${consideredCount}`));
-          const candidatePool = tokenize(`${loopInput.keywords} ${loopInput.description}`);
-          const blacklist = new Set(
-            String(loopInput.blacklist || '')
-              .split(',')
-              .map((token) => token.trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
-              .filter(Boolean),
-          );
-
-          let attempts = 0;
-          let gained = 0;
-          while (gained < batchTarget && attempts < batchTarget * 20) {
-            attempts += 1;
-            const a = pick(candidatePool.length ? candidatePool : ['nova', 'orbit', 'lumen', 'forge', 'signal'], loopRandom);
-            const b = pick(candidatePool.length ? candidatePool : ['spark', 'scale', 'craft', 'pilot', 'pulse'], loopRandom);
-            const c = pick(candidatePool.length ? candidatePool : ['core', 'path', 'nest', 'beam', 'lift'], loopRandom);
-            let sourceName = buildSourceName(style, a, b, c, loopRandom);
-            if (randomness === 'high' && loopRandom() > 0.45) sourceName += pick(SUFFIXES, loopRandom);
-            if (randomness === 'low' && sourceName.length > 16) sourceName = sourceName.slice(0, 16);
-
-            const label = labelize(sourceName);
-            if (!label || label.length > loopInput.maxLength) continue;
-            let blocked = false;
-            for (const token of blacklist) {
-              if (token && label.includes(token)) {
-                blocked = true;
-                break;
-              }
-            }
-            if (blocked) continue;
-
-            const domain = `${label}.${loopInput.tld || 'com'}`;
-            if (seenDomains.has(domain.toLowerCase())) continue;
-            seenDomains.add(domain.toLowerCase());
-            consideredCount += 1;
-            gained += 1;
-
-            patch(job, {
-              phase: 'godaddy',
-              progress: Math.round(5 + ((loop - 1 + (loopAvailable.length + 0.2) / Math.max(1, loopInput.maxNames)) / loopInput.loopCount) * 90),
-              currentLoop: loop,
-            }, false);
-
-            const entropy = hash(`${domain}:${loop}:${batchCount}:${consideredCount}`);
-            const availability = ((entropy % 10000) / 10000) < clamp(0.72 - (randomness === 'high' ? 0.08 : randomness === 'medium' ? 0.03 : 0) - Math.max(0, label.length - 12) * 0.012, 0.2, 0.92);
-            const tldBase = ({ com: 13, net: 14, org: 13, io: 36, ai: 82, co: 26, app: 20, dev: 18 }[loopInput.tld || 'com'] || 18);
-            const premium = (hash(`${domain}|premium`) % 100) < (style === 'brandable' ? 22 : 12);
-            const price = clamp(
-              tldBase +
-                Math.max(0, 10 - label.length) * 8.2 -
-                Math.max(0, label.length - 12) * 1.25 +
-                (style === 'brandable' ? 6 : style === 'dictionary' ? -1.5 : 0) +
-                (premium ? 35 + ((entropy >>> 8) % 90) : 0) +
-                ((entropy >>> 16) % 1500) / 100,
-              tldBase * 0.75,
-              4500,
-            );
-
-            const row = {
-              domain,
-              sourceName,
-              isNamelixPremium: premium,
-              available: availability,
-              definitive: true,
-              price,
-              currency: 'USD',
-              period: 1,
-              reason: availability ? 'Likely available (local heuristic).' : 'Likely unavailable (local heuristic).',
-              overBudget: availability ? price > loopInput.yearlyBudget : false,
-            };
-            const ranked = {
-              ...row,
-              ...scoreRow(row, loopInput),
-              firstSeenLoop: loop,
-              lastSeenLoop: loop,
-              timesDiscovered: 1,
-            };
-
-            const targetMap = ranked.available
-              ? ranked.overBudget
-                ? overBudgetMap
-                : availableMap
-              : unavailableMap;
-            const key = ranked.domain.toLowerCase();
-            const existing = targetMap.get(key);
-            if (!existing || ranked.overallScore > existing.overallScore) {
-              targetMap.set(key, ranked);
-            } else {
-              targetMap.set(key, { ...existing, lastSeenLoop: loop, timesDiscovered: (existing.timesDiscovered || 1) + 1 });
-            }
-
-            if (ranked.available && !ranked.overBudget) {
-              loopAvailable.push(ranked);
-              if (loopAvailable.length >= loopInput.maxNames) break;
-            }
-
-            if (consideredCount >= 251) {
-              limitHit = true;
-              skipReason = 'Considered-name cap of 251 reached.';
-              break;
-            }
-          }
-
-          const availableInBatch = loopAvailable.length;
-          stalled = availableInBatch === 0 ? stalled + 1 : 0;
-          if (stalled >= 3) {
-            skipReason = 'No newly qualifying domains across 3 consecutive batches.';
-            break;
-          }
-          batchCount += 1;
-
-          patch(job, {
-            phase: 'looping',
-            progress: Math.round(5 + ((loop - 1 + loopAvailable.length / Math.max(1, loopInput.maxNames)) / loopInput.loopCount) * 90),
-            currentLoop: loop,
-            results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-          }, false);
-          emitState(job);
-
-          await sleep(35 + Math.floor(Math.random() * 65));
-        }
-
-        const rankedLoop = sortRows(loopAvailable, 'marketability');
-        const reward =
-          rankedLoop.length === 0
-            ? 0
-            : round2(
-                clamp(
-                  rankedLoop
-                    .slice(0, Math.min(5, rankedLoop.length))
-                    .reduce((sum, row) => sum + (row.overallScore || 0), 0) /
-                    Math.min(5, rankedLoop.length) /
-                    100,
-                  0,
-                  1,
-                ),
-              );
-
-        updateBanditStat(model.style[style], reward);
-        updateBanditStat(model.randomness[randomness], reward);
-        for (const token of tokenize(`${loopInput.keywords} ${loopInput.description}`)) {
-          if (!model.tokens[token]) model.tokens[token] = { plays: 0, reward: 0 };
-          updateBanditStat(model.tokens[token], reward);
-        }
-        if (reward >= bestReward) {
-          bestReward = reward;
-          bestLoop = loop;
-        }
-
-        tuningHistory.push({
-          loop,
-          sourceLoop: bestLoop,
-          keywords: loopInput.keywords,
-          description: loopInput.description || '',
-          selectedStyle: style,
-          selectedRandomness: randomness,
-          selectedMutationIntensity: mutationIntensity,
-          reward: Number(reward.toFixed(4)),
-        });
-
-        loopSummaries.push({
-          loop,
-          keywords: loopInput.keywords,
-          description: loopInput.description || '',
-          style,
-          randomness,
-          mutationIntensity,
-          requiredQuota: loopInput.maxNames,
-          quotaMet: rankedLoop.length >= loopInput.maxNames,
-          skipped: rankedLoop.length < loopInput.maxNames,
-          limitHit,
-          skipReason,
-          consideredCount,
-          batchCount,
-          discoveredCount: rankedLoop.length,
-          availableCount: rankedLoop.length,
-          withinBudgetCount: rankedLoop.length,
-          averageOverallScore: rankedLoop.length
-            ? Number((rankedLoop.reduce((sum, row) => sum + (row.overallScore || 0), 0) / rankedLoop.length).toFixed(2))
-            : 0,
-          topDomain: rankedLoop[0]?.domain,
-          topScore: rankedLoop[0]?.overallScore,
-        });
-
-        patch(job, {
-          phase: 'looping',
-          progress: Math.round(5 + (loop / loopInput.loopCount) * 90),
-          currentLoop: loop,
-          results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-        }, false);
-        emitState(job);
-      }
-
-      saveModel(model);
-
-      patch(job, {
-        status: 'done',
-        phase: 'finalize',
-        progress: 100,
-        completedAt: Date.now(),
-        currentLoop: input.loopCount,
-        totalLoops: input.loopCount,
-        results: buildResults(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory),
-      }, false);
-      emitState(job);
-    }
-
-    function start(message) {
-      const input = message?.input || {};
-      if (runningJobs.size > 0) {
-        const activeId = Array.from(runningJobs)[0];
-        emitError(`Run already active (${activeId}). Cancel or wait before starting another.`, activeId);
-        return;
-      }
-
-      let parsedInput;
-      try {
-        parsedInput = {
-          keywords: String(input.keywords || '').trim(),
-          description: String(input.description || '').trim(),
-          style: STYLE_VALUES.includes(input.style) ? input.style : 'default',
-          randomness: RANDOMNESS_VALUES.includes(input.randomness) ? input.randomness : 'medium',
-          blacklist: String(input.blacklist || '').trim(),
-          maxLength: clamp(Math.round(Number(input.maxLength) || 25), 5, 25),
-          tld: String(input.tld || 'com').trim().replace(/^\./, '').toLowerCase(),
-          maxNames: clamp(Math.round(Number(input.maxNames) || 100), 1, 250),
-          yearlyBudget: clamp(Number(input.yearlyBudget) || 50, 1, 100000),
-          loopCount: clamp(Math.round(Number(input.loopCount) || 10), 1, 250),
-        };
-        if (!parsedInput.keywords || parsedInput.keywords.length < 2) {
-          throw new Error('Keywords must be at least 2 characters.');
-        }
-        if (!/^[a-z0-9-]{2,24}$/.test(parsedInput.tld)) {
-          throw new Error('Invalid TLD.');
-        }
-      } catch (error) {
-        emitError(error instanceof Error ? error.message : 'Invalid input payload.');
-        return;
-      }
-
-      const createdAt = Date.now();
-      const job = {
-        id: `${Math.random().toString(16).slice(2, 10)}${Math.random().toString(16).slice(2, 6)}`,
-        status: 'queued',
-        phase: null,
-        progress: 0,
-        input: parsedInput,
-        createdAt,
-        updatedAt: createdAt,
-        startedAt: createdAt,
-        completedAt: null,
-        currentLoop: 0,
-        totalLoops: parsedInput.loopCount,
-        error: null,
-        results: {
-          withinBudget: [],
-          overBudget: [],
-          unavailable: [],
-          allRanked: [],
-          loopSummaries: [],
-          tuningHistory: [],
-        },
-      };
-
-      runningJobs.add(job.id);
-      emitState(job);
-
-      runJob(job)
-        .catch((error) => {
-          patch(
-            job,
-            {
-              status: 'failed',
-              phase: 'finalize',
-              completedAt: Date.now(),
-              error: {
-                code: String(error instanceof Error && error.message.includes('canceled') ? 'CANCELED' : 'INTERNAL_ERROR'),
-                message: String(error instanceof Error ? error.message : 'Unexpected in-page engine failure.'),
-              },
-            },
-            false,
-          );
-          emitState(job);
-        })
-        .finally(() => {
-          runningJobs.delete(job.id);
-          canceledJobs.delete(job.id);
-        });
-    }
-
-    function cancel(message) {
-      const jobId = String(message?.jobId || '');
-      if (!jobId) return;
-      if (runningJobs.has(jobId)) canceledJobs.add(jobId);
-    }
-
-    return {
-      postMessage(message) {
-        if (message?.type === 'start') {
-          start(message);
-          return;
-        }
-        if (message?.type === 'cancel') {
-          cancel(message);
-          return;
-        }
-        emitError(`Unknown engine command: ${String(message?.type || 'undefined')}`);
-      },
-      addEventListener(type, handler) {
-        if (!listeners[type]) listeners[type] = [];
-        listeners[type].push(handler);
-      },
-      removeEventListener(type, handler) {
-        if (!listeners[type]) return;
-        const idx = listeners[type].indexOf(handler);
-        if (idx >= 0) listeners[type].splice(idx, 1);
-      },
-    };
-  }
+  /* createInPageEngine was removed: it generated fully synthetic/simulated
+     domain availability and pricing data using local heuristics (no real API calls).
+     The worker (engine.worker.js) now handles all processing with real GoDaddy API data.
+     See git history for the original 600+ line implementation. */
 
   function createEngineBridge() {
     try {
@@ -1141,6 +1409,9 @@
       downloadJsonBtn.disabled = !latestRunExport || !latestRunExport.run || !latestRunExport.results;
       startBtn.disabled = false;
       cancelBtn.disabled = true;
+      if (job.status === 'done') {
+        void ingestCompletedRun(job, currentInput);
+      }
     }
   }
 
@@ -1172,8 +1443,13 @@
     debugLogs.length = 0;
     lastLoggedJobStateKey = '';
     lastLoggedJobErrorKey = '';
+    dataSourceState.godaddyDebug = null;
+    dataSourceState.syntheticFlags = [];
+    ensureDataSourceExpandedForIssues();
+    renderDataSourcePanel();
 
     const input = collectInput();
+    currentInput = input;
     pushDebugLog('app.js:handleStart', 'Run started', {
       apiBaseUrl: input.apiBaseUrl,
       origin: (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '',
@@ -1208,6 +1484,7 @@
 
     if (message.type === 'debugLog' && message.payload) {
       debugLogs.push(message.payload);
+      updateDataSourcePanel(message.payload);
       return;
     }
 
@@ -1237,7 +1514,12 @@
   });
 
   startBtn.addEventListener('click', function () {
-    handleStart();
+    Promise.allSettled([
+      runPreflightDiagnostics('before-start'),
+      loadPersistentRunProfile('before-start'),
+    ]).finally(function () {
+      handleStart();
+    });
   });
 
   cancelBtn.addEventListener('click', function () {
@@ -1294,5 +1576,20 @@
       downloadDebugLog();
     });
   }
+
+  initTableSections();
+  if (formEl) {
+    const githubInput = formEl.querySelector('input[name="githubToken"]');
+    if (githubInput) {
+      githubInput.addEventListener('input', function () {
+        if (diagnosticsDebounceTimer) clearTimeout(diagnosticsDebounceTimer);
+        diagnosticsDebounceTimer = setTimeout(function () {
+          runPreflightDiagnostics('github-token-change');
+        }, 600);
+      });
+    }
+  }
+  runPreflightDiagnostics('initial-load');
+  void loadPersistentRunProfile('initial-load');
 
 })();

@@ -1079,6 +1079,7 @@
     const rows = Array.isArray(lib.tokens) ? lib.tokens : [];
     const current = Array.isArray(lib.currentKeywords) ? lib.currentKeywords : [];
     const seeds = Array.isArray(lib.seedTokens) ? lib.seedTokens : [];
+    const coverage = lib.coverageMetrics || null;
     const dev = lib.devEcosystemStatus || null;
 
     if (!rows.length) {
@@ -1087,6 +1088,9 @@
 
     const seedBadge = seeds.length ? `<p class="keyword-library-meta"><strong>Seeds:</strong> ${escapeHtml(seeds.join(', '))}</p>` : '';
     const activeBadge = current.length ? `<p class="keyword-library-meta"><strong>Current loop keywords:</strong> ${escapeHtml(current.join(' '))}</p>` : '';
+    const coverageBadge = coverage && Number(coverage.total || 0) > 0
+      ? `<p class="keyword-library-meta"><strong>Curated coverage:</strong> ${formatScore(Number(coverage.coveragePct || 0), 1)}% | target ${formatScore(Number(coverage.coverageTargetPct || 0), 1)}% (${Number(coverage.assessedTarget || 0)}/${Number(coverage.total || 0)})</p>`
+      : '';
     const devBadge = dev
       ? `<p class="keyword-library-meta"><strong>GitHub enrichment:</strong> mode=${escapeHtml(String(dev.mode || 'unknown'))}, words=${escapeHtml(String(dev.attemptedWords || 0))}, github=${escapeHtml(String(dev.githubSuccess || 0))}/${escapeHtml(String(dev.githubCalls || 0))}, token=${dev.githubTokenUsed ? 'YES' : 'NO'}</p>`
       : '';
@@ -1109,6 +1113,7 @@
     return `
       ${seedBadge}
       ${activeBadge}
+      ${coverageBadge}
       ${devBadge}
       <table>
         <thead>
