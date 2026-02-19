@@ -219,11 +219,10 @@ class Optimizer {
     if (!this._themeSeedTokens.length) this._themeSeedTokens = ['brand'];
     this._baseTokenSet = new Set(this._themeSeedTokens);
     this._themeSeedStems = new Set(this._themeSeedTokens.map(tokenStem).filter(Boolean));
-    this._lockedSeedTokens = this._curatedHasLibrary
-      ? []
-      : this._baseKeywordTokens.length
-      ? this._baseKeywordTokens.slice(0, Math.min(3, this._baseKeywordTokens.length))
-      : this._themeSeedTokens.slice(0, 1);
+    this._baseKeywordTokenSet = new Set(this._baseKeywordTokens);
+    this._libraryTokenSet = new Set(this._libraryTokens);
+    this._libraryPhraseTokenSet = new Set(this._libraryPhraseTokens);
+    this._lockedSeedTokens = [];
 
     this._themeTokenScores = this._buildThemeTokenScores();
     this._themeTokenSet = new Set(this._themeTokenScores.keys());
@@ -406,6 +405,79 @@ class Optimizer {
     }
   }
 
+  _limitBaseSeedCarry(next, maxBaseTokens) {
+    const limit = Math.max(0, Math.floor(Number(maxBaseTokens) || 0));
+    if (limit >= next.length) return;
+
+    const baseIdx = [];
+    for (let i = 0; i < next.length; i += 1) {
+      if (this._baseKeywordTokenSet.has(next[i])) baseIdx.push(i);
+    }
+    if (baseIdx.length <= limit) return;
+
+    while (baseIdx.length > limit) {
+      const idx = baseIdx.pop();
+      if (idx == null || idx < 0 || idx >= next.length) continue;
+      const replacement = this._themeTokenPool.find((token) => {
+        const clean = normalizeThemeToken(token);
+        return clean
+          && !next.includes(clean)
+          && !this._baseKeywordTokenSet.has(clean)
+          && this._isThemeToken(clean);
+      });
+      if (replacement) next[idx] = normalizeThemeToken(replacement);
+      else next.splice(idx, 1);
+    }
+  }
+
+  getKeywordLibraryRows(limit) {
+    const maxRows = Math.max(8, Math.min(200, Number(limit) || 80));
+    const currentSet = new Set((this.curTokens || []).map(normalizeThemeToken).filter(Boolean));
+    const candidates = dedupeTokens(
+      this._themeTokenPool
+        .concat(this._themeSeedTokens)
+        .concat(this._baseKeywordTokens)
+        .concat(this._libraryTokens),
+    );
+
+    const rows = [];
+    for (const token of candidates) {
+      const clean = normalizeThemeToken(token);
+      if (!clean || !this._isThemeToken(clean)) continue;
+      const stat = this.model.tokens[clean] || { plays: 0, reward: 0, lastLoop: null };
+      const plays = Math.max(0, Math.floor(Number(stat.plays) || 0));
+      const reward = Number(stat.reward) || 0;
+      const avgReward = plays > 0 ? reward / plays : 0;
+      const ucb = this.ucbScore(stat);
+      let source = 'theme';
+      if (this._baseKeywordTokenSet.has(clean)) source = 'seed';
+      else if (this._libraryTokenSet.has(clean)) source = 'synonym_api';
+      else if (this._libraryPhraseTokenSet.has(clean)) source = 'synonym_phrase';
+      rows.push({
+        token: clean,
+        source,
+        isSeed: this._baseKeywordTokenSet.has(clean),
+        inCurrentKeywords: currentSet.has(clean),
+        themeScore: Number(this._themeTokenScores.get(clean) || 0),
+        plays,
+        reward: round(reward, 4),
+        avgReward: round(avgReward, 4),
+        ucb: Number.isFinite(ucb) ? round(ucb, 4) : null,
+        lastLoop: stat.lastLoop != null ? Number(stat.lastLoop) : null,
+      });
+    }
+
+    rows.sort((a, b) => {
+      if (a.inCurrentKeywords !== b.inCurrentKeywords) return a.inCurrentKeywords ? -1 : 1;
+      if (a.plays !== b.plays) return b.plays - a.plays;
+      if (a.avgReward !== b.avgReward) return b.avgReward - a.avgReward;
+      if ((a.themeScore || 0) !== (b.themeScore || 0)) return (b.themeScore || 0) - (a.themeScore || 0);
+      return a.token.localeCompare(b.token);
+    });
+    for (let i = 0; i < rows.length; i += 1) rows[i].rank = i + 1;
+    return rows.slice(0, maxRows);
+  }
+
   next(loop) {
     const explorationRate = Math.max(0.05, 0.35 * Math.pow(0.82, loop - 1));
     const styleOptions = this.base.preferEnglish !== false
@@ -446,9 +518,11 @@ class Optimizer {
 
     const next = [];
     for (const t of locked) if (!next.includes(t) && this._isThemeToken(t)) next.push(t);
+    const carryBudget = Math.max(1, Math.min(4, Math.floor(2 + (1 - explorationRate) * 2)));
     for (const t of this.curTokens) {
       const clean = normalizeThemeToken(t);
       if (!clean || next.includes(clean) || !this._isThemeToken(clean)) continue;
+      if (next.length >= carryBudget) break;
       next.push(clean);
       if (next.length >= 8) break;
     }
@@ -473,6 +547,9 @@ class Optimizer {
       dedupeTokens(good.concat(anchorPool, eliteTokens, baseTokens, this._themeSeedTokens)),
     );
     this._mutateAndReorder(next, intensity, lockedSet);
+    this._limitBaseSeedCarry(next, 1);
+    this._refillThemeTokens(next, dedupeTokens(anchorPool.concat(good, eliteTokens, this._themeSeedTokens)));
+    this._limitBaseSeedCarry(next, 1);
 
     this.curTokens = dedupeTokens(next.map(normalizeThemeToken).filter((t) => t && this._isThemeToken(t))).slice(0, 8);
     if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(8, baseTokens.length));
@@ -514,9 +591,10 @@ class Optimizer {
     if (tokens.length === 0) tokens = this._lockedSeedTokens.slice(0, 3);
 
     for (const token of tokens) {
-      if (!this.model.tokens[token]) this.model.tokens[token] = { plays: 0, reward: 0 };
+      if (!this.model.tokens[token]) this.model.tokens[token] = { plays: 0, reward: 0, lastLoop: null };
       this.model.tokens[token].plays += 1;
       this.model.tokens[token].reward += r;
+      this.model.tokens[token].lastLoop = plan.loop;
     }
     this.totalPlays = Object.values(this.model.tokens).reduce((s, t) => s + t.plays, 0) || 1;
 

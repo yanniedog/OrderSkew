@@ -412,6 +412,7 @@ tbody tr:nth-child(odd) {
   padding: 0.5rem 0.75rem;
 }
 .warn-block ul { margin: 0.25rem 0 0 1.2rem; padding: 0; }
+.ds-errors { margin: 0.25rem 0 0 1.2rem; padding: 0; }
 
 .table-section {
   margin-top: 10px;
@@ -431,6 +432,16 @@ tbody tr:nth-child(odd) {
 
 .table-section-panel {
   margin-top: 8px;
+}
+
+.keyword-library-meta {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.keyword-row-active {
+  background: rgba(22, 163, 74, 0.12) !important;
 }
 
 /* Underpriced domain highlighting */

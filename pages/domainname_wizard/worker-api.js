@@ -99,13 +99,35 @@ async function fetchAssociatedKeywordLibrary(seedText, options) {
       `https://api.datamuse.com/words?rel_trg=${encodeURIComponent(seed)}&max=20`,
     );
   }
+  const apiStatus = {
+    provider: 'datamuse',
+    accessible: false,
+    attempted: endpoints.length,
+    success: 0,
+    failed: 0,
+    errorCount: 0,
+    httpErrorCount: 0,
+    parseErrorCount: 0,
+    networkErrorCount: 0,
+    sampleErrors: [],
+  };
 
   for (const url of endpoints) {
     try {
       const resp = await fetch(url, { method: 'GET' });
-      if (!resp.ok) continue;
+      if (!resp.ok) {
+        apiStatus.failed += 1;
+        apiStatus.httpErrorCount += 1;
+        if (apiStatus.sampleErrors.length < 5) apiStatus.sampleErrors.push(`HTTP ${resp.status} (${url})`);
+        continue;
+      }
+      apiStatus.success += 1;
       const payload = await resp.json();
-      if (!Array.isArray(payload)) continue;
+      if (!Array.isArray(payload)) {
+        apiStatus.parseErrorCount += 1;
+        if (apiStatus.sampleErrors.length < 5) apiStatus.sampleErrors.push(`Invalid payload (${url})`);
+        continue;
+      }
       for (const item of payload) {
         const phrase = normalizeKeywordPhrase(item && item.word);
         const score = Number(item && item.score) || 0;
@@ -117,11 +139,31 @@ async function fetchAssociatedKeywordLibrary(seedText, options) {
           addScoredToken(tokenScores, cleaned, score);
         }
       }
-    } catch (_) {
-      // Ignore per-endpoint failures and continue with remaining sources.
+    } catch (err) {
+      apiStatus.failed += 1;
+      apiStatus.errorCount += 1;
+      apiStatus.networkErrorCount += 1;
+      if (apiStatus.sampleErrors.length < 5) {
+        const msg = err && err.message ? err.message : String(err || 'unknown error');
+        apiStatus.sampleErrors.push(`${msg} (${url})`);
+      }
     }
     await new Promise(function (r) { setTimeout(r, 60); });
   }
+  apiStatus.accessible = apiStatus.success > 0;
+
+  emitDebugLog('worker-api.js:fetchAssociatedKeywordLibrary', 'Synonym API accessibility', {
+    provider: apiStatus.provider,
+    accessible: apiStatus.accessible,
+    attempted: apiStatus.attempted,
+    success: apiStatus.success,
+    failed: apiStatus.failed,
+    httpErrorCount: apiStatus.httpErrorCount,
+    parseErrorCount: apiStatus.parseErrorCount,
+    networkErrorCount: apiStatus.networkErrorCount,
+    sampleErrors: apiStatus.sampleErrors,
+    seedCount: seeds.length,
+  });
 
   const rankedTokens = Array.from(tokenScores.entries())
     .filter(function (entry) { return keywordEnglishPass(entry[0], preferEnglish); })
@@ -143,6 +185,7 @@ async function fetchAssociatedKeywordLibrary(seedText, options) {
     tokens: rankedTokens,
     phrases: rankedPhrases,
     keywordString: rankedTokens.slice(0, 8).join(' '),
+    apiStatus,
   };
 }
 

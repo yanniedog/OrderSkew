@@ -33,6 +33,7 @@
   const unavailableTableEl = document.getElementById('unavailable-table');
   const loopSummaryTableEl = document.getElementById('loop-summary-table');
   const tuningTableEl = document.getElementById('tuning-table');
+  const keywordLibraryTableEl = document.getElementById('keyword-library-table');
 
   let currentJob = null;
   let currentResults = null;
@@ -75,6 +76,7 @@
   const dataSourceState = {
     nameGeneration: null,
     availability: null,
+    synonymApi: null,
     godaddyDebug: null,
     syntheticFlags: [],
   };
@@ -123,6 +125,17 @@
       };
     }
 
+    if (msg === 'Synonym API accessibility') {
+      dataSourceState.synonymApi = {
+        provider: d.provider || 'synonym_api',
+        accessible: Boolean(d.accessible),
+        attempted: Number(d.attempted || 0),
+        success: Number(d.success || 0),
+        failed: Number(d.failed || 0),
+        sampleErrors: Array.isArray(d.sampleErrors) ? d.sampleErrors.slice(0, 5) : [],
+      };
+    }
+
     renderDataSourcePanel();
   }
 
@@ -163,6 +176,22 @@
       if (av.status) bodyParts.push('<br>GoDaddy response status: <strong>' + escapeHtml(String(av.status)) + '</strong>');
       if (av.resultCount != null) bodyParts.push('<br>Results returned: <strong>' + av.resultCount + '</strong>');
       bodyParts.push('<br>Synthetic data: <strong class="' + (av.syntheticData ? 'bad' : 'good') + '">' + (av.syntheticData ? 'YES' : 'NO') + '</strong>');
+      bodyParts.push('</div>');
+    }
+
+    if (dataSourceState.synonymApi) {
+      const syn = dataSourceState.synonymApi;
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Synonym APIs:</strong> ');
+      bodyParts.push('<span class="' + (syn.accessible ? 'good' : 'bad') + '">' + (syn.accessible ? 'ACCESSIBLE' : 'UNREACHABLE') + '</span>');
+      bodyParts.push('<br>Provider: <strong>' + escapeHtml(String(syn.provider || 'unknown')) + '</strong>');
+      bodyParts.push('<br>Successful calls: <strong>' + syn.success + '</strong> / ' + syn.attempted);
+      bodyParts.push('<br>Failed calls: <strong>' + syn.failed + '</strong>');
+      if (syn.sampleErrors && syn.sampleErrors.length) {
+        bodyParts.push('<br>Sample errors:<ul class="ds-errors">');
+        for (const err of syn.sampleErrors) bodyParts.push('<li>' + escapeHtml(String(err)) + '</li>');
+        bodyParts.push('</ul>');
+      }
       bodyParts.push('</div>');
     }
 
@@ -476,6 +505,56 @@
     `;
   }
 
+  function renderKeywordLibraryTable(keywordLibrary) {
+    const lib = keywordLibrary || {};
+    const rows = Array.isArray(lib.tokens) ? lib.tokens : [];
+    const current = Array.isArray(lib.currentKeywords) ? lib.currentKeywords : [];
+    const seeds = Array.isArray(lib.seedTokens) ? lib.seedTokens : [];
+
+    if (!rows.length) {
+      return '<p>No keyword library metrics yet.</p>';
+    }
+
+    const seedBadge = seeds.length ? `<p class="keyword-library-meta"><strong>Seeds:</strong> ${escapeHtml(seeds.join(', '))}</p>` : '';
+    const activeBadge = current.length ? `<p class="keyword-library-meta"><strong>Current loop keywords:</strong> ${escapeHtml(current.join(' '))}</p>` : '';
+    const body = rows.map(function (row) {
+      return `
+        <tr${row.inCurrentKeywords ? ' class="keyword-row-active"' : ''}>
+          <td>${row.rank || '-'}</td>
+          <td>${escapeHtml(row.token || '-')}</td>
+          <td>${escapeHtml(row.source || '-')}</td>
+          <td>${row.inCurrentKeywords ? 'yes' : 'no'}</td>
+          <td>${row.plays || 0}</td>
+          <td>${formatScore(row.avgReward || 0, 4)}</td>
+          <td>${row.ucb == null ? '-' : formatScore(row.ucb, 4)}</td>
+          <td>${formatScore(row.themeScore || 0, 2)}</td>
+          <td>${row.lastLoop == null ? '-' : row.lastLoop}</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      ${seedBadge}
+      ${activeBadge}
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Word</th>
+            <th>Source</th>
+            <th>Active</th>
+            <th>Plays</th>
+            <th>Avg Reward</th>
+            <th>UCB</th>
+            <th>Theme</th>
+            <th>Last Loop</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    `;
+  }
+
   function renderResults(results) {
     if (!results) {
       resultsPanelEl.hidden = true;
@@ -537,6 +616,7 @@
 
     loopSummaryTableEl.innerHTML = renderLoopSummaryTable(results.loopSummaries || []);
     tuningTableEl.innerHTML = renderTuningTable(results.tuningHistory || []);
+    if (keywordLibraryTableEl) keywordLibraryTableEl.innerHTML = renderKeywordLibraryTable(results.keywordLibrary || null);
     wireTableSorting();
 
     resultsPanelEl.hidden = false;
@@ -778,6 +858,7 @@
     lastLoggedJobErrorKey = '';
     dataSourceState.nameGeneration = null;
     dataSourceState.availability = null;
+    dataSourceState.synonymApi = null;
     dataSourceState.godaddyDebug = null;
     dataSourceState.syntheticFlags = [];
     dataSourceCollapsed = true;
