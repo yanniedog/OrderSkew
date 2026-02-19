@@ -144,3 +144,22 @@ If you deploy the wizard as a **Cloudflare Pages** project (e.g. `orderskew.page
 3. Redeploy the project so the `functions` directory and env vars are used.
 
 The Function uses the same request/response contract as the standalone Worker. Cloudflare looks for a `functions` folder at your **Pages project root**: use `functions/api/domains/availability.js` at that root (e.g. repo root `functions/...` or `pages/domainname_wizard/functions/...` depending on your project’s Root directory). This repo includes the file in both places so it works whether the project root is the repo root or `pages/domainname_wizard`. If these env vars are not set, the API returns 502 with a message asking for GoDaddy credentials; the wizard will then fall back to RDAP for availability.
+
+---
+
+## 8. Persistent learning + run history (D1)
+
+To keep optimizer learning and undervalued-domain tracking across sessions, bind a D1 database to your Pages project:
+
+1. Create D1 DB (Dashboard -> Workers & Pages -> D1 -> Create database).
+2. In your Pages project, add a D1 binding named `RUNS_DB` (or `DB`).
+3. Redeploy.
+
+The wizard backend will then persist:
+- run summaries and loop metrics
+- adaptive reward policy tuning (coverage/diversity vs performance balance)
+- ongoing best undervalued domains leaderboard
+
+APIs used:
+- `GET /api/runs/profile`
+- `POST /api/runs/ingest`

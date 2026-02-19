@@ -37,6 +37,7 @@
 
   let currentJob = null;
   let currentResults = null;
+  let currentInput = null;
   let currentSortMode = 'valueRatio';
   const debugLogs = [];
   let lastLoggedJobErrorKey = '';
@@ -47,6 +48,9 @@
   let dataSourceCollapsed = true;
   let diagnosticsInFlight = null;
   let diagnosticsDebounceTimer = null;
+  let persistentRewardPolicy = null;
+  let persistentRewardPolicyMeta = null;
+  let persistedRunIds = new Set();
 
   function showFormError(message) {
     if (!message) {
@@ -86,6 +90,7 @@
     synonymApi: null,
     githubApi: null,
     devEcosystem: null,
+    persistence: null,
     godaddyDebug: null,
     syntheticFlags: [],
   };
@@ -124,6 +129,85 @@
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  async function loadPersistentRunProfile(reason) {
+    const base = String(BACKEND_URL || '').trim().replace(/\/+$/, '');
+    if (!base) return;
+    try {
+      const resp = await fetchJsonWithTimeout(`${base}/api/runs/profile?limit=15`, { method: 'GET' }, 7000);
+      if (!resp.response || !resp.response.ok || !resp.json || resp.json.enabled !== true) {
+        dataSourceState.persistence = {
+          enabled: false,
+          reason: (resp.json && resp.json.message) ? String(resp.json.message) : 'Profile endpoint unavailable',
+        };
+        renderDataSourcePanel();
+        return;
+      }
+      persistentRewardPolicy = resp.json.rewardPolicy && typeof resp.json.rewardPolicy === 'object' ? resp.json.rewardPolicy : null;
+      persistentRewardPolicyMeta = resp.json.rewardPolicyMeta && typeof resp.json.rewardPolicyMeta === 'object' ? resp.json.rewardPolicyMeta : null;
+      dataSourceState.persistence = {
+        enabled: true,
+        runCount: Number(resp.json.runCount || 0),
+        topUndervaluedCount: Array.isArray(resp.json.topUndervaluedDomains) ? resp.json.topUndervaluedDomains.length : 0,
+        rewardPolicyMeta: persistentRewardPolicyMeta,
+      };
+      pushDebugLog('app.js:loadPersistentRunProfile', 'Loaded persistent run profile', {
+        reason: reason || 'unknown',
+        runCount: dataSourceState.persistence.runCount,
+        hasRewardPolicy: Boolean(persistentRewardPolicy),
+      });
+      renderDataSourcePanel();
+    } catch (err) {
+      dataSourceState.persistence = {
+        enabled: false,
+        reason: err && err.message ? err.message : String(err || 'profile load failed'),
+      };
+      renderDataSourcePanel();
+    }
+  }
+
+  async function ingestCompletedRun(job, input) {
+    const base = String(BACKEND_URL || '').trim().replace(/\/+$/, '');
+    if (!base || !job || !job.id || !job.results) return;
+    if (persistedRunIds.has(job.id)) return;
+    persistedRunIds.add(job.id);
+    try {
+      const payload = {
+        runId: String(job.id),
+        run: {
+          id: job.id,
+          createdAt: job.createdAt,
+          completedAt: job.completedAt,
+          totalLoops: job.totalLoops,
+          status: job.status,
+        },
+        input: input || currentInput || {},
+        results: {
+          withinBudget: Array.isArray(job.results.withinBudget) ? job.results.withinBudget.slice(0, 1200) : [],
+          overBudget: Array.isArray(job.results.overBudget) ? job.results.overBudget.slice(0, 1200) : [],
+          allRanked: Array.isArray(job.results.allRanked) ? job.results.allRanked.slice(0, 1500) : [],
+          loopSummaries: Array.isArray(job.results.loopSummaries) ? job.results.loopSummaries.slice(0, 500) : [],
+          tuningHistory: Array.isArray(job.results.tuningHistory) ? job.results.tuningHistory.slice(0, 500) : [],
+        },
+      };
+      const resp = await fetchJsonWithTimeout(`${base}/api/runs/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }, 12000);
+      if (resp.response && resp.response.ok && resp.json && resp.json.ok) {
+        if (resp.json.rewardPolicy && typeof resp.json.rewardPolicy === 'object') persistentRewardPolicy = resp.json.rewardPolicy;
+        if (resp.json.rewardPolicyMeta && typeof resp.json.rewardPolicyMeta === 'object') persistentRewardPolicyMeta = resp.json.rewardPolicyMeta;
+        dataSourceState.persistence = {
+          enabled: true,
+          runCount: persistentRewardPolicyMeta && Number.isFinite(Number(persistentRewardPolicyMeta.runCount)) ? Number(persistentRewardPolicyMeta.runCount) : (dataSourceState.persistence && dataSourceState.persistence.runCount ? dataSourceState.persistence.runCount : 0),
+          topUndervaluedCount: dataSourceState.persistence && dataSourceState.persistence.topUndervaluedCount ? dataSourceState.persistence.topUndervaluedCount : 0,
+          rewardPolicyMeta: persistentRewardPolicyMeta,
+        };
+        renderDataSourcePanel();
+      }
+    } catch (_) {}
   }
 
   function setDiagnosticsRunning(running) {
@@ -524,6 +608,23 @@
       bodyParts.push('</div>');
     }
 
+    if (dataSourceState.persistence) {
+      const ps = dataSourceState.persistence;
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>Persistent Learning DB:</strong> ');
+      bodyParts.push('<span class="' + (ps.enabled ? 'good' : 'warn') + '">' + (ps.enabled ? 'ENABLED' : 'DISABLED') + '</span>');
+      if (ps.runCount != null) bodyParts.push('<br>Stored runs: <strong>' + escapeHtml(String(ps.runCount)) + '</strong>');
+      if (ps.topUndervaluedCount != null) bodyParts.push('<br>Tracked undervalued domains: <strong>' + escapeHtml(String(ps.topUndervaluedCount)) + '</strong>');
+      if (ps.rewardPolicyMeta) {
+        const rpm = ps.rewardPolicyMeta;
+        if (rpm.updatedAt) bodyParts.push('<br>Policy updated: <code>' + escapeHtml(new Date(Number(rpm.updatedAt)).toISOString()) + '</code>');
+        if (rpm.movingCoverage != null) bodyParts.push('<br>Moving coverage: <strong>' + escapeHtml(formatScore(Number(rpm.movingCoverage) * 100, 1)) + '%</strong>');
+        if (rpm.movingPerformance != null) bodyParts.push('<br>Moving performance: <strong>' + escapeHtml(formatScore(Number(rpm.movingPerformance) * 100, 1)) + '%</strong>');
+      }
+      if (ps.reason) bodyParts.push('<br><span class="warn">' + escapeHtml(String(ps.reason)) + '</span>');
+      bodyParts.push('</div>');
+    }
+
     if (dataSourceState.devEcosystem) {
       const de = dataSourceState.devEcosystem;
       bodyParts.push('<div class="ds-block">');
@@ -729,6 +830,11 @@
     const underpricedCount = allRanked.filter(r => r.underpricedFlag).length;
     const avgEstValue = allRanked.filter(r => r.estimatedValueUSD > 0).reduce((s, r) => s + r.estimatedValueUSD, 0) / Math.max(1, allRanked.filter(r => r.estimatedValueUSD > 0).length);
     const bestRatio = allRanked.reduce((best, r) => Math.max(best, r.valueRatio || 0), 0);
+    const loopSummaries = Array.isArray(results.loopSummaries) ? results.loopSummaries : [];
+    const latestLoop = loopSummaries.length ? loopSummaries[loopSummaries.length - 1] : null;
+    const curatedCoveragePct = latestLoop ? Number(latestLoop.curatedCoveragePct || 0) : 0;
+    const curatedCoverageAssessed = latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0;
+    const curatedCoverageTotal = latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0;
 
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
@@ -736,6 +842,7 @@
       { label: 'Underpriced', value: String(underpricedCount) },
       { label: 'Avg Est. Value', value: avgEstValue > 0 ? '$' + Math.round(avgEstValue).toLocaleString() : '-' },
       { label: 'Best Value Ratio', value: bestRatio > 0 ? formatScore(bestRatio, 1) + 'x' : '-' },
+      { label: 'Curated Coverage', value: curatedCoverageTotal > 0 ? `${formatScore(curatedCoveragePct, 1)}% (${curatedCoverageAssessed}/${curatedCoverageTotal})` : '-' },
       { label: 'Avg Intrinsic', value: formatScore(avg('intrinsicValue'), 1) },
       { label: 'Avg Liquidity', value: formatScore(avg('liquidityScore'), 0) },
       { label: 'Top Domain', value: top ? escapeHtml(top.domain) : '-' },
@@ -841,7 +948,7 @@
             ${th('Loop', 'Loop index within the current search run.')}
             ${th('Keywords', 'Keywords used by this loop. Tokens are colored by learned term performance (blue low -> red high).')}
             ${th('Strategy', 'Style, randomness, and mutation used in this loop.')}
-            ${th('Explore', 'Exploration rate and elite pool size for this loop.')}
+            ${th('Explore', 'Exploration rate, elite pool size, and curated keyword coverage for this loop.')}
             ${th('Quota', 'Required and in-budget available names for this loop (max names/loop target).')}
             ${th('Results', 'Considered candidates, available split (in-budget/over-budget), and average score for this loop.')}
             ${th('Top', 'Top domain and top score for this loop.')}
@@ -855,7 +962,7 @@
                 <td>${row.loop}</td>
                 <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
                 <td>${escapeHtml(`${row.style || '-'} | ${row.randomness || '-'} | ${row.mutationIntensity || '-'}`)}</td>
-                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>
+                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)} | cov=${formatScore(Number(row.curatedCoveragePct || 0), 1)}%`)}</td>
                 <td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.withinBudgetCount || 0)}`)}</span></td>
                 <td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avail=${Number(row.withinBudgetCount || 0)}/${Number(row.overBudgetCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>
                 <td>${escapeHtml(`${row.topDomain || '-'} | ${formatScore(row.topScore, 1)}`)}</td>
@@ -881,7 +988,7 @@
             ${th('Keywords', 'Keyword set chosen for this loop. Tokens are colored by learned performance.')}
             ${th('Strategy', 'Source loop and selected style/randomness/mutation.')}
             ${th('Explore', 'Exploration rate and elite pool at decision time.')}
-            ${th('Reward', 'Composite 0-1 RL reward: in-budget quota completion, availability rate, in-budget ratio, undervaluation (value ratio/underpriced), and quality of available domains.')}
+            ${th('Reward', 'Composite 0-1 RL reward: in-budget quota completion, availability rate, in-budget ratio, undervaluation (value ratio/underpriced), quality of available domains, and curated-keyword coverage progress.')}
           </tr>
         </thead>
         <tbody>
@@ -1127,12 +1234,13 @@
       blacklist: String(data.get('blacklist') || '').trim(),
       maxLength: clamp(Math.round(parseNumber(data.get('maxLength'), 10)), 5, 25),
       tld: String(data.get('tld') || 'com').trim(),
-      maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 20)), 1, 250),
+      maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 5)), 1, 250),
       yearlyBudget: clamp(parseNumber(data.get('yearlyBudget'), 50), 1, 100000),
-      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 30)), 1, 60),
+      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 100)), 1, 250),
       apiBaseUrl: BACKEND_URL,
       githubToken: String(data.get('githubToken') || '').trim(),
       preferEnglish: String(data.get('preferEnglish') || '').toLowerCase() === 'on',
+      rewardPolicy: persistentRewardPolicy || null,
     };
   }
 
@@ -1230,6 +1338,9 @@
       downloadJsonBtn.disabled = !latestRunExport || !latestRunExport.run || !latestRunExport.results;
       startBtn.disabled = false;
       cancelBtn.disabled = true;
+      if (job.status === 'done') {
+        void ingestCompletedRun(job, currentInput);
+      }
     }
   }
 
@@ -1267,6 +1378,7 @@
     renderDataSourcePanel();
 
     const input = collectInput();
+    currentInput = input;
     pushDebugLog('app.js:handleStart', 'Run started', {
       apiBaseUrl: input.apiBaseUrl,
       origin: (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '',
@@ -1331,7 +1443,10 @@
   });
 
   startBtn.addEventListener('click', function () {
-    runPreflightDiagnostics('before-start').finally(function () {
+    Promise.allSettled([
+      runPreflightDiagnostics('before-start'),
+      loadPersistentRunProfile('before-start'),
+    ]).finally(function () {
       handleStart();
     });
   });
@@ -1404,5 +1519,6 @@
     }
   }
   runPreflightDiagnostics('initial-load');
+  void loadPersistentRunProfile('initial-load');
 
 })();

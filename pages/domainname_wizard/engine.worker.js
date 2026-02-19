@@ -239,6 +239,7 @@ async function run(job) {
   };
   const optimizer = new Optimizer(optimizerInput, model, hash(job.id));
   const keywordState = { optimizer, library: keywordLibrary };
+  let prevCoverage01 = optimizer.getCoverageMetrics ? (optimizer.getCoverageMetrics().coverage01 || 0) : 0;
   const makeSnapshot = function (pending) {
     return snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending, keywordState);
   };
@@ -461,6 +462,7 @@ async function run(job) {
 
     const rankedLoop = sortRanked(loopAvail, 'marketability');
     const rankedAvailableAll = sortRanked(loopAvail.concat(loopOverBudget), 'marketability');
+    const coverage = optimizer.getCoverageMetrics ? optimizer.getCoverageMetrics() : { coverage01: 0, coveragePct: 0, total: 0, assessedTarget: 0, targetPerKeyword: 2, needRemaining: 0 };
     const reward = scoreReward(rankedLoop, optimizer.eliteSet, {
       withinBudgetRows: rankedLoop,
       availableRows: rankedAvailableAll,
@@ -469,11 +471,18 @@ async function run(job) {
       requiredQuota: plan.input.maxNames,
       selectedKeywords: (optimizer.curTokens || []).slice(),
       tokenPlaysMap: optimizer.model && optimizer.model.tokens ? optimizer.model.tokens : {},
+      rewardPolicy: (plan.input && plan.input.rewardPolicy) || input.rewardPolicy || null,
+      curatedCoverage01: Number(coverage.coverage01 || 0),
+      curatedCoverageDelta01: Number(coverage.coverage01 || 0) - Number(prevCoverage01 || 0),
     });
+    prevCoverage01 = Number(coverage.coverage01 || 0);
     const step = optimizer.record(plan, reward, loopAllDomains);
     tuningHistory.push(step);
 
     const avg = rankedAvailableAll.length ? round(rankedAvailableAll.reduce((s, r) => s + (r.overallScore || 0), 0) / rankedAvailableAll.length, 2) : 0;
+    const valueRatios = rankedLoop.map((r) => Number(r.valueRatio) || 0).filter((v) => v > 0);
+    const avgValueRatio = valueRatios.length ? round(valueRatios.reduce((s, v) => s + v, 0) / valueRatios.length, 3) : 0;
+    const underpricedCount = rankedLoop.filter((r) => Boolean(r.underpricedFlag)).length;
     const top = rankedAvailableAll[0];
 
     loopSummaries.push({
@@ -497,6 +506,12 @@ async function run(job) {
       withinBudgetCount: rankedLoop.length,
       overBudgetCount: loopOverBudget.length,
       averageOverallScore: avg,
+      averageValueRatio: avgValueRatio,
+      underpricedCount,
+      curatedCoveragePct: Number(coverage.coveragePct || 0),
+      curatedCoverageAssessed: Number(coverage.assessedTarget || 0),
+      curatedCoverageTotal: Number(coverage.total || 0),
+      curatedCoverageNeedRemaining: Number(coverage.needRemaining || 0),
       topDomain: top ? top.domain : undefined,
       topScore: top ? top.overallScore : undefined,
       nameSource,

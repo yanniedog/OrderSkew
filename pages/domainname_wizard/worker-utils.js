@@ -196,6 +196,17 @@ function parseInput(raw) {
   const randomness = RANDOMNESS_VALUES.includes(input.randomness) ? input.randomness : 'medium';
   const tld = normalizeTld(input.tld || 'com');
   if (!tld) throw new Error('Invalid TLD.');
+  const rewardPolicyRaw = input.rewardPolicy && typeof input.rewardPolicy === 'object' ? input.rewardPolicy : null;
+  const rewardPolicy = rewardPolicyRaw
+    ? {
+      performanceVsExploration: clamp(Number(rewardPolicyRaw.performanceVsExploration) || 0.78, 0.55, 0.95),
+      quotaWeight: clamp(Number(rewardPolicyRaw.quotaWeight) || 0.22, 0.10, 0.35),
+      undervalueWeight: clamp(Number(rewardPolicyRaw.undervalueWeight) || 0.24, 0.10, 0.40),
+      qualityWeight: clamp(Number(rewardPolicyRaw.qualityWeight) || 0.24, 0.10, 0.40),
+      availabilityWeight: clamp(Number(rewardPolicyRaw.availabilityWeight) || 0.18, 0.08, 0.35),
+      inBudgetWeight: clamp(Number(rewardPolicyRaw.inBudgetWeight) || 0.12, 0.05, 0.30),
+    }
+    : null;
   return {
     keywords,
     description: text(input.description),
@@ -210,6 +221,7 @@ function parseInput(raw) {
     loopCount: clamp(Math.round(Number(input.loopCount) || 100), 1, 250),
     apiBaseUrl: text(input.apiBaseUrl),
     githubToken: text(input.githubToken),
+    rewardPolicy,
     keywordLibraryTokens: Array.isArray(input.keywordLibraryTokens) ? input.keywordLibraryTokens.slice(0, 120) : [],
     keywordLibraryPhrases: Array.isArray(input.keywordLibraryPhrases) ? input.keywordLibraryPhrases.slice(0, 80) : [],
   };

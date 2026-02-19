@@ -59,19 +59,39 @@ function scoreReward(rows, eliteSet, context) {
     ? testedKeywords.filter((t) => (Number((tokenPlaysMap[t] && tokenPlaysMap[t].plays) || 0) === 0)).length / testedKeywords.length
     : 0;
   const explorationKeywordBonus = clamp(lowTestRate * 0.7 + virginRate * 0.3, 0, 1);
-
+  const policy = (ctx.rewardPolicy && typeof ctx.rewardPolicy === 'object') ? ctx.rewardPolicy : {};
+  const perfVsExplore = clamp(Number(policy.performanceVsExploration) || 0.78, 0.55, 0.95);
+  const quotaWeight = clamp(Number(policy.quotaWeight) || 0.22, 0.10, 0.35);
+  const undervalueWeight = clamp(Number(policy.undervalueWeight) || 0.24, 0.10, 0.40);
+  const qualityWeight = clamp(Number(policy.qualityWeight) || 0.24, 0.10, 0.40);
+  const availabilityWeight = clamp(Number(policy.availabilityWeight) || 0.18, 0.08, 0.35);
+  const inBudgetWeight = clamp(Number(policy.inBudgetWeight) || 0.12, 0.05, 0.30);
+  const perfWeightSum = Math.max(1e-6, quotaWeight + undervalueWeight + qualityWeight + availabilityWeight + inBudgetWeight);
+  const perfComposite = clamp(
+    (
+      quotaCompletion * quotaWeight
+      + (((undervWithin * 0.7) + (underpricedShare * 0.3)) * undervalueWeight)
+      + (((topWithin * 0.8) + (topAvailable * 0.2)) * qualityWeight)
+      + (availabilityRate * availabilityWeight)
+      + (inBudgetRate * inBudgetWeight)
+    ) / perfWeightSum,
+    0,
+    1,
+  );
+  const exploreComposite = clamp(
+    explorationKeywordBonus * 0.55
+    + novelty * 0.20
+    + diversity * 0.15
+    + virginRate * 0.10,
+    0,
+    1,
+  );
+  const curatedCoverage01 = clamp(Number(ctx.curatedCoverage01) || 0, 0, 1);
+  const coverageDelta01 = clamp(Number(ctx.curatedCoverageDelta01) || 0, -1, 1);
+  const coverageBoost = clamp(curatedCoverage01 * 0.75 + Math.max(0, coverageDelta01) * 0.25, 0, 1);
+  const exploreCompositeWithCoverage = clamp(exploreComposite * 0.78 + coverageBoost * 0.22, 0, 1);
   const reward = clamp(
-    topWithin * 0.22
-    + quotaCompletion * 0.20
-    + availabilityRate * 0.13
-    + inBudgetRate * 0.12
-    + undervWithin * 0.14
-    + underpricedShare * 0.08
-    + topAvailable * 0.05
-    + undervAvailable * 0.02
-    + novelty * 0.01
-    + diversity * 0.01
-    + explorationKeywordBonus * 0.02,
+    perfComposite * perfVsExplore + exploreCompositeWithCoverage * (1 - perfVsExplore),
     0,
     1,
   );
@@ -405,6 +425,28 @@ class Optimizer {
     let need = 0;
     for (const token of this._assessmentPool || []) need += this._assessmentDeficit(token);
     return need;
+  }
+
+  getCoverageMetrics() {
+    const pool = this._assessmentPool || [];
+    const total = pool.length;
+    let assessedOnce = 0;
+    let assessedTarget = 0;
+    for (const token of pool) {
+      const seen = Number(this._runExposure.get(token) || 0);
+      if (seen >= 1) assessedOnce += 1;
+      if (seen >= this._minAssessmentsPerSearch) assessedTarget += 1;
+    }
+    const coverage01 = total > 0 ? clamp(assessedTarget / total, 0, 1) : 0;
+    return {
+      total,
+      assessedOnce,
+      assessedTarget,
+      targetPerKeyword: this._minAssessmentsPerSearch,
+      coverage01,
+      coveragePct: round(coverage01 * 100, 1),
+      needRemaining: this._remainingAssessmentNeed(),
+    };
   }
 
   _assessmentQuota(loop, lockedSet) {
