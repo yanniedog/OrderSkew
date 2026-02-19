@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Top 20 Ex-Stable ATH Drawdown Cycles | OrderSkew Tools</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-bg" aria-hidden="true"></div>
+    <main class="container">
+        <header class="hero card">
+            <p class="eyebrow">OrderSkew Toolkit</p>
+            <h1>Top 20 Ex-Stable ATH Drawdown Cycles</h1>
+            <p class="subtitle">
+                Computes ATH cycle drawdown analytics for the top 20 non-stablecoins by market cap, using CoinGecko for ranking and Binance daily USDT candles for historical price cycles.
+            </p>
+            <div class="hero-actions">
+                <a class="btn btn-secondary" href="../index.html">Back to tools</a>
+                <a class="btn btn-secondary" href="../../index.html">OrderSkew home</a>
+            </div>
+        </header>
+
+        <section class="card">
+            <h2>Run Analysis</h2>
+            <p class="hint">
+                Methodology: top 20 non-stable by market cap (CoinGecko USD proxy), Binance spot <code>&lt;BASE&gt;USDT</code> daily candles, ATH by daily high, trough by daily close.
+            </p>
+            <div class="controls">
+                <button id="start-btn" class="btn btn-primary" type="button">Run Analysis</button>
+                <button id="cancel-btn" class="btn btn-danger" type="button" disabled>Cancel</button>
+                <button id="copy-btn" class="btn btn-secondary" type="button" disabled>Copy JSON</button>
+                <button id="download-btn" class="btn btn-secondary" type="button" disabled>Download JSON</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="status-head">
+                <h2>Status</h2>
+                <span id="status-label" class="status-label">Idle</span>
+            </div>
+            <p id="status-detail" class="status-detail">Ready to run.</p>
+            <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+            <p id="error-box" class="error" hidden></p>
+
+            <div id="summary-grid" class="summary-grid" hidden>
+                <article class="metric-card">
+                    <h3>Requested Assets</h3>
+                    <p id="requested-assets">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Analyzed Assets</h3>
+                    <p id="analyzed-assets">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Skipped Assets</h3>
+                    <p id="skipped-assets">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Generated At (UTC)</h3>
+                    <p id="generated-at">-</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="json-head">
+                <h2>Structured JSON Output</h2>
+            </div>
+            <pre id="json-output" class="json-output">No results yet.</pre>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

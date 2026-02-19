@@ -46,5 +46,6 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - `pages/domainname_wizard/` hosts a browser-native Domain Name Wizard tool with local worker processing.
 - Imported source snapshot from `C:\code\domainname-wizard` is stored at `pages/domainname_wizard/source/` (excluding `.next`, `node_modules`, and local env/debug artifacts).
 - Full automated test (unit + E2E): from repo root run `node test-domainname-wizard.js`. Requires `npm install` in `pages/domainname_wizard/source/` and Playwright browsers (`npx playwright install chromium` in that directory) for E2E.
+- `pages/crypto_ath_drawdown_cycles/` hosts the Top 20 Ex-Stable ATH Drawdown Cycles tool (CoinGecko non-stable top-20 ranking + Binance daily USDT cycle analysis with structured JSON output).
 
 

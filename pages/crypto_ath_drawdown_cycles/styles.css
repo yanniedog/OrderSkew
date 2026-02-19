@@ -1,0 +1,247 @@
+:root {
+  --bg-a: #f4f8ff;
+  --bg-b: #f0fffb;
+  --text: #102235;
+  --muted: #4d647a;
+  --card: #ffffff;
+  --border: #d4e1f3;
+  --primary: #0a84ff;
+  --primary-dark: #066ed1;
+  --danger: #b4233b;
+  --danger-dark: #8f1b30;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  color: var(--text);
+  background: linear-gradient(145deg, var(--bg-a), var(--bg-b));
+}
+
+code {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.9em;
+}
+
+.page-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(10, 132, 255, 0.18) 0%, transparent 36%),
+    radial-gradient(circle at 88% 8%, rgba(10, 159, 115, 0.16) 0%, transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(10, 132, 255, 0.1) 0%, transparent 40%);
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 26px 16px 32px;
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 14px 30px rgba(16, 34, 53, 0.08);
+  padding: 16px;
+}
+
+.hero h1 {
+  margin: 8px 0;
+  font-size: clamp(1.5rem, 2.8vw, 2.1rem);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+  max-width: 960px;
+}
+
+.eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: #0d8f70;
+  font-weight: 700;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 1.16rem;
+}
+
+h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.hint {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.controls,
+.hero-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 9px 13px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.14s ease, transform 0.12s ease;
+  color: var(--text);
+  background: #fff;
+}
+
+.btn:hover:not([disabled]) {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-primary:hover:not([disabled]) {
+  background: var(--primary-dark);
+}
+
+.btn-secondary {
+  background: #fff;
+  border-color: var(--border);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover:not([disabled]) {
+  background: var(--danger-dark);
+}
+
+.status-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #2a4f74;
+}
+
+.status-detail {
+  margin: 8px 0 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #e7eef8;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0780c4 0%, #16aa78 100%);
+  transition: width 0.24s ease;
+}
+
+.error {
+  margin: 10px 0 0;
+  color: #8f1b30;
+  background: #fdecef;
+  border: 1px solid #f3c5cf;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 0.9rem;
+}
+
+.summary-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.metric-card p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f486f;
+}
+
+.json-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.json-output {
+  margin: 0;
+  background: #0f1f33;
+  color: #d5e6f8;
+  border-radius: 10px;
+  border: 1px solid #21354f;
+  padding: 14px;
+  overflow: auto;
+  max-height: 620px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .container {
+    padding: 18px 12px 24px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .json-output {
+    max-height: 440px;
+  }
+}
