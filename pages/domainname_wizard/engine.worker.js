@@ -137,6 +137,7 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
       currentKeywords: Array.isArray(keywordState.optimizer.curTokens) ? keywordState.optimizer.curTokens.slice(0, 8) : [],
       tokens: keywordState.optimizer.getKeywordLibraryRows(120),
       apiStatus: lib.apiStatus || null,
+      devEcosystemStatus: keywordState.devEcosystemStatus || null,
     };
   } else if (keywordState && keywordState.library) {
     const lib = keywordState.library || {};
@@ -166,6 +167,7 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
         };
       }),
       apiStatus: lib.apiStatus || null,
+      devEcosystemStatus: keywordState.devEcosystemStatus || null,
     };
   }
   return {
@@ -468,14 +470,41 @@ async function run(job) {
         const seg = segmentWords((dom.domain || '').split('.')[0]);
         for (const w of seg.words) allWords.add(w);
       }
-      const devScores = await fetchDevEcosystemScores([...allWords], input);
+      const keywordTokensForEvidence = new Set();
+      for (const token of (optimizer.curTokens || [])) keywordTokensForEvidence.add(String(token || '').toLowerCase());
+      if (keywordLibrary && Array.isArray(keywordLibrary.tokens)) {
+        for (const token of keywordLibrary.tokens.slice(0, 40)) keywordTokensForEvidence.add(String(token || '').toLowerCase());
+      }
+      const wordsForDev = [...new Set([...allWords, ...keywordTokensForEvidence].filter(Boolean))];
+      const devScores = await fetchDevEcosystemScores(wordsForDev, input);
+      keywordState.devEcosystemStatus = DEV_ECOSYSTEM_LAST_META || null;
       const topDomains = sortRanked(allDomains, 'intrinsicValue').slice(0, 100).map(d => d.domain);
       const archiveHits = await checkArchiveHistory(topDomains);
       for (const dom of allDomains) {
         const seg = segmentWords((dom.domain || '').split('.')[0]);
         let devMax = 0;
-        for (const w of seg.words) devMax = Math.max(devMax, devScores.get(w) || 0);
-        const enrich = { devEcosystemScore: devMax, archiveHistory: archiveHits.has(dom.domain) };
+        let bestDevWord = null;
+        let bestDevDetail = null;
+        for (const w of seg.words) {
+          const wordScore = devScores.get(w) || 0;
+          if (wordScore > devMax) {
+            devMax = wordScore;
+            bestDevWord = w;
+            bestDevDetail = DEV_ECOSYSTEM_DETAIL_CACHE.get(w) || null;
+          }
+        }
+        const enrich = {
+          devEcosystemScore: devMax,
+          archiveHistory: archiveHits.has(dom.domain),
+          devEcosystemEvidence: bestDevWord ? {
+            word: bestDevWord,
+            total: devMax,
+            githubRepos: bestDevDetail && Number.isFinite(bestDevDetail.githubRepos) ? bestDevDetail.githubRepos : null,
+            npmPackages: bestDevDetail && Number.isFinite(bestDevDetail.npmPackages) ? bestDevDetail.npmPackages : null,
+            source: bestDevDetail && bestDevDetail.source ? bestDevDetail.source : null,
+            githubTokenUsed: Boolean(bestDevDetail && bestDevDetail.githubTokenUsed),
+          } : null,
+        };
         const updated = scoreDomain(dom, input, enrich);
         Object.assign(dom, updated);
         const key = dom.domain.toLowerCase();
@@ -483,7 +512,10 @@ async function run(job) {
         if (overBudgetMap.has(key)) overBudgetMap.set(key, dom);
       }
       emitDebugLog('engine.worker.js:run', 'API enrichment complete', {
-        wordsQueried: allWords.size, devScoresReturned: devScores.size, archiveHits: archiveHits.size,
+        wordsQueried: wordsForDev.length,
+        devScoresReturned: devScores.size,
+        archiveHits: archiveHits.size,
+        githubEvidence: keywordState.devEcosystemStatus || null,
       });
     } catch (enrichErr) {
       emitDebugLog('engine.worker.js:run', 'API enrichment failed (non-fatal)', { error: enrichErr.message || String(enrichErr) });

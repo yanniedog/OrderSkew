@@ -339,23 +339,68 @@ async function fetchRdapAvailability(domains, jobId, onProgress) {
 
 async function fetchDevEcosystemScores(words, input) {
   const scores = new Map();
-  if (!words || words.length === 0) return scores;
+  if (!words || words.length === 0) {
+    DEV_ECOSYSTEM_LAST_META = {
+      attemptedWords: 0,
+      fetchedWords: 0,
+      cacheHits: 0,
+      mode: 'none',
+      githubTokenUsed: false,
+      githubCalls: 0,
+      githubSuccess: 0,
+      githubFailures: 0,
+      npmCalls: 0,
+      npmSuccess: 0,
+      npmFailures: 0,
+      backendAttempted: false,
+      backendUsed: false,
+      backendStatus: null,
+      sampleWords: [],
+    };
+    return scores;
+  }
+
   const unique = [...new Set(words.filter(w => w.length >= 3))].slice(0, 30);
   const apiBaseUrl = String(input.apiBaseUrl || '').trim().replace(/\/+$/, '');
-  const githubToken = input.githubToken || '';
+  const githubToken = String(input.githubToken || '').trim();
+  const meta = {
+    attemptedWords: unique.length,
+    fetchedWords: 0,
+    cacheHits: 0,
+    mode: apiBaseUrl ? 'backend' : 'direct',
+    githubTokenUsed: Boolean(githubToken),
+    githubCalls: 0,
+    githubSuccess: 0,
+    githubFailures: 0,
+    npmCalls: 0,
+    npmSuccess: 0,
+    npmFailures: 0,
+    backendAttempted: false,
+    backendUsed: false,
+    backendStatus: null,
+    sampleWords: [],
+  };
 
   for (const word of unique) {
     if (DEV_ECOSYSTEM_CACHE.has(word)) {
       scores.set(word, DEV_ECOSYSTEM_CACHE.get(word));
+      meta.cacheHits += 1;
       continue;
     }
     scores.set(word, 0);
   }
 
   const toFetch = unique.filter(w => !DEV_ECOSYSTEM_CACHE.has(w));
-  if (toFetch.length === 0) return scores;
+  meta.fetchedWords = toFetch.length;
+  if (toFetch.length === 0) {
+    DEV_ECOSYSTEM_LAST_META = meta;
+    emitDebugLog('worker-api.js:fetchDevEcosystemScores', 'Developer ecosystem scoring (cache hit)', meta);
+    return scores;
+  }
 
-  if (apiBaseUrl) {
+  // If user provided a GitHub token, use direct provider calls so the token is guaranteed to be utilized.
+  if (apiBaseUrl && !githubToken) {
+    meta.backendAttempted = true;
     try {
       const res = await fetch(apiBaseUrl + '/api/dev-ecosystem', {
         method: 'POST',
@@ -363,40 +408,93 @@ async function fetchDevEcosystemScores(words, input) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ words: toFetch }),
       });
+      meta.backendStatus = res.status;
       const data = await res.json().catch(function () { return {}; });
       if (res.ok && data.scores && typeof data.scores === 'object') {
+        meta.backendUsed = true;
         for (const [word, total] of Object.entries(data.scores)) {
           const val = Number(total) || 0;
           scores.set(word, val);
           DEV_ECOSYSTEM_CACHE.set(word, val);
+          if (!DEV_ECOSYSTEM_DETAIL_CACHE.has(word)) {
+            DEV_ECOSYSTEM_DETAIL_CACHE.set(word, {
+              word,
+              total: val,
+              githubRepos: null,
+              npmPackages: null,
+              source: 'backend',
+              githubTokenUsed: false,
+            });
+          }
         }
+        DEV_ECOSYSTEM_LAST_META = meta;
+        emitDebugLog('worker-api.js:fetchDevEcosystemScores', 'Developer ecosystem scoring via backend', meta);
         return scores;
       }
     } catch (_) {}
   }
 
+  meta.mode = githubToken ? 'direct-token' : 'direct-unauth';
   for (const word of toFetch) {
-    let total = 0;
+    let githubRepos = 0;
+    let npmPackages = 0;
+
     try {
+      meta.githubCalls += 1;
       const headers = { Accept: 'application/vnd.github.v3+json' };
       if (githubToken) headers.Authorization = 'token ' + githubToken;
       const ghResp = await fetch('https://api.github.com/search/repositories?q=' + encodeURIComponent(word) + '&per_page=1', { headers });
       if (ghResp.ok) {
         const ghData = await ghResp.json();
-        total += Math.min(ghData.total_count || 0, 500000);
+        githubRepos = Math.min(Number(ghData.total_count) || 0, 500000);
+        meta.githubSuccess += 1;
+      } else {
+        meta.githubFailures += 1;
       }
-    } catch (_) {}
+    } catch (_) {
+      meta.githubFailures += 1;
+    }
+
     try {
+      meta.npmCalls += 1;
       const npmResp = await fetch('https://registry.npmjs.org/-/v1/search?text=' + encodeURIComponent(word) + '&size=1');
       if (npmResp.ok) {
         const npmData = await npmResp.json();
-        total += Math.min((npmData.total || 0) * 10, 100000);
+        npmPackages = Math.min((Number(npmData.total) || 0) * 10, 100000);
+        meta.npmSuccess += 1;
+      } else {
+        meta.npmFailures += 1;
       }
-    } catch (_) {}
+    } catch (_) {
+      meta.npmFailures += 1;
+    }
+
+    const total = githubRepos + npmPackages;
     scores.set(word, total);
     DEV_ECOSYSTEM_CACHE.set(word, total);
+    DEV_ECOSYSTEM_DETAIL_CACHE.set(word, {
+      word,
+      total,
+      githubRepos,
+      npmPackages,
+      source: 'direct',
+      githubTokenUsed: Boolean(githubToken),
+    });
     await new Promise(r => setTimeout(r, 600));
   }
+
+  meta.sampleWords = toFetch.slice(0, 8).map(function (word) {
+    const d = DEV_ECOSYSTEM_DETAIL_CACHE.get(word);
+    return {
+      word,
+      total: d && Number.isFinite(d.total) ? d.total : 0,
+      githubRepos: d && Number.isFinite(d.githubRepos) ? d.githubRepos : null,
+      npmPackages: d && Number.isFinite(d.npmPackages) ? d.npmPackages : null,
+      source: d && d.source ? d.source : 'unknown',
+    };
+  });
+  DEV_ECOSYSTEM_LAST_META = meta;
+  emitDebugLog('worker-api.js:fetchDevEcosystemScores', 'Developer ecosystem scoring complete', meta);
   return scores;
 }
 

@@ -25,6 +25,8 @@ let LOADED_TLD_TIERS = null;
 let LIQUIDITY_PARAMS = null;
 let VDATA_LOADED = false;
 let DEV_ECOSYSTEM_CACHE = new Map();
+let DEV_ECOSYSTEM_DETAIL_CACHE = new Map();
+let DEV_ECOSYSTEM_LAST_META = null;
 let ARCHIVE_CACHE = new Map();
 
 const FALLBACK_TLD_TIERS = {

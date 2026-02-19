@@ -560,7 +560,19 @@ function scoreDomain(row, input, enrichment) {
 
   const valueDrivers = [].concat(
     phonetic.drivers, brand.drivers, seo.drivers, commercial.drivers, financial.drivers, memo.drivers
-  ).sort((a, b) => b.impact - a.impact).slice(0, 5);
+  );
+  if ((enrich.devEcosystemScore || 0) > 0 && enrich.devEcosystemEvidence && enrich.devEcosystemEvidence.word) {
+    const devImpact = clamp(Math.log10(1 + Number(enrich.devEcosystemScore) || 0) * 8, 2, 16);
+    const gh = enrich.devEcosystemEvidence.githubRepos;
+    const np = enrich.devEcosystemEvidence.npmPackages;
+    const ghText = Number.isFinite(gh) ? `GitHub ${Number(gh).toLocaleString()}` : 'GitHub n/a';
+    const npmText = Number.isFinite(np) ? `npm ${Number(np).toLocaleString()}` : 'npm n/a';
+    valueDrivers.push({
+      component: `Dev ecosystem signal (${enrich.devEcosystemEvidence.word}: ${ghText}, ${npmText})`,
+      impact: round(devImpact, 1),
+    });
+  }
+  const topValueDrivers = valueDrivers.sort((a, b) => b.impact - a.impact).slice(0, 5);
 
   const valueDetractors = [].concat(
     phonetic.detractors, brand.detractors, seo.detractors, commercial.detractors, financial.detractors, memo.detractors
@@ -594,8 +606,9 @@ function scoreDomain(row, input, enrichment) {
     devEcosystemScore: enrich.devEcosystemScore || 0,
     hasArchiveHistory: Boolean(enrich.archiveHistory),
     segmentedWords: seg.words,
-    valueDrivers,
+    valueDrivers: topValueDrivers,
     valueDetractors,
+    devEcosystemEvidence: enrich.devEcosystemEvidence || null,
   };
 }
 

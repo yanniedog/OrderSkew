@@ -364,7 +364,11 @@ class Optimizer {
     const plays = Math.max(0, Number(s.plays) || 0);
     const explorationBonus = explorationRate * (plays > 0 ? clamp(1 / Math.sqrt(plays), 0, 1) : 1);
     const exploitation = p.score * (1 - explorationRate * 0.65);
-    return clamp(exploitation + explorationBonus * 0.22, 0, 1.6);
+    const token = s && s._token ? normalizeThemeToken(s._token) : '';
+    const detail = token && DEV_ECOSYSTEM_DETAIL_CACHE && DEV_ECOSYSTEM_DETAIL_CACHE.get(token);
+    const githubRepos = detail && Number.isFinite(detail.githubRepos) ? Number(detail.githubRepos) : 0;
+    const githubPrior = githubRepos > 0 ? clamp(Math.log10(1 + githubRepos) / 10, 0, 0.18) : 0;
+    return clamp(exploitation + explorationBonus * 0.22 + githubPrior, 0, 1.6);
   }
 
   _isThemeToken(token) {
@@ -564,9 +568,14 @@ class Optimizer {
       const clean = normalizeThemeToken(token);
       if (!clean || !this._isThemeToken(clean)) continue;
       const stat = this.model.tokens[clean] || { plays: 0, reward: 0, lastLoop: null };
+      const statForScore = { ...stat, _token: clean };
       const perf = this._tokenPerformance(stat);
       const ucb = this.ucbScore(stat);
-      const selectionScore = this._tokenSelectionScore(stat, perf, 0.08);
+      const selectionScore = this._tokenSelectionScore(statForScore, perf, 0.08);
+      const devDetail = DEV_ECOSYSTEM_DETAIL_CACHE.get(clean) || null;
+      const githubRepos = devDetail && Number.isFinite(devDetail.githubRepos) ? Number(devDetail.githubRepos) : null;
+      const npmPackages = devDetail && Number.isFinite(devDetail.npmPackages) ? Number(devDetail.npmPackages) : null;
+      const githubPrior = githubRepos && githubRepos > 0 ? clamp(Math.log10(1 + githubRepos) / 10, 0, 0.18) : 0;
       let source = 'theme';
       if (this._baseKeywordTokenSet.has(clean)) source = 'seed';
       else if (this._libraryTokenSet.has(clean)) source = 'synonym_api';
@@ -586,6 +595,10 @@ class Optimizer {
         meanDomainScore: round(perf.meanDomainScore, 2),
         performanceScore: round(perf.score * 100, 2),
         selectionScore: round(selectionScore * 100, 2),
+        githubRepos,
+        npmPackages,
+        githubPrior: round(githubPrior * 100, 2),
+        devEvidenceSource: devDetail && devDetail.source ? devDetail.source : null,
         ucb: Number.isFinite(ucb) ? round(ucb, 4) : null,
         lastLoop: stat.lastLoop != null ? Number(stat.lastLoop) : null,
       });
@@ -621,7 +634,7 @@ class Optimizer {
     const tokenRank = tokenEntries
       .map(([token, stat]) => {
         const perf = this._tokenPerformance(stat);
-        const selectionScore = this._tokenSelectionScore(stat, perf, explorationRate);
+        const selectionScore = this._tokenSelectionScore({ ...stat, _token: token }, perf, explorationRate);
         return { token, ucb: this.ucbScore(stat), perf, selectionScore, plays: perf.plays };
       })
       .sort((a, b) => (b.selectionScore - a.selectionScore) || (b.ucb - a.ucb));
