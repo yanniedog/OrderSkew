@@ -51,6 +51,10 @@
     link.rel = 'stylesheet';
     link.href = cssHref;
     document.head.appendChild(link);
+    var fontLink = document.createElement('link');
+    fontLink.rel = 'stylesheet';
+    fontLink.href = 'https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Space+Grotesk:wght@500;600&display=swap';
+    document.head.appendChild(fontLink);
 
     var rootPath;
     switch (pageType) {
@@ -86,7 +90,9 @@
 
         nav.innerHTML =
             '<div class="os-frame-nav-inner">' +
-                '<span class="os-frame-brand">' + CONFIG.brand + '</span>' +
+                '<div class="os-frame-brand-block">' +
+                    '<span class="os-frame-brand">' + CONFIG.brand + '</span>' +
+                '</div>' +
                 '<div class="os-frame-nav-links">' + links + '</div>' +
             '</div>';
 
