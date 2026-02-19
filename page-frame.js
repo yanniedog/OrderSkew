@@ -1,16 +1,20 @@
 /* ── OrderSkew Page Frame ──
    Drop-in nav bar + commit-stamp footer for every page in the project.
+   Config is centralised here; all main and subpages use the same behaviour.
 
-   Usage — add ONE script tag (the JS auto-injects the companion CSS):
+   Usage — add ONE script tag (JS auto-injects companion CSS). Prefer root-relative
+   so the same tag works everywhere when served from site root:
 
+     <script src="/page-frame.js"></script>
+
+   Or use a relative path and optional data-page-type (override for auto-detect):
      <script src="../../page-frame.js" data-page-type="tool"></script>
 
-   data-page-type values:
+   data-page-type (optional; auto-detected from location.pathname if omitted):
      "main"       – root index.html  (shows "Tools" button)
      "tools-hub"  – pages/index.html (shows "OrderSkew Home" button)
      "tool"       – pages/<name>/    (shows "All Tools" + "OrderSkew Home")
-
-   Optional: data-repo="owner/repo" (default: yanniedog/orderskew)
+   data-repo (optional): GitHub owner/repo for commit stamp (default from CONFIG).
 */
 (function () {
     'use strict';
@@ -18,8 +22,33 @@
     var script = document.currentScript;
     if (!script) return;
 
-    var pageType = script.getAttribute('data-page-type') || 'tool';
-    var repo = script.getAttribute('data-repo') || 'yanniedog/orderskew';
+    var CONFIG = {
+        brand: 'OrderSkew',
+        repo: 'yanniedog/orderskew',
+        pathnames: {
+            main: [ '', '/' ],
+            toolsHub: [ '/pages', '/pages/' ]
+        },
+        commitLabel: 'Latest commit (main)',
+        commitLoading: 'Loading latest commit\u2026',
+        commitUnavailable: 'Latest commit (main): unavailable',
+        commitUnavailableStatus: 'Latest commit (main): unavailable ('
+    };
+
+    var pageType = script.getAttribute('data-page-type');
+    if (!pageType && typeof document !== 'undefined' && document.location && document.location.pathname) {
+        var path = document.location.pathname.replace(/\/index\.html$/i, '') || '/';
+        if (CONFIG.pathnames.main.indexOf(path) !== -1) {
+            pageType = 'main';
+        } else if (CONFIG.pathnames.toolsHub.indexOf(path) !== -1) {
+            pageType = 'tools-hub';
+        } else if (path.indexOf('/pages/') === 0 && path.length > 7) {
+            pageType = 'tool';
+        }
+    }
+    pageType = pageType || 'tool';
+
+    var repo = script.getAttribute('data-repo') || CONFIG.repo;
 
     var cssHref = script.src.replace(/page-frame\.js(\?.*)?$/, 'page-frame.css');
     var link = document.createElement('link');
@@ -61,7 +90,7 @@
 
         nav.innerHTML =
             '<div class="os-frame-nav-inner">' +
-                '<span class="os-frame-brand">OrderSkew</span>' +
+                '<span class="os-frame-brand">' + CONFIG.brand + '</span>' +
                 '<div class="os-frame-nav-links">' + links + '</div>' +
             '</div>';
 
@@ -73,18 +102,9 @@
         footer.className = 'os-frame-footer';
         footer.innerHTML =
             '<div class="os-frame-footer-inner">' +
-                '<span class="os-frame-commit" id="os-frame-commit">Loading latest commit\u2026</span>' +
+                '<span class="os-frame-commit" id="os-frame-commit">' + CONFIG.commitLoading + '</span>' +
             '</div>';
         return footer;
-    }
-
-    function padTwo(n) { return String(n).padStart(2, '0'); }
-
-    function formatUtc(iso) {
-        var d = new Date(iso);
-        if (isNaN(d.getTime())) return null;
-        return d.getUTCFullYear() + '-' + padTwo(d.getUTCMonth() + 1) + '-' + padTwo(d.getUTCDate()) +
-            ' ' + padTwo(d.getUTCHours()) + ':' + padTwo(d.getUTCMinutes()) + ':' + padTwo(d.getUTCSeconds()) + ' UTC';
     }
 
     function loadCommitStamp() {
@@ -97,7 +117,7 @@
         })
         .then(function (res) {
             if (!res.ok) {
-                el.textContent = 'Latest commit (main): unavailable (' + res.status + ')';
+                el.textContent = CONFIG.commitUnavailableStatus + res.status + ')';
                 return null;
             }
             return res.json();
@@ -105,14 +125,10 @@
         .then(function (data) {
             if (!data) return;
             var sha = data.sha ? String(data.sha).slice(0, 7) : '?';
-            var dateIso = data.commit && data.commit.committer ? data.commit.committer.date : null;
-            var utc = dateIso ? formatUtc(dateIso) : null;
-            el.textContent = utc
-                ? 'Latest commit (main): ' + utc + ' \u2022 ' + sha
-                : 'Latest commit (main): ' + sha;
+            el.textContent = CONFIG.commitLabel + ': ' + sha;
         })
         .catch(function () {
-            el.textContent = 'Latest commit (main): unavailable';
+            el.textContent = CONFIG.commitUnavailable;
         });
     }
 
