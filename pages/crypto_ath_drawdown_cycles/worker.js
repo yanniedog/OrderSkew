@@ -89,7 +89,7 @@ async function startAnalysis() {
       }
 
       const cycles = buildCycles(candles);
-      if (cycles.length === 0) {
+      if (!Array.isArray(cycles.cycles) || cycles.cycles.length === 0) {
         skippedAssets.push(makeSkip(asset, binanceSymbol, 'insufficient_or_invalid_candle_history', 'Could not derive any ATH cycles from candle history.'));
         continue;
       }
@@ -110,8 +110,9 @@ async function startAnalysis() {
           last_candle_date_utc: candles[candles.length - 1].date_utc,
           candle_count: candles.length,
         },
+        major_cycle_detection: cycles.majorCycleDetection,
         summary: buildSummary(cycles),
-        cycles: cycles,
+        cycles: cycles.cycles,
       });
     }
 
@@ -128,10 +129,16 @@ async function startAnalysis() {
         history_source: 'binance_spot:/api/v3/klines',
         binance_pair_policy: 'base_usdt_only',
         stable_to_stable_pair_policy: 'excluded',
-        ath_definition: 'strict_new_ath_on_daily_high',
+        ath_definition: 'major_ath_on_daily_high_with_adaptive_thresholds',
         trough_definition: 'lowest_daily_close_between_ath_and_next_ath',
         drawdown_formula: '((trough_close / ath_high) - 1) * 100',
         recovery_formula: '((next_ath_high / trough_close) - 1) * 100',
+        major_cycle_thresholding: {
+          breakout_rule: 'candidate_high_vs_last_major_ath_high',
+          required_breakout_pct: 'adaptive_by_annualized_volatility_clamped_12_to_35',
+          required_interim_drawdown_pct: 'adaptive_by_breakout_threshold_clamped_8_to_25',
+          time_override: 'days_since_last_major_ath_with_relaxed_breakout_and_drawdown',
+        },
         duration_basis: 'utc_calendar_days',
         aggregate_mode: 'dual_reporting_completed_only_and_completed_plus_current',
         missing_asset_policy: 'skip_without_backfill',
@@ -409,10 +416,51 @@ function buildCycles(candles) {
     }
   }
 
+  if (athIndices.length === 0) {
+    return {
+      cycles: [],
+      majorCycleDetection: {
+        min_breakout_pct: null,
+        min_interim_drawdown_pct: null,
+        time_override_days: null,
+        time_override_breakout_pct: null,
+        time_override_drawdown_pct: null,
+        realized_annual_volatility_pct: null,
+      },
+    };
+  }
+
+  const thresholds = deriveMajorCycleThresholds(candles);
+  const majorAthIndices = [athIndices[0]];
+  for (let i = 1; i < athIndices.length; i += 1) {
+    const candidateIndex = athIndices[i];
+    const lastMajorIndex = majorAthIndices[majorAthIndices.length - 1];
+    const lastMajorHigh = candles[lastMajorIndex].high;
+    const candidateHigh = candles[candidateIndex].high;
+    const breakoutPct = ((candidateHigh / lastMajorHigh) - 1) * 100;
+
+    let interimTrough = candles[lastMajorIndex].close;
+    for (let j = lastMajorIndex + 1; j < candidateIndex; j += 1) {
+      if (candles[j].close < interimTrough) interimTrough = candles[j].close;
+    }
+    const interimDrawdownAbsPct = Math.max(0, -(((interimTrough / lastMajorHigh) - 1) * 100));
+    const daysSinceLastMajor = utcDayDiff(candles[lastMajorIndex].time_ms, candles[candidateIndex].time_ms);
+
+    const strictAccept = breakoutPct >= thresholds.min_breakout_pct && interimDrawdownAbsPct >= thresholds.min_interim_drawdown_pct;
+    const timeOverrideAccept =
+      daysSinceLastMajor >= thresholds.time_override_days &&
+      breakoutPct >= thresholds.time_override_breakout_pct &&
+      interimDrawdownAbsPct >= thresholds.time_override_drawdown_pct;
+
+    if (strictAccept || timeOverrideAccept) {
+      majorAthIndices.push(candidateIndex);
+    }
+  }
+
   const cycles = [];
-  for (let i = 0; i < athIndices.length; i += 1) {
-    const athIndex = athIndices[i];
-    const nextAthIndex = i + 1 < athIndices.length ? athIndices[i + 1] : null;
+  for (let i = 0; i < majorAthIndices.length; i += 1) {
+    const athIndex = majorAthIndices[i];
+    const nextAthIndex = i + 1 < majorAthIndices.length ? majorAthIndices[i + 1] : null;
     const endIndex = nextAthIndex === null ? candles.length - 1 : nextAthIndex - 1;
     if (endIndex < athIndex) continue;
 
@@ -455,12 +503,25 @@ function buildCycles(candles) {
     cycles.push(cycle);
   }
 
-  return cycles;
+  return {
+    cycles: cycles,
+    majorCycleDetection: {
+      min_breakout_pct: safeNumber(thresholds.min_breakout_pct),
+      min_interim_drawdown_pct: safeNumber(thresholds.min_interim_drawdown_pct),
+      time_override_days: safeNumber(thresholds.time_override_days),
+      time_override_breakout_pct: safeNumber(thresholds.time_override_breakout_pct),
+      time_override_drawdown_pct: safeNumber(thresholds.time_override_drawdown_pct),
+      realized_annual_volatility_pct: safeNumber(thresholds.realized_annual_volatility_pct),
+      strict_ath_events_found: athIndices.length,
+      major_ath_events_retained: majorAthIndices.length,
+    },
+  };
 }
 
 function buildSummary(cycles) {
-  const completed = cycles.filter(function (c) { return c.is_completed_cycle; });
-  const allCycles = cycles.slice();
+  const rows = cycles.cycles || [];
+  const completed = rows.filter(function (c) { return c.is_completed_cycle; });
+  const allCycles = rows.slice();
 
   const completedDrawdowns = completed.map(function (c) { return c.drawdown_pct; }).filter(isFiniteNumber);
   const completedAthToTroughDays = completed.map(function (c) { return c.days_ath_to_trough; }).filter(isFiniteNumber);
@@ -489,6 +550,33 @@ function buildSummary(cycles) {
       trough_to_next_ath_gain_pct_stats: distributionStats(completedRecoveryGain),
       not_applicable_current_cycle: true,
     },
+  };
+}
+
+function deriveMajorCycleThresholds(candles) {
+  const logReturns = [];
+  for (let i = 1; i < candles.length; i += 1) {
+    const prev = candles[i - 1].close;
+    const next = candles[i].close;
+    if (!Number.isFinite(prev) || !Number.isFinite(next) || prev <= 0 || next <= 0) continue;
+    logReturns.push(Math.log(next / prev));
+  }
+
+  const dailyVol = stddev(logReturns);
+  const annualizedVolPct = Number.isFinite(dailyVol) ? (dailyVol * Math.sqrt(365) * 100) : 0;
+  const minBreakoutPct = clamp(Math.max(12, annualizedVolPct * 0.55), 12, 35);
+  const minInterimDrawdownPct = clamp(minBreakoutPct * 0.6, 8, 25);
+  const timeOverrideDays = Math.round(clamp((365 * minBreakoutPct) / 20, 300, 900));
+  const timeOverrideBreakoutPct = clamp(minBreakoutPct * 0.7, 8, 28);
+  const timeOverrideDrawdownPct = clamp(minInterimDrawdownPct * 0.7, 6, 18);
+
+  return {
+    min_breakout_pct: minBreakoutPct,
+    min_interim_drawdown_pct: minInterimDrawdownPct,
+    time_override_days: timeOverrideDays,
+    time_override_breakout_pct: timeOverrideBreakoutPct,
+    time_override_drawdown_pct: timeOverrideDrawdownPct,
+    realized_annual_volatility_pct: annualizedVolPct,
   };
 }
 
@@ -544,6 +632,23 @@ function mean(values) {
   let total = 0;
   for (let i = 0; i < values.length; i += 1) total += values[i];
   return total / values.length;
+}
+
+function stddev(values) {
+  if (!Array.isArray(values) || values.length < 2) return 0;
+  const m = mean(values);
+  if (!Number.isFinite(m)) return 0;
+  let variance = 0;
+  for (let i = 0; i < values.length; i += 1) {
+    const d = values[i] - m;
+    variance += d * d;
+  }
+  variance /= values.length;
+  return Math.sqrt(Math.max(variance, 0));
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function utcDayDiff(startMs, endMs) {
