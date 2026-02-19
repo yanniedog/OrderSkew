@@ -881,12 +881,20 @@
     return out;
   }
 
+  function sortKeywordsForDisplay(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return raw;
+    const tokens = raw.split(/\s+/).filter(Boolean);
+    return tokens.slice().sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })).join(' ');
+  }
+
   function renderPerformancePhrase(text, perfLookup) {
     const raw = String(text || '').trim();
     if (!raw) return '-';
-    if (!(perfLookup instanceof Map) || perfLookup.size === 0) return escapeHtml(raw);
+    const sorted = sortKeywordsForDisplay(raw);
+    if (!(perfLookup instanceof Map) || perfLookup.size === 0) return escapeHtml(sorted);
 
-    const parts = raw.split(/(\s+)/);
+    const parts = sorted.split(/(\s+)/);
     return parts.map(function (part) {
       if (!part || /^\s+$/.test(part)) return part;
       const key = normalizePerfToken(part);

@@ -74,6 +74,16 @@ function formatMoney(value?: number, currency?: string): string {
   }).format(value);
 }
 
+function sortKeywordsForDisplay(s: string | undefined | null): string {
+  if (!s?.trim()) return s ?? "-";
+  return s
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }))
+    .join(" ");
+}
+
 function phaseLabel(status: SearchStatus, phase: SearchPhase): string {
   if (status === "queued") {
     return "Queued";
@@ -519,7 +529,7 @@ export default function Page() {
                         <td>{summary.limitHit ? "Yes" : "No"}</td>
                         <td>{summary.consideredCount}</td>
                         <td>{summary.batchCount}</td>
-                        <td>{summary.keywords}</td>
+                        <td>{sortKeywordsForDisplay(summary.keywords)}</td>
                         <td>{summary.description || "-"}</td>
                         <td>{summary.style}</td>
                         <td>{summary.randomness}</td>
