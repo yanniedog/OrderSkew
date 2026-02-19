@@ -60,7 +60,7 @@ export default {
     }
 
     const baseUrl = getBaseUrl(env);
-    const endpoint = `${baseUrl}/v1/domains/available?checkType=FAST`;
+    const endpoint = `${baseUrl}/v1/domains/available?checkType=FULL`;
 
     let res;
     try {

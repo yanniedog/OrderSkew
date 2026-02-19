@@ -72,7 +72,7 @@ export async function onRequestPost(context) {
   }
 
   const baseUrl = getBaseUrl(env);
-  const endpoint = `${baseUrl}/v1/domains/available?checkType=FAST`;
+  const endpoint = `${baseUrl}/v1/domains/available?checkType=FULL`;
   _debug.godaddyBaseUrl = baseUrl;
   _debug.godaddyEndpoint = endpoint;
 

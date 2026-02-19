@@ -26,12 +26,12 @@
 
   let currentJob = null;
   let currentResults = null;
-  let currentSortMode = 'marketability';
+  let currentSortMode = 'intrinsicValue';
   const debugLogs = [];
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
-  const ENGINE_WORKER_VERSION = '2026-02-18-2';
+  const ENGINE_WORKER_VERSION = '2026-02-19-1';
 
   const BACKEND_URL = (function () {
     if (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol || '') && window.location.origin) {
@@ -207,7 +207,7 @@
       parts.push('<strong>Name Generation:</strong> ');
       parts.push('<span class="' + cls + '">' + escapeHtml(ng.source) + '</span>');
       parts.push('<br>Namelix API called: <strong>' + (ng.namelixApiCalled ? 'YES' : 'NO') + '</strong>');
-      parts.push('<br>Premium flag source: <strong>' + escapeHtml(ng.premiumSource || 'unknown') + '</strong>');
+      parts.push('<br>Premium pricing source: <strong>GoDaddy API</strong>');
       if (ng.syntheticNameGeneration) {
         parts.push('<br><span class="warn">Names are generated locally, not from Namelix.</span>');
       }
@@ -276,6 +276,12 @@
         }
         return compareOverallTieBreak(a, b);
       }
+      if (mode === 'intrinsicValue') {
+        if ((a.intrinsicValue || 0) !== (b.intrinsicValue || 0)) {
+          return (b.intrinsicValue || 0) - (a.intrinsicValue || 0);
+        }
+        return compareOverallTieBreak(a, b);
+      }
       if (mode === 'alphabetical') {
         const alpha = String(a.domain || '').localeCompare(String(b.domain || ''));
         if (alpha !== 0) return alpha;
@@ -312,10 +318,12 @@
     const top = sortRows(allRanked, currentSortMode)[0];
     const positiveBudget = (results.withinBudget || []).length;
 
+    const overBudgetCount = (results.overBudget || []).length;
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
       { label: 'Within Budget', value: String(positiveBudget) },
-      { label: 'Avg Overall Score', value: formatScore(avg('overallScore'), 2) },
+      { label: 'Over Budget', value: String(overBudgetCount) },
+      { label: 'Avg Intrinsic Value', value: formatScore(avg('intrinsicValue'), 2) },
       { label: 'Avg Marketability', value: formatScore(avg('marketabilityScore'), 2) },
       { label: 'Avg Financial', value: formatScore(avg('financialValueScore'), 2) },
       { label: 'Top Domain', value: top ? escapeHtml(top.domain) : '-' },
@@ -344,10 +352,14 @@
             ${availabilityCell(row)}
             <td>${priceCell}</td>
             <td>${row.overBudget ? '<span class="bad">Yes</span>' : 'No'}</td>
-            <td>${row.isNamelixPremium ? 'Yes' : 'No'}</td>
+            <td>${row.premiumPricing ? 'Yes' : 'No'}</td>
+            <td>${formatScore(row.intrinsicValue, 1)}</td>
             <td>${formatScore(row.marketabilityScore, 1)}</td>
             <td>${formatScore(row.financialValueScore, 1)}</td>
-            <td>${formatScore(row.overallScore, 1)}</td>
+            <td>${formatScore(row.phoneticScore, 1)}</td>
+            <td>${formatScore(row.brandabilityScore, 1)}</td>
+            <td>${formatScore(row.seoScore, 1)}</td>
+            <td>${formatScore(row.memorabilityScore, 1)}</td>
             <td>${Number(row.syllableCount || 0)}</td>
             <td>${Number(row.labelLength || 0)}</td>
             <td>${Number(row.timesDiscovered || 0)}</td>
@@ -368,10 +380,14 @@
             ${availabilityHeader}
             <th>Price</th>
             <th>Over Budget</th>
-            <th>Premium</th>
+            <th>Premium Price</th>
+            <th>Intrinsic Value</th>
             <th>Marketability</th>
             <th>Financial</th>
-            <th>Overall</th>
+            <th>Phonetic</th>
+            <th>Brandability</th>
+            <th>SEO</th>
+            <th>Memorability</th>
             <th>Syllables</th>
             <th>Label Len</th>
             <th>Seen</th>
@@ -400,14 +416,15 @@
             <th>Style</th>
             <th>Randomness</th>
             <th>Mutation</th>
+            <th>Explore Rate</th>
+            <th>Elite Pool</th>
             <th>Required</th>
             <th>Available</th>
             <th>Quota Met</th>
-            <th>251 Hit</th>
             <th>Considered</th>
-            <th>Batches</th>
             <th>Avg Score</th>
             <th>Top Domain</th>
+            <th>Top Score</th>
             <th>Name Source</th>
             <th>Note</th>
           </tr>
@@ -421,14 +438,15 @@
                 <td>${escapeHtml(row.style || '-')}</td>
                 <td>${escapeHtml(row.randomness || '-')}</td>
                 <td>${escapeHtml(row.mutationIntensity || '-')}</td>
+                <td>${formatScore(row.explorationRate, 3)}</td>
+                <td>${Number(row.elitePoolSize || 0)}</td>
                 <td>${Number(row.requiredQuota || 0)}</td>
                 <td>${Number(row.availableCount || 0)}</td>
                 <td>${row.quotaMet ? '<span class="good">Yes</span>' : 'No'}</td>
-                <td>${row.limitHit ? '<span class="bad">Yes</span>' : 'No'}</td>
                 <td>${Number(row.consideredCount || 0)}</td>
-                <td>${Number(row.batchCount || 0)}</td>
                 <td>${formatScore(row.averageOverallScore, 2)}</td>
                 <td>${escapeHtml(row.topDomain || '-')}</td>
+                <td>${formatScore(row.topScore, 1)}</td>
                 <td>${escapeHtml(row.nameSource || '-')}</td>
                 <td>${escapeHtml(row.skipReason || '-')}</td>
               </tr>
@@ -455,6 +473,8 @@
             <th>Style</th>
             <th>Randomness</th>
             <th>Mutation</th>
+            <th>Explore Rate</th>
+            <th>Elite Pool</th>
             <th>Reward</th>
           </tr>
         </thead>
@@ -469,6 +489,8 @@
                 <td>${escapeHtml(row.selectedStyle || '-')}</td>
                 <td>${escapeHtml(row.selectedRandomness || '-')}</td>
                 <td>${escapeHtml(row.selectedMutationIntensity || '-')}</td>
+                <td>${formatScore(row.explorationRate, 3)}</td>
+                <td>${Number(row.elitePoolSize || 0)}</td>
                 <td>${formatScore(row.reward, 4)}</td>
               </tr>
             `)
@@ -491,12 +513,17 @@
       return {
         domain: p.domain,
         sourceName: p.sourceName,
-        isNamelixPremium: Boolean(p.isNamelixPremium),
+        premiumPricing: Boolean(p.premiumPricing),
         available: null,
         price: undefined,
         overBudget: false,
+        intrinsicValue: 0,
         marketabilityScore: 0,
         financialValueScore: 0,
+        phoneticScore: 0,
+        brandabilityScore: 0,
+        seoScore: 0,
+        memorabilityScore: 0,
         overallScore: 0,
         syllableCount: 0,
         labelLength: label.length,
@@ -511,7 +538,7 @@
     const combinedRanked = allRanked.concat(pendingRows);
     // #region agent log
     allRanked.slice(0, 2).forEach(function (row, i) {
-      debugLogs.push({ sessionId: '437d46', location: 'app.js:renderResults', message: 'UI row', data: { index: i, domain: row.domain, price: row.price, isNamelixPremium: row.isNamelixPremium, hypothesisId: 'H4' }, timestamp: Date.now() });
+      debugLogs.push({ sessionId: '437d46', location: 'app.js:renderResults', message: 'UI row', data: { index: i, domain: row.domain, price: row.price, premiumPricing: row.premiumPricing, hypothesisId: 'H4' }, timestamp: Date.now() });
     });
     // #endregion
     const sortedRanked = sortRows(combinedRanked, currentSortMode);
