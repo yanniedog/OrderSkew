@@ -536,7 +536,6 @@ class Optimizer {
         const theme = clamp(Number(this._themeTokenScores.get(token) || 0) / 5, 0, 1);
         let score = rarity * 0.60 + freshness * 0.25 + theme * 0.15;
         const consecutiveLoops = Math.max(0, Number(stat.consecutiveLoops) || 0);
-        const plays = Math.max(0, Number(stat.plays) || 0);
         score *= 1 - this._repetitionPenalty(consecutiveLoops, plays);
         return { token, score };
       })
