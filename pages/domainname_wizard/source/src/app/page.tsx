@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { prepareSearchPayloadWithKeywordEnrichment } from "@/lib/keywords/submit";
 import { sortRankedDomains, type DomainSortMode } from "@/lib/search/sort";
 import {
   RANDOMNESS_VALUES,
@@ -266,18 +267,34 @@ export default function Page() {
     setSortMode("marketability");
 
     try {
+      const prepared = await prepareSearchPayloadWithKeywordEnrichment(form).catch(() => ({
+        payload: form,
+        enrichment: null,
+      }));
+
       const response = await fetch("/api/searches", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(prepared.payload),
       });
 
       const payload = (await response.json()) as { jobId?: string; message?: string };
 
       if (!response.ok || !payload.jobId) {
         throw new Error(payload.message ?? "Unable to start the search job.");
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("search-submit", {
+          originalKeywords: form.keywords,
+          submittedKeywords: prepared.payload.keywords,
+          enriched: Boolean(prepared.enrichment),
+          usedDatamuse: prepared.enrichment?.usedDatamuse ?? false,
+          usedWordnik: prepared.enrichment?.usedWordnik ?? false,
+          fallbackReason: prepared.enrichment?.fallbackReason ?? null,
+        });
       }
 
       setJobId(payload.jobId);
