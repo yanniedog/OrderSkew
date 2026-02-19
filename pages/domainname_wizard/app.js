@@ -842,8 +842,8 @@
             ${th('Keywords', 'Keywords used by this loop. Tokens are colored by learned term performance (blue low -> red high).')}
             ${th('Strategy', 'Style, randomness, and mutation used in this loop.')}
             ${th('Explore', 'Exploration rate and elite pool size for this loop.')}
-            ${th('Quota', 'Required and available names for this loop.')}
-            ${th('Results', 'Considered candidates and average score for this loop.')}
+            ${th('Quota', 'Required and in-budget available names for this loop (max names/loop target).')}
+            ${th('Results', 'Considered candidates, available split (in-budget/over-budget), and average score for this loop.')}
             ${th('Top', 'Top domain and top score for this loop.')}
             ${th('Source/Note', 'Name source and any skip note for this loop.')}
           </tr>
@@ -856,8 +856,8 @@
                 <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
                 <td>${escapeHtml(`${row.style || '-'} | ${row.randomness || '-'} | ${row.mutationIntensity || '-'}`)}</td>
                 <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>
-                <td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.availableCount || 0)}`)}</span></td>
-                <td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>
+                <td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.withinBudgetCount || 0)}`)}</span></td>
+                <td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avail=${Number(row.withinBudgetCount || 0)}/${Number(row.overBudgetCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>
                 <td>${escapeHtml(`${row.topDomain || '-'} | ${formatScore(row.topScore, 1)}`)}</td>
                 <td>${escapeHtml(`${row.nameSource || '-'} | ${row.skipReason || '-'}`)}</td>
               </tr>
@@ -881,7 +881,7 @@
             ${th('Keywords', 'Keyword set chosen for this loop. Tokens are colored by learned performance.')}
             ${th('Strategy', 'Source loop and selected style/randomness/mutation.')}
             ${th('Explore', 'Exploration rate and elite pool at decision time.')}
-            ${th('Reward', 'Loop reward assigned by RL objective (0-1).')}
+            ${th('Reward', 'Composite 0-1 RL reward: in-budget quota completion, availability rate, in-budget ratio, undervaluation (value ratio/underpriced), and quality of available domains.')}
           </tr>
         </thead>
         <tbody>

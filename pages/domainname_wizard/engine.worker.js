@@ -251,6 +251,7 @@ async function run(job) {
     const plan = optimizer.next(loop);
     const seen = new Set();
     const loopAvail = [];
+    const loopOverBudget = [];
     const loopAllDomains = [];
 
     let considered = 0;
@@ -258,55 +259,80 @@ async function run(job) {
     let limitHit = false;
     let stalls = 0;
     let skipReason;
-    let nameSource = 'unknown';
+    const nameSources = new Set();
+    const seenLabels = new Set();
+    const prevNamesBase = Array.from(availableMap.keys())
+      .concat(Array.from(overBudgetMap.keys()), Array.from(unavailableMap.keys()))
+      .map(function (k) { return k.split('.')[0]; });
+    for (const label of prevNamesBase) if (label) seenLabels.add(label.toLowerCase());
 
-    patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03), currentLoop: loop, totalLoops: input.loopCount });
+    while (loopAvail.length < plan.input.maxNames && batches < MAX_BATCH && stalls < MAX_STALL) {
+      patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03), currentLoop: loop, totalLoops: input.loopCount });
 
-    let cands = [];
-    const prevNames = Array.from(availableMap.keys()).concat(Array.from(overBudgetMap.keys()), Array.from(unavailableMap.keys())).map(function (k) { return k.split('.')[0]; });
+      const prevNames = Array.from(new Set(prevNamesBase.concat(Array.from(seenLabels)))).slice(0, 320);
+      let cands = [];
+      let nameSourceBatch = 'unknown';
 
-    if (backendBaseUrl) {
-      try {
-        const namelixNames = await fetchNamelixNames(backendBaseUrl, plan.input, prevNames.slice(0, 200));
-        cands = namelixNames.map(function (n) {
-          const key = n.domain.toLowerCase();
-          if (seen.has(key)) return null;
-          seen.add(key);
-          return { domain: n.domain, sourceName: n.sourceName || n.businessName, premiumPricing: false };
-        }).filter(Boolean);
-        nameSource = 'Namelix API (namelix.com)';
-        sendIngest('engine.worker.js:run', 'Name generation source', {
-          source: nameSource, namelixApiCalled: true, syntheticNameGeneration: false,
-          candidateCount: cands.length,
-          sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, sourceName: c.sourceName }; }),
-        }, 'H3');
-      } catch (namelixErr) {
-        const namelixErrMsg = namelixErr instanceof Error ? namelixErr.message : String(namelixErr || 'unknown');
-        sendIngest('engine.worker.js:run', 'Namelix API failed, falling back to local generation', { error: namelixErrMsg }, 'H3');
-        emitDebugLog('engine.worker.js:run', 'Namelix API failed, using local fallback', { error: namelixErrMsg });
+      if (backendBaseUrl) {
+        try {
+          const namelixNames = await fetchNamelixNames(backendBaseUrl, plan.input, prevNames);
+          cands = namelixNames.map(function (n) {
+            const key = String(n.domain || '').toLowerCase();
+            const label = key.split('.')[0] || '';
+            if (!key || seen.has(key)) return null;
+            if (label && seenLabels.has(label)) return null;
+            seen.add(key);
+            if (label) seenLabels.add(label);
+            return { domain: n.domain, sourceName: n.sourceName || n.businessName, premiumPricing: false };
+          }).filter(Boolean);
+          nameSourceBatch = 'Namelix API (namelix.com)';
+          nameSources.add(nameSourceBatch);
+          sendIngest('engine.worker.js:run', 'Name generation source', {
+            source: nameSourceBatch, namelixApiCalled: true, syntheticNameGeneration: false,
+            candidateCount: cands.length,
+            sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, sourceName: c.sourceName }; }),
+          }, 'H3');
+        } catch (namelixErr) {
+          const namelixErrMsg = namelixErr instanceof Error ? namelixErr.message : String(namelixErr || 'unknown');
+          sendIngest('engine.worker.js:run', 'Namelix API failed, falling back to local generation', { error: namelixErrMsg }, 'H3');
+          emitDebugLog('engine.worker.js:run', 'Namelix API failed, using local fallback', { error: namelixErrMsg });
+        }
       }
-    }
 
-    if (cands.length === 0) {
-      const seed = hash(`${job.id}|${loop}|0|0`);
-      const batchMax = clamp(Math.floor(Math.max(plan.input.maxNames * 3, plan.input.maxNames, 80)), plan.input.maxNames, 250);
-      cands = makeBatch(plan.input, seed, batchMax, seen);
-      nameSource = 'LOCAL (makeBatch fallback)';
-      sendIngest('engine.worker.js:run', 'Name generation source', {
-        source: nameSource, namelixApiCalled: false, syntheticNameGeneration: true,
-        candidateCount: cands.length,
-        sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, premiumPricing: c.premiumPricing }; }),
-      }, 'H3');
-    }
+      if (cands.length === 0) {
+        const seed = hash(`${job.id}|${loop}|${batches}|${seen.size}`);
+        const batchMax = clamp(Math.floor(Math.max(plan.input.maxNames * 3, plan.input.maxNames, 80)), plan.input.maxNames, 250);
+        cands = makeBatch(plan.input, seed, batchMax, seen)
+          .filter(function (n) {
+            const key = String(n.domain || '').toLowerCase();
+            const label = key.split('.')[0] || '';
+            if (!key) return false;
+            if (label && seenLabels.has(label)) return false;
+            if (label) seenLabels.add(label);
+            return true;
+          });
+        nameSourceBatch = 'LOCAL (makeBatch fallback)';
+        nameSources.add(nameSourceBatch);
+        sendIngest('engine.worker.js:run', 'Name generation source', {
+          source: nameSourceBatch, namelixApiCalled: false, syntheticNameGeneration: true,
+          candidateCount: cands.length,
+          sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, premiumPricing: c.premiumPricing }; }),
+        }, 'H3');
+      }
 
-    considered += cands.length;
-    batches += 1;
+      if (!cands.length) {
+        stalls += 1;
+        skipReason = 'No new candidates generated';
+        continue;
+      }
 
-    {
+      considered += cands.length;
+      batches += 1;
       const pendingRows = cands.map(function (c) { return { domain: c.domain, sourceName: c.sourceName, premiumPricing: c.premiumPricing }; });
       patch(job, { status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount, results: makeSnapshot(pendingRows) });
 
-      let got = 0;
+      let gotWithinBudget = 0;
+      let gotAvailableAny = 0;
       const domainList = cands.map(function (c) { return c.domain; });
       let availabilityByDomain;
       if (useBackend) {
@@ -390,24 +416,30 @@ async function run(job) {
         loopAllDomains.push(ranked);
 
         if (result.available && !result.overBudget) {
-          got += 1;
+          gotWithinBudget += 1;
+          gotAvailableAny += 1;
           loopAvail.push(ranked);
-          const key = ranked.domain.toLowerCase();
           overBudgetMap.delete(key);
           availableMap.set(key, mergeBest(availableMap.get(key), ranked, loop));
         } else if (result.available && result.overBudget) {
-          const key = ranked.domain.toLowerCase();
+          gotAvailableAny += 1;
+          loopOverBudget.push(ranked);
           availableMap.delete(key);
           overBudgetMap.set(key, mergeBest(overBudgetMap.get(key), ranked, loop));
         } else {
-          const key = ranked.domain.toLowerCase();
           unavailableMap.set(key, mergeBest(unavailableMap.get(key), ranked, loop));
         }
 
         const nextPending = (job.results && job.results.pending) ? job.results.pending.filter(function (p) { return String(p.domain || '').toLowerCase() !== key; }) : [];
         patch(job, { results: makeSnapshot(nextPending) });
+      }
 
-        if (loopAvail.length >= plan.input.maxNames) break;
+      if (gotWithinBudget > 0) stalls = 0;
+      else stalls += 1;
+
+      if (loopAvail.length >= plan.input.maxNames) {
+        limitHit = true;
+        break;
       }
 
       patch(job, {
@@ -420,13 +452,27 @@ async function run(job) {
       });
     }
 
+    const nameSource = nameSources.size ? Array.from(nameSources).join(' + ') : 'unknown';
+    if (!skipReason && loopAvail.length < plan.input.maxNames) {
+      if (stalls >= MAX_STALL) skipReason = 'Stall limit reached before in-budget quota';
+      else if (batches >= MAX_BATCH) skipReason = 'Batch limit reached before in-budget quota';
+      else skipReason = 'In-budget quota not reached';
+    }
+
     const rankedLoop = sortRanked(loopAvail, 'marketability');
-    const reward = scoreReward(rankedLoop, optimizer.eliteSet);
+    const rankedAvailableAll = sortRanked(loopAvail.concat(loopOverBudget), 'marketability');
+    const reward = scoreReward(rankedLoop, optimizer.eliteSet, {
+      withinBudgetRows: rankedLoop,
+      availableRows: rankedAvailableAll,
+      overBudgetRows: loopOverBudget,
+      consideredCount: considered,
+      requiredQuota: plan.input.maxNames,
+    });
     const step = optimizer.record(plan, reward, loopAllDomains);
     tuningHistory.push(step);
 
-    const avg = rankedLoop.length ? round(rankedLoop.reduce((s, r) => s + (r.overallScore || 0), 0) / rankedLoop.length, 2) : 0;
-    const top = rankedLoop[0];
+    const avg = rankedAvailableAll.length ? round(rankedAvailableAll.reduce((s, r) => s + (r.overallScore || 0), 0) / rankedAvailableAll.length, 2) : 0;
+    const top = rankedAvailableAll[0];
 
     loopSummaries.push({
       loop,
@@ -444,9 +490,10 @@ async function run(job) {
       skipReason,
       consideredCount: considered,
       batchCount: batches,
-      discoveredCount: rankedLoop.length,
-      availableCount: rankedLoop.length,
+      discoveredCount: rankedAvailableAll.length,
+      availableCount: rankedAvailableAll.length,
       withinBudgetCount: rankedLoop.length,
+      overBudgetCount: loopOverBudget.length,
       averageOverallScore: avg,
       topDomain: top ? top.domain : undefined,
       topScore: top ? top.overallScore : undefined,

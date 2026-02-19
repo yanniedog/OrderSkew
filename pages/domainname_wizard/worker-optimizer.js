@@ -5,17 +5,68 @@
 // Reward (multi-objective)
 // ---------------------------------------------------------------------------
 
-function scoreReward(rows, eliteSet) {
-  if (!rows.length) return 0;
-  const scores = rows.map((x) => x.overallScore || 0).sort((a, b) => b - a);
-  const top = scores.slice(0, Math.min(5, scores.length));
-  const avgTop = top.reduce((s, v) => s + v, 0) / top.length / 100;
+function scoreReward(rows, eliteSet, context) {
+  const ctx = context || {};
+  const withinBudgetRows = Array.isArray(ctx.withinBudgetRows) ? ctx.withinBudgetRows : (rows || []);
+  const availableRows = Array.isArray(ctx.availableRows) ? ctx.availableRows : withinBudgetRows;
+  const consideredCount = Math.max(1, Number(ctx.consideredCount) || availableRows.length || withinBudgetRows.length || 1);
+  const requiredQuota = Math.max(1, Number(ctx.requiredQuota) || Math.max(1, withinBudgetRows.length));
+
+  const averageTopScore01 = function (arr) {
+    if (!arr || !arr.length) return 0;
+    const top = arr
+      .map((x) => Number(x.overallScore) || 0)
+      .sort((a, b) => b - a)
+      .slice(0, 5);
+    if (!top.length) return 0;
+    return clamp((top.reduce((s, v) => s + v, 0) / top.length) / 100, 0, 1);
+  };
+  const undervaluation01 = function (arr) {
+    if (!arr || !arr.length) return 0;
+    const ratios = arr
+      .map((x) => Number(x.valueRatio) || 0)
+      .filter((v) => v > 0)
+      .sort((a, b) => b - a)
+      .slice(0, 5);
+    if (!ratios.length) return 0;
+    const avg = ratios.reduce((s, v) => s + v, 0) / ratios.length;
+    return clamp((avg - 1) / 9, 0, 1);
+  };
+
+  const availableCount = availableRows.length;
+  const withinBudgetCount = withinBudgetRows.length;
+  const quotaCompletion = clamp(withinBudgetCount / requiredQuota, 0, 1);
+  const availabilityRate = clamp(availableCount / consideredCount, 0, 1);
+  const inBudgetRate = availableCount > 0 ? clamp(withinBudgetCount / availableCount, 0, 1) : 0;
+  const topWithin = averageTopScore01(withinBudgetRows);
+  const topAvailable = averageTopScore01(availableRows);
+  const undervWithin = undervaluation01(withinBudgetRows);
+  const undervAvailable = undervaluation01(availableRows);
+  const underpricedShare = withinBudgetRows.length
+    ? withinBudgetRows.filter((r) => Boolean(r.underpricedFlag)).length / withinBudgetRows.length
+    : 0;
   const novelty = eliteSet
-    ? rows.filter((r) => !eliteSet.has(r.domain.toLowerCase())).length / Math.max(1, rows.length)
+    ? availableRows.filter((r) => !eliteSet.has(String(r.domain || '').toLowerCase())).length / Math.max(1, availableRows.length)
     : 0.5;
-  const sylSet = new Set(rows.map((r) => r.syllableCount || 0));
-  const diversity = sylSet.size / Math.min(5, rows.length);
-  return round(clamp(avgTop * 0.60 + novelty * 0.25 + diversity * 0.15, 0, 1), 4);
+  const sylSet = new Set(availableRows.map((r) => r.syllableCount || 0));
+  const diversity = availableRows.length ? sylSet.size / Math.min(5, availableRows.length) : 0;
+
+  const reward = clamp(
+    topWithin * 0.24
+    + quotaCompletion * 0.20
+    + availabilityRate * 0.13
+    + inBudgetRate * 0.12
+    + undervWithin * 0.14
+    + underpricedShare * 0.08
+    + topAvailable * 0.05
+    + undervAvailable * 0.02
+    + novelty * 0.01
+    + diversity * 0.01,
+    0,
+    1,
+  );
+
+  return round(reward, 4);
 }
 
 // ---------------------------------------------------------------------------
