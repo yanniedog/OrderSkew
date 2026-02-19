@@ -226,7 +226,7 @@ function createBoardState(container) {
     container,
     squares: [],
     position: emptyPosition(),
-    fen: START_FEN,
+    fen: "",
     interactive: true,
     onMove: null,
     dragFromIndex: null
