@@ -327,6 +327,7 @@ class Optimizer {
     this.base = { ...base };
     this._repetitionPenaltyLevel = (base.rewardPolicy && base.rewardPolicy.repetitionPenaltyLevel) || 'strong';
     if (!REPETITION_PENALTY_PARAMS[this._repetitionPenaltyLevel]) this._repetitionPenaltyLevel = 'strong';
+    emitDebugLog('worker-optimizer.js', 'Optimizer init', { repetitionPenaltyLevel: this._repetitionPenaltyLevel });
     this.model = sanitizeModel(model);
     this.rand = rng(seed || now());
     this.bestLoop = undefined;

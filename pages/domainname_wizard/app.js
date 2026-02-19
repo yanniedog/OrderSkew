@@ -43,7 +43,7 @@
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
-  const ENGINE_WORKER_VERSION = '2026-02-19-5';
+  const ENGINE_WORKER_VERSION = '2026-02-20-1';
   const tableSortState = new WeakMap();
   let dataSourceCollapsed = true;
   let diagnosticsInFlight = null;

@@ -211,7 +211,7 @@ function parseInput(raw) {
       inBudgetWeight: clamp(Number(rewardPolicyRaw.inBudgetWeight) || 0.12, 0.05, 0.30),
       repetitionPenaltyLevel,
     }
-    : (repetitionPenaltyLevel !== 'strong' ? { repetitionPenaltyLevel } : null);
+    : { repetitionPenaltyLevel };
   return {
     keywords,
     description: text(input.description),
