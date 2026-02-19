@@ -78,7 +78,7 @@ function handleBoardMove(detail) {
     resetTree();
     expanded.clear();
     setStatus("idle");
-    setError("Board edited. Tree cleared. Click Start to generate from the updated position.");
+    setError("Legal move applied (" + (detail.san || (detail.from + "->" + detail.to)) + "). Tree cleared. Click Start to generate from the updated position.");
   } else {
     setError("");
   }
@@ -105,12 +105,12 @@ function updateModeButtons(state) {
 function updateSelectionPanel(state) {
   if (boardFenOverride) {
     el.activeNodeLabel.textContent = "edited board";
-    renderBoard(el.board, boardFenOverride, { interactive: true, onMove: handleBoardMove });
+    renderBoard(el.board, boardFenOverride, { interactive: true, legalOnly: true, onMove: handleBoardMove });
     const lines = [
       "FEN: " + boardFenOverride,
       "Depth: -",
       "Eval: -",
-      "Move sequence: " + (boardLastMove ? boardLastMove.from + "->" + boardLastMove.to : "manual"),
+      "Move sequence: " + (boardLastMove ? (boardLastMove.san || (boardLastMove.from + "->" + boardLastMove.to)) : "manual"),
       "Best move: -",
       "Game result: -"
     ];
@@ -122,12 +122,12 @@ function updateSelectionPanel(state) {
   if (!node) {
     const seedFen = (state.settings.seedFen || "start").trim() || "start";
     el.activeNodeLabel.textContent = "seed position";
-    renderBoard(el.board, seedFen, { interactive: true, onMove: handleBoardMove });
+    renderBoard(el.board, seedFen, { interactive: true, legalOnly: true, onMove: handleBoardMove });
     el.meta.textContent = "FEN: " + seedFen + "\nDepth: -\nEval: -\nMove sequence: seed\nBest move: -\nGame result: -";
     return;
   }
   el.activeNodeLabel.textContent = String(node.hash);
-  renderBoard(el.board, node.fen, { interactive: true, onMove: handleBoardMove });
+  renderBoard(el.board, node.fen, { interactive: true, legalOnly: true, onMove: handleBoardMove });
   const lines = [
     "FEN: " + node.fen,
     "Depth: " + node.depth,
@@ -461,4 +461,4 @@ subscribe((state) => {
 
 wireEvents();
 resetTree();
-renderBoard(el.board, "start", { interactive: true, onMove: handleBoardMove });
+renderBoard(el.board, "start", { interactive: true, legalOnly: true, onMove: handleBoardMove });

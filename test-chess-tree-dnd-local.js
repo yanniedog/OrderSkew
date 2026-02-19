@@ -66,79 +66,114 @@ function closeEnough(a, b, tolerance = 1.25) {
   return Math.abs(a - b) <= tolerance;
 }
 
-async function pickDragPair(page) {
+async function assertSquareBoard(page, label) {
+  const metrics = await readBoardMetrics(page);
+  if (!metrics.board || metrics.squareCount !== 64) throw new Error(`${label}: board invalid`);
+  if (!closeEnough(metrics.board.width, metrics.board.height)) throw new Error(`${label}: board not square`);
+  if (!closeEnough(metrics.first.width, metrics.first.height)) throw new Error(`${label}: square not square`);
+  return metrics;
+}
+
+async function countSvgPieces(page) {
   return page.evaluate(() => {
-    const squares = Array.from(document.querySelectorAll("#board .board-square[data-square]"));
-    const withPieces = squares.filter((square) => square.querySelector(".board-piece"));
-    const empty = squares.filter((square) => !square.querySelector(".board-piece"));
-    if (withPieces.length === 0 || empty.length === 0) return null;
+    const pieces = Array.from(document.querySelectorAll("#board .board-piece"));
     return {
-      from: withPieces[0].getAttribute("data-square"),
-      to: empty[0].getAttribute("data-square")
+      count: pieces.length,
+      allImages: pieces.every((el) => el.tagName === "IMG"),
+      allSvgAssets: pieces.every((el) => (el.getAttribute("src") || "").includes("assets/pieces/"))
     };
   });
 }
 
-async function runE2E(url) {
-  const { chromium } = loadPlaywright();
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+async function runDesktopFlow(page) {
+  await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
+
+  const before = await assertSquareBoard(page, "before-start");
+  const pieceState = await countSvgPieces(page);
+  if (pieceState.count !== 32 || !pieceState.allImages || !pieceState.allSvgAssets) {
+    throw new Error("Pieces are not rendered as SVG image assets.");
+  }
+
+  await page.click("#run");
+  await page.waitForFunction(() => {
+    const v = document.querySelector("#st-positions");
+    return v && Number(v.textContent || "0") > 1;
+  }, { timeout: 60000 });
+
+  const afterStart = await assertSquareBoard(page, "after-start");
+
+  await page.click("text=ROOT");
+  await page.click("#board .board-square[data-square='e2']");
+  await page.click("#board .board-square[data-square='e4']");
+
+  const fenAfterClick = await page.inputValue("#seed-fen");
+  if (!fenAfterClick.startsWith("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b")) {
+    throw new Error("Legal click-to-move did not update seed FEN as expected.");
+  }
+
+  await page.click("#board .board-square[data-square='e4']");
+  await page.click("#board .board-square[data-square='e6']");
+  const fenAfterIllegal = await page.inputValue("#seed-fen");
+  if (fenAfterIllegal !== fenAfterClick) {
+    throw new Error("Illegal move changed the position.");
+  }
+
+  await page.dragAndDrop(
+    "#board .board-square[data-square='c7'] .board-piece",
+    "#board .board-square[data-square='c5']"
+  );
+
+  const fenAfterDrag = await page.inputValue("#seed-fen");
+  if (fenAfterDrag === fenAfterClick || !fenAfterDrag.includes("2p5")) {
+    throw new Error("Legal drag move did not apply.");
+  }
+
+  const afterDrag = await assertSquareBoard(page, "after-drag");
+  return { before, afterStart, afterDrag, fenAfterClick, fenAfterDrag };
+}
+
+async function runTouchFlow(browserType) {
+  const browser = await browserType.launch({ headless: true });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true
+  });
+  const page = await context.newPage();
 
   try {
-    await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
-
-    const before = await readBoardMetrics(page);
-    if (!before.board || before.squareCount !== 64) throw new Error("Board did not initialize to 64 squares.");
-
-    await page.click("#run");
-    await page.waitForFunction(() => {
-      const v = document.querySelector("#st-positions");
-      return v && Number(v.textContent || "0") > 1;
-    }, { timeout: 60000 });
-
-    const afterStart = await readBoardMetrics(page);
-    if (!closeEnough(afterStart.board.width, afterStart.board.height)) {
-      throw new Error(`Board not square after start: ${afterStart.board.width}x${afterStart.board.height}`);
-    }
-    if (!closeEnough(afterStart.first.width, afterStart.first.height)) {
-      throw new Error(`Square not square after start: ${afterStart.first.width}x${afterStart.first.height}`);
-    }
-
-    await page.click("text=ROOT");
-    const pair = await pickDragPair(page);
-    if (!pair) throw new Error("Drag test failed: board does not expose draggable pieces/squares.");
-    await page.dragAndDrop(
-      `#board .board-square[data-square='${pair.from}'] .board-piece`,
-      `#board .board-square[data-square='${pair.to}']`
-    );
-
-    const afterDrag = await readBoardMetrics(page);
-    if (!closeEnough(afterDrag.board.width, afterDrag.board.height)) {
-      throw new Error(`Board not square after drag: ${afterDrag.board.width}x${afterDrag.board.height}`);
-    }
-    if (!closeEnough(afterDrag.first.width, afterDrag.first.height)) {
-      throw new Error(`Square not square after drag: ${afterDrag.first.width}x${afterDrag.first.height}`);
-    }
+    await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
+    await page.tap("#board .board-square[data-square='g1']");
+    await page.tap("#board .board-square[data-square='f3']");
 
     const fen = await page.inputValue("#seed-fen");
-    if (!fen.includes("/")) throw new Error("Seed FEN not updated after drag.");
-
-    console.log("[test-chess-tree-dnd-local] pass", { before, afterStart, afterDrag, fen });
+    if (!fen.startsWith("rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b")) {
+      throw new Error("Touch tap move did not apply legal move.");
+    }
   } finally {
+    await context.close();
     await browser.close();
   }
 }
 
 async function main() {
+  const { chromium } = loadPlaywright();
   const server = createStaticServer();
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(PORT, "127.0.0.1", resolve);
   });
 
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
+
   try {
-    await runE2E(BASE_URL);
+    const desktop = await runDesktopFlow(page);
+    await browser.close();
+    await runTouchFlow(chromium);
+    console.log("[test-chess-tree-dnd-local] pass", desktop);
   } finally {
+    if (browser.isConnected()) await browser.close();
     server.close();
   }
 }

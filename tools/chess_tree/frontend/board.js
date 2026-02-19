@@ -1,19 +1,19 @@
-const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+﻿const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-const PIECES = {
-  p: "\u265F",
-  r: "\u265C",
-  n: "\u265E",
-  b: "\u265D",
-  q: "\u265B",
-  k: "\u265A",
-  P: "\u2659",
-  R: "\u2656",
-  N: "\u2658",
-  B: "\u2657",
-  Q: "\u2655",
-  K: "\u2654"
+const PIECE_ASSETS = {
+  p: "bP",
+  r: "bR",
+  n: "bN",
+  b: "bB",
+  q: "bQ",
+  k: "bK",
+  P: "wP",
+  R: "wR",
+  N: "wN",
+  B: "wB",
+  Q: "wQ",
+  K: "wK"
 };
 
 const BOARD_STATE = new WeakMap();
@@ -24,249 +24,303 @@ function normalizeFen(fen) {
   return raw;
 }
 
-function indexToSquare(index) {
-  const file = index % 8;
-  const rank = 8 - Math.floor(index / 8);
-  return FILES[file] + String(rank);
+function pieceColor(piece) {
+  return piece === piece.toUpperCase() ? "w" : "b";
 }
 
-function emptyPosition() {
-  return {
-    board: new Array(64).fill(""),
-    activeColor: "w",
-    castling: "-",
-    enPassant: "-",
-    halfmoveClock: 0,
-    fullmoveNumber: 1
-  };
-}
-
-function parseFenPosition(fen) {
-  const normalized = normalizeFen(fen);
-  const [placement = "", active = "w", castling = "-", enPassant = "-", halfmove = "0", fullmove = "1"] = normalized.split(/\s+/);
-  const rows = placement.split("/");
-  if (rows.length !== 8) throw new Error("Invalid FEN rows");
-
-  const parsed = emptyPosition();
-  parsed.activeColor = active === "b" ? "b" : "w";
-  parsed.castling = castling && castling !== "" ? castling : "-";
-  parsed.enPassant = enPassant && enPassant !== "" ? enPassant : "-";
-  parsed.halfmoveClock = Number.isFinite(Number(halfmove)) ? Number(halfmove) : 0;
-  parsed.fullmoveNumber = Math.max(1, Number.isFinite(Number(fullmove)) ? Number(fullmove) : 1);
-
-  for (let rank = 0; rank < 8; rank += 1) {
-    const row = rows[rank];
-    let file = 0;
-    for (const token of row) {
-      if (/\d/.test(token)) {
-        file += Number(token);
-        continue;
-      }
-      if (file > 7) throw new Error("Invalid FEN columns");
-      parsed.board[rank * 8 + file] = token;
-      file += 1;
-    }
-    if (file !== 8) throw new Error("Invalid FEN row width");
-  }
-
-  return parsed;
-}
-
-function serializeFen(position) {
-  const rows = [];
-  for (let rank = 0; rank < 8; rank += 1) {
-    let row = "";
-    let empties = 0;
-    for (let file = 0; file < 8; file += 1) {
-      const piece = position.board[rank * 8 + file] || "";
-      if (!piece) {
-        empties += 1;
-        continue;
-      }
-      if (empties > 0) {
-        row += String(empties);
-        empties = 0;
-      }
-      row += piece;
-    }
-    if (empties > 0) row += String(empties);
-    rows.push(row);
-  }
-
-  const castling = position.castling && position.castling.length > 0 ? position.castling : "-";
-  const enPassant = position.enPassant || "-";
-  return [
-    rows.join("/"),
-    position.activeColor,
-    castling,
-    enPassant,
-    String(position.halfmoveClock),
-    String(position.fullmoveNumber)
-  ].join(" ");
-}
-
-function removeCastlingRight(position, right) {
-  if (!position.castling || position.castling === "-") return;
-  position.castling = position.castling.replace(right, "");
-  if (!position.castling) position.castling = "-";
-}
-
-function updateMoveMeta(position, piece, fromSquare, toSquare, capture) {
-  const lower = piece.toLowerCase();
-  const movedByWhite = piece === piece.toUpperCase();
-
-  if (lower === "k") {
-    if (movedByWhite) {
-      removeCastlingRight(position, "K");
-      removeCastlingRight(position, "Q");
-    } else {
-      removeCastlingRight(position, "k");
-      removeCastlingRight(position, "q");
-    }
-  }
-
-  if (lower === "r") {
-    if (fromSquare === "a1") removeCastlingRight(position, "Q");
-    if (fromSquare === "h1") removeCastlingRight(position, "K");
-    if (fromSquare === "a8") removeCastlingRight(position, "q");
-    if (fromSquare === "h8") removeCastlingRight(position, "k");
-  }
-
-  if (capture) {
-    if (toSquare === "a1") removeCastlingRight(position, "Q");
-    if (toSquare === "h1") removeCastlingRight(position, "K");
-    if (toSquare === "a8") removeCastlingRight(position, "q");
-    if (toSquare === "h8") removeCastlingRight(position, "k");
-  }
-
-  position.halfmoveClock = lower === "p" || capture ? 0 : position.halfmoveClock + 1;
-  position.enPassant = "-";
-  position.activeColor = position.activeColor === "w" ? "b" : "w";
-  if (position.activeColor === "w") position.fullmoveNumber += 1;
-}
-
-function clearDragClasses(state) {
+function clearHighlights(state) {
   for (const square of state.squares) {
-    square.classList.remove("drag-origin", "drop-target");
+    square.classList.remove("is-selected", "is-legal-target", "is-last-from", "is-last-to", "invalid-attempt", "drag-origin", "drop-target");
   }
 }
 
-function movePiece(state, fromIndex, toIndex) {
-  if (fromIndex === toIndex) return false;
+function applyHighlights(state) {
+  clearHighlights(state);
 
-  const piece = state.position.board[fromIndex];
-  if (!piece) return false;
+  if (state.selectedSquare) {
+    const selected = state.squareByName.get(state.selectedSquare);
+    if (selected) selected.classList.add("is-selected");
+  }
 
-  const capture = Boolean(state.position.board[toIndex]);
-  const fromSquare = indexToSquare(fromIndex);
-  const toSquare = indexToSquare(toIndex);
+  for (const target of state.legalTargets) {
+    const square = state.squareByName.get(target);
+    if (square) square.classList.add("is-legal-target");
+  }
 
-  state.position.board[toIndex] = piece;
-  state.position.board[fromIndex] = "";
-  updateMoveMeta(state.position, piece, fromSquare, toSquare, capture);
+  if (state.lastMove) {
+    const fromSquare = state.squareByName.get(state.lastMove.from);
+    const toSquare = state.squareByName.get(state.lastMove.to);
+    if (fromSquare) fromSquare.classList.add("is-last-from");
+    if (toSquare) toSquare.classList.add("is-last-to");
+  }
 
-  state.fen = serializeFen(state.position);
+  if (state.dragFromSquare) {
+    const source = state.squareByName.get(state.dragFromSquare);
+    if (source) source.classList.add("drag-origin");
+  }
+}
+
+function setInvalidAttempt(state, squareName) {
+  const square = state.squareByName.get(squareName);
+  if (!square) return;
+  square.classList.add("invalid-attempt");
+  if (state.invalidAttemptTimer) clearTimeout(state.invalidAttemptTimer);
+  state.invalidAttemptTimer = setTimeout(() => {
+    square.classList.remove("invalid-attempt");
+    state.invalidAttemptTimer = null;
+  }, 220);
+}
+
+function getLegalMovesForSquare(state, squareName) {
+  if (!state.legalOnly) {
+    return state.chess.SQUARES.map((target) => ({ from: squareName, to: target, promotion: undefined }));
+  }
+  return state.chess.moves({ square: squareName, verbose: true }) || [];
+}
+
+function setSelectedSquare(state, squareName) {
+  state.selectedSquare = squareName;
+  const moves = getLegalMovesForSquare(state, squareName);
+  state.legalTargets = new Set(moves.map((move) => move.to));
+  applyHighlights(state);
+}
+
+function clearSelection(state) {
+  state.selectedSquare = null;
+  state.legalTargets.clear();
+  applyHighlights(state);
+}
+
+function emitMove(state, move) {
+  state.currentFen = state.chess.fen();
+  state.lastMove = { from: move.from, to: move.to };
   if (typeof state.onMove === "function") {
     state.onMove({
-      fen: state.fen,
-      from: fromSquare,
-      to: toSquare,
-      piece,
-      capture
+      fen: state.currentFen,
+      from: move.from,
+      to: move.to,
+      piece: move.piece,
+      san: move.san,
+      uci: move.from + move.to + (move.promotion || ""),
+      capture: Boolean(move.captured)
     });
   }
+}
 
+function tryMove(state, from, to) {
+  if (!from || !to) return false;
+  if (from === to) return false;
+
+  const selectedPiece = state.chess.get(from);
+  if (!selectedPiece) return false;
+
+  if (state.legalOnly && selectedPiece.color !== state.chess.turn()) {
+    setInvalidAttempt(state, from);
+    return false;
+  }
+
+  const moveInput = { from, to };
+  if (selectedPiece.type === "p" && (to.endsWith("8") || to.endsWith("1"))) {
+    moveInput.promotion = "q";
+  }
+
+  const move = state.chess.move(moveInput);
+  if (!move) {
+    setInvalidAttempt(state, to);
+    return false;
+  }
+
+  emitMove(state, move);
+  clearSelection(state);
+  renderPieces(state);
+  applyHighlights(state);
   return true;
 }
 
-function createPieceElement(state, piece, fromIndex) {
-  const pieceEl = document.createElement("span");
-  pieceEl.className = "board-piece";
-  pieceEl.textContent = PIECES[piece] || "";
+function onSquareActivate(state, squareName) {
+  if (!state.interactive) return;
 
-  if (!state.interactive) return pieceEl;
+  if (state.selectedSquare && state.legalTargets.has(squareName)) {
+    tryMove(state, state.selectedSquare, squareName);
+    return;
+  }
 
-  pieceEl.draggable = true;
-  pieceEl.addEventListener("dragstart", (event) => {
-    state.dragFromIndex = fromIndex;
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", indexToSquare(fromIndex));
+  const piece = state.chess.get(squareName);
+  if (!piece) {
+    clearSelection(state);
+    return;
+  }
 
-    const sourceSquare = state.squares[fromIndex];
-    if (sourceSquare) sourceSquare.classList.add("drag-origin");
+  if (state.legalOnly && piece.color !== state.chess.turn()) {
+    setInvalidAttempt(state, squareName);
+    return;
+  }
 
-    requestAnimationFrame(() => {
-      pieceEl.classList.add("dragging");
-    });
-  });
-
-  pieceEl.addEventListener("dragend", () => {
-    pieceEl.classList.remove("dragging");
-    clearDragClasses(state);
-    state.dragFromIndex = null;
-  });
-
-  return pieceEl;
+  setSelectedSquare(state, squareName);
 }
 
-function renderSquares(state) {
-  for (let index = 0; index < 64; index += 1) {
-    const squareEl = state.squares[index];
-    squareEl.innerHTML = "";
-    const piece = state.position.board[index] || "";
+function createPieceElement(state, squareName, pieceSymbol) {
+  const image = document.createElement("img");
+  image.className = "board-piece";
+  image.alt = pieceSymbol;
+  image.src = "./assets/pieces/" + PIECE_ASSETS[pieceSymbol] + ".svg";
+  image.setAttribute("draggable", String(state.interactive));
+
+  if (!state.interactive) return image;
+
+  image.addEventListener("dragstart", (event) => {
+    const piece = state.chess.get(squareName);
+    if (!piece || (state.legalOnly && piece.color !== state.chess.turn())) {
+      event.preventDefault();
+      return;
+    }
+
+    const legalMoves = getLegalMovesForSquare(state, squareName);
+    if (!legalMoves.length) {
+      event.preventDefault();
+      return;
+    }
+
+    state.dragFromSquare = squareName;
+    setSelectedSquare(state, squareName);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", squareName);
+    image.classList.add("is-dragging");
+  });
+
+  image.addEventListener("dragend", () => {
+    image.classList.remove("is-dragging");
+    state.dragFromSquare = null;
+    applyHighlights(state);
+  });
+
+  image.addEventListener("click", (event) => {
+    event.stopPropagation();
+    onSquareActivate(state, squareName);
+  });
+
+  image.addEventListener("pointerdown", (event) => {
+    if (event.pointerType !== "touch") return;
+    state.touchSourceSquare = squareName;
+  });
+
+  return image;
+}
+
+function renderPieces(state) {
+  for (const square of state.squares) {
+    const squareName = square.dataset.square;
+    square.textContent = "";
+    const piece = state.chess.get(squareName);
     if (!piece) continue;
-    squareEl.appendChild(createPieceElement(state, piece, index));
+    const symbol = piece.color === "w" ? piece.type.toUpperCase() : piece.type;
+    square.appendChild(createPieceElement(state, squareName, symbol));
   }
 }
 
+function createChessInstance(fen) {
+  const ChessCtor = globalThis.Chess;
+  if (typeof ChessCtor !== "function") {
+    throw new Error("Chess engine library is missing.");
+  }
+
+  const chess = new ChessCtor();
+  const normalized = normalizeFen(fen);
+  if (normalized !== START_FEN) {
+    const ok = chess.load(normalized);
+    if (!ok) throw new Error("Invalid FEN");
+  }
+  return chess;
+}
+
+function loadPosition(state, fen) {
+  const normalized = normalizeFen(fen);
+  try {
+    state.chess = createChessInstance(normalized);
+    state.currentFen = state.chess.fen();
+  } catch {
+    state.chess = createChessInstance(START_FEN);
+    state.currentFen = START_FEN;
+  }
+
+  clearSelection(state);
+  state.lastMove = null;
+  state.dragFromSquare = null;
+  state.touchSourceSquare = null;
+  renderPieces(state);
+  applyHighlights(state);
+}
+
 function createBoardState(container) {
-  container.innerHTML = "";
+  container.textContent = "";
 
   const state = {
     container,
     squares: [],
-    position: emptyPosition(),
-    fen: "",
+    squareByName: new Map(),
+    chess: null,
+    currentFen: "",
     interactive: true,
+    legalOnly: true,
     onMove: null,
-    dragFromIndex: null
+    selectedSquare: null,
+    legalTargets: new Set(),
+    lastMove: null,
+    dragFromSquare: null,
+    touchSourceSquare: null,
+    invalidAttemptTimer: null
   };
 
   for (let rank = 0; rank < 8; rank += 1) {
     for (let file = 0; file < 8; file += 1) {
-      const squareEl = document.createElement("div");
-      const index = rank * 8 + file;
-      const isDark = (rank + file) % 2 === 0;
-      squareEl.className = "board-square " + (isDark ? "dark" : "light");
-      squareEl.dataset.square = FILES[file] + String(8 - rank);
+      const squareName = FILES[file] + String(8 - rank);
+      const square = document.createElement("button");
+      square.type = "button";
+      square.className = "board-square " + ((rank + file) % 2 === 0 ? "dark" : "light");
+      square.dataset.square = squareName;
 
-      squareEl.addEventListener("dragover", (event) => {
-        if (!state.interactive || state.dragFromIndex == null) return;
+      square.addEventListener("click", () => onSquareActivate(state, squareName));
+
+      square.addEventListener("dragover", (event) => {
+        if (!state.interactive || !state.dragFromSquare) return;
+        if (!state.legalTargets.has(squareName)) return;
         event.preventDefault();
-        squareEl.classList.add("drop-target");
+        square.classList.add("drop-target");
       });
 
-      squareEl.addEventListener("dragleave", () => {
-        squareEl.classList.remove("drop-target");
+      square.addEventListener("dragleave", () => {
+        square.classList.remove("drop-target");
       });
 
-      squareEl.addEventListener("drop", (event) => {
-        if (!state.interactive || state.dragFromIndex == null) return;
+      square.addEventListener("drop", (event) => {
+        if (!state.interactive || !state.dragFromSquare) return;
         event.preventDefault();
-
-        const didMove = movePiece(state, state.dragFromIndex, index);
-        clearDragClasses(state);
-        state.dragFromIndex = null;
-
-        if (didMove) renderSquares(state);
+        const source = state.dragFromSquare;
+        state.dragFromSquare = null;
+        square.classList.remove("drop-target");
+        tryMove(state, source, squareName);
       });
 
-      state.squares.push(squareEl);
-      container.appendChild(squareEl);
+      square.addEventListener("pointerup", (event) => {
+        if (!state.interactive || event.pointerType !== "touch") return;
+        if (!state.touchSourceSquare) return;
+        const source = state.touchSourceSquare;
+        state.touchSourceSquare = null;
+        if (source === squareName) {
+          onSquareActivate(state, squareName);
+          return;
+        }
+        tryMove(state, source, squareName);
+      });
+
+      state.squares.push(square);
+      state.squareByName.set(squareName, square);
+      container.appendChild(square);
     }
   }
 
   BOARD_STATE.set(container, state);
+  loadPosition(state, START_FEN);
   return state;
 }
 
@@ -278,19 +332,15 @@ export function renderBoard(container, fen, options = {}) {
   const state = getBoardState(container);
 
   state.interactive = options.interactive !== false;
+  state.legalOnly = options.legalOnly !== false;
   state.onMove = typeof options.onMove === "function" ? options.onMove : null;
   state.container.classList.toggle("interactive", state.interactive);
 
   const normalized = normalizeFen(fen);
-  if (normalized !== state.fen) {
-    try {
-      state.position = parseFenPosition(normalized);
-      state.fen = serializeFen(state.position);
-    } catch {
-      state.position = parseFenPosition(START_FEN);
-      state.fen = START_FEN;
-    }
+  if (normalized !== state.currentFen) {
+    loadPosition(state, normalized);
+  } else {
+    renderPieces(state);
+    applyHighlights(state);
   }
-
-  renderSquares(state);
 }
