@@ -2,6 +2,7 @@
   "name": "orderskew",
   "private": true,
   "scripts": {
-    "test:domainname_wizard": "node test-domainname-wizard.js"
+    "test:domainname_wizard": "node test-domainname-wizard.js",
+    "test:frame_clock": "node test-frame-clock.js"
   }
 }

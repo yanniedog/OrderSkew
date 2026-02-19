@@ -69,14 +69,6 @@
     flex-shrink: 0;
 }
 
-.os-frame-time {
-    font-size: 0.8rem;
-    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
-    color: #5a7390;
-    white-space: nowrap;
-    user-select: none;
-}
-
 /* ── Footer ── */
 
 .os-frame-footer {

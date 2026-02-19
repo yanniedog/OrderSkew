@@ -63,7 +63,6 @@
             '<div class="os-frame-nav-inner">' +
                 '<span class="os-frame-brand">OrderSkew</span>' +
                 '<div class="os-frame-nav-links">' + links + '</div>' +
-                '<span class="os-frame-time" id="os-frame-time" title="">--:--:--</span>' +
             '</div>';
 
         return nav;
@@ -80,23 +79,6 @@
     }
 
     function padTwo(n) { return String(n).padStart(2, '0'); }
-
-    function formatLocalTime(d) {
-        return padTwo(d.getHours()) + ':' + padTwo(d.getMinutes()) + ':' + padTwo(d.getSeconds());
-    }
-
-    function formatUtcTitle(d) {
-        return d.getUTCFullYear() + '-' + padTwo(d.getUTCMonth() + 1) + '-' + padTwo(d.getUTCDate()) +
-            ' ' + padTwo(d.getUTCHours()) + ':' + padTwo(d.getUTCMinutes()) + ':' + padTwo(d.getUTCSeconds()) + ' UTC';
-    }
-
-    function updateFrameTime() {
-        var el = document.getElementById('os-frame-time');
-        if (!el) return;
-        var d = new Date();
-        el.textContent = formatLocalTime(d);
-        el.setAttribute('title', formatUtcTitle(d));
-    }
 
     function formatUtc(iso) {
         var d = new Date(iso);
@@ -137,8 +119,6 @@
     function init() {
         document.body.prepend(buildNav());
         document.body.appendChild(buildFooter());
-        updateFrameTime();
-        setInterval(updateFrameTime, 1000);
         loadCommitStamp();
     }
 
