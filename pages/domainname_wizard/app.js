@@ -928,9 +928,6 @@
     const curatedCoverageTargetPct = liveCoverage ? Number(liveCoverage.coverageTargetPct || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTargetPct || 0) : 0);
     const curatedCoverageAssessed = liveCoverage ? Number(liveCoverage.assessedTarget || 0) : (latestLoop ? Number(latestLoop.curatedCoverageAssessed || 0) : 0);
     const curatedCoverageTotal = liveCoverage ? Number(liveCoverage.total || 0) : (latestLoop ? Number(latestLoop.curatedCoverageTotal || 0) : 0);
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'84c593'},body:JSON.stringify({sessionId:'84c593',location:'app.js:renderSummary',message:'Curated coverage source',data:{liveCoverage:!!liveCoverage,latestLoopLoop:latestLoop?latestLoop.loop:null,curatedCoverageTotal,curatedCoveragePct,source:liveCoverage?'live':(latestLoop?'loop':'none')},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
-    // #endregion
 
     summaryKpisEl.innerHTML = [
       { label: 'Ranked Domains', value: String(allRanked.length) },
@@ -1427,11 +1424,6 @@
 
     if (job.results) {
       currentResults = job.results;
-      // #region agent log
-      var _loopLen = Array.isArray(job.results.loopSummaries) ? job.results.loopSummaries.length : 0;
-      var _last = _loopLen && job.results.loopSummaries ? job.results.loopSummaries[_loopLen - 1] : null;
-      fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'84c593'},body:JSON.stringify({sessionId:'84c593',location:'app.js:updateStatus',message:'Job results received',data:{hasKeywordLibrary:!!(job.results.keywordLibrary),hasCoverageMetrics:!!(job.results.keywordLibrary&&job.results.keywordLibrary.coverageMetrics),loopSummariesLen:_loopLen,lastLoopCovTotal:_last?_last.curatedCoverageTotal:null},timestamp:Date.now(),hypothesisId:'B'})}).catch(function(){});
-      // #endregion
       renderResults(currentResults);
     }
 
