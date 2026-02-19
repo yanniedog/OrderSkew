@@ -7,7 +7,7 @@
 
 const baseUrl = (process.argv[2] || "https://www.orderskew.com/pages/domainname_wizard/").replace(/\/$/, "");
 const JOB_START_MS = 8000;
-const RESULTS_WAIT_MS = 120000;
+const RESULTS_WAIT_MS = 180000;
 
 async function main() {
   const { chromium } = require("playwright");
@@ -28,7 +28,10 @@ async function main() {
       process.exit(1);
     }
 
-    await page.getByLabel("Keywords").fill("tech startup");
+    const keywordsInput = page.locator('input[name="keywords"]');
+    await keywordsInput.waitFor({ state: 'visible', timeout: 15000 });
+    await keywordsInput.fill("tech startup");
+    await page.locator('input[name="loopCount"]').fill("2");
     await page.getByRole("button", { name: /start search/i }).click();
 
     log("Waiting for job to start...");

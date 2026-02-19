@@ -59,6 +59,9 @@ function scoreReward(rows, eliteSet, context) {
     ? testedKeywords.filter((t) => (Number((tokenPlaysMap[t] && tokenPlaysMap[t].plays) || 0) === 0)).length / testedKeywords.length
     : 0;
   const explorationKeywordBonus = clamp(lowTestRate * 0.7 + virginRate * 0.3, 0, 1);
+  const reuseRate = testedKeywords.length
+    ? testedKeywords.filter((t) => (Number((tokenPlaysMap[t] && tokenPlaysMap[t].plays) || 0) > 0)).length / testedKeywords.length
+    : 0;
   const policy = (ctx.rewardPolicy && typeof ctx.rewardPolicy === 'object') ? ctx.rewardPolicy : {};
   const perfVsExplore = clamp(Number(policy.performanceVsExploration) || 0.78, 0.55, 0.95);
   const quotaWeight = clamp(Number(policy.quotaWeight) || 0.22, 0.10, 0.35);
@@ -90,11 +93,13 @@ function scoreReward(rows, eliteSet, context) {
   const coverageDelta01 = clamp(Number(ctx.curatedCoverageDelta01) || 0, -1, 1);
   const coverageBoost = clamp(curatedCoverage01 * 0.75 + Math.max(0, coverageDelta01) * 0.25, 0, 1);
   const exploreCompositeWithCoverage = clamp(exploreComposite * 0.78 + coverageBoost * 0.22, 0, 1);
-  const reward = clamp(
+  let reward = clamp(
     perfComposite * perfVsExplore + exploreCompositeWithCoverage * (1 - perfVsExplore),
     0,
     1,
   );
+  const reusePenaltyFactor = 0.25;
+  reward = clamp(reward * (1 - reusePenaltyFactor * reuseRate), 0, 1);
 
   return round(reward, 4);
 }
