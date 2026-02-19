@@ -127,3 +127,20 @@ So you **can** “give” the key to Cloudflare “secretly”: you add it as an
 
 - **Custom domain**: In **Workers & Pages** → your worker → **Settings** → **Triggers**, add a **Route** (e.g. `api.yourdomain.com/api/domains/availability`) so the wizard can use `https://api.yourdomain.com` as the Backend URL.
 - **Wizard UI on Cloudflare**: To host the wizard itself on Cloudflare, use **Pages**: connect your repo, set build output to the folder that contains the wizard’s static files (e.g. `pages/domainname_wizard` or your built site), and deploy. The wizard page will then be served from a `*.pages.dev` (or your custom) URL; keep using the Worker URL as the Backend URL so the key stays only in the Worker.
+
+---
+
+## 7. Pages with built-in availability API (same origin)
+
+If you deploy the wizard as a **Cloudflare Pages** project (e.g. `orderskew.pages.dev`), the repo includes a **Pages Function** so that `POST /api/domains/availability` is handled on the same origin. The wizard uses `window.location.origin` as the backend URL, so no separate Worker is required.
+
+**Setup:**
+
+1. In the Cloudflare dashboard, open your Pages project → **Settings** → **Environment variables**.
+2. Add (Production and optionally Preview):
+   - `GODADDY_API_KEY` – your GoDaddy API key
+   - `GODADDY_API_SECRET` – your GoDaddy API secret
+   - `GODADDY_ENV` – `OTE` (test) or `PRODUCTION` (live)
+3. Redeploy the project so the `functions` directory and env vars are used.
+
+The Function lives in `functions/api/domains/availability.js` and uses the same request/response contract as the standalone Worker. If these env vars are not set, the API returns 502 with a message asking for GoDaddy credentials; the wizard will then fall back to RDAP for availability.
