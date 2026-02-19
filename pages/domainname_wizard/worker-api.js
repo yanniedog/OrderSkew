@@ -254,10 +254,41 @@ async function fetchDevEcosystemScores(words, input) {
   const scores = new Map();
   if (!words || words.length === 0) return scores;
   const unique = [...new Set(words.filter(w => w.length >= 3))].slice(0, 30);
+  const apiBaseUrl = String(input.apiBaseUrl || '').trim().replace(/\/+$/, '');
   const githubToken = input.githubToken || '';
 
   for (const word of unique) {
-    if (DEV_ECOSYSTEM_CACHE.has(word)) { scores.set(word, DEV_ECOSYSTEM_CACHE.get(word)); continue; }
+    if (DEV_ECOSYSTEM_CACHE.has(word)) {
+      scores.set(word, DEV_ECOSYSTEM_CACHE.get(word));
+      continue;
+    }
+    scores.set(word, 0);
+  }
+
+  const toFetch = unique.filter(w => !DEV_ECOSYSTEM_CACHE.has(w));
+  if (toFetch.length === 0) return scores;
+
+  if (apiBaseUrl) {
+    try {
+      const res = await fetch(apiBaseUrl + '/api/dev-ecosystem', {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ words: toFetch }),
+      });
+      const data = await res.json().catch(function () { return {}; });
+      if (res.ok && data.scores && typeof data.scores === 'object') {
+        for (const [word, total] of Object.entries(data.scores)) {
+          const val = Number(total) || 0;
+          scores.set(word, val);
+          DEV_ECOSYSTEM_CACHE.set(word, val);
+        }
+        return scores;
+      }
+    } catch (_) {}
+  }
+
+  for (const word of toFetch) {
     let total = 0;
     try {
       const headers = { Accept: 'application/vnd.github.v3+json' };

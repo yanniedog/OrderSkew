@@ -2,6 +2,8 @@
 
 Namelix-to-GoDaddy iterative domain optimizer.
 
+> Status: legacy mirror workspace. The canonical maintained runtime in this repo is `pages/domainname_wizard/` with API source-of-truth in `functions/api/*`.
+
 ## Features
 
 - Collects Namelix-style naming preferences from a web form.

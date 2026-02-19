@@ -1,86 +1,42 @@
-# Deploy the wizard backend (GoDaddy key kept secret)
+# Domain Wizard Deployment and Canonical Paths
 
-**Easiest and most reliable: Vercel.** Use your existing Next.js API; no extra code. All setup in the browser (GitHub + Vercel dashboard). About 5 minutes.
+## Canonical code paths
 
----
+- UI/runtime: `pages/domainname_wizard/index.html`, `pages/domainname_wizard/app.js`, workers in `pages/domainname_wizard/*.js`
+- API (single source of truth):
+  - `functions/api/domains/availability.js`
+  - `functions/api/names/generate.js`
 
-## Option A: Vercel (recommended)
+The files under `pages/domainname_wizard/functions/api/*` are now shim re-exports only, kept for Cloudflare Pages root-directory compatibility. Do not add business logic there.
 
-### Why Vercel
-- Uses your **existing** Next.js app and `/api/domains/availability` route. No new files.
-- **Secrets in the UI**: add env vars in Vercel dashboard; no CLI.
-- **One-time**: connect repo, set 3 env vars, deploy. Future pushes auto-deploy.
-- Runs Node serverless functions; your API is already compatible.
+## Why this consolidation
 
-### Prerequisites
-- Repo on **GitHub** (this repo or a fork).
-- GoDaddy API key and secret from [GoDaddy Developer](https://developer.godaddy.com/) (use OTE for test).
+- Removes duplicated API logic and drift risk.
+- Keeps compatibility with either Pages project root:
+  - repo root
+  - `pages/domainname_wizard`
 
-### Steps
+## Cloudflare Pages setup
 
-1. **Go to [Vercel](https://vercel.com)** and sign in (GitHub is enough).
+1. Set your Pages project root as either:
+- repo root, or
+- `pages/domainname_wizard`
 
-2. **Add New Project**
-   - Click **Add New** → **Project**.
-   - Import your GitHub repo (e.g. `orderskew`). Authorize Vercel if asked.
+2. Add environment variables/secrets:
+- `GODADDY_API_KEY`
+- `GODADDY_API_SECRET`
+- `GODADDY_ENV` (`OTE` for test, `PRODUCTION` for live)
 
-3. **Configure the project**
-   - **Root Directory**: click **Edit**, set to **`pages/domainname_wizard/source`** (the folder with `package.json` and `next.config.js`). Leave **Framework Preset** as Next.js.
-   - **Build Command**: leave as `npm run build` (or `next build`).
-   - **Output Directory**: leave default.
-   - Do **not** deploy yet.
+3. Deploy.
 
-4. **Add environment variables (the “secret” part)**
-   - In the same screen, open **Environment Variables**.
-   - Add:
-     - **Name**: `GODADDY_API_KEY`  
-       **Value**: (paste your GoDaddy API key)  
-       **Environment**: Production (and Preview if you want).
-     - **Name**: `GODADDY_API_SECRET`  
-       **Value**: (paste your GoDaddy API secret)  
-       **Environment**: Production (and Preview if you want).
-     - **Name**: `GODADDY_ENV`  
-       **Value**: `OTE` (test) or `PRODUCTION` (live)  
-       **Environment**: Production (and Preview if you want).
-   - Vercel does not show values after save; they are used only on the server.
+4. Open the wizard and run a search. API routes used:
+- `/api/domains/availability`
+- `/api/names/generate`
 
-5. **Deploy**
-   - Click **Deploy**. Wait for the build to finish.
-   - You’ll get a URL like **`https://your-project-xxx.vercel.app`**.
+## Developer rule
 
-6. **Use the wizard**
-   - Open the Domain Name Wizard (e.g. `pages/domainname_wizard/index.html` locally or wherever you host it).
-   - In **Plan A: Backend URL**, enter the Vercel URL **with no trailing slash**, e.g.  
-     `https://your-project-xxx.vercel.app`
-   - Run a search. The wizard calls your Vercel app; the app uses the env vars to call GoDaddy; the key never goes to the browser.
+When changing API behavior, edit only:
+- `functions/api/domains/availability.js`
+- `functions/api/names/generate.js`
 
-### Summary (Vercel)
-| Step | Where | What |
-|------|--------|------|
-| 1 | GitHub | Repo is already there |
-| 2 | Vercel | Import project, set Root = `pages/domainname_wizard/source` |
-| 3 | Vercel | Add GODADDY_API_KEY, GODADDY_API_SECRET, GODADDY_ENV |
-| 4 | Vercel | Deploy → copy URL |
-| 5 | Wizard | Paste URL in Backend URL |
-
----
-
-## Option B: Cloudflare Worker
-
-Good if you prefer Cloudflare or want a tiny, single-file API with no Node build.
-
-- **Code**: Already in this repo: `pages/domainname_wizard/source/cloudflare-availability-worker.js` and `wrangler.toml`.
-- **Steps**: See [CLOUDFLARE.md](./CLOUDFLARE.md): install Wrangler, `wrangler secret put` for the three vars, then `wrangler deploy`. Use the Worker URL as the wizard’s Backend URL.
-
----
-
-## Comparison
-
-| | Vercel | Cloudflare Worker |
-|--|--------|-------------------|
-| **Ease** | All in browser (GitHub + Vercel UI) | CLI: Wrangler + `secret put` |
-| **New code** | None (use existing Next.js API) | One small Worker file (already added) |
-| **Secrets** | Vercel dashboard → Environment Variables | `wrangler secret put` |
-| **Reliability** | Next.js + serverless, well supported | Single JS Worker, very stable |
-
-**Recommendation:** Use **Vercel** (Option A) for the easiest and most reliable path with no extra implementation.
+The mirror files in `pages/domainname_wizard/functions/api/*` should remain thin re-export shims.
