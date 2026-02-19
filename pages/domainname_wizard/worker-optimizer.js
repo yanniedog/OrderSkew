@@ -755,7 +755,7 @@ class Optimizer {
 
   _repetitionPenalty(consecutiveLoops) {
     if (!consecutiveLoops || consecutiveLoops <= 0) return 0;
-    return clamp(0.18 * Math.pow(2.2, Math.min(consecutiveLoops, 6)), 0, 0.92);
+    return clamp(0.52 * Math.pow(2.6, Math.min(consecutiveLoops, 4)), 0, 0.97);
   }
 
   _tokenSelectionScore(stat, perf, explorationRate) {
