@@ -12,7 +12,9 @@ const path = require("path");
 const root = __dirname;
 const sourceDir = path.join(root, "pages", "domainname_wizard", "source");
 const PORT = 8765;
-const BASE_URL = "http://127.0.0.1:" + PORT + "/pages/domainname_wizard/";
+function getBaseUrl(port) {
+  return "http://127.0.0.1:" + port + "/pages/domainname_wizard/";
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -72,20 +74,20 @@ function createStaticServer() {
   });
 }
 
-function runE2E() {
+function runE2E(name, script, timeoutMs, baseUrl) {
   return new Promise((resolve) => {
-    log("Running E2E (Playwright) against " + BASE_URL);
+    log("Running E2E: " + name + " against " + baseUrl);
     const child = spawn(
       process.execPath,
-      [path.join(sourceDir, "e2e-static-wizard.js"), BASE_URL],
-      { cwd: sourceDir, stdio: "inherit", shell: false, timeout: 60000 }
+      [path.join(sourceDir, script), baseUrl],
+      { cwd: sourceDir, stdio: "inherit", shell: false, timeout: timeoutMs || 60000 }
     );
     child.on("close", (code, signal) => {
       if (code === 0) {
-        log("E2E OK");
+        log("E2E " + name + " OK");
         resolve(0);
       } else {
-        log("E2E FAILED (exit " + (code != null ? code : signal) + ")");
+        log("E2E " + name + " FAILED (exit " + (code != null ? code : signal) + ")");
         resolve(code || 1);
       }
     });
@@ -100,9 +102,11 @@ function main() {
   runUnitTests();
 
   const server = createStaticServer();
-  server.listen(PORT, "127.0.0.1", () => {
-    log("Static server listening on " + BASE_URL);
-    runE2E().then((code) => {
+  server.listen(0, "127.0.0.1", () => {
+    const port = server.address().port;
+    const baseUrl = getBaseUrl(port);
+    log("Static server listening on " + baseUrl);
+    runE2E("job start", "e2e-static-wizard.js", 60000, baseUrl).then((code) => {
       server.close();
       process.exit(code);
     });

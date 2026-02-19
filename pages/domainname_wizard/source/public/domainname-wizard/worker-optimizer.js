@@ -329,7 +329,10 @@ class Optimizer {
     this._curatedHasLibrary = this._libraryTokens.length > 0 || this._libraryPhraseTokens.length > 0;
     this._themeSeedTokens = dedupeTokens(
       this._libraryTokens.concat(this._libraryPhraseTokens, this._baseKeywordTokens, this._baseDescriptionTokens),
-    ).slice(0, 40);
+    )
+      .map(function (t) { return normalizeThemeToken(t); })
+      .filter(Boolean)
+      .slice(0, 40);
     if (!this._themeSeedTokens.length) this._themeSeedTokens = ['brand'];
     this._baseTokenSet = new Set(this._themeSeedTokens);
     this._themeSeedStems = new Set(this._themeSeedTokens.map(tokenStem).filter(Boolean));
@@ -352,6 +355,10 @@ class Optimizer {
     this._themeTokenPool = Array.from(this._themeTokenScores.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([token]) => token);
+    if (!this._themeTokenPool.length && this._themeSeedTokens.length) {
+      this._themeTokenPool = this._themeSeedTokens.slice(0, 160);
+      this._themeTokenSet = new Set(this._themeTokenPool);
+    }
     const totalLoops = Math.max(1, Number(this.base.loopCount) || 30);
     const assessableCap = Math.max(this._keywordsPerLoopMax, Math.floor((totalLoops * this._keywordsPerLoop) / this._minAssessmentsPerSearch));
     this._assessmentPool = this._themeTokenPool.slice(0, assessableCap);
