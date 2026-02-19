@@ -1,9 +1,13 @@
 // Domain Name Wizard - pure format/phase helpers (loaded before app.js)
 (function () {
   function backendUrl() {
-    if (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol || '') && window.location.origin) {
-      return window.location.origin;
-    }
+    if (typeof window === 'undefined' || !window.location) return '';
+    var protocol = (window.location.protocol || '').toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') return '';
+    var origin = window.location.origin;
+    if (origin) return origin;
+    var host = window.location.host;
+    if (host) return protocol + '//' + host;
     return '';
   }
   window.DomainNameWizardUtils = {
