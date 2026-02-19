@@ -67,6 +67,129 @@ function betaSample(alpha, beta, rand) {
   return x / (x + y);
 }
 
+function dedupeTokens(tokens) {
+  const out = [];
+  for (const token of tokens || []) {
+    if (!token || out.includes(token)) continue;
+    out.push(token);
+  }
+  return out;
+}
+
+function normalizeThemeToken(token) {
+  const clean = String(token || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (clean.length < 2 || clean.length > 24) return '';
+  return clean;
+}
+
+function tokenStem(token) {
+  let t = normalizeThemeToken(token);
+  if (!t) return '';
+  if (t.endsWith('ies') && t.length > 4) t = `${t.slice(0, -3)}y`;
+  else if (t.endsWith('ing') && t.length > 5) t = t.slice(0, -3);
+  else if (t.endsWith('ers') && t.length > 5) t = t.slice(0, -3);
+  else if (t.endsWith('ed') && t.length > 4) t = t.slice(0, -2);
+  else if (t.endsWith('es') && t.length > 4) t = t.slice(0, -2);
+  else if (t.endsWith('s') && t.length > 3) t = t.slice(0, -1);
+  return t;
+}
+
+function editDistanceWithin(a, b, maxDist) {
+  const aa = normalizeThemeToken(a);
+  const bb = normalizeThemeToken(b);
+  if (!aa || !bb) return false;
+  if (aa === bb) return true;
+  if (Math.abs(aa.length - bb.length) > maxDist) return false;
+
+  const prev = new Array(bb.length + 1);
+  for (let j = 0; j <= bb.length; j += 1) prev[j] = j;
+
+  for (let i = 1; i <= aa.length; i += 1) {
+    const curr = [i];
+    let rowMin = curr[0];
+    for (let j = 1; j <= bb.length; j += 1) {
+      const cost = aa[i - 1] === bb[j - 1] ? 0 : 1;
+      const v = Math.min(
+        prev[j] + 1,
+        curr[j - 1] + 1,
+        prev[j - 1] + cost,
+      );
+      curr[j] = v;
+      if (v < rowMin) rowMin = v;
+    }
+    if (rowMin > maxDist) return false;
+    for (let j = 0; j <= bb.length; j += 1) prev[j] = curr[j];
+  }
+
+  return prev[bb.length] <= maxDist;
+}
+
+function scoreThemeAffinity(token, seeds, seedStemSet) {
+  const clean = normalizeThemeToken(token);
+  if (!clean) return 0;
+  let best = 0;
+  const stem = tokenStem(clean);
+  if (seedStemSet && seedStemSet.has(stem)) best = Math.max(best, 2.0);
+
+  for (const seed of seeds || []) {
+    if (!seed) continue;
+    if (clean === seed) return 3.0;
+    if (clean.length >= 4 && seed.length >= 4 && clean.slice(0, 3) === seed.slice(0, 3)) best = Math.max(best, 1.8);
+    if (clean.length >= 4 && seed.length >= 4 && (clean.includes(seed) || seed.includes(clean))) best = Math.max(best, 2.2);
+    if (clean.length >= 4 && seed.length >= 4 && editDistanceWithin(clean, seed, 2)) best = Math.max(best, 1.6);
+  }
+
+  return best;
+}
+
+function buildTokenVariants(token) {
+  const clean = normalizeThemeToken(token);
+  if (!clean) return [];
+  const out = new Set([clean]);
+  const stem = tokenStem(clean);
+  if (stem) out.add(stem);
+
+  if (clean.endsWith('y') && clean.length > 3) out.add(`${clean.slice(0, -1)}ies`);
+  if (clean.endsWith('ies') && clean.length > 4) out.add(`${clean.slice(0, -3)}y`);
+  if (clean.endsWith('s') && clean.length > 3) out.add(clean.slice(0, -1));
+  else out.add(`${clean}s`);
+  if (clean.length > 4 && !clean.endsWith('ing')) out.add(`${clean}ing`);
+  if (clean.endsWith('ing') && clean.length > 5) out.add(clean.slice(0, -3));
+
+  const replacePairs = [
+    [/ph/g, 'f'],
+    [/f/g, 'ph'],
+    [/c/g, 'k'],
+    [/k/g, 'c'],
+    [/x/g, 'ks'],
+    [/ks/g, 'x'],
+    [/i/g, 'y'],
+    [/y/g, 'i'],
+  ];
+  for (const [pat, rep] of replacePairs) {
+    if (!pat.test(clean)) continue;
+    out.add(clean.replace(pat, rep));
+  }
+
+  if (/([a-z0-9])\1/.test(clean)) out.add(clean.replace(/([a-z0-9])\1+/g, '$1'));
+  return Array.from(out).map(normalizeThemeToken).filter(Boolean);
+}
+
+const REVERSE_BUSINESS_SYNONYMS = (() => {
+  const out = Object.create(null);
+  for (const [root, syns] of Object.entries(BUSINESS_SYNONYMS || {})) {
+    const rootToken = normalizeThemeToken(root);
+    if (!rootToken) continue;
+    for (const syn of syns || []) {
+      const token = normalizeThemeToken(syn);
+      if (!token) continue;
+      if (!out[token]) out[token] = [];
+      if (!out[token].includes(rootToken)) out[token].push(rootToken);
+    }
+  }
+  return out;
+})();
+
 // ---------------------------------------------------------------------------
 // Optimizer (Thompson Sampling + UCB1 + Elite Replay + Feature Learning)
 // ---------------------------------------------------------------------------
@@ -76,28 +199,46 @@ class Optimizer {
     this.base = { ...base };
     this.model = sanitizeModel(model);
     this.rand = rng(seed || now());
-    this.curTokens = tokenize(`${base.keywords} ${base.description}`).slice(0, 8);
     this.bestLoop = undefined;
     this.bestReward = -1;
-    this.eliteSet = new Set(this.model.elitePool.map(e => e.domain.toLowerCase()));
+    this.eliteSet = new Set(this.model.elitePool.map((e) => e.domain.toLowerCase()));
     this.totalPlays = Object.values(this.model.tokens).reduce((s, t) => s + t.plays, 0) || 1;
 
-    this._baseTokenSet = new Set(tokenize(`${base.keywords} ${base.description}`));
+    this._baseKeywordTokens = tokenize(base.keywords).map(normalizeThemeToken).filter(Boolean).slice(0, 12);
+    this._baseDescriptionTokens = tokenize(base.description || '').map(normalizeThemeToken).filter(Boolean).slice(0, 12);
+    this._themeSeedTokens = dedupeTokens(this._baseKeywordTokens.concat(this._baseDescriptionTokens)).slice(0, 24);
+    if (!this._themeSeedTokens.length) this._themeSeedTokens = ['brand'];
+    this._baseTokenSet = new Set(this._themeSeedTokens);
+    this._themeSeedStems = new Set(this._themeSeedTokens.map(tokenStem).filter(Boolean));
+    this._lockedSeedTokens = this._baseKeywordTokens.length
+      ? this._baseKeywordTokens.slice(0, Math.min(3, this._baseKeywordTokens.length))
+      : this._themeSeedTokens.slice(0, 1);
 
-    if (WORD_FREQ && WORD_FREQ.size > 0) {
-      const toDelete = [];
-      for (const [token] of Object.entries(this.model.tokens)) {
-        if (this._baseTokenSet.has(token)) continue;
-        if (!isValidToken(token)) toDelete.push(token);
-      }
-      if (toDelete.length > 0) {
-        emitDebugLog('worker-optimizer.js', 'Pruned junk tokens from persisted model', {
-          prunedCount: toDelete.length,
-          prunedSample: toDelete.slice(0, 20),
-          remainingCount: Object.keys(this.model.tokens).length - toDelete.length,
-        });
-        for (const t of toDelete) delete this.model.tokens[t];
-      }
+    this._themeTokenScores = this._buildThemeTokenScores();
+    this._themeTokenSet = new Set(this._themeTokenScores.keys());
+    this._themeTokenPool = Array.from(this._themeTokenScores.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([token]) => token);
+
+    this.curTokens = this._seedCurrentTokens();
+    emitDebugLog('worker-optimizer.js', 'Initialized theme-locked keyword pool', {
+      seedTokens: this._themeSeedTokens.slice(0, 12),
+      lockedTokens: this._lockedSeedTokens.slice(),
+      poolSize: this._themeTokenPool.length,
+      poolSample: this._themeTokenPool.slice(0, 20),
+    });
+
+    const toDelete = [];
+    for (const [token] of Object.entries(this.model.tokens)) {
+      if (!this._isThemeToken(token)) toDelete.push(token);
+    }
+    if (toDelete.length > 0) {
+      emitDebugLog('worker-optimizer.js', 'Pruned off-theme tokens from persisted model', {
+        prunedCount: toDelete.length,
+        prunedSample: toDelete.slice(0, 20),
+        remainingCount: Object.keys(this.model.tokens).length - toDelete.length,
+      });
+      for (const t of toDelete) delete this.model.tokens[t];
     }
   }
 
@@ -123,17 +264,161 @@ class Optimizer {
     return avg + Math.sqrt(2 * Math.log(this.totalPlays) / stat.plays);
   }
 
-  _buildSynonymPool() {
-    const expanded = [];
-    for (const bt of this._baseTokenSet) {
-      const syns = BUSINESS_SYNONYMS[bt];
-      if (syns) {
-        for (const s of syns) {
-          if (s.length >= 3 && !expanded.includes(s)) expanded.push(s);
-        }
+  _isThemeToken(token) {
+    const clean = normalizeThemeToken(token);
+    if (!clean) return false;
+    if (this._baseTokenSet.has(clean) || this._themeTokenSet.has(clean)) return true;
+    return scoreThemeAffinity(clean, this._themeSeedTokens, this._themeSeedStems) >= 1.8;
+  }
+
+  _addThemeToken(scored, token, weight, allowLoose) {
+    const clean = normalizeThemeToken(token);
+    if (!clean) return;
+    const affinity = scoreThemeAffinity(clean, this._themeSeedTokens, this._themeSeedStems);
+    if (affinity <= 0 && !this._baseTokenSet.has(clean) && !allowLoose) return;
+    if (!isValidToken(clean) && affinity < 1.6 && !this._baseTokenSet.has(clean) && !allowLoose) return;
+    const nextWeight = round(weight + affinity, 4);
+    const prev = scored.get(clean) || 0;
+    if (nextWeight > prev) scored.set(clean, nextWeight);
+  }
+
+  _buildThemeTokenScores() {
+    const scored = new Map();
+
+    for (const seed of this._themeSeedTokens) {
+      this._addThemeToken(scored, seed, 5.0, true);
+      for (const variant of buildTokenVariants(seed)) this._addThemeToken(scored, variant, 3.0, true);
+
+      const directSynonyms = BUSINESS_SYNONYMS[seed] || [];
+      for (const syn of directSynonyms) {
+        this._addThemeToken(scored, syn, 3.6, true);
+        for (const variant of buildTokenVariants(syn)) this._addThemeToken(scored, variant, 2.4, true);
+      }
+
+      const reverseRoots = REVERSE_BUSINESS_SYNONYMS[seed] || [];
+      for (const root of reverseRoots) {
+        this._addThemeToken(scored, root, 3.4, true);
+        for (const sibling of BUSINESS_SYNONYMS[root] || []) this._addThemeToken(scored, sibling, 2.8, true);
+      }
+
+      const seg = segmentWords(seed);
+      for (const part of seg.words || []) this._addThemeToken(scored, part, 2.8, false);
+    }
+
+    const compoundSource = dedupeTokens(
+      this._themeSeedTokens.concat(
+        Array.from(scored.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map((e) => e[0])
+          .slice(0, 18),
+      ),
+    ).slice(0, 24);
+
+    for (let i = 0; i < compoundSource.length; i += 1) {
+      for (let j = i + 1; j < compoundSource.length; j += 1) {
+        const a = compoundSource[i];
+        const b = compoundSource[j];
+        if (!a || !b || a === b || a.length < 3 || b.length < 3) continue;
+        const ab = normalizeThemeToken(`${a}${b}`);
+        const ba = normalizeThemeToken(`${b}${a}`);
+        if (ab && ab.length <= 16) this._addThemeToken(scored, ab, 2.2, false);
+        if (ba && ba.length <= 16) this._addThemeToken(scored, ba, 2.0, false);
       }
     }
-    return expanded;
+
+    return new Map(
+      Array.from(scored.entries())
+        .filter(([token, score]) => this._baseTokenSet.has(token) || score >= 2.4)
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 160),
+    );
+  }
+
+  _seedCurrentTokens() {
+    const next = [];
+    const add = (token) => {
+      const clean = normalizeThemeToken(token);
+      if (!clean || next.includes(clean) || !this._isThemeToken(clean)) return;
+      next.push(clean);
+    };
+
+    for (const token of this._lockedSeedTokens) add(token);
+    for (const token of tokenize(`${this.base.keywords} ${this.base.description}`)) add(token);
+    for (const token of this._themeTokenPool) {
+      if (next.length >= 8) break;
+      add(token);
+    }
+
+    return next.slice(0, 8);
+  }
+
+  _collectEliteThemeTokens() {
+    const out = [];
+    const add = (token) => {
+      const clean = normalizeThemeToken(token);
+      if (!clean || out.includes(clean)) return;
+      if (this._isThemeToken(clean)) out.push(clean);
+    };
+
+    for (const elite of this.model.elitePool.slice(0, 12)) {
+      const label = String(elite.domain || '').split('.')[0] || '';
+      for (const m of findMorphemes(label)) add(m);
+      if (label.includes('-')) {
+        for (const part of label.split('-').filter(Boolean)) add(part);
+      }
+    }
+
+    return out.slice(0, 24);
+  }
+
+  _ensureLockedTokens(next, locked) {
+    const lockedSet = new Set(locked);
+    for (const token of locked) {
+      if (next.includes(token)) continue;
+      if (next.length < 8) {
+        next.push(token);
+        continue;
+      }
+      const replaceIdx = next.findIndex((t) => !lockedSet.has(t));
+      if (replaceIdx >= 0) next[replaceIdx] = token;
+    }
+  }
+
+  _removeOneMutable(next, weak, lockedSet) {
+    if (next.length <= Math.max(2, lockedSet.size + 1)) return;
+    let idx = next.findIndex((t) => !lockedSet.has(t) && weak.has(t));
+    if (idx < 0) {
+      const mutableIdx = [];
+      for (let i = 0; i < next.length; i += 1) if (!lockedSet.has(next[i])) mutableIdx.push(i);
+      if (!mutableIdx.length) return;
+      idx = mutableIdx[Math.floor(this.rand() * mutableIdx.length)];
+    }
+    next.splice(idx, 1);
+  }
+
+  _refillThemeTokens(next, refillPool) {
+    for (const token of refillPool) {
+      const clean = normalizeThemeToken(token);
+      if (!clean || next.includes(clean) || !this._isThemeToken(clean)) continue;
+      next.push(clean);
+      if (next.length >= 8) break;
+    }
+  }
+
+  _mutateAndReorder(next, intensity, lockedSet) {
+    if (intensity !== 'high' || next.length <= Math.max(3, lockedSet.size + 1)) return;
+    const locked = [];
+    const mutable = [];
+    for (const token of next) {
+      if (lockedSet.has(token)) locked.push(token);
+      else mutable.push(token);
+    }
+    mutable.sort(() => (this.rand() > 0.5 ? 1 : -1));
+    next.length = 0;
+    for (const token of locked.concat(mutable)) {
+      if (!next.includes(token)) next.push(token);
+      if (next.length >= 8) break;
+    }
   }
 
   next(loop) {
@@ -146,69 +431,63 @@ class Optimizer {
       ? pick(RANDOMNESS_VALUES, this.rand)
       : this.thompsonChoose(this.model.randomness, RANDOMNESS_VALUES);
 
-    const tokenEntries = Object.entries(this.model.tokens);
+    const tokenEntries = Object.entries(this.model.tokens).filter(([token]) => this._isThemeToken(token));
     const tokenRank = tokenEntries
       .map(([token, stat]) => ({ token, ucb: this.ucbScore(stat) }))
       .sort((a, b) => b.ucb - a.ucb);
 
     const good = tokenRank
-      .filter((x) => x.ucb >= 0.6)
-      .filter((x) => this._baseTokenSet.has(x.token) || isValidToken(x.token))
+      .filter((x) => x.ucb >= 0.58)
       .map((x) => x.token)
-      .slice(0, 15);
+      .slice(0, 20);
 
     const weak = new Set(
       tokenRank
         .filter((x) => x.ucb <= 0.35 && (this.model.tokens[x.token] || {}).plays >= 3)
-        .map((x) => x.token)
+        .map((x) => x.token),
     );
 
-    const baseTokens = tokenize(this.base.keywords).slice(0, 12);
-
-    const eliteTokens = [];
-    for (const elite of this.model.elitePool.slice(0, 10)) {
-      const label = elite.domain.split('.')[0] || '';
-      const morphemes = findMorphemes(label);
-      for (const m of morphemes) {
-        if (m.length >= 3 && !eliteTokens.includes(m)) eliteTokens.push(m);
-      }
-      if (label.includes('-')) {
-        for (const part of label.split('-').filter(Boolean)) {
-          if (part.length >= 3 && isValidToken(part) && !eliteTokens.includes(part)) {
-            eliteTokens.push(part);
-          }
-        }
-      }
-    }
-
-    const synonymPool = this._buildSynonymPool();
+    const baseTokens = this._baseKeywordTokens.length ? this._baseKeywordTokens.slice(0, 12) : this._themeSeedTokens.slice(0, 8);
+    const anchorPool = this._themeTokenPool.slice(0, 60);
+    const eliteTokens = this._collectEliteThemeTokens();
 
     const intensity = this.rand() < explorationRate ? 'high' : this.rand() > 0.5 ? 'medium' : 'low';
     const mut = intensity === 'high' ? 4 : intensity === 'medium' ? 2 : 1;
-    const next = this.curTokens.length ? this.curTokens.slice() : baseTokens.slice(0, 4);
+    const locked = this._lockedSeedTokens.slice();
+    const lockedSet = new Set(locked);
+
+    const next = [];
+    for (const t of locked) if (!next.includes(t) && this._isThemeToken(t)) next.push(t);
+    for (const t of this.curTokens) {
+      const clean = normalizeThemeToken(t);
+      if (!clean || next.includes(clean) || !this._isThemeToken(clean)) continue;
+      next.push(clean);
+      if (next.length >= 8) break;
+    }
+    if (!next.length) this._refillThemeTokens(next, baseTokens.concat(anchorPool));
 
     for (let i = 0; i < mut; i += 1) {
-      if (next.length > 2) {
-        const weakIdx = next.findIndex((t) => weak.has(t));
-        const idx = weakIdx >= 0 ? weakIdx : Math.floor(this.rand() * next.length);
-        next.splice(idx, 1);
-      }
+      this._removeOneMutable(next, weak, lockedSet);
       let src;
       const r = this.rand();
-      if (eliteTokens.length && r < 0.25) {
-        src = eliteTokens;
-      } else if (good.length && r < 0.55) {
-        src = good;
-      } else if (synonymPool.length && r < 0.75) {
-        src = synonymPool;
-      } else {
-        src = baseTokens;
-      }
-      const t = pick(src.length ? src : baseTokens, this.rand);
-      if (t && !next.includes(t)) next.push(t);
+      if (good.length && r < 0.38) src = good;
+      else if (anchorPool.length && r < 0.86) src = anchorPool;
+      else if (eliteTokens.length && r < 0.96) src = eliteTokens;
+      else src = baseTokens;
+      const t = pick((src && src.length) ? src : baseTokens, this.rand);
+      const clean = normalizeThemeToken(t);
+      if (clean && !next.includes(clean) && this._isThemeToken(clean)) next.push(clean);
     }
 
-    this.curTokens = next.slice(0, 8);
+    this._ensureLockedTokens(next, locked);
+    this._refillThemeTokens(
+      next,
+      dedupeTokens(good.concat(anchorPool, eliteTokens, baseTokens, this._themeSeedTokens)),
+    );
+    this._mutateAndReorder(next, intensity, lockedSet);
+
+    this.curTokens = dedupeTokens(next.map(normalizeThemeToken).filter((t) => t && this._isThemeToken(t))).slice(0, 8);
+    if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(8, baseTokens.length));
 
     return {
       loop,
@@ -234,9 +513,12 @@ class Optimizer {
     this.model.randomness[plan.selectedRandomness].plays += 1;
     this.model.randomness[plan.selectedRandomness].reward += r;
 
-    const tokens = tokenize(`${plan.input.keywords} ${plan.input.description}`)
-      .filter(t => this._baseTokenSet.has(t) || isValidToken(t))
+    let tokens = tokenize(`${plan.input.keywords} ${plan.input.description}`)
+      .map(normalizeThemeToken)
+      .filter((t) => t && this._isThemeToken(t))
       .slice(0, 12);
+    if (tokens.length === 0) tokens = this._lockedSeedTokens.slice(0, 3);
+
     for (const token of tokens) {
       if (!this.model.tokens[token]) this.model.tokens[token] = { plays: 0, reward: 0 };
       this.model.tokens[token].plays += 1;
@@ -268,7 +550,7 @@ class Optimizer {
           this.model.featureStats.noRealWord.reward += score01;
         }
 
-        const existing = this.model.elitePool.find(e => e.domain.toLowerCase() === dom.domain.toLowerCase());
+        const existing = this.model.elitePool.find((e) => e.domain.toLowerCase() === dom.domain.toLowerCase());
         if (existing) {
           if ((dom.overallScore || 0) > existing.score) existing.score = dom.overallScore || 0;
         } else {
@@ -277,7 +559,7 @@ class Optimizer {
       }
       this.model.elitePool.sort((a, b) => b.score - a.score);
       this.model.elitePool = this.model.elitePool.slice(0, 30);
-      this.eliteSet = new Set(this.model.elitePool.map(e => e.domain.toLowerCase()));
+      this.eliteSet = new Set(this.model.elitePool.map((e) => e.domain.toLowerCase()));
     }
 
     if (r >= this.bestReward) {
@@ -302,7 +584,7 @@ class Optimizer {
   snapshot() {
     this.model.tokens = Object.fromEntries(
       Object.entries(this.model.tokens)
-        .filter(([token]) => this._baseTokenSet.has(token) || isValidToken(token))
+        .filter(([token]) => this._isThemeToken(token))
         .sort((a, b) => (this.ucbScore(b[1]) - this.ucbScore(a[1])))
         .slice(0, 300),
     );

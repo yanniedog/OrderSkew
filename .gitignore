@@ -1,4 +1,6 @@
-.cursor/debug.log
+# Cursor: ignore local/debug only; keep .cursor/rules/ and .cursor/agents/ for version control
+.cursor/debug*.log
+.cursor/*.log
 **/node_modules/
 .env.local
 **/.env.local

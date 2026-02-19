@@ -12,7 +12,7 @@ async function fetchNamelixNames(apiBaseUrl, plan, prevNames) {
     keywords: plan.keywords,
     description: plan.description || '',
     blacklist: plan.blacklist || '',
-    maxLength: plan.maxLength || 25,
+    maxLength: plan.maxLength || 10,
     tld: plan.tld || 'com',
     style: plan.style || 'default',
     randomness: plan.randomness || 'medium',

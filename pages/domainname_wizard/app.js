@@ -31,7 +31,7 @@
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
-  const ENGINE_WORKER_VERSION = '2026-02-19-1';
+  const ENGINE_WORKER_VERSION = '2026-02-19-2';
 
   const BACKEND_URL = (function () {
     if (typeof window !== 'undefined' && window.location && /^https?:$/i.test(window.location.protocol || '') && window.location.origin) {
@@ -592,11 +592,11 @@
       style: String(data.get('style') || 'default'),
       randomness: String(data.get('randomness') || 'medium'),
       blacklist: String(data.get('blacklist') || '').trim(),
-      maxLength: clamp(Math.round(parseNumber(data.get('maxLength'), 25)), 5, 25),
+      maxLength: clamp(Math.round(parseNumber(data.get('maxLength'), 10)), 5, 25),
       tld: String(data.get('tld') || 'com').trim(),
-      maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 100)), 1, 250),
+      maxNames: clamp(Math.round(parseNumber(data.get('maxNames'), 20)), 1, 250),
       yearlyBudget: clamp(parseNumber(data.get('yearlyBudget'), 50), 1, 100000),
-      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 10)), 1, 25),
+      loopCount: clamp(Math.round(parseNumber(data.get('loopCount'), 30)), 1, 60),
       apiBaseUrl: BACKEND_URL,
       githubToken: String(data.get('githubToken') || '').trim(),
     };
