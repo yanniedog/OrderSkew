@@ -1307,6 +1307,9 @@ class Optimizer {
       this.bestLoop = plan.loop;
     }
 
+    const repPenalty = typeof plan.repetitionPenaltyApplied === 'number' && Number.isFinite(plan.repetitionPenaltyApplied)
+      ? round(plan.repetitionPenaltyApplied, 4)
+      : null;
     return {
       loop: plan.loop,
       sourceLoop: plan.sourceLoop,
@@ -1318,7 +1321,7 @@ class Optimizer {
       explorationRate: plan.explorationRate,
       elitePoolSize: this.model.elitePool.length,
       reward: round(r, 4),
-      repetitionPenaltyApplied: plan.repetitionPenaltyApplied != null ? round(Number(plan.repetitionPenaltyApplied), 4) : null,
+      repetitionPenaltyApplied: repPenalty,
     };
   }
 

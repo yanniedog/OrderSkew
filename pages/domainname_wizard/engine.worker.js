@@ -4,7 +4,7 @@
 const jobs = new Map();
 const canceled = new Set();
 let dbPromise = null;
-const WORKER_ASSET_VERSION = '2026-02-19-5';
+const WORKER_ASSET_VERSION = '2026-02-20-1';
 
 importScripts(
   `worker-utils.js?v=${WORKER_ASSET_VERSION}`,

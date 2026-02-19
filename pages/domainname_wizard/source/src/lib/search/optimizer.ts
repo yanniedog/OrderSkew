@@ -34,6 +34,8 @@ export interface LoopPlan {
   selectedRandomness: RandomnessValue;
   selectedMutationIntensity: MutationIntensityValue;
   input: SearchRequest;
+  /** Average repetition penalty (0-1) applied to selected keywords; set by worker optimizer */
+  repetitionPenaltyApplied?: number | null;
 }
 
 const MODEL_VERSION = 1;
@@ -355,6 +357,7 @@ export class DomainSearchOptimizer {
       selectedRandomness: plan.selectedRandomness,
       selectedMutationIntensity: plan.selectedMutationIntensity,
       reward: Number(boundedReward.toFixed(4)),
+      repetitionPenaltyApplied: plan.repetitionPenaltyApplied ?? null,
     };
   }
 
