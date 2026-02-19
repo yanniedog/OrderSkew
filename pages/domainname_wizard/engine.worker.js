@@ -465,6 +465,61 @@ function progress(totalLoops, currentLoop, fraction) {
   return Math.round(5 + norm * 90);
 }
 
+async function fetchNamelixNames(apiBaseUrl, plan, prevNames) {
+  const base = String(apiBaseUrl).replace(/\/+$/, '');
+  const url = base + '/api/names/generate';
+  const payload = {
+    keywords: plan.keywords,
+    description: plan.description || '',
+    blacklist: plan.blacklist || '',
+    maxLength: plan.maxLength || 25,
+    tld: plan.tld || 'com',
+    style: plan.style || 'default',
+    randomness: plan.randomness || 'medium',
+    maxNames: plan.maxNames || 30,
+    prevNames: prevNames || [],
+  };
+  // #region agent log
+  sendIngest('engine.worker.js:fetchNamelixNames', 'Calling Namelix name generation API', { url, keywords: payload.keywords, style: payload.style, maxNames: payload.maxNames }, 'H3');
+  // #endregion
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const msg = err && err.message ? err.message : 'Namelix API request failed';
+    // #region agent log
+    sendIngest('engine.worker.js:fetchNamelixNames', 'Namelix API fetch exception', { url, error: msg }, 'H3');
+    // #endregion
+    throw new Error('Namelix request failed: ' + msg);
+  }
+  const data = await res.json().catch(function () { return {}; });
+  if (!res.ok) {
+    const msg = data.message || data.code || ('Namelix API error ' + res.status);
+    // #region agent log
+    sendIngest('engine.worker.js:fetchNamelixNames', 'Namelix API non-OK response', { url, status: res.status, message: msg, _debug: data._debug || null }, 'H3');
+    // #endregion
+    throw new Error(msg);
+  }
+  const names = data.names || [];
+  // #region agent log
+  sendIngest('engine.worker.js:fetchNamelixNames', 'Namelix API success', {
+    url,
+    nameCount: names.length,
+    _debug: data._debug || null,
+    sampleNames: names.slice(0, 5).map(function (n) { return { domain: n.domain, businessName: n.businessName, source: n.source }; }),
+  }, 'H3');
+  // #endregion
+  if (data._debug) {
+    self.postMessage({ type: 'debugLog', payload: { sessionId: 'efbcb6', location: 'engine.worker.js:fetchNamelixNames', message: 'Namelix API debug info', data: data._debug, timestamp: Date.now() } });
+  }
+  return names;
+}
+
 const AVAILABILITY_CHUNK = 100;
 const RDAP_DELAY_MS = 1200;
 const LEGACY_VERCEL_BACKEND_URL = null;
@@ -635,34 +690,61 @@ async function run(job) {
     let limitHit = false;
     let stalls = 0;
     let skipReason;
+    let nameSource = 'unknown';
 
-    while (loopAvail.length < plan.input.maxNames) {
-      if (canceled.has(job.id)) throw new Error('Run canceled by user.');
-      if (considered >= LOOP_LIMIT) { limitHit = true; skipReason = `Considered-name cap of ${LOOP_LIMIT} reached.`; break; }
-      if (batches >= MAX_BATCH) { skipReason = `Batch attempt cap (${MAX_BATCH}) reached before quota.`; break; }
+    patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03), currentLoop: loop, totalLoops: input.loopCount });
 
-      const remaining = plan.input.maxNames - loopAvail.length;
-      const batchMax = clamp(Math.floor(Math.max(remaining * 3, remaining, Math.min(plan.input.maxNames, 80))), remaining, 250);
-      const seed = hash(`${job.id}|${loop}|${batches}|${considered}`);
+    let cands = [];
+    const prevNames = Array.from(availableMap.keys()).concat(Array.from(overBudgetMap.keys()), Array.from(unavailableMap.keys())).map(function (k) { return k.split('.')[0]; });
 
-      patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03 + 0.72 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount });
-
-      const cands = makeBatch(plan.input, seed, batchMax, seen);
-      // #region agent log
-      if (loop === 1 && batches === 0) {
+    if (backendBaseUrl) {
+      try {
+        const namelixNames = await fetchNamelixNames(backendBaseUrl, plan.input, prevNames.slice(0, 200));
+        cands = namelixNames.map(function (n) {
+          const key = n.domain.toLowerCase();
+          if (seen.has(key)) return null;
+          seen.add(key);
+          return { domain: n.domain, sourceName: n.sourceName || n.businessName, isNamelixPremium: false };
+        }).filter(Boolean);
+        nameSource = 'Namelix API (namelix.com)';
+        // #region agent log
         sendIngest('engine.worker.js:run', 'Name generation source', {
-          source: 'LOCAL (makeBatch combinatorics)',
-          namelixApiCalled: false,
-          syntheticNameGeneration: true,
+          source: nameSource,
+          namelixApiCalled: true,
+          syntheticNameGeneration: false,
           candidateCount: cands.length,
-          sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, isNamelixPremium: c.isNamelixPremium, premiumSource: 'hash-based (synthetic)' }; }),
-          explanation: 'Names generated using local PREFIX/SUFFIX/DICT arrays and styleName combinatorics. No external Namelix API is called. isNamelixPremium is computed via hash(domain|premium) % 100 < threshold.',
+          sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, sourceName: c.sourceName }; }),
         }, 'H3');
+        // #endregion
+      } catch (namelixErr) {
+        const namelixErrMsg = namelixErr instanceof Error ? namelixErr.message : String(namelixErr || 'unknown');
+        // #region agent log
+        sendIngest('engine.worker.js:run', 'Namelix API failed, falling back to local generation', { error: namelixErrMsg }, 'H3');
+        // #endregion
+        emitDebugLog('engine.worker.js:run', 'Namelix API failed, using local fallback', { error: namelixErrMsg });
       }
-      // #endregion
-      considered += cands.length;
-      batches += 1;
+    }
 
+    if (cands.length === 0) {
+      const seed = hash(`${job.id}|${loop}|0|0`);
+      const batchMax = clamp(Math.floor(Math.max(plan.input.maxNames * 3, plan.input.maxNames, 80)), plan.input.maxNames, 250);
+      cands = makeBatch(plan.input, seed, batchMax, seen);
+      nameSource = 'LOCAL (makeBatch fallback)';
+      // #region agent log
+      sendIngest('engine.worker.js:run', 'Name generation source', {
+        source: nameSource,
+        namelixApiCalled: false,
+        syntheticNameGeneration: true,
+        candidateCount: cands.length,
+        sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, isNamelixPremium: c.isNamelixPremium }; }),
+      }, 'H3');
+      // #endregion
+    }
+
+    considered += cands.length;
+    batches += 1;
+
+    {
       const pendingRows = cands.map(function (c) { return { domain: c.domain, sourceName: c.sourceName, isNamelixPremium: c.isNamelixPremium }; });
       patch(job, { status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount, results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pendingRows) });
 
@@ -784,10 +866,6 @@ async function run(job) {
         if (loopAvail.length >= plan.input.maxNames) break;
       }
 
-      stalls = got === 0 ? stalls + 1 : 0;
-      if (considered >= LOOP_LIMIT) { limitHit = true; skipReason = `Considered-name cap of ${LOOP_LIMIT} reached.`; }
-      if (stalls >= MAX_STALL) { skipReason = `No newly qualifying domains across ${MAX_STALL} consecutive batches.`; break; }
-
       patch(job, {
         status: 'running',
         phase: 'looping',
@@ -796,8 +874,6 @@ async function run(job) {
         totalLoops: input.loopCount,
         results: snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, []),
       });
-
-      await new Promise((resolve) => setTimeout(resolve, 40 + Math.floor(Math.random() * 80)));
     }
 
     const rankedLoop = sortRanked(loopAvail, 'marketability');
@@ -828,6 +904,7 @@ async function run(job) {
       averageOverallScore: avg,
       topDomain: top ? top.domain : undefined,
       topScore: top ? top.overallScore : undefined,
+      nameSource,
     });
 
     patch(job, {

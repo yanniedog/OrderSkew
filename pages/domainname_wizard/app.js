@@ -101,7 +101,7 @@
   function phaseLabel(status, phase) {
     if (status === 'queued') return 'Queued';
     if (status === 'running' && phase === 'looping') return 'Iterative tuning';
-    if (status === 'running' && phase === 'namelix') return 'Generating candidates';
+    if (status === 'running' && phase === 'namelix') return 'Generating names via Namelix';
     if (status === 'running' && phase === 'godaddy') return 'Checking availability (GoDaddy or RDAP)';
     if (status === 'running' && phase === 'rdap') return 'Checking availability (RDAP)â€¦';
     if (status === 'running' && phase === 'finalize') return 'Finalizing';
@@ -408,6 +408,7 @@
             <th>Batches</th>
             <th>Avg Score</th>
             <th>Top Domain</th>
+            <th>Name Source</th>
             <th>Note</th>
           </tr>
         </thead>
@@ -428,6 +429,7 @@
                 <td>${Number(row.batchCount || 0)}</td>
                 <td>${formatScore(row.averageOverallScore, 2)}</td>
                 <td>${escapeHtml(row.topDomain || '-')}</td>
+                <td>${escapeHtml(row.nameSource || '-')}</td>
                 <td>${escapeHtml(row.skipReason || '-')}</td>
               </tr>
             `)
