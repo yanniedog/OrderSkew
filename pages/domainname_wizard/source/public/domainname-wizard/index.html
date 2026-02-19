@@ -69,6 +69,16 @@
         <label>Loop Count
           <input name="loopCount" type="number" min="1" value="100">
         </label>
+        <label>Repetition penalty
+          <select name="repetitionPenaltyLevel" title="How heavily to penalize reusing the same keywords across successive loops">
+            <option value="gentle">Gentle</option>
+            <option value="moderate">Moderate</option>
+            <option value="strong" selected>Strong</option>
+            <option value="very_severe">Very severe</option>
+            <option value="extremely_severe">Extremely severe</option>
+            <option value="excessive">Excessive</option>
+          </select>
+        </label>
       </form>
       <div class="controls">
         <button id="start-btn" class="btn btn-primary" type="button">Start Search</button>

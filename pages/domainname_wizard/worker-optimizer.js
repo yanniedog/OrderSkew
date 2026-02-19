@@ -313,9 +313,20 @@ const REVERSE_BUSINESS_SYNONYMS = (() => {
 // Optimizer (Thompson Sampling + UCB1 + Elite Replay + Feature Learning)
 // ---------------------------------------------------------------------------
 
+const REPETITION_PENALTY_PARAMS = {
+  gentle: { baseMult: 0.06, expBase: 1.6, cap: 0.4 },
+  moderate: { baseMult: 0.15, expBase: 2.0, cap: 0.7 },
+  strong: { baseMult: 0.52, expBase: 2.6, cap: 0.97 },
+  very_severe: { baseMult: 0.75, expBase: 2.9, cap: 0.99 },
+  extremely_severe: { baseMult: 0.92, expBase: 3.2, cap: 0.998 },
+  excessive: { baseMult: 1.15, expBase: 3.5, cap: 0.999 },
+};
+
 class Optimizer {
   constructor(base, model, seed) {
     this.base = { ...base };
+    this._repetitionPenaltyLevel = (base.rewardPolicy && base.rewardPolicy.repetitionPenaltyLevel) || 'strong';
+    if (!REPETITION_PENALTY_PARAMS[this._repetitionPenaltyLevel]) this._repetitionPenaltyLevel = 'strong';
     this.model = sanitizeModel(model);
     this.rand = rng(seed || now());
     this.bestLoop = undefined;
@@ -755,7 +766,22 @@ class Optimizer {
 
   _repetitionPenalty(consecutiveLoops) {
     if (!consecutiveLoops || consecutiveLoops <= 0) return 0;
-    return clamp(0.52 * Math.pow(2.6, Math.min(consecutiveLoops, 4)), 0, 0.97);
+    const params = REPETITION_PENALTY_PARAMS[this._repetitionPenaltyLevel] || REPETITION_PENALTY_PARAMS.strong;
+    return clamp(params.baseMult * Math.pow(params.expBase, Math.min(consecutiveLoops, 6)), 0, params.cap);
+  }
+
+  getRepetitionPenaltyForTokens(tokens) {
+    const list = Array.isArray(tokens) ? tokens : tokenize(String(tokens || '')).map(normalizeThemeToken).filter(Boolean);
+    if (!list.length) return 0;
+    let sum = 0;
+    for (const token of list) {
+      const clean = normalizeThemeToken(token);
+      if (!clean) continue;
+      const stat = this.model.tokens[clean] || {};
+      const consecutiveLoops = Math.max(0, Number(stat.consecutiveLoops) || 0);
+      sum += this._repetitionPenalty(consecutiveLoops);
+    }
+    return list.length ? sum / list.length : 0;
   }
 
   _tokenSelectionScore(stat, perf, explorationRate) {
@@ -1165,6 +1191,7 @@ class Optimizer {
       poolSize: this._themeTokenPool.length,
     });
 
+    const repetitionPenaltyApplied = this.getRepetitionPenaltyForTokens(this.curTokens);
     return {
       loop,
       sourceLoop: this.bestLoop,
@@ -1173,6 +1200,7 @@ class Optimizer {
       selectedRandomness: randomness,
       selectedMutationIntensity: intensity,
       elitePoolSize: this.model.elitePool.length,
+      repetitionPenaltyApplied: round(repetitionPenaltyApplied, 4),
       input: {
         ...this.base,
         style,
@@ -1290,6 +1318,7 @@ class Optimizer {
       explorationRate: plan.explorationRate,
       elitePoolSize: this.model.elitePool.length,
       reward: round(r, 4),
+      repetitionPenaltyApplied: plan.repetitionPenaltyApplied != null ? round(Number(plan.repetitionPenaltyApplied), 4) : null,
     };
   }
 

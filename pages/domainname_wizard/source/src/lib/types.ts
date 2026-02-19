@@ -104,6 +104,8 @@ export interface TuningStep {
   selectedRandomness: RandomnessValue;
   selectedMutationIntensity: MutationIntensityValue;
   reward: number;
+  /** Average repetition penalty (0-1) applied to selected keywords for this run */
+  repetitionPenaltyApplied?: number | null;
 }
 
 export interface SearchResults {

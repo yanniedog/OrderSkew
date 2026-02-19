@@ -196,6 +196,10 @@ function parseInput(raw) {
   const randomness = RANDOMNESS_VALUES.includes(input.randomness) ? input.randomness : 'medium';
   const tld = normalizeTld(input.tld || 'com');
   if (!tld) throw new Error('Invalid TLD.');
+  const REPETITION_PENALTY_LEVELS = ['gentle', 'moderate', 'strong', 'very_severe', 'extremely_severe', 'excessive'];
+  const rawRepLevel = (input.rewardPolicy && input.rewardPolicy.repetitionPenaltyLevel) || input.repetitionPenaltyLevel || 'strong';
+  const repetitionPenaltyLevel = REPETITION_PENALTY_LEVELS.includes(String(rawRepLevel)) ? String(rawRepLevel) : 'strong';
+
   const rewardPolicyRaw = input.rewardPolicy && typeof input.rewardPolicy === 'object' ? input.rewardPolicy : null;
   const rewardPolicy = rewardPolicyRaw
     ? {
@@ -205,8 +209,9 @@ function parseInput(raw) {
       qualityWeight: clamp(Number(rewardPolicyRaw.qualityWeight) || 0.24, 0.10, 0.40),
       availabilityWeight: clamp(Number(rewardPolicyRaw.availabilityWeight) || 0.18, 0.08, 0.35),
       inBudgetWeight: clamp(Number(rewardPolicyRaw.inBudgetWeight) || 0.12, 0.05, 0.30),
+      repetitionPenaltyLevel,
     }
-    : null;
+    : (repetitionPenaltyLevel !== 'strong' ? { repetitionPenaltyLevel } : null);
   return {
     keywords,
     description: text(input.description),

@@ -1095,6 +1095,7 @@
             ${th('Keywords', 'Keyword set chosen for this loop. Tokens are colored by learned performance.')}
             ${th('Strategy', 'Source loop and selected style/randomness/mutation.')}
             ${th('Explore', 'Exploration rate and elite pool at decision time.')}
+            ${th('Rep. penalty', 'Average repetition penalty (0–1) applied to selected keywords for this run; higher = stronger penalty for reusing same keywords across successive loops.')}
             ${th('Reward', 'Composite 0-1 RL reward: in-budget quota completion, availability rate, in-budget ratio, undervaluation (value ratio/underpriced), quality of available domains, and curated-keyword coverage progress.')}
           </tr>
         </thead>
@@ -1106,6 +1107,7 @@
                 <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
                 <td>${escapeHtml(`src=${row.sourceLoop == null ? '-' : row.sourceLoop} | ${row.selectedStyle || '-'} | ${row.selectedRandomness || '-'} | ${row.selectedMutationIntensity || '-'}`)}</td>
                 <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>
+                <td>${row.repetitionPenaltyApplied != null ? formatScore(row.repetitionPenaltyApplied, 4) : '-'}</td>
                 <td>${formatScore(row.reward, 4)}</td>
               </tr>
             `)
@@ -1351,7 +1353,12 @@
       loopCount: Math.max(1, Math.round(parseNumber(data.get('loopCount'), 100))),
       apiBaseUrl: BACKEND_URL,
       preferEnglish: String(data.get('preferEnglish') || '').toLowerCase() === 'on',
-      rewardPolicy: persistentRewardPolicy || null,
+      rewardPolicy: (function () {
+        const level = String(data.get('repetitionPenaltyLevel') || 'strong').trim();
+        const base = persistentRewardPolicy && typeof persistentRewardPolicy === 'object' ? { ...persistentRewardPolicy } : {};
+        base.repetitionPenaltyLevel = ['gentle', 'moderate', 'strong', 'very_severe', 'extremely_severe', 'excessive'].includes(level) ? level : 'strong';
+        return base;
+      })(),
     };
   }
 
