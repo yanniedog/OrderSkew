@@ -1120,14 +1120,29 @@ class Optimizer {
     const carryBudget = explorationBurst
       ? 1
       : Math.max(0, Math.min(2, Math.floor(1 + (1 - explorationRate) * 1.5)));
+    // #region agent log
+    const carryCandidates = [];
+    for (const t of this.curTokens) {
+      const clean = normalizeThemeToken(t);
+      if (!clean) continue;
+      const stat = this.model.tokens[clean] || {};
+      const repPen = this._repetitionPenalty(Math.max(0, Number(stat.consecutiveLoops) || 0), Math.max(0, Number(stat.plays) || 0));
+      carryCandidates.push({ token: clean, repPenalty: repPen });
+    }
+    const carried = [];
     for (const t of this.curTokens) {
       const clean = normalizeThemeToken(t);
       if (!clean || next.includes(clean) || !this._isThemeToken(clean)) continue;
       if (next.some((prior) => isMirroredThemeToken(clean, prior))) continue;
       if (next.length >= carryBudget) break;
+      const stat = this.model.tokens[clean] || {};
+      const repPen = this._repetitionPenalty(Math.max(0, Number(stat.consecutiveLoops) || 0), Math.max(0, Number(stat.plays) || 0));
+      carried.push({ token: clean, repPenalty: repPen });
       next.push(clean);
       if (next.length >= this._keywordsPerLoop) break;
     }
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f2348'},body:JSON.stringify({sessionId:'9f2348',location:'worker-optimizer.js:carry',message:'Carry candidates and carried',data:{loop,carryBudget,carryCandidates,carried},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+    // #endregion
     if (!next.length) this._refillThemeTokens(next, baseTokens.concat(anchorPool));
 
     for (let i = 0; i < mut; i += 1) {
@@ -1175,6 +1190,15 @@ class Optimizer {
 
     this.curTokens = dedupeTokens(next.map(normalizeThemeToken).filter((t) => t && this._isThemeToken(t))).slice(0, this._keywordsPerLoop);
     if (!this.curTokens.length) this.curTokens = baseTokens.slice(0, Math.min(this._keywordsPerLoop, baseTokens.length));
+    // #region agent log
+    const finalPenalties = this.curTokens.map((token) => {
+      const stat = this.model.tokens[token] || {};
+      const repPen = this._repetitionPenalty(Math.max(0, Number(stat.consecutiveLoops) || 0), Math.max(0, Number(stat.plays) || 0));
+      return { token, repPenalty: repPen };
+    });
+    const highPenaltyCount = finalPenalties.filter((p) => p.repPenalty > 0.9).length;
+    fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'9f2348'},body:JSON.stringify({sessionId:'9f2348',location:'worker-optimizer.js:finalCurTokens',message:'Final curTokens penalties',data:{loop,finalPenalties,highPenaltyCount},timestamp:Date.now(),hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
     this._recordRunExposure(this.curTokens);
     this._rememberKeywordSet(this.curTokens);
 
