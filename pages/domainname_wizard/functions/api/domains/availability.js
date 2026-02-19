@@ -38,6 +38,10 @@ export async function onRequestPost(context) {
     return json({ code: "INVALID_REQUEST", message: "JSON body required." }, 400);
   }
 
+  if (body == null || typeof body !== "object") {
+    return json({ code: "INVALID_REQUEST", message: "JSON body must be an object." }, 400);
+  }
+
   const raw = Array.isArray(body.domains) ? body.domains : [];
   const domains = raw.filter((d) => typeof d === "string" && d.trim().length > 0).map((d) => d.trim().toLowerCase());
   const unique = [...new Set(domains)];
