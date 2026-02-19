@@ -175,6 +175,39 @@ function buildTokenVariants(token) {
   return Array.from(out).map(normalizeThemeToken).filter(Boolean);
 }
 
+function isMirroredThemeToken(a, b) {
+  const aa = normalizeThemeToken(a);
+  const bb = normalizeThemeToken(b);
+  if (!aa || !bb) return false;
+  if (aa === bb) return true;
+  const as = tokenStem(aa);
+  const bs = tokenStem(bb);
+  if (as && bs && as.length >= 3 && as === bs) return true;
+  if (aa.length >= 4 && bb.length >= 4 && (aa.includes(bb) || bb.includes(aa)) && Math.abs(aa.length - bb.length) <= 3) return true;
+  if (aa.length >= 4 && bb.length >= 4 && editDistanceWithin(aa, bb, 1)) return true;
+  return false;
+}
+
+function pickDistinctToken(pool, rand, selected) {
+  const picks = Array.isArray(pool) ? pool : [];
+  if (!picks.length) return '';
+  const existing = Array.isArray(selected) ? selected : [];
+  for (let i = 0; i < 12; i += 1) {
+    const token = pick(picks, rand);
+    const clean = normalizeThemeToken(token);
+    if (!clean) continue;
+    let conflict = false;
+    for (const prior of existing) {
+      if (isMirroredThemeToken(clean, prior)) {
+        conflict = true;
+        break;
+      }
+    }
+    if (!conflict) return clean;
+  }
+  return normalizeThemeToken(pick(picks, rand));
+}
+
 const REVERSE_BUSINESS_SYNONYMS = (() => {
   const out = Object.create(null);
   for (const [root, syns] of Object.entries(BUSINESS_SYNONYMS || {})) {
@@ -405,6 +438,36 @@ class Optimizer {
     }
   }
 
+  _dedupeMirroredTokens(next, lockedSet) {
+    const out = [];
+    const locked = lockedSet || new Set();
+    for (const token of next) {
+      const clean = normalizeThemeToken(token);
+      if (!clean) continue;
+      let replaceIdx = -1;
+      for (let i = 0; i < out.length; i += 1) {
+        if (!isMirroredThemeToken(clean, out[i])) continue;
+        replaceIdx = i;
+        break;
+      }
+      if (replaceIdx < 0) {
+        out.push(clean);
+        continue;
+      }
+      const prior = out[replaceIdx];
+      if (locked.has(prior) && !locked.has(clean)) continue;
+      if (locked.has(clean) && !locked.has(prior)) {
+        out[replaceIdx] = clean;
+        continue;
+      }
+      const scorePrior = Number(this._themeTokenScores.get(prior) || 0);
+      const scoreNext = Number(this._themeTokenScores.get(clean) || 0);
+      if (scoreNext > scorePrior) out[replaceIdx] = clean;
+    }
+    next.length = 0;
+    for (const token of out.slice(0, 8)) next.push(token);
+  }
+
   _limitBaseSeedCarry(next, maxBaseTokens) {
     const limit = Math.max(0, Math.floor(Number(maxBaseTokens) || 0));
     if (limit >= next.length) return;
@@ -522,6 +585,7 @@ class Optimizer {
     for (const t of this.curTokens) {
       const clean = normalizeThemeToken(t);
       if (!clean || next.includes(clean) || !this._isThemeToken(clean)) continue;
+      if (next.some((prior) => isMirroredThemeToken(clean, prior))) continue;
       if (next.length >= carryBudget) break;
       next.push(clean);
       if (next.length >= 8) break;
@@ -538,6 +602,7 @@ class Optimizer {
       else src = baseTokens;
       const t = pick((src && src.length) ? src : baseTokens, this.rand);
       const clean = normalizeThemeToken(t);
+      if (clean && next.some((prior) => isMirroredThemeToken(clean, prior))) continue;
       if (clean && !next.includes(clean) && this._isThemeToken(clean)) next.push(clean);
     }
 
@@ -547,8 +612,10 @@ class Optimizer {
       dedupeTokens(good.concat(anchorPool, eliteTokens, baseTokens, this._themeSeedTokens)),
     );
     this._mutateAndReorder(next, intensity, lockedSet);
+    this._dedupeMirroredTokens(next, lockedSet);
     this._limitBaseSeedCarry(next, 1);
     this._refillThemeTokens(next, dedupeTokens(anchorPool.concat(good, eliteTokens, this._themeSeedTokens)));
+    this._dedupeMirroredTokens(next, lockedSet);
     this._limitBaseSeedCarry(next, 1);
 
     this.curTokens = dedupeTokens(next.map(normalizeThemeToken).filter((t) => t && this._isThemeToken(t))).slice(0, 8);
@@ -706,14 +773,24 @@ function makeBatch(plan, seed, target, seen) {
   let tries = 0;
   while (out.length < target && tries < target * 20) {
     tries += 1;
-    const a = pick(pool, rand);
-    const b = pick(pool, rand);
-    const c = pick(pool, rand);
+    const chosen = [];
+    const a = pickDistinctToken(pool, rand, chosen);
+    if (a) chosen.push(a);
+    const b = pickDistinctToken(pool, rand, chosen);
+    if (b) chosen.push(b);
+    const c = pickDistinctToken(pool, rand, chosen);
+    if (c) chosen.push(c);
+    if (!a || !b || isMirroredThemeToken(a, b) || isMirroredThemeToken(a, c) || isMirroredThemeToken(b, c)) continue;
     let sourceName = styleName(style, a, b, c, rand);
     if (plan.randomness === 'high' && rand() > 0.45) sourceName += pick(SUFFIX, rand);
     if (plan.randomness === 'low' && sourceName.length > 16) sourceName = sourceName.slice(0, 16);
     const label = toLabel(sourceName);
     if (!label || label.length > plan.maxLength) continue;
+    const compact = label.replace(/-/g, '');
+    if (/^([a-z0-9]{2,10})\1$/.test(compact)) continue;
+    if (/([a-z]{3,})\1/.test(compact)) continue;
+    const morphs = findMorphemes(compact).map(tokenStem).filter(Boolean);
+    if (morphs.length >= 2 && (new Set(morphs)).size <= 1) continue;
     if (preferEnglish && !looksEnglishLikeLabel(label)) continue;
     let isBlocked = false;
     for (const tok of blocked) if (tok && label.includes(tok)) { isBlocked = true; break; }

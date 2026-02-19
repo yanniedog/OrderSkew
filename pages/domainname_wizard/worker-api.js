@@ -67,6 +67,50 @@ function keywordEnglishPass(token, preferEnglish) {
   return /^[a-z]+$/.test(token);
 }
 
+function tokenRoot(token) {
+  const clean = normalizeKeywordToken(token);
+  if (!clean) return '';
+  let root = clean;
+  if (root.endsWith('ies') && root.length > 4) root = `${root.slice(0, -3)}y`;
+  else if (root.endsWith('ing') && root.length > 5) root = root.slice(0, -3);
+  else if (root.endsWith('ers') && root.length > 5) root = root.slice(0, -3);
+  else if (root.endsWith('ed') && root.length > 4) root = root.slice(0, -2);
+  else if (root.endsWith('es') && root.length > 4) root = root.slice(0, -2);
+  else if (root.endsWith('s') && root.length > 3) root = root.slice(0, -1);
+  return root;
+}
+
+function isMirroredKeywordToken(a, b) {
+  const aa = normalizeKeywordToken(a);
+  const bb = normalizeKeywordToken(b);
+  if (!aa || !bb) return false;
+  if (aa === bb) return true;
+  const ar = tokenRoot(aa);
+  const br = tokenRoot(bb);
+  if (ar && br && ar.length >= 3 && ar === br) return true;
+  if (aa.length >= 4 && bb.length >= 4 && (aa.includes(bb) || bb.includes(aa)) && Math.abs(aa.length - bb.length) <= 3) return true;
+  return false;
+}
+
+function reduceMirroredKeywordTokens(tokens, maxCount) {
+  const out = [];
+  for (const token of tokens || []) {
+    const clean = normalizeKeywordToken(token);
+    if (!clean) continue;
+    let mirrored = false;
+    for (const kept of out) {
+      if (isMirroredKeywordToken(clean, kept)) {
+        mirrored = true;
+        break;
+      }
+    }
+    if (mirrored) continue;
+    out.push(clean);
+    if (out.length >= maxCount) break;
+  }
+  return out;
+}
+
 function addScoredToken(map, token, score) {
   const t = normalizeKeywordToken(token);
   if (!t || t.length < 2 || t.length > 24) return;
@@ -168,8 +212,8 @@ async function fetchAssociatedKeywordLibrary(seedText, options) {
   const rankedTokens = Array.from(tokenScores.entries())
     .filter(function (entry) { return keywordEnglishPass(entry[0], preferEnglish); })
     .sort(function (a, b) { return b[1] - a[1] || a[0].localeCompare(b[0]); })
-    .map(function (entry) { return entry[0]; })
-    .slice(0, 120);
+    .map(function (entry) { return entry[0]; });
+  const filteredTokens = reduceMirroredKeywordTokens(rankedTokens, 120);
 
   const rankedPhrases = Array.from(phraseScores.entries())
     .filter(function (entry) {
@@ -182,9 +226,9 @@ async function fetchAssociatedKeywordLibrary(seedText, options) {
 
   return {
     seedTokens: seeds,
-    tokens: rankedTokens,
+    tokens: filteredTokens,
     phrases: rankedPhrases,
-    keywordString: rankedTokens.slice(0, 8).join(' '),
+    keywordString: filteredTokens.slice(0, 8).join(' '),
     apiStatus,
   };
 }

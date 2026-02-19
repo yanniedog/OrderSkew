@@ -4,8 +4,14 @@
 const jobs = new Map();
 const canceled = new Set();
 let dbPromise = null;
+const WORKER_ASSET_VERSION = '2026-02-19-4';
 
-importScripts('worker-utils.js', 'worker-scoring.js', 'worker-optimizer.js', 'worker-api.js');
+importScripts(
+  `worker-utils.js?v=${WORKER_ASSET_VERSION}`,
+  `worker-scoring.js?v=${WORKER_ASSET_VERSION}`,
+  `worker-optimizer.js?v=${WORKER_ASSET_VERSION}`,
+  `worker-api.js?v=${WORKER_ASSET_VERSION}`,
+);
 
 // ---------------------------------------------------------------------------
 // Database
@@ -126,6 +132,29 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
       seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
       currentKeywords: Array.isArray(keywordState.optimizer.curTokens) ? keywordState.optimizer.curTokens.slice(0, 8) : [],
       tokens: keywordState.optimizer.getKeywordLibraryRows(120),
+      apiStatus: lib.apiStatus || null,
+    };
+  } else if (keywordState && keywordState.library) {
+    const lib = keywordState.library || {};
+    const fallbackTokens = Array.isArray(lib.tokens) ? lib.tokens.slice(0, 120) : [];
+    keywordLibrary = {
+      seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
+      currentKeywords: [],
+      tokens: fallbackTokens.map(function (token, idx) {
+        return {
+          rank: idx + 1,
+          token: String(token || ''),
+          source: 'library',
+          isSeed: Array.isArray(lib.seedTokens) ? lib.seedTokens.includes(token) : false,
+          inCurrentKeywords: false,
+          themeScore: 0,
+          plays: 0,
+          reward: 0,
+          avgReward: 0,
+          ucb: null,
+          lastLoop: null,
+        };
+      }),
       apiStatus: lib.apiStatus || null,
     };
   }

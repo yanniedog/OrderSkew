@@ -42,9 +42,11 @@
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
-  const ENGINE_WORKER_VERSION = '2026-02-19-3';
+  const ENGINE_WORKER_VERSION = '2026-02-19-4';
   const tableSortState = new WeakMap();
   let dataSourceCollapsed = true;
+  let diagnosticsInFlight = null;
+  let diagnosticsDebounceTimer = null;
 
   function showFormError(message) {
     if (!message) {
@@ -74,12 +76,255 @@
   }
 
   const dataSourceState = {
+    diagnostics: {
+      running: false,
+      completedAt: null,
+      issues: [],
+    },
     nameGeneration: null,
     availability: null,
     synonymApi: null,
+    githubApi: null,
     godaddyDebug: null,
     syntheticFlags: [],
   };
+
+  function hasDataSourceIssues() {
+    const issues = [];
+    if (dataSourceState.diagnostics && Array.isArray(dataSourceState.diagnostics.issues)) {
+      for (const issue of dataSourceState.diagnostics.issues) issues.push(String(issue));
+    }
+    if (dataSourceState.synonymApi && !dataSourceState.synonymApi.accessible) issues.push('Synonym API unreachable');
+    if (dataSourceState.githubApi && !dataSourceState.githubApi.accessible) issues.push('GitHub API unreachable');
+    if (dataSourceState.availability && (dataSourceState.availability.syntheticData || Number(dataSourceState.availability.status || 0) >= 400)) {
+      issues.push('Availability API abnormal');
+    }
+    if (dataSourceState.nameGeneration && dataSourceState.nameGeneration.namelixApiCalled === false && BACKEND_URL) {
+      issues.push('Namelix API unavailable');
+    }
+    return issues;
+  }
+
+  function ensureDataSourceExpandedForIssues() {
+    const issues = hasDataSourceIssues();
+    if (issues.length > 0) dataSourceCollapsed = false;
+  }
+
+  async function fetchJsonWithTimeout(url, options, timeoutMs) {
+    const controller = new AbortController();
+    const timeout = setTimeout(function () { controller.abort(); }, Math.max(500, Number(timeoutMs) || 6000));
+    try {
+      const response = await fetch(url, { ...(options || {}), signal: controller.signal });
+      const json = await response.json().catch(function () { return null; });
+      return { response, json };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  function setDiagnosticsRunning(running) {
+    dataSourceState.diagnostics.running = Boolean(running);
+    renderDataSourcePanel();
+  }
+
+  async function runPreflightDiagnostics(reason) {
+    if (diagnosticsInFlight) return diagnosticsInFlight;
+    diagnosticsInFlight = (async function () {
+      const issues = [];
+      setDiagnosticsRunning(true);
+
+      const githubTokenInput = formEl ? formEl.querySelector('input[name="githubToken"]') : null;
+      const githubToken = githubTokenInput ? String(githubTokenInput.value || '').trim() : '';
+      const backendBaseUrl = String(BACKEND_URL || '').trim().replace(/\/+$/, '');
+
+      // Synonym API (DataMuse)
+      try {
+        const syn = await fetchJsonWithTimeout('https://api.datamuse.com/words?ml=code&max=1', { method: 'GET' }, 6500);
+        const ok = Boolean(syn.response && syn.response.ok && Array.isArray(syn.json));
+        dataSourceState.synonymApi = {
+          provider: 'datamuse',
+          accessible: ok,
+          attempted: 1,
+          success: ok ? 1 : 0,
+          failed: ok ? 0 : 1,
+          sampleErrors: ok ? [] : [`HTTP ${syn.response ? syn.response.status : 'n/a'}`],
+          source: 'preflight',
+        };
+        if (!ok) issues.push('Synonym API preflight failed');
+      } catch (err) {
+        const msg = err && err.message ? err.message : String(err || 'unknown error');
+        dataSourceState.synonymApi = {
+          provider: 'datamuse',
+          accessible: false,
+          attempted: 1,
+          success: 0,
+          failed: 1,
+          sampleErrors: [msg],
+          source: 'preflight',
+        };
+        issues.push('Synonym API preflight failed');
+      }
+
+      // GitHub API
+      try {
+        const headers = { Accept: 'application/vnd.github+json' };
+        if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
+        const gh = await fetchJsonWithTimeout('https://api.github.com/rate_limit', { method: 'GET', headers }, 7000);
+        const core = gh.json && gh.json.resources && gh.json.resources.core ? gh.json.resources.core : null;
+        const ok = Boolean(gh.response && gh.response.ok && core && typeof core.remaining === 'number');
+        const abnormal = ok && core.remaining <= 0;
+        dataSourceState.githubApi = {
+          provider: 'github',
+          accessible: ok && !abnormal,
+          status: gh.response ? gh.response.status : null,
+          remaining: core ? Number(core.remaining) : null,
+          limit: core ? Number(core.limit) : null,
+          reset: core ? Number(core.reset) : null,
+          tokenUsed: Boolean(githubToken),
+          abnormal,
+          source: 'preflight',
+        };
+        if (!ok || abnormal) issues.push('GitHub API preflight abnormal');
+      } catch (err) {
+        const msg = err && err.message ? err.message : String(err || 'unknown error');
+        dataSourceState.githubApi = {
+          provider: 'github',
+          accessible: false,
+          status: null,
+          remaining: null,
+          limit: null,
+          reset: null,
+          tokenUsed: Boolean(githubToken),
+          abnormal: true,
+          source: 'preflight',
+          error: msg,
+        };
+        issues.push('GitHub API preflight failed');
+      }
+
+      // Backend APIs (if configured)
+      if (backendBaseUrl) {
+        try {
+          const avail = await fetchJsonWithTimeout(`${backendBaseUrl}/api/domains/availability`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domains: ['example.com'] }),
+          }, 7500);
+          const hasResults = Boolean(avail.json && avail.json.results && typeof avail.json.results === 'object');
+          const ok = Boolean(avail.response && avail.response.ok && hasResults);
+          const debug = avail.json && avail.json._debug ? avail.json._debug : null;
+          dataSourceState.availability = {
+            source: debug && debug.dataSource ? debug.dataSource : 'GoDaddy API',
+            endpoint: `${backendBaseUrl}/api/domains/availability`,
+            env: debug && debug.godaddyEnv ? debug.godaddyEnv : null,
+            credentialsSource: debug && debug.credentialsSource ? debug.credentialsSource : null,
+            apiKeyPresent: debug ? debug.apiKeyPresent : null,
+            status: avail.response ? avail.response.status : null,
+            syntheticData: Boolean(debug && debug.syntheticData),
+            resultCount: hasResults ? Object.keys(avail.json.results).length : 0,
+            preflight: true,
+          };
+          if (!ok || dataSourceState.availability.syntheticData) issues.push('Availability API preflight abnormal');
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err || 'unknown error');
+          dataSourceState.availability = {
+            source: 'GoDaddy API',
+            endpoint: `${backendBaseUrl}/api/domains/availability`,
+            env: null,
+            credentialsSource: null,
+            apiKeyPresent: null,
+            status: null,
+            syntheticData: false,
+            resultCount: 0,
+            preflight: true,
+            error: msg,
+          };
+          issues.push('Availability API preflight failed');
+        }
+
+        try {
+          const names = await fetchJsonWithTimeout(`${backendBaseUrl}/api/names/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              keywords: 'code hub',
+              description: '',
+              blacklist: '',
+              maxLength: 10,
+              tld: 'com',
+              style: 'default',
+              randomness: 'medium',
+              maxNames: 1,
+              prevNames: [],
+              preferEnglish: true,
+            }),
+          }, 7500);
+          const list = names.json && Array.isArray(names.json.names) ? names.json.names : [];
+          const ok = Boolean(names.response && names.response.ok && list.length >= 0);
+          dataSourceState.nameGeneration = {
+            source: ok ? 'Namelix API (preflight)' : 'Name API unavailable',
+            namelixApiCalled: ok,
+            syntheticNameGeneration: !ok,
+            premiumSource: 'GoDaddy API',
+            status: names.response ? names.response.status : null,
+            resultCount: list.length,
+            preflight: true,
+          };
+          if (!ok) issues.push('Name generation API preflight failed');
+        } catch (err) {
+          const msg = err && err.message ? err.message : String(err || 'unknown error');
+          dataSourceState.nameGeneration = {
+            source: 'Name API unavailable',
+            namelixApiCalled: false,
+            syntheticNameGeneration: true,
+            premiumSource: 'GoDaddy API',
+            status: null,
+            resultCount: 0,
+            preflight: true,
+            error: msg,
+          };
+          issues.push('Name generation API preflight failed');
+        }
+      } else {
+        dataSourceState.availability = {
+          source: 'Backend not configured',
+          endpoint: null,
+          env: null,
+          credentialsSource: null,
+          apiKeyPresent: null,
+          status: null,
+          syntheticData: false,
+          resultCount: 0,
+          preflight: true,
+        };
+        dataSourceState.nameGeneration = {
+          source: 'Backend not configured',
+          namelixApiCalled: false,
+          syntheticNameGeneration: true,
+          premiumSource: 'GoDaddy API',
+          status: null,
+          resultCount: 0,
+          preflight: true,
+        };
+        issues.push('Backend URL not configured');
+      }
+
+      dataSourceState.diagnostics.running = false;
+      dataSourceState.diagnostics.completedAt = new Date().toISOString();
+      dataSourceState.diagnostics.issues = issues;
+      pushDebugLog('app.js:runPreflightDiagnostics', 'Data source preflight complete', {
+        reason: reason || 'unknown',
+        issues: issues.slice(0, 10),
+        completedAt: dataSourceState.diagnostics.completedAt,
+      });
+      ensureDataSourceExpandedForIssues();
+      renderDataSourcePanel();
+    })().finally(function () {
+      diagnosticsInFlight = null;
+      dataSourceState.diagnostics.running = false;
+    });
+    return diagnosticsInFlight;
+  }
 
   function updateDataSourcePanel(payload) {
     if (!payload || !payload.data) return;
@@ -136,6 +381,7 @@
       };
     }
 
+    ensureDataSourceExpandedForIssues();
     renderDataSourcePanel();
   }
 
@@ -148,6 +394,11 @@
     const bodyParts = [];
 
     parts.push('<button type="button" id="data-source-toggle" class="ds-toggle" aria-expanded="' + (!dataSourceCollapsed ? 'true' : 'false') + '">Data Source Confirmation</button>');
+    if (dataSourceState.diagnostics && dataSourceState.diagnostics.running) {
+      bodyParts.push('<div class="ds-block"><strong>Diagnostics:</strong> <span class="warn">Running preflight checks...</span></div>');
+    } else if (dataSourceState.diagnostics && dataSourceState.diagnostics.completedAt) {
+      bodyParts.push('<div class="ds-block"><strong>Diagnostics:</strong> Last completed at <code>' + escapeHtml(dataSourceState.diagnostics.completedAt) + '</code></div>');
+    }
 
     if (dataSourceState.nameGeneration) {
       const ng = dataSourceState.nameGeneration;
@@ -160,6 +411,9 @@
       if (ng.syntheticNameGeneration) {
         bodyParts.push('<br><span class="warn">Names are generated locally, not from Namelix.</span>');
       }
+      if (ng.status != null) bodyParts.push('<br>HTTP status: <strong>' + escapeHtml(String(ng.status)) + '</strong>');
+      if (ng.resultCount != null) bodyParts.push('<br>Results returned: <strong>' + escapeHtml(String(ng.resultCount)) + '</strong>');
+      if (ng.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(ng.error)) + '</span>');
       bodyParts.push('</div>');
     }
 
@@ -176,6 +430,7 @@
       if (av.status) bodyParts.push('<br>GoDaddy response status: <strong>' + escapeHtml(String(av.status)) + '</strong>');
       if (av.resultCount != null) bodyParts.push('<br>Results returned: <strong>' + av.resultCount + '</strong>');
       bodyParts.push('<br>Synthetic data: <strong class="' + (av.syntheticData ? 'bad' : 'good') + '">' + (av.syntheticData ? 'YES' : 'NO') + '</strong>');
+      if (av.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(av.error)) + '</span>');
       bodyParts.push('</div>');
     }
 
@@ -195,6 +450,21 @@
       bodyParts.push('</div>');
     }
 
+    if (dataSourceState.githubApi) {
+      const gh = dataSourceState.githubApi;
+      const cls = gh.accessible ? 'good' : 'bad';
+      bodyParts.push('<div class="ds-block">');
+      bodyParts.push('<strong>GitHub API:</strong> ');
+      bodyParts.push('<span class="' + cls + '">' + (gh.accessible ? 'ACCESSIBLE' : 'UNREACHABLE') + '</span>');
+      bodyParts.push('<br>Provider: <strong>github.com</strong>');
+      if (gh.status != null) bodyParts.push('<br>HTTP status: <strong>' + escapeHtml(String(gh.status)) + '</strong>');
+      bodyParts.push('<br>Auth token used: <strong>' + (gh.tokenUsed ? 'YES' : 'NO') + '</strong>');
+      if (gh.limit != null) bodyParts.push('<br>Rate limit: <strong>' + gh.remaining + '</strong> / ' + gh.limit);
+      if (gh.error) bodyParts.push('<br><span class="bad">Error: ' + escapeHtml(String(gh.error)) + '</span>');
+      if (gh.abnormal) bodyParts.push('<br><span class="warn">Abnormal result detected.</span>');
+      bodyParts.push('</div>');
+    }
+
     if (dataSourceState.godaddyDebug && dataSourceState.godaddyDebug.sampleRawResponse) {
       bodyParts.push('<div class="ds-block">');
       bodyParts.push('<strong>Sample GoDaddy Raw Response:</strong><br>');
@@ -206,6 +476,15 @@
       bodyParts.push('<div class="ds-block warn-block">');
       bodyParts.push('<strong>Synthetic/Simulated Data Warnings:</strong><ul>');
       dataSourceState.syntheticFlags.forEach(function (f) {
+        bodyParts.push('<li>' + escapeHtml(f) + '</li>');
+      });
+      bodyParts.push('</ul></div>');
+    }
+    const currentIssues = hasDataSourceIssues();
+    if (currentIssues.length > 0) {
+      bodyParts.push('<div class="ds-block warn-block">');
+      bodyParts.push('<strong>Service Issues:</strong><ul>');
+      currentIssues.forEach(function (f) {
         bodyParts.push('<li>' + escapeHtml(f) + '</li>');
       });
       bodyParts.push('</ul></div>');
@@ -856,14 +1135,10 @@
     debugLogs.length = 0;
     lastLoggedJobStateKey = '';
     lastLoggedJobErrorKey = '';
-    dataSourceState.nameGeneration = null;
-    dataSourceState.availability = null;
-    dataSourceState.synonymApi = null;
     dataSourceState.godaddyDebug = null;
     dataSourceState.syntheticFlags = [];
-    dataSourceCollapsed = true;
-    var dsPanel = document.getElementById('data-source-panel');
-    if (dsPanel) { dsPanel.hidden = true; dsPanel.innerHTML = ''; }
+    ensureDataSourceExpandedForIssues();
+    renderDataSourcePanel();
 
     const input = collectInput();
     pushDebugLog('app.js:handleStart', 'Run started', {
@@ -930,7 +1205,9 @@
   });
 
   startBtn.addEventListener('click', function () {
-    handleStart();
+    runPreflightDiagnostics('before-start').finally(function () {
+      handleStart();
+    });
   });
 
   cancelBtn.addEventListener('click', function () {
@@ -989,5 +1266,17 @@
   }
 
   initTableSections();
+  if (formEl) {
+    const githubInput = formEl.querySelector('input[name="githubToken"]');
+    if (githubInput) {
+      githubInput.addEventListener('input', function () {
+        if (diagnosticsDebounceTimer) clearTimeout(diagnosticsDebounceTimer);
+        diagnosticsDebounceTimer = setTimeout(function () {
+          runPreflightDiagnostics('github-token-change');
+        }, 600);
+      });
+    }
+  }
+  runPreflightDiagnostics('initial-load');
 
 })();
