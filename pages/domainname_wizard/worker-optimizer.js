@@ -522,7 +522,9 @@ class Optimizer {
         const freshness = clamp(age / 12, 0, 1);
         const rarity = 1 / Math.sqrt(1 + plays);
         const theme = clamp(Number(this._themeTokenScores.get(token) || 0) / 5, 0, 1);
-        const score = rarity * 0.60 + freshness * 0.25 + theme * 0.15;
+        let score = rarity * 0.60 + freshness * 0.25 + theme * 0.15;
+        const consecutiveLoops = Math.max(0, Number(stat.consecutiveLoops) || 0);
+        score *= 1 - this._repetitionPenalty(consecutiveLoops);
         return { token, score };
       })
       .sort((a, b) => b.score - a.score || a.token.localeCompare(b.token))
@@ -540,10 +542,12 @@ class Optimizer {
         const lastLoop = stat.lastLoop == null ? -1 : Number(stat.lastLoop);
         const recencyGap = lastLoop >= 0 ? Math.max(0, l - lastLoop) : 999;
         const theme = clamp(Number(this._themeTokenScores.get(token) || 0) / 5, 0, 1);
-        const score = (plays === 0 ? 1.0 : 0.0) * 0.55
+        let score = (plays === 0 ? 1.0 : 0.0) * 0.55
           + clamp(1 / Math.sqrt(1 + plays), 0, 1) * 0.25
           + clamp(recencyGap / 14, 0, 1) * 0.10
           + theme * 0.10;
+        const consecutiveLoops = Math.max(0, Number(stat.consecutiveLoops) || 0);
+        score *= 1 - this._repetitionPenalty(consecutiveLoops);
         return { token, score, plays };
       })
       .sort((a, b) => b.score - a.score || a.plays - b.plays || a.token.localeCompare(b.token));
@@ -749,6 +753,11 @@ class Optimizer {
     };
   }
 
+  _repetitionPenalty(consecutiveLoops) {
+    if (!consecutiveLoops || consecutiveLoops <= 0) return 0;
+    return clamp(0.18 * Math.pow(2.2, Math.min(consecutiveLoops, 6)), 0, 0.92);
+  }
+
   _tokenSelectionScore(stat, perf, explorationRate) {
     const s = stat || {};
     const p = perf || this._tokenPerformance(s);
@@ -759,7 +768,10 @@ class Optimizer {
     const detail = token && DEV_ECOSYSTEM_DETAIL_CACHE && DEV_ECOSYSTEM_DETAIL_CACHE.get(token);
     const githubRepos = detail && Number.isFinite(detail.githubRepos) ? Number(detail.githubRepos) : 0;
     const githubPrior = githubRepos > 0 ? clamp(Math.log10(1 + githubRepos) / 10, 0, 0.18) : 0;
-    return clamp(exploitation + explorationBonus * 0.22 + githubPrior, 0, 1.6);
+    const raw = clamp(exploitation + explorationBonus * 0.22 + githubPrior, 0, 1.6);
+    const consecutiveLoops = Math.max(0, Math.floor(Number(s.consecutiveLoops) || 0));
+    const repPenalty = this._repetitionPenalty(consecutiveLoops);
+    return clamp(raw * (1 - repPenalty), 0, 1.6);
   }
 
   _isThemeToken(token) {
@@ -1202,11 +1214,16 @@ class Optimizer {
     for (const token of tokenSet) {
       if (!this.model.tokens[token]) {
         this.model.tokens[token] = {
-          plays: 0, reward: 0, lastLoop: null,
+          plays: 0, reward: 0, lastLoop: null, consecutiveLoops: 0,
           winCount: 0, lossCount: 0,
           domainMatches: 0, domainScoreSum: 0,
         };
       }
+      const prevLastLoop = this.model.tokens[token].lastLoop;
+      const wasUsedLastLoop = prevLastLoop != null && Number(prevLastLoop) === Number(plan.loop) - 1;
+      this.model.tokens[token].consecutiveLoops = wasUsedLastLoop
+        ? Math.max(1, (Number(this.model.tokens[token].consecutiveLoops) || 0) + 1)
+        : 1;
       this.model.tokens[token].plays += 1;
       this.model.tokens[token].reward += r;
       this.model.tokens[token].lastLoop = plan.loop;

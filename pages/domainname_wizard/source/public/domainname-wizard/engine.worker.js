@@ -65,6 +65,7 @@ function sanitizeModel(source) {
         plays: Math.max(0, Math.floor(Number(v.plays) || 0)),
         reward: Number(v.reward) || 0,
         lastLoop: v && v.lastLoop != null ? Math.max(0, Math.floor(Number(v.lastLoop) || 0)) : null,
+        consecutiveLoops: Math.max(0, Math.floor(Number(v.consecutiveLoops) || 0)),
         winCount: Math.max(0, Math.floor(Number(v.winCount) || 0)),
         lossCount: Math.max(0, Math.floor(Number(v.lossCount) || 0)),
         domainMatches: Math.max(0, Math.floor(Number(v.domainMatches) || 0)),
