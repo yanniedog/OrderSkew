@@ -18,6 +18,8 @@ import { buildSnapshot, downloadSnapshot, parseSnapshot } from "./snapshot.js";
 
 const worker = new Worker("./engine.worker.js");
 const expanded = new Set();
+let boardFenOverride = null;
+let boardLastMove = null;
 
 const el = {
   modeBrowser: document.getElementById("mode-browser"),
@@ -60,6 +62,28 @@ function setError(message) {
   el.errorBanner.textContent = message;
 }
 
+function clearBoardOverride() {
+  boardFenOverride = null;
+  boardLastMove = null;
+}
+
+function handleBoardMove(detail) {
+  boardFenOverride = detail.fen;
+  boardLastMove = detail;
+  el.seedFen.value = detail.fen;
+  setSettings({ seedFen: detail.fen });
+
+  const state = getState();
+  if (state.rootHash) {
+    resetTree();
+    expanded.clear();
+    setStatus("idle");
+    setError("Board edited. Tree cleared. Click Start to generate from the updated position.");
+  } else {
+    setError("");
+  }
+}
+
 function selectedNode(state) {
   if (!state.activeHash || state.tree.size === 0) return null;
   return state.tree.get(String(state.activeHash)) || null;
@@ -79,15 +103,31 @@ function updateModeButtons(state) {
 }
 
 function updateSelectionPanel(state) {
+  if (boardFenOverride) {
+    el.activeNodeLabel.textContent = "edited board";
+    renderBoard(el.board, boardFenOverride, { interactive: true, onMove: handleBoardMove });
+    const lines = [
+      "FEN: " + boardFenOverride,
+      "Depth: -",
+      "Eval: -",
+      "Move sequence: " + (boardLastMove ? boardLastMove.from + "->" + boardLastMove.to : "manual"),
+      "Best move: -",
+      "Game result: -"
+    ];
+    el.meta.textContent = lines.join("\n");
+    return;
+  }
+
   const node = selectedNode(state);
   if (!node) {
-    el.activeNodeLabel.textContent = "no node";
-    el.meta.textContent = "No selection yet.";
-    renderBoard(el.board, "8/8/8/8/8/8/8/8 w - - 0 1");
+    const seedFen = (state.settings.seedFen || "start").trim() || "start";
+    el.activeNodeLabel.textContent = "seed position";
+    renderBoard(el.board, seedFen, { interactive: true, onMove: handleBoardMove });
+    el.meta.textContent = "FEN: " + seedFen + "\nDepth: -\nEval: -\nMove sequence: seed\nBest move: -\nGame result: -";
     return;
   }
   el.activeNodeLabel.textContent = String(node.hash);
-  renderBoard(el.board, node.fen);
+  renderBoard(el.board, node.fen, { interactive: true, onMove: handleBoardMove });
   const lines = [
     "FEN: " + node.fen,
     "Depth: " + node.depth,
@@ -110,6 +150,8 @@ function ensureExpanded(hash) {
 }
 
 function handleSelect(hash) {
+  clearBoardOverride();
+  setError("");
   setActiveHash(hash);
   ensureExpanded(hash);
 }
@@ -215,6 +257,9 @@ function wireEvents() {
   el.remoteApiBase.addEventListener("change", () => setRemoteApiBase(el.remoteApiBase.value));
 
   el.seedFen.addEventListener("change", () => setSettings({ seedFen: el.seedFen.value.trim() || "start" }));
+  el.seedFen.addEventListener("input", () => {
+    clearBoardOverride();
+  });
   el.depth.addEventListener("change", () => {
     const value = Math.max(LIMITS.MIN_DEPTH, Math.min(LIMITS.MAX_DEPTH, Number(el.depth.value || 3)));
     el.depth.value = String(value);
@@ -264,6 +309,7 @@ function wireEvents() {
     worker.postMessage({ type: "cancel" });
     resetTree();
     expanded.clear();
+    clearBoardOverride();
     setError("");
   });
 
@@ -347,6 +393,7 @@ function wireEvents() {
     if (!file) return;
     try {
       const parsed = parseSnapshot(JSON.parse(await file.text()));
+      clearBoardOverride();
       setTree({ rootHash: parsed.rootHash, nodes: parsed.nodes, stats: parsed.stats });
       expanded.clear();
       expanded.add(String(parsed.rootHash));
@@ -414,4 +461,4 @@ subscribe((state) => {
 
 wireEvents();
 resetTree();
-renderBoard(el.board, "8/8/8/8/8/8/8/8 w - - 0 1");
+renderBoard(el.board, "start", { interactive: true, onMove: handleBoardMove });

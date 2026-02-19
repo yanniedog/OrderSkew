@@ -60,6 +60,7 @@
     color: transparent;
     white-space: nowrap;
     user-select: none;
+    text-decoration: none;
 }
 
 .os-frame-nav-links {

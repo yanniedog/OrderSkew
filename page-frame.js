@@ -91,7 +91,7 @@
         nav.innerHTML =
             '<div class="os-frame-nav-inner">' +
                 '<div class="os-frame-brand-block">' +
-                    '<span class="os-frame-brand">' + CONFIG.brand + '</span>' +
+                    '<a class="os-frame-brand" href="' + mainHref + '">' + CONFIG.brand + '</a>' +
                 '</div>' +
                 '<div class="os-frame-nav-links">' + links + '</div>' +
             '</div>';
