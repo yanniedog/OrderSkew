@@ -1,5 +1,5 @@
 (function () {
-  const WORKER_VERSION = '2026-02-20-proxy-multibinance-v4';
+  const WORKER_VERSION = '2026-02-20-threshold-adherence-v1';
 
   const els = {
     startBtn: document.getElementById('start-btn'),
@@ -147,9 +147,10 @@
     setError('');
     setStatus('Running', 'Initializing data sources...');
     setProgress(0.02);
+    const config = readRunConfig();
     worker.postMessage({
       type: 'START_ANALYSIS',
-      config: readRunConfig(),
+      config: config,
     });
   }
 
@@ -261,22 +262,40 @@
     if (els.chartsCard) els.chartsCard.hidden = true;
   }
 
+  function cyclesMeetingThreshold(cycles, thresholding) {
+    if (!Array.isArray(cycles) || !cycles.length) return [];
+    const minPct = Number(thresholding && thresholding.major_cycle_min_range_pct);
+    const minDays = Number(thresholding && thresholding.major_cycle_min_ath_to_trough_days);
+    const hasPct = Number.isFinite(minPct) && minPct >= 0;
+    const hasDays = Number.isFinite(minDays) && minDays >= 0;
+    if (!hasPct && !hasDays) return cycles;
+    return cycles.filter(function (c) {
+      const drawdownAbs = Math.abs(Number(c.drawdown_pct));
+      const days = Number(c.days_ath_to_trough);
+      if (hasPct && drawdownAbs < minPct) return false;
+      if (hasDays && days < minDays) return false;
+      return true;
+    });
+  }
+
   function renderVisuals(result) {
     clearVisuals();
     const analyzed = result && result.results && Array.isArray(result.results.analyzed_assets)
       ? result.results.analyzed_assets
       : [];
-    const rowCount = renderCycleTable(analyzed);
-    renderCoinCharts(analyzed);
+    const thresholding = result && result.methodology && result.methodology.major_cycle_thresholding ? result.methodology.major_cycle_thresholding : null;
+    const rowCount = renderCycleTable(analyzed, result, thresholding);
+    renderCoinCharts(analyzed, thresholding);
     return rowCount;
   }
 
-  function renderCycleTable(analyzedAssets) {
+  function renderCycleTable(analyzedAssets, result, thresholding) {
     const rows = [];
     for (let i = 0; i < analyzedAssets.length; i += 1) {
       const entry = analyzedAssets[i] || {};
       const asset = entry.asset || {};
-      const cycles = Array.isArray(entry.cycles) ? entry.cycles : [];
+      const rawCycles = Array.isArray(entry.cycles) ? entry.cycles : [];
+      const cycles = cyclesMeetingThreshold(rawCycles, thresholding);
       for (let j = 0; j < cycles.length; j += 1) {
         const cycle = cycles[j] || {};
         rows.push({
@@ -336,7 +355,7 @@
     return rows.length;
   }
 
-  function renderCoinCharts(analyzedAssets) {
+  function renderCoinCharts(analyzedAssets, thresholding) {
     if (!analyzedAssets.length) {
       const msg = document.createElement('p');
       msg.className = 'coin-chart-empty';
@@ -350,7 +369,8 @@
     for (let i = 0; i < analyzedAssets.length; i += 1) {
       const entry = analyzedAssets[i] || {};
       const asset = entry.asset || {};
-      const cycles = Array.isArray(entry.cycles) ? entry.cycles : [];
+      const rawCycles = Array.isArray(entry.cycles) ? entry.cycles : [];
+      const cycles = cyclesMeetingThreshold(rawCycles, thresholding);
       const card = document.createElement('article');
       card.className = 'coin-chart-card';
 
