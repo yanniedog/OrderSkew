@@ -118,7 +118,11 @@
 .os-frame-footer-inner {
     max-width: 1200px;
     margin: 0 auto;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .os-frame-commit {
@@ -135,6 +139,45 @@
 
 .os-frame-commit-link:hover {
     text-decoration: underline;
+}
+
+.os-frame-sep {
+    color: #8aa0b6;
+    font-size: 0.72rem;
+    user-select: none;
+}
+
+.os-frame-debug-link {
+    color: #1b5d95;
+    text-decoration: none;
+    font-size: 0.72rem;
+    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+}
+
+.os-frame-debug-link:hover {
+    text-decoration: underline;
+}
+
+.os-frame-debug-btn {
+    border: 1px solid rgba(132, 160, 186, 0.45);
+    background: rgba(250, 253, 255, 0.8);
+    color: #375676;
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 0.68rem;
+    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
+    cursor: pointer;
+}
+
+.os-frame-debug-btn:hover {
+    border-color: #1b5d95;
+    color: #1b5d95;
+}
+
+.os-frame-debug-count {
+    color: #5a7390;
+    font-size: 0.7rem;
+    font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace;
 }
 
 /* ── Responsive ── */
@@ -165,5 +208,10 @@
 
     .os-frame-commit {
         font-size: 0.68rem;
+    }
+
+    .os-frame-debug-link,
+    .os-frame-debug-count {
+        font-size: 0.66rem;
     }
 }

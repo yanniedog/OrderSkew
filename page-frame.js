@@ -28,7 +28,10 @@
         commitLabel: 'Latest commit (main)',
         commitLoading: 'Loading latest commit\u2026',
         commitUnavailable: 'Latest commit (main): unavailable',
-        commitUnavailableStatus: 'Latest commit (main): unavailable ('
+        commitUnavailableStatus: 'Latest commit (main): unavailable (',
+        debugStorageKey: 'orderskew_universal_debug_log_v1',
+        debugLabel: 'Download debug log',
+        debugCountSuffix: 'entries'
     };
 
     var pageType = script.getAttribute('data-page-type');
@@ -126,8 +129,311 @@
         footer.innerHTML =
             '<div class="os-frame-footer-inner">' +
                 '<span class="os-frame-commit" id="os-frame-commit">' + CONFIG.commitLoading + '</span>' +
+                '<span class="os-frame-sep" aria-hidden="true">|</span>' +
+                '<a class="os-frame-debug-link" id="os-frame-debug-download" href="#" download="orderskew_debug.log">' + CONFIG.debugLabel + '</a>' +
+                '<button class="os-frame-debug-btn" id="os-frame-debug-clear" type="button">Clear</button>' +
+                '<span class="os-frame-debug-count" id="os-frame-debug-count">0 ' + CONFIG.debugCountSuffix + '</span>' +
             '</div>';
         return footer;
+    }
+
+    function createUniversalLogger() {
+        if (window.OrderSkewDebugLogger) return window.OrderSkewDebugLogger;
+
+        var state = {
+            sessionId: Math.random().toString(36).slice(2, 10),
+            seq: 0,
+            maxEntries: 12000,
+            maxPersistChars: 3500000,
+            entries: [],
+            dirty: false,
+            saveTimer: null,
+            blobUrl: null
+        };
+
+        function safeJson(value) {
+            var seen = new WeakSet();
+            return JSON.stringify(value, function (key, val) {
+                if (typeof val === 'object' && val !== null) {
+                    if (seen.has(val)) return '[Circular]';
+                    seen.add(val);
+                }
+                if (typeof val === 'number' && !isFinite(val)) return String(val);
+                if (typeof val === 'string' && val.length > 2000) return val.slice(0, 2000) + '...[truncated]';
+                return val;
+            });
+        }
+
+        function targetSummary(target) {
+            if (!target || typeof target !== 'object') return 'unknown';
+            var el = target;
+            if (!el.tagName) return String(el);
+            var tag = String(el.tagName).toLowerCase();
+            var id = el.id ? ('#' + el.id) : '';
+            var cls = '';
+            if (typeof el.className === 'string' && el.className.trim()) {
+                cls = '.' + el.className.trim().split(/\s+/).slice(0, 3).join('.');
+            }
+            var name = el.getAttribute && el.getAttribute('name');
+            return tag + id + cls + (name ? ('[name=' + name + ']') : '');
+        }
+
+        function storageLoad() {
+            try {
+                var raw = localStorage.getItem(CONFIG.debugStorageKey);
+                if (!raw) return;
+                var parsed = JSON.parse(raw);
+                if (Array.isArray(parsed.entries)) state.entries = parsed.entries;
+                if (typeof parsed.seq === 'number') state.seq = parsed.seq;
+            } catch (_) {}
+        }
+
+        function trimForLimits() {
+            if (state.entries.length > state.maxEntries) {
+                state.entries = state.entries.slice(state.entries.length - state.maxEntries);
+            }
+            var packed = safeJson({ seq: state.seq, entries: state.entries });
+            while (packed.length > state.maxPersistChars && state.entries.length > 1000) {
+                state.entries = state.entries.slice(Math.floor(state.entries.length * 0.1));
+                packed = safeJson({ seq: state.seq, entries: state.entries });
+            }
+            return packed;
+        }
+
+        function storageSaveNow() {
+            state.saveTimer = null;
+            if (!state.dirty) return;
+            try {
+                var packed = trimForLimits();
+                localStorage.setItem(CONFIG.debugStorageKey, packed);
+                state.dirty = false;
+            } catch (_) {}
+        }
+
+        function scheduleSave() {
+            state.dirty = true;
+            if (state.saveTimer) return;
+            state.saveTimer = window.setTimeout(storageSaveNow, 250);
+        }
+
+        function buildLogText() {
+            var header = [
+                'OrderSkew Universal Debug Log',
+                'generated_at=' + new Date().toISOString(),
+                'url=' + window.location.href,
+                'entry_count=' + state.entries.length,
+                ''
+            ].join('\n');
+            var lines = state.entries.map(function (entry) { return safeJson(entry); });
+            return header + lines.join('\n');
+        }
+
+        function updateFooterLink() {
+            var link = document.getElementById('os-frame-debug-download');
+            var count = document.getElementById('os-frame-debug-count');
+            if (!link || !count) return;
+            var blob = new Blob([buildLogText()], { type: 'text/plain;charset=utf-8' });
+            var nextUrl = URL.createObjectURL(blob);
+            if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+            state.blobUrl = nextUrl;
+            link.href = nextUrl;
+            link.download = 'orderskew_debug_' + new Date().toISOString().replace(/[:.]/g, '-') + '.log';
+            count.textContent = state.entries.length + ' ' + CONFIG.debugCountSuffix;
+        }
+
+        function log(level, event, details) {
+            state.seq += 1;
+            state.entries.push({
+                seq: state.seq,
+                ts: new Date().toISOString(),
+                level: level,
+                event: event,
+                details: details || {},
+                page: {
+                    href: window.location.href,
+                    path: window.location.pathname,
+                    title: document.title
+                },
+                session_id: state.sessionId
+            });
+            scheduleSave();
+            updateFooterLink();
+        }
+
+        function clear() {
+            state.entries = [];
+            state.seq = 0;
+            state.dirty = false;
+            if (state.saveTimer) {
+                window.clearTimeout(state.saveTimer);
+                state.saveTimer = null;
+            }
+            try { localStorage.removeItem(CONFIG.debugStorageKey); } catch (_) {}
+            updateFooterLink();
+            log('DEBUG', 'logger.cleared', {});
+        }
+
+        function attachFooterActions() {
+            var clearBtn = document.getElementById('os-frame-debug-clear');
+            if (clearBtn && !clearBtn.__osBound) {
+                clearBtn.__osBound = true;
+                clearBtn.addEventListener('click', function () { clear(); });
+            }
+            updateFooterLink();
+        }
+
+        function installGlobalHooks() {
+            if (window.__osUniversalDebugHooksInstalled) return;
+            window.__osUniversalDebugHooksInstalled = true;
+
+            window.addEventListener('error', function (event) {
+                log('ERROR', 'window.error', {
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno
+                });
+            });
+
+            window.addEventListener('unhandledrejection', function (event) {
+                log('ERROR', 'window.unhandledrejection', {
+                    reason: event.reason ? String(event.reason) : 'unknown'
+                });
+            });
+
+            document.addEventListener('click', function (event) {
+                log('DEBUG', 'dom.click', {
+                    target: targetSummary(event.target),
+                    x: event.clientX,
+                    y: event.clientY
+                });
+            }, true);
+
+            document.addEventListener('change', function (event) {
+                var target = event.target;
+                var valueSummary = null;
+                if (target && target.tagName) {
+                    var tag = String(target.tagName).toLowerCase();
+                    var inputType = target.type ? String(target.type).toLowerCase() : '';
+                    if (tag === 'select') {
+                        valueSummary = target.value;
+                    } else if (inputType === 'checkbox' || inputType === 'radio') {
+                        valueSummary = { checked: !!target.checked, value: target.value };
+                    } else if (inputType === 'password') {
+                        valueSummary = '[redacted]';
+                    } else if (tag === 'input' || tag === 'textarea') {
+                        var v = String(target.value || '');
+                        valueSummary = v.length <= 120 ? v : (v.slice(0, 120) + '...[truncated]');
+                    }
+                }
+                log('DEBUG', 'dom.change', {
+                    target: targetSummary(event.target),
+                    value: valueSummary
+                });
+            }, true);
+
+            document.addEventListener('submit', function (event) {
+                log('DEBUG', 'dom.submit', { target: targetSummary(event.target) });
+            }, true);
+
+            window.addEventListener('popstate', function () {
+                log('DEBUG', 'nav.popstate', { href: window.location.href });
+            });
+            window.addEventListener('hashchange', function () {
+                log('DEBUG', 'nav.hashchange', { href: window.location.href });
+            });
+            document.addEventListener('visibilitychange', function () {
+                log('DEBUG', 'page.visibility', { state: document.visibilityState });
+            });
+
+            var originalPushState = history.pushState;
+            history.pushState = function () {
+                var out = originalPushState.apply(history, arguments);
+                log('DEBUG', 'history.pushState', {
+                    url: arguments.length > 2 ? arguments[2] : null
+                });
+                return out;
+            };
+
+            var originalReplaceState = history.replaceState;
+            history.replaceState = function () {
+                var out = originalReplaceState.apply(history, arguments);
+                log('DEBUG', 'history.replaceState', {
+                    url: arguments.length > 2 ? arguments[2] : null
+                });
+                return out;
+            };
+
+            if (window.fetch) {
+                var nativeFetch = window.fetch.bind(window);
+                window.fetch = function (input, init) {
+                    var method = (init && init.method) || 'GET';
+                    var url = typeof input === 'string' ? input : (input && input.url) || '';
+                    var started = performance.now();
+                    var bodyPreview = init && typeof init.body === 'string' ? init.body.slice(0, 1500) : undefined;
+                    log('DEBUG', 'net.fetch.request', { method: method, url: url, body: bodyPreview });
+                    return nativeFetch(input, init).then(function (res) {
+                        log('DEBUG', 'net.fetch.response', {
+                            method: method,
+                            url: url,
+                            status: res.status,
+                            ok: res.ok,
+                            elapsed_ms: Math.round(performance.now() - started)
+                        });
+                        return res;
+                    }).catch(function (err) {
+                        log('ERROR', 'net.fetch.error', {
+                            method: method,
+                            url: url,
+                            elapsed_ms: Math.round(performance.now() - started),
+                            error: err ? String(err.message || err) : 'unknown'
+                        });
+                        throw err;
+                    });
+                };
+            }
+
+            if (window.XMLHttpRequest) {
+                var open = XMLHttpRequest.prototype.open;
+                var send = XMLHttpRequest.prototype.send;
+                XMLHttpRequest.prototype.open = function (method, url) {
+                    this.__osMethod = method;
+                    this.__osUrl = url;
+                    this.__osStarted = performance.now();
+                    return open.apply(this, arguments);
+                };
+                XMLHttpRequest.prototype.send = function (body) {
+                    log('DEBUG', 'net.xhr.request', {
+                        method: this.__osMethod || 'GET',
+                        url: this.__osUrl || '',
+                        body: typeof body === 'string' ? body.slice(0, 1200) : undefined
+                    });
+                    this.addEventListener('loadend', function () {
+                        log('DEBUG', 'net.xhr.response', {
+                            method: this.__osMethod || 'GET',
+                            url: this.__osUrl || '',
+                            status: this.status,
+                            elapsed_ms: Math.round(performance.now() - (this.__osStarted || performance.now()))
+                        });
+                    });
+                    return send.apply(this, arguments);
+                };
+            }
+        }
+
+        storageLoad();
+        var logger = {
+            log: log,
+            clear: clear,
+            updateFooter: attachFooterActions
+        };
+        window.OrderSkewDebugLogger = logger;
+        installGlobalHooks();
+        log('DEBUG', 'logger.init', {
+            persisted_entries: state.entries.length,
+            user_agent: navigator.userAgent
+        });
+        return logger;
     }
 
     function setCommitStamp(el, label, dateIso, fullSha) {
@@ -182,6 +488,8 @@
     function init() {
         document.body.prepend(buildNav());
         document.body.appendChild(buildFooter());
+        var logger = createUniversalLogger();
+        logger.updateFooter();
         loadCommitStamp();
     }
 

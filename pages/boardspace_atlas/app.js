@@ -47,24 +47,12 @@
     latentHistory: []
   };
 
-  const debugState = {
-    entries: [],
-    maxEntries: 20000,
-    sequence: 0,
-    logUrl: null
-  };
-
   function safeSerialize(value) {
-    const seen = new WeakSet();
-    return JSON.stringify(value, function (key, val) {
-      if (typeof val === "object" && val !== null) {
-        if (seen.has(val)) return "[Circular]";
-        seen.add(val);
-      }
-      if (typeof val === "number" && !Number.isFinite(val)) return String(val);
-      if (typeof val === "string" && val.length > 4000) return val.slice(0, 4000) + "...[truncated]";
-      return val;
-    });
+    try {
+      return JSON.stringify(value);
+    } catch (_) {
+      return String(value);
+    }
   }
 
   function summarizeArrayTop(arr, n) {
@@ -76,25 +64,17 @@
   }
 
   function logDebug(level, event, details) {
-    debugState.sequence += 1;
-    const entry = {
-      seq: debugState.sequence,
-      ts: new Date().toISOString(),
-      level: level,
-      event: event,
-      details: details || {},
-      context: {
-        game_id: state.gameId,
-        session_id: state.sessionId,
-        status: state.status,
-        ai_job_id: state.aiJobId
-      }
-    };
-    debugState.entries.push(entry);
-    if (debugState.entries.length > debugState.maxEntries) {
-      debugState.entries.shift();
+    if (window.OrderSkewDebugLogger && typeof window.OrderSkewDebugLogger.log === "function") {
+      window.OrderSkewDebugLogger.log(level, "boardspace_atlas." + event, {
+        details: details || {},
+        context: {
+          game_id: state.gameId,
+          session_id: state.sessionId,
+          status: state.status,
+          ai_job_id: state.aiJobId
+        }
+      });
     }
-    refreshDebugDownloadLink();
   }
 
   const els = {
@@ -120,9 +100,7 @@
     archiveRoot: document.getElementById("atlas-archive"),
     archiveGame: document.getElementById("archive-game"),
     archiveList: document.getElementById("archive-list"),
-    archiveDetail: document.getElementById("archive-detail"),
-    downloadDebugLog: document.getElementById("download-debug-log"),
-    debugCount: document.getElementById("debug-count")
+    archiveDetail: document.getElementById("archive-detail")
   };
 
   const archiveState = {
@@ -131,36 +109,6 @@
     positionId: null,
     initialized: false
   };
-
-  function buildDebugLogText() {
-    const header = [
-      "BoardSpace Atlas Live Debug Log",
-      "generated_at=" + new Date().toISOString(),
-      "user_agent=" + navigator.userAgent,
-      "page_url=" + window.location.href,
-      "entry_count=" + debugState.entries.length,
-      ""
-    ].join("\n");
-    const lines = debugState.entries.map(function (entry) {
-      return safeSerialize(entry);
-    });
-    return header + lines.join("\n");
-  }
-
-  function refreshDebugDownloadLink() {
-    if (!els.downloadDebugLog) return;
-    const text = buildDebugLogText();
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    if (debugState.logUrl) {
-      URL.revokeObjectURL(debugState.logUrl);
-    }
-    debugState.logUrl = url;
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    els.downloadDebugLog.href = url;
-    els.downloadDebugLog.download = "boardspace_atlas_debug_" + stamp + ".log";
-    if (els.debugCount) els.debugCount.textContent = debugState.entries.length + " entries";
-  }
 
   function persist() {
     saveConfig({
@@ -854,19 +802,6 @@
     bindEvents();
     renderAll();
     if (els.archiveRoot && els.archiveRoot.open) initArchive();
-    window.addEventListener("error", function (event) {
-      logDebug("ERROR", "window.error", {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno
-      });
-    });
-    window.addEventListener("unhandledrejection", function (event) {
-      logDebug("ERROR", "window.unhandledrejection", {
-        reason: event.reason ? String(event.reason) : "unknown"
-      });
-    });
     logDebug("DEBUG", "app.init.done", {
       game_id: state.gameId,
       api_base: state.apiBase,
