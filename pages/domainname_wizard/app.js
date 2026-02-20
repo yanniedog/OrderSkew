@@ -439,6 +439,13 @@
               })
               : [],
           };
+          // #region agent log
+          (function () {
+            var de = dataSourceState.devEcosystem;
+            var aboutToPushAbnormal = ok && de.githubCalls > 0 && de.githubSuccess === 0;
+            fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '65d412' }, body: JSON.stringify({ sessionId: '65d412', location: 'app.js:runPreflightDiagnostics', message: 'GitHub evaluation preflight', data: { ok: ok, backendStatus: dev.response ? dev.response.status : null, rawDebug: debug ? { githubCalls: debug.githubCalls, githubSuccess: debug.githubSuccess, githubFailures: debug.githubFailures, githubTokenPresent: debug.githubTokenPresent, sampleErrors: (debug.sampleErrors || []).slice(0, 5) } : null, computed: { githubCalls: de.githubCalls, githubSuccess: de.githubSuccess, githubFailures: de.githubFailures, githubTokenUsed: de.githubTokenUsed }, aboutToPushAbnormal: aboutToPushAbnormal }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(function () {});
+          })();
+          // #endregion
           if (!ok) {
             issues.push('GitHub evaluation preflight failed');
           } else if (dataSourceState.devEcosystem.githubCalls > 0 && dataSourceState.devEcosystem.githubSuccess === 0) {

@@ -5,6 +5,7 @@
   const STORAGE_KEY = "boardspace_atlas_live_config_v1";
   const LOCAL_API_BASE = "http://localhost:8008";
   const PRODUCTION_API_BASE = "https://api.orderskew.com";
+  const SAME_ORIGIN_API_BASE = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "";
   function getDefaultApiBase() {
     const host = typeof window !== "undefined" && window.location && window.location.hostname;
     if (host === "localhost" || host === "127.0.0.1") return LOCAL_API_BASE;
@@ -139,50 +140,106 @@
     logDebug("DEBUG", "session.chip", { session_id: state.sessionId || null });
   }
 
-  async function api(path, options) {
-    const base = String(state.apiBase || DEFAULT_API_BASE).replace(/\/+$/, "");
+  function uniqueBases(candidates) {
+    const seen = new Set();
+    return candidates.filter(function (b) {
+      const key = String(b || "").replace(/\/+$/, "");
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map(function (b) {
+      return String(b).replace(/\/+$/, "");
+    });
+  }
+
+  function candidateApiBases() {
+    const configured = String(state.apiBase || DEFAULT_API_BASE).trim();
+    const host = typeof window !== "undefined" && window.location && window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return uniqueBases([configured, LOCAL_API_BASE]);
+    }
+    return uniqueBases([configured, SAME_ORIGIN_API_BASE, LOCAL_API_BASE]);
+  }
+
+  async function api(path, options, allowFallback) {
+    const candidates = allowFallback === false ? uniqueBases([state.apiBase || DEFAULT_API_BASE]) : candidateApiBases();
     const method = (options && options.method) || "GET";
-    const started = performance.now();
     let requestBody = null;
     if (options && typeof options.body === "string") {
       requestBody = options.body.length > 3000 ? options.body.slice(0, 3000) + "...[truncated]" : options.body;
     }
-    logDebug("DEBUG", "api.request", {
-      method: method,
-      path: path,
-      url: base + path,
-      body: requestBody
-    });
-    const response = await fetch(base + path, {
-      headers: { "Content-Type": "application/json" },
-      ...(options || {})
-    });
-    let payload = null;
-    try {
-      payload = await response.json();
-    } catch (_) {
-      payload = null;
-    }
-    const elapsed = Math.round(performance.now() - started);
-    logDebug("DEBUG", "api.response", {
-      method: method,
-      path: path,
-      status: response.status,
-      ok: response.ok,
-      elapsed_ms: elapsed,
-      payload_preview: payload && safeSerialize(payload).slice(0, 3000)
-    });
-    if (!response.ok) {
-      const detail = payload && (payload.detail || payload.message || JSON.stringify(payload));
-      logDebug("ERROR", "api.error", {
+    let lastErr = null;
+    for (let i = 0; i < candidates.length; i += 1) {
+      const base = candidates[i];
+      const started = performance.now();
+      logDebug("DEBUG", "api.request", {
         method: method,
         path: path,
-        status: response.status,
-        detail: detail
+        url: base + path,
+        body: requestBody,
+        attempt: i + 1,
+        candidates: candidates
       });
-      throw new Error("HTTP " + response.status + (detail ? (": " + detail) : ""));
+      try {
+        const response = await fetch(base + path, {
+          headers: { "Content-Type": "application/json" },
+          ...(options || {})
+        });
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch (_) {
+          payload = null;
+        }
+        const elapsed = Math.round(performance.now() - started);
+        logDebug("DEBUG", "api.response", {
+          method: method,
+          path: path,
+          status: response.status,
+          ok: response.ok,
+          elapsed_ms: elapsed,
+          base: base,
+          payload_preview: payload && safeSerialize(payload).slice(0, 3000)
+        });
+        if (!response.ok) {
+          const detail = payload && (payload.detail || payload.message || JSON.stringify(payload));
+          if (i < candidates.length - 1 && response.status >= 500) {
+            logDebug("WARN", "api.retry", {
+              method: method,
+              path: path,
+              base: base,
+              status: response.status,
+              reason: "server_error"
+            });
+            continue;
+          }
+          throw new Error("HTTP " + response.status + (detail ? (": " + detail) : ""));
+        }
+        if (state.apiBase !== base) {
+          const previousBase = state.apiBase;
+          state.apiBase = base;
+          if (els.backendUrl) els.backendUrl.value = base;
+          persist();
+          logDebug("INFO", "api.base.switch", { selected: base, previous: previousBase });
+        }
+        return payload;
+      } catch (err) {
+        lastErr = err;
+        if (i < candidates.length - 1) {
+          logDebug("WARN", "api.retry", {
+            method: method,
+            path: path,
+            base: base,
+            reason: err && err.message ? err.message : "request_failed"
+          });
+          continue;
+        }
+      }
     }
-    return payload;
+    if (lastErr && /fetch|network|failed/i.test(String(lastErr.message || ""))) {
+      throw new Error("Network error. Checked API bases: " + candidates.join(", ") + ". Verify DNS/proxy/backend health.");
+    }
+    throw lastErr || new Error("Request failed");
   }
 
   function isHumanTurn() {

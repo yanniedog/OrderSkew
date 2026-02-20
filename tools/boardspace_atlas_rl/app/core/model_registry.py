@@ -108,3 +108,14 @@ class ModelRegistry:
             latent.squeeze(0).detach().cpu().numpy().astype(np.float32),
         )
 
+    def status(self) -> dict:
+        games: dict[str, dict] = {}
+        for game_id, loaded in self._models.items():
+            games[game_id] = {
+                "checkpoint_path": str(loaded.ckpt_path),
+                "checkpoint_exists": loaded.ckpt_path.exists(),
+            }
+        return {
+            "device": str(self.device),
+            "games": games,
+        }

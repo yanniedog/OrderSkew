@@ -74,6 +74,10 @@ class SessionManager:
             raise KeyError("Unknown session id")
         return session
 
+    def session_count(self) -> int:
+        with self._lock:
+            return len(self._sessions)
+
     def apply_human_move(self, session_id: str, action: int) -> dict:
         session = self.get_session(session_id)
         game = self.model_registry.game(session.game_id)
@@ -144,4 +148,3 @@ class SessionManager:
                     "mcts": analysis["mcts"],
                 },
             }
-

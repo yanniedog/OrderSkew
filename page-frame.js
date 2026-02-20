@@ -150,6 +150,8 @@
             saveTimer: null,
             blobUrl: null
         };
+        var REDACTED = '[redacted]';
+        var SENSITIVE_KEY_RE = /(password|token|secret|auth|api[_-]?key|access[_-]?key|refresh[_-]?token|authorization)/i;
 
         function safeJson(value) {
             var seen = new WeakSet();
@@ -176,6 +178,36 @@
             }
             var name = el.getAttribute && el.getAttribute('name');
             return tag + id + cls + (name ? ('[name=' + name + ']') : '');
+        }
+
+        function redactDeep(value, keyHint) {
+            if (keyHint && SENSITIVE_KEY_RE.test(String(keyHint))) return REDACTED;
+            if (value === null || value === undefined) return value;
+            if (Array.isArray(value)) {
+                return value.map(function (item) { return redactDeep(item, keyHint); });
+            }
+            if (typeof value === 'object') {
+                var out = {};
+                Object.keys(value).forEach(function (k) {
+                    out[k] = redactDeep(value[k], k);
+                });
+                return out;
+            }
+            if (typeof value === 'string') {
+                if (SENSITIVE_KEY_RE.test(String(keyHint || ''))) return REDACTED;
+                return value.length > 5000 ? value.slice(0, 5000) + '...[truncated]' : value;
+            }
+            return value;
+        }
+
+        function redactStringPayload(raw) {
+            if (typeof raw !== 'string') return raw;
+            try {
+                var parsed = JSON.parse(raw);
+                return redactDeep(parsed, '');
+            } catch (_) {
+                return raw.length > 5000 ? raw.slice(0, 5000) + '...[truncated]' : raw;
+            }
         }
 
         function storageLoad() {
@@ -220,7 +252,9 @@
             var header = [
                 'OrderSkew Universal Debug Log',
                 'generated_at=' + new Date().toISOString(),
-                'url=' + window.location.href,
+                'user_agent=' + navigator.userAgent,
+                'page_url=' + window.location.href,
+                'session_id=' + state.sessionId,
                 'entry_count=' + state.entries.length,
                 ''
             ].join('\n');
@@ -248,7 +282,7 @@
                 ts: new Date().toISOString(),
                 level: level,
                 event: event,
-                details: details || {},
+                details: redactDeep(details || {}, ''),
                 page: {
                     href: window.location.href,
                     path: window.location.pathname,
@@ -315,11 +349,13 @@
                 if (target && target.tagName) {
                     var tag = String(target.tagName).toLowerCase();
                     var inputType = target.type ? String(target.type).toLowerCase() : '';
+                    var fieldKey = (target.name || target.id || inputType || '').toString();
+                    var isSensitiveField = SENSITIVE_KEY_RE.test(fieldKey);
                     if (tag === 'select') {
-                        valueSummary = target.value;
+                        valueSummary = isSensitiveField ? REDACTED : target.value;
                     } else if (inputType === 'checkbox' || inputType === 'radio') {
-                        valueSummary = { checked: !!target.checked, value: target.value };
-                    } else if (inputType === 'password') {
+                        valueSummary = isSensitiveField ? REDACTED : { checked: !!target.checked, value: target.value };
+                    } else if (inputType === 'password' || isSensitiveField) {
                         valueSummary = '[redacted]';
                     } else if (tag === 'input' || tag === 'textarea') {
                         var v = String(target.value || '');
@@ -370,7 +406,7 @@
                     var method = (init && init.method) || 'GET';
                     var url = typeof input === 'string' ? input : (input && input.url) || '';
                     var started = performance.now();
-                    var bodyPreview = init && typeof init.body === 'string' ? init.body.slice(0, 1500) : undefined;
+                    var bodyPreview = init && typeof init.body === 'string' ? redactStringPayload(init.body) : undefined;
                     log('DEBUG', 'net.fetch.request', { method: method, url: url, body: bodyPreview });
                     return nativeFetch(input, init).then(function (res) {
                         log('DEBUG', 'net.fetch.response', {
@@ -406,7 +442,7 @@
                     log('DEBUG', 'net.xhr.request', {
                         method: this.__osMethod || 'GET',
                         url: this.__osUrl || '',
-                        body: typeof body === 'string' ? body.slice(0, 1200) : undefined
+                        body: typeof body === 'string' ? redactStringPayload(body) : undefined
                     });
                     this.addEventListener('loadend', function () {
                         log('DEBUG', 'net.xhr.response', {

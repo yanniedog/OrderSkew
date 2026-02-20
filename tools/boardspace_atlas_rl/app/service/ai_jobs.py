@@ -76,3 +76,6 @@ class AiJobManager:
             raise KeyError("Unknown job id")
         return job
 
+    def job_count(self) -> int:
+        with self.lock:
+            return len(self.jobs)
