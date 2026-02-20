@@ -3,7 +3,8 @@ const BINANCE_BASE = 'https://api.binance.com/api/v3';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MARKET_PAGE_SIZE = 250;
 const TARGET_ASSET_COUNT = 20;
-const MAJOR_CYCLE_MIN_RANGE_PCT = 30;
+const MAJOR_CYCLE_MIN_RANGE_PCT = 60;
+const MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS = 60;
 
 const RUN_STATE = {
   token: 0,
@@ -135,8 +136,9 @@ async function startAnalysis() {
         drawdown_formula: '((trough_close / ath_high) - 1) * 100',
         recovery_formula: '((next_ath_high / trough_close) - 1) * 100',
         major_cycle_thresholding: {
-          cycle_inclusion_rule: 'abs(drawdown_pct) >= major_cycle_min_range_pct',
+          cycle_inclusion_rule: 'abs(drawdown_pct) >= major_cycle_min_range_pct AND days_ath_to_trough >= major_cycle_min_ath_to_trough_days',
           major_cycle_min_range_pct: MAJOR_CYCLE_MIN_RANGE_PCT,
+          major_cycle_min_ath_to_trough_days: MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS,
         },
         duration_basis: 'utc_calendar_days',
         aggregate_mode: 'dual_reporting_completed_only_and_completed_plus_current',
@@ -448,9 +450,13 @@ function buildCycles(candles) {
 
     const ath = candles[athIndex];
     const trough = candles[troughIndex];
+    const daysAthToTrough = utcDayDiff(ath.time_ms, trough.time_ms);
     const drawdownPct = ((trough.close / ath.high) - 1) * 100;
     const drawdownAbsPct = Math.abs(drawdownPct);
     if (drawdownAbsPct < MAJOR_CYCLE_MIN_RANGE_PCT) {
+      continue;
+    }
+    if (daysAthToTrough < MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS) {
       continue;
     }
     const completed = nextAthIndex !== null;
@@ -461,7 +467,7 @@ function buildCycles(candles) {
       trough_date_utc: trough.date_utc,
       trough_price_close: safeNumber(trough.close),
       drawdown_pct: safeNumber(drawdownPct),
-      days_ath_to_trough: utcDayDiff(ath.time_ms, trough.time_ms),
+      days_ath_to_trough: daysAthToTrough,
       is_completed_cycle: completed,
       next_ath_date_utc: null,
       next_ath_price_high: null,
@@ -485,6 +491,7 @@ function buildCycles(candles) {
     raw_ath_cycle_count: rawCycleCount,
     majorCycleDetection: {
       major_cycle_min_range_pct: MAJOR_CYCLE_MIN_RANGE_PCT,
+      major_cycle_min_ath_to_trough_days: MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS,
       raw_ath_events_found: athIndices.length,
       raw_ath_cycles_found: rawCycleCount,
       major_cycles_retained: cycles.length,
