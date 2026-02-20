@@ -38,7 +38,10 @@ export async function onRequestGet(context) {
   try {
     res = await fetch(upstream.toString(), {
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "OrderSkewCryptoAth/1.0 (+https://orderskew.com/pages/crypto_ath_drawdown_cycles/)",
+      },
     });
   } catch (e) {
     return json({ code: "UPSTREAM_FETCH_FAILED", message: (e && e.message) || "CoinGecko fetch failed." }, 502);
@@ -50,4 +53,3 @@ export async function onRequestGet(context) {
     headers: { "Content-Type": "application/json", ...CORS },
   });
 }
-
