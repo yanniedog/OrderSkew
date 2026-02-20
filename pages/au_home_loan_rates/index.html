@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AU Home Loan Rates | OrderSkew Tools</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-layer" aria-hidden="true"></div>
+
+    <main class="shell">
+        <header class="hero panel">
+            <p class="eyebrow">AU Home Loan Historical Rate Recorder</p>
+            <h1>Cloudflare-native bootstrap dashboard</h1>
+            <p class="subtitle">
+                Phase 1 runtime checks for health, latest snapshots, and admin run reports.
+            </p>
+            <p class="api-line">
+                API Base: <code id="api-base-text">loading...</code>
+            </p>
+            <div class="hero-actions">
+                <button id="refresh-all" type="button">Refresh All</button>
+            </div>
+        </header>
+
+        <section class="grid">
+            <article class="panel">
+                <div class="panel-head">
+                    <h2>API Health</h2>
+                    <button id="refresh-health" type="button" class="small">Refresh</button>
+                </div>
+                <pre id="health-output" class="output">Loading...</pre>
+            </article>
+
+            <article class="panel">
+                <div class="panel-head">
+                    <h2>Latest Rates (Top 20)</h2>
+                    <button id="refresh-latest" type="button" class="small">Refresh</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Bank</th>
+                                <th>Product</th>
+                                <th>LVR</th>
+                                <th>Structure</th>
+                                <th>Rate</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="latest-body">
+                            <tr><td colspan="6">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="panel panel-wide">
+                <div class="panel-head">
+                    <h2>Admin Run Status</h2>
+                    <button id="refresh-runs" type="button" class="small">Refresh</button>
+                </div>
+                <p class="hint">Bearer token is optional here, but required for admin endpoints.</p>
+                <label class="token-row" for="admin-token">
+                    <span>Admin Token</span>
+                    <input id="admin-token" type="password" placeholder="Paste ADMIN_API_TOKEN if needed">
+                </label>
+                <pre id="runs-output" class="output">No data yet.</pre>
+            </article>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="../../page-frame.js"></script>
+</body>
+</html>

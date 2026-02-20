@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "generated_at": "2026-02-20T00:00:00Z",
+  "lenders": [
+    {
+      "code": "cba",
+      "name": "CBA",
+      "canonical_bank_name": "Commonwealth Bank of Australia",
+      "register_brand_name": "Commonwealth Bank of Australia",
+      "seed_rate_urls": [
+        "https://www.commbank.com.au/home-loans/rates-and-fees.html"
+      ]
+    },
+    {
+      "code": "westpac",
+      "name": "Westpac",
+      "canonical_bank_name": "Westpac Banking Corporation",
+      "register_brand_name": "Westpac",
+      "seed_rate_urls": [
+        "https://www.westpac.com.au/personal-banking/home-loans/interest-rates/"
+      ]
+    },
+    {
+      "code": "nab",
+      "name": "NAB",
+      "canonical_bank_name": "National Australia Bank",
+      "register_brand_name": "NAB",
+      "seed_rate_urls": [
+        "https://www.nab.com.au/personal/home-loans/interest-rates"
+      ]
+    },
+    {
+      "code": "anz",
+      "name": "ANZ",
+      "canonical_bank_name": "ANZ",
+      "register_brand_name": "ANZ",
+      "seed_rate_urls": [
+        "https://www.anz.com.au/personal/home-loans/interest-rates/"
+      ]
+    },
+    {
+      "code": "macquarie",
+      "name": "Macquarie",
+      "canonical_bank_name": "Macquarie Bank",
+      "register_brand_name": "Macquarie Bank",
+      "seed_rate_urls": [
+        "https://www.macquarie.com.au/home-loans/interest-rates.html"
+      ]
+    },
+    {
+      "code": "bendigo_adelaide",
+      "name": "Bendigo & Adelaide",
+      "canonical_bank_name": "Bendigo and Adelaide Bank",
+      "register_brand_name": "Bendigo and Adelaide Bank",
+      "seed_rate_urls": [
+        "https://www.bendigobank.com.au/personal/home-loans/interest-rates/"
+      ]
+    },
+    {
+      "code": "suncorp",
+      "name": "Suncorp",
+      "canonical_bank_name": "Suncorp Bank",
+      "register_brand_name": "Suncorp Bank",
+      "seed_rate_urls": [
+        "https://www.suncorpbank.com.au/home-loans/rates"
+      ]
+    },
+    {
+      "code": "bankwest",
+      "name": "Bankwest",
+      "canonical_bank_name": "Bankwest",
+      "register_brand_name": "Bankwest",
+      "seed_rate_urls": [
+        "https://www.bankwest.com.au/personal/home-buying/home-loan-rates"
+      ]
+    },
+    {
+      "code": "ing",
+      "name": "ING",
+      "canonical_bank_name": "ING",
+      "register_brand_name": "ING",
+      "seed_rate_urls": [
+        "https://www.ing.com.au/home-loans/rates-and-fees.html"
+      ]
+    },
+    {
+      "code": "amp",
+      "name": "AMP",
+      "canonical_bank_name": "AMP Bank",
+      "register_brand_name": "AMP Bank",
+      "seed_rate_urls": [
+        "https://www.amp.com.au/home-loans/rates-and-fees"
+      ]
+    }
+  ]
+}
