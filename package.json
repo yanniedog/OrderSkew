@@ -4,6 +4,8 @@
   "scripts": {
     "test:domainname_wizard": "node test-domainname-wizard.js",
     "test:domainname_wizard:production": "node pages/domainname_wizard/source/e2e-production-curated-coverage.js https://www.orderskew.com/pages/domainname_wizard/",
+    "test:domainname_wizard:production:assets": "node pages/domainname_wizard/source/e2e-production-asset-check.js https://www.orderskew.com/pages/domainname_wizard",
+    "test:domainname_wizard:production:all": "node pages/domainname_wizard/source/e2e-production-asset-check.js https://www.orderskew.com/pages/domainname_wizard && node pages/domainname_wizard/source/e2e-static-wizard.js https://www.orderskew.com/pages/domainname_wizard/ && node pages/domainname_wizard/source/e2e-production-curated-coverage.js https://www.orderskew.com/pages/domainname_wizard/",
     "test:frame_clock": "node test-frame-clock.js",
     "test:chess_tree": "node test-chess-tree.js",
     "test:chess_tree:prod": "node test-chess-tree-prod.js",
