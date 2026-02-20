@@ -49,7 +49,11 @@
       const pretty = JSON.stringify(currentResult, null, 2);
       els.jsonOutput.textContent = pretty;
       setSummary(currentResult);
-      renderVisuals(currentResult);
+      try {
+        renderVisuals(currentResult);
+      } catch (error) {
+        setError(`Visualization rendering failed: ${error && error.message ? error.message : 'Unknown error'}`);
+      }
       els.copyBtn.disabled = false;
       els.downloadBtn.disabled = false;
       els.startBtn.disabled = false;
@@ -178,8 +182,6 @@
     const analyzed = result && result.results && Array.isArray(result.results.analyzed_assets)
       ? result.results.analyzed_assets
       : [];
-    if (!analyzed.length) return;
-
     renderCycleTable(analyzed);
     renderCoinCharts(analyzed);
   }
@@ -219,7 +221,12 @@
       return cycleA - cycleB;
     });
 
-    if (!rows.length) return;
+    if (!rows.length) {
+      const noData = `<tr><td colspan="13">No retained major cycles found in analyzed assets for this run.</td></tr>`;
+      els.resultsTableBody.innerHTML = noData;
+      els.visualsCard.hidden = false;
+      return;
+    }
     const html = rows.map(function (row) {
       return `<tr>
         <td>${escapeHtml(valueOrDash(row.rank))}</td>
@@ -242,6 +249,15 @@
   }
 
   function renderCoinCharts(analyzedAssets) {
+    if (!analyzedAssets.length) {
+      const msg = document.createElement('p');
+      msg.className = 'coin-chart-empty';
+      msg.textContent = 'No analyzed assets were returned for this run.';
+      els.coinCharts.appendChild(msg);
+      els.chartsCard.hidden = false;
+      return;
+    }
+
     const frag = document.createDocumentFragment();
     for (let i = 0; i < analyzedAssets.length; i += 1) {
       const entry = analyzedAssets[i] || {};
@@ -300,6 +316,21 @@
       if (seen.has(key)) continue;
       seen.add(key);
       points.push(ev);
+    }
+
+    if (!points.length) {
+      const emptySvg = createSvgEl('svg');
+      emptySvg.setAttribute('class', 'coin-chart-svg');
+      emptySvg.setAttribute('viewBox', '0 0 920 260');
+      emptySvg.setAttribute('preserveAspectRatio', 'none');
+      const label = createSvgEl('text');
+      label.setAttribute('x', '460');
+      label.setAttribute('y', '132');
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('class', 'coin-axis-label');
+      label.textContent = 'No usable ATH/trough points in retained cycles.';
+      emptySvg.appendChild(label);
+      return emptySvg;
     }
 
     const width = 920;
