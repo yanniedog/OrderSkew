@@ -1,4 +1,4 @@
-use crate::api::{TreeApi, TreeStats};
+use crate::api::{Neighbors, TreeApi, TreeStats};
 use crate::metrics::MetricsSnapshot;
 use crate::db::DbPool;
 use axum::{
@@ -26,6 +26,7 @@ pub async fn start_server(db_path: String, port: u16) -> Result<(), Box<dyn std:
         .route("/api/stats", get(get_stats))
         .route("/api/metrics", get(get_metrics))
         .route("/api/search", get(search_positions))
+        .route("/api/neighbors/:hash", get(get_neighbors))
         .nest_service("/static", ServeDir::new("static"))
         .layer(CorsLayer::permissive())
         .with_state(api);
@@ -113,6 +114,11 @@ struct SearchQuery {
     q: String,
 }
 
+#[derive(Deserialize)]
+struct NeighborsQuery {
+    parent_limit: Option<u32>,
+}
+
 async fn search_positions(
     Query(params): Query<SearchQuery>,
     State(api): State<Arc<TreeApi>>,
@@ -157,3 +163,19 @@ async fn search_positions(
     }
 }
 
+async fn get_neighbors(
+    Path(hash): Path<u64>,
+    Query(query): Query<NeighborsQuery>,
+    State(api): State<Arc<TreeApi>>,
+) -> Result<Json<Neighbors>, StatusCode> {
+    match api.get_neighbors(hash, query.parent_limit) {
+        Ok(neighbors) => Ok(Json(neighbors)),
+        Err(err) => {
+            eprintln!(
+                "[API] Failed to load neighbors for {}: {:?}",
+                hash, err
+            );
+            Err(StatusCode::NOT_FOUND)
+        }
+    }
+}

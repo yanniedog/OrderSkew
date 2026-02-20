@@ -137,7 +137,7 @@ body {
 .tree-node { margin-left: 8px; }
 .node-row {
   display: grid;
-  grid-template-columns: 24px 1fr 56px 44px;
+  grid-template-columns: 24px 1fr 56px 44px 78px;
   align-items: center;
   gap: 8px;
   border: 1px solid transparent;
@@ -158,6 +158,21 @@ body {
 .toggle.ghost { opacity: 0.45; cursor: default; }
 .children { display: none; margin-left: 18px; border-left: 1px dashed #c7d8cb; padding-left: 8px; }
 .children.open { display: block; }
+.transposition {
+  justify-self: end;
+  font-size: 11px;
+  color: #1f5a40;
+  background: #dff2e7;
+  border-radius: 999px;
+  padding: 2px 6px;
+  min-height: 18px;
+}
+.cycle-ref {
+  margin: 4px 0 4px 10px;
+  color: #5f6b60;
+  font-size: 12px;
+  cursor: pointer;
+}
 .empty { color: var(--muted); padding: 10px; }
 
 .stats-grid {
@@ -170,6 +185,17 @@ body {
 .stat .k { font-size: 11px; color: var(--muted); }
 .stat .v { font-size: 16px; font-weight: 700; }
 .meta { font-size: 12px; color: var(--muted); line-height: 1.4; white-space: pre-wrap; }
+.parents-panel { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: #fcfffc; }
+.parents-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.parents-list { display: grid; gap: 6px; }
+.parent-link {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #f7faf7;
+  cursor: pointer;
+  font-size: 12px;
+}
 .search-row { display: flex; gap: 6px; margin-bottom: 8px; }
 .search-row input { flex: 1; padding: 8px; border: 1px solid var(--line); border-radius: 10px; }
 .search-row button { padding: 8px 11px; border-radius: 10px; border: none; background: var(--brand); color: #fff; cursor: pointer; }

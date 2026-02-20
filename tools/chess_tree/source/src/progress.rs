@@ -10,6 +10,9 @@ pub struct ProgressTracker {
     nodes_expanded: AtomicU64,
     positions_inserted: AtomicU64,
     duplicates_skipped: AtomicU64,
+    edges_inserted: AtomicU64,
+    frontier_size: AtomicU64,
+    depth_completed: AtomicU64,
     start_time: Instant,
     running: Arc<std::sync::atomic::AtomicBool>,
     memory_tracker: Option<Arc<MemoryEfficientTracker>>,
@@ -22,6 +25,9 @@ impl ProgressTracker {
             nodes_expanded: AtomicU64::new(0),
             positions_inserted: AtomicU64::new(0),
             duplicates_skipped: AtomicU64::new(0),
+            edges_inserted: AtomicU64::new(0),
+            frontier_size: AtomicU64::new(0),
+            depth_completed: AtomicU64::new(0),
             start_time: Instant::now(),
             running: Arc::new(std::sync::atomic::AtomicBool::new(true)),
             memory_tracker: None,
@@ -47,19 +53,37 @@ impl ProgressTracker {
     pub fn increment_duplicates(&self) {
         self.duplicates_skipped.fetch_add(1, Ordering::Relaxed);
     }
+
+    /// Increment edges inserted counter
+    pub fn increment_edges(&self) {
+        self.edges_inserted.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Set frontier size estimate
+    pub fn set_frontier_size(&self, size: u64) {
+        self.frontier_size.store(size, Ordering::Relaxed);
+    }
+
+    /// Update the most recently completed depth
+    pub fn set_depth_completed(&self, depth: u64) {
+        self.depth_completed.store(depth, Ordering::Relaxed);
+    }
     
     /// Get current statistics
-    pub fn get_stats(&self) -> (u64, u64, u64, f64) {
+    pub fn get_stats(&self) -> (u64, u64, u64, u64, u64, u64, f64) {
         let expanded = self.nodes_expanded.load(Ordering::Relaxed);
         let inserted = self.positions_inserted.load(Ordering::Relaxed);
         let duplicates = self.duplicates_skipped.load(Ordering::Relaxed);
+        let edges = self.edges_inserted.load(Ordering::Relaxed);
+        let frontier = self.frontier_size.load(Ordering::Relaxed);
+        let depth_done = self.depth_completed.load(Ordering::Relaxed);
         let elapsed = self.start_time.elapsed().as_secs_f64();
         let rate = if elapsed > 0.0 {
             expanded as f64 / elapsed
         } else {
             0.0
         };
-        (expanded, inserted, duplicates, rate)
+        (expanded, inserted, duplicates, edges, frontier, depth_done, rate)
     }
     
     /// Get memory usage statistics
@@ -91,7 +115,7 @@ impl ProgressTracker {
         thread::spawn(move || {
             while running.load(Ordering::Relaxed) {
                 thread::sleep(Duration::from_secs(interval_secs));
-                let (expanded, inserted, duplicates, rate) = tracker_clone.get_stats();
+                let (expanded, inserted, duplicates, edges, frontier, depth_done, rate) = tracker_clone.get_stats();
                 let elapsed = tracker_clone.start_time.elapsed();
                 
                 // Get memory stats if available
@@ -99,13 +123,13 @@ impl ProgressTracker {
                     let process_mem_mb = process_mem as f64 / 1024.0 / 1024.0;
                     let tracker_mem_mb = tracker_mem as f64 / 1024.0 / 1024.0;
                     println!(
-                        "\r[Progress] Expanded: {} | Inserted: {} | Duplicates: {} | Rate: {:.0} nodes/sec | Memory: {:.1}MB (tracker: {:.1}MB, FP: {}) | Elapsed: {:?}",
-                        expanded, inserted, duplicates, rate, process_mem_mb, tracker_mem_mb, false_pos, elapsed
+                        "\r[Progress] Expanded: {} | Inserted: {} | Duplicates: {} | Edges: {} | Frontier: {} | Depth: {} | Rate: {:.0} nodes/sec | Memory: {:.1}MB (tracker: {:.1}MB, FP: {}) | Elapsed: {:?}",
+                        expanded, inserted, duplicates, edges, frontier, depth_done, rate, process_mem_mb, tracker_mem_mb, false_pos, elapsed
                     );
                 } else {
                     println!(
-                        "\r[Progress] Expanded: {} | Inserted: {} | Duplicates: {} | Rate: {:.0} nodes/sec | Elapsed: {:?}",
-                        expanded, inserted, duplicates, rate, elapsed
+                        "\r[Progress] Expanded: {} | Inserted: {} | Duplicates: {} | Edges: {} | Frontier: {} | Depth: {} | Rate: {:.0} nodes/sec | Elapsed: {:?}",
+                        expanded, inserted, duplicates, edges, frontier, depth_done, rate, elapsed
                     );
                 }
             }
@@ -125,13 +149,16 @@ impl ProgressTracker {
     
     /// Print final statistics
     pub fn print_final(&self) {
-        let (expanded, inserted, duplicates, rate) = self.get_stats();
+        let (expanded, inserted, duplicates, edges, frontier, depth_done, rate) = self.get_stats();
         let elapsed = self.start_time.elapsed();
         
         println!("\n=== Final Statistics ===");
         println!("Nodes expanded: {}", expanded);
         println!("Positions inserted: {}", inserted);
         println!("Duplicates skipped: {}", duplicates);
+        println!("Edges inserted: {}", edges);
+        println!("Frontier size (last): {}", frontier);
+        println!("Depth completed (last): {}", depth_done);
         println!("Average rate: {:.2} nodes/sec", rate);
         println!("Total time: {:?}", elapsed);
     }
@@ -148,6 +175,9 @@ impl Clone for ProgressTracker {
             nodes_expanded: AtomicU64::new(self.nodes_expanded.load(Ordering::Relaxed)),
             positions_inserted: AtomicU64::new(self.positions_inserted.load(Ordering::Relaxed)),
             duplicates_skipped: AtomicU64::new(self.duplicates_skipped.load(Ordering::Relaxed)),
+            edges_inserted: AtomicU64::new(self.edges_inserted.load(Ordering::Relaxed)),
+            frontier_size: AtomicU64::new(self.frontier_size.load(Ordering::Relaxed)),
+            depth_completed: AtomicU64::new(self.depth_completed.load(Ordering::Relaxed)),
             start_time: self.start_time,
             running: self.running.clone(),
             memory_tracker: self.memory_tracker.clone(),
@@ -160,4 +190,3 @@ impl Default for ProgressTracker {
         Self::new()
     }
 }
-

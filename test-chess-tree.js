@@ -69,6 +69,7 @@ async function runE2E(url) {
   try {
     await page.goto(url, { waitUntil: "networkidle", timeout: 45000 });
     await page.waitForSelector("#run", { timeout: 15000 });
+    await page.waitForSelector("#parents-list", { timeout: 15000 });
     await page.click("#run");
     await page.waitForFunction(() => {
       const v = document.querySelector("#st-positions");
@@ -78,6 +79,7 @@ async function runE2E(url) {
     await page.fill("#search", "e4");
     await page.click("#search-btn");
     await page.waitForTimeout(500);
+    await page.waitForSelector("#parents-list");
 
     await page.click("#export-json");
     await page.click("#import-json");

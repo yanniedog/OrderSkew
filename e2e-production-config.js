@@ -43,6 +43,10 @@ const TOOL_ASSETS = {
     basePath: "/pages/chess_tree",
     assets: ["index.html", "styles.css", "app.js", "assets/chess.min.js", "../../page-frame.js"],
   },
+  boardspace_atlas: {
+    basePath: "/pages/boardspace_atlas",
+    assets: ["index.html", "styles.css", "data.js", "renderers.js", "app.js", "../../page-frame.js"],
+  },
 };
 
 const TOOLS_HUB_LINKS = [
@@ -51,6 +55,7 @@ const TOOLS_HUB_LINKS = [
   "/pages/domainname_wizard/index.html",
   "/pages/crypto_ath_drawdown_cycles/index.html",
   "/pages/chess_tree/index.html",
+  "/pages/boardspace_atlas/index.html",
 ];
 
 const ROOT_SAME_ORIGIN_LINKS = ["/pages/index.html"];

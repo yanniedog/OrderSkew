@@ -11,7 +11,7 @@ import {
   resetTree,
   getState
 } from "./state-store.js";
-import { fetchRoot, fetchPosition, fetchStats, fetchMetrics, searchPositions } from "./api-adapter.js";
+import { fetchRoot, fetchPosition, fetchStats, fetchMetrics, fetchNeighbors, searchPositions } from "./api-adapter.js";
 import { renderBoard } from "./board.js";
 import { renderTree } from "./tree-view.js";
 import { buildSnapshot, downloadSnapshot, parseSnapshot } from "./snapshot.js";
@@ -41,6 +41,7 @@ const el = {
   activeNodeLabel: document.getElementById("active-node-label"),
   board: document.getElementById("board"),
   meta: document.getElementById("meta"),
+  parentsList: document.getElementById("parents-list"),
   stPositions: document.getElementById("st-positions"),
   stEdges: document.getElementById("st-edges"),
   stDepth: document.getElementById("st-depth"),
@@ -65,6 +66,49 @@ function setError(message) {
 function clearBoardOverride() {
   boardFenOverride = null;
   boardLastMove = null;
+}
+
+function normaliseParentEdge(edge) {
+  return {
+    parentHash: String(edge.parent_hash || edge.parentHash || ""),
+    move: edge.move_uci || edge.move || "",
+    moveIndex: Number(edge.move_index || edge.moveIndex || 0)
+  };
+}
+
+function mapRemoteNode(raw) {
+  return {
+    hash: String(raw.hash),
+    fen: raw.fen,
+    depth: Number(raw.depth || 0),
+    parentHash: raw.parent_hash == null ? null : String(raw.parent_hash),
+    moveSequence: raw.move_sequence || "",
+    eval: raw.evaluation_score,
+    bestMove: raw.best_move,
+    gameResult: raw.game_result,
+    children: (raw.children || []).map((c) => ({ move: c.move_uci || c.move || "", childHash: String(c.child_hash || c.childHash) })),
+    parents: (raw.parents || []).map(normaliseParentEdge).filter((p) => p.parentHash),
+    inDegree: Number(raw.in_degree || raw.inDegree || 0),
+    outDegree: Number(raw.out_degree || raw.outDegree || ((raw.children || []).length || 0)),
+    transposition: Boolean(raw.transposition || Number(raw.in_degree || raw.inDegree || 0) > 1)
+  };
+}
+
+function renderParentsList(parents, onSelectParent) {
+  if (!el.parentsList) return;
+  if (!Array.isArray(parents) || parents.length === 0) {
+    el.parentsList.textContent = "None";
+    return;
+  }
+  el.parentsList.innerHTML = "";
+  for (const parent of parents) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "parent-link";
+    btn.textContent = (parent.move ? (parent.move + " ") : "") + "from " + parent.parentHash;
+    btn.addEventListener("click", () => onSelectParent(parent.parentHash));
+    el.parentsList.appendChild(btn);
+  }
 }
 
 function handleBoardMove(detail) {
@@ -112,9 +156,12 @@ function updateSelectionPanel(state) {
       "Eval: -",
       "Move sequence: " + (boardLastMove ? (boardLastMove.san || (boardLastMove.from + "->" + boardLastMove.to)) : "manual"),
       "Best move: -",
-      "Game result: -"
+      "Game result: -",
+      "In/Out degree: -/-",
+      "Transposition: -"
     ];
     el.meta.textContent = lines.join("\n");
+    renderParentsList([], () => {});
     return;
   }
 
@@ -123,7 +170,9 @@ function updateSelectionPanel(state) {
     const seedFen = (state.settings.seedFen || "start").trim() || "start";
     el.activeNodeLabel.textContent = "seed position";
     renderBoard(el.board, seedFen, { interactive: true, legalOnly: true, onMove: handleBoardMove });
-    el.meta.textContent = "FEN: " + seedFen + "\nDepth: -\nEval: -\nMove sequence: seed\nBest move: -\nGame result: -";
+    el.meta.textContent =
+      "FEN: " + seedFen + "\nDepth: -\nEval: -\nMove sequence: seed\nBest move: -\nGame result: -\nIn/Out degree: -/-\nTransposition: -";
+    renderParentsList([], () => {});
     return;
   }
   el.activeNodeLabel.textContent = String(node.hash);
@@ -134,9 +183,14 @@ function updateSelectionPanel(state) {
     "Eval: " + (node.eval == null ? "-" : (Number(node.eval) / 100).toFixed(2)),
     "Move sequence: " + (node.moveSequence || "ROOT"),
     "Best move: " + (node.bestMove || "-"),
-    "Game result: " + (node.gameResult || "-")
+    "Game result: " + (node.gameResult || "-"),
+    "In/Out degree: " + String(node.inDegree || node.in_degree || 0) + "/" + String(node.outDegree || node.out_degree || (node.children || []).length || 0),
+    "Transposition: " + (((node.transposition || Number(node.inDegree || node.in_degree || 0) > 1) ? "yes" : "no"))
   ];
   el.meta.textContent = lines.join("\n");
+  renderParentsList(node.parents || [], (parentHash) => {
+    handleSelect(parentHash);
+  });
 }
 
 function ensureExpanded(hash) {
@@ -149,11 +203,44 @@ function ensureExpanded(hash) {
   }
 }
 
-function handleSelect(hash) {
-  clearBoardOverride();
-  setError("");
-  setActiveHash(hash);
-  ensureExpanded(hash);
+async function ensureNodeLoaded(hash) {
+  const state = getState();
+  const key = String(hash);
+  if (state.tree.has(key)) return state.tree.get(key);
+  if (state.mode !== ENGINE_MODES.REMOTE) return null;
+  const raw = await fetchPosition(state.remoteApiBase, key);
+  const mapped = mapRemoteNode(raw);
+  const currentNodes = Array.from(state.tree.values());
+  currentNodes.push(mapped);
+  setTree({ rootHash: state.rootHash || mapped.hash, nodes: currentNodes, stats: state.stats });
+  return mapped;
+}
+
+async function handleSelect(hash) {
+  try {
+    clearBoardOverride();
+    setError("");
+    await ensureNodeLoaded(hash);
+    setActiveHash(String(hash));
+    ensureExpanded(hash);
+
+    const state = getState();
+    if (state.mode !== ENGINE_MODES.REMOTE || !state.remoteApiBase) return;
+    try {
+      const neighbors = await fetchNeighbors(state.remoteApiBase, hash, 24);
+      const node = state.tree.get(String(hash));
+      if (!node) return;
+      node.parents = (neighbors.parents || []).map(normaliseParentEdge).filter((p) => p.parentHash);
+      node.inDegree = Number(neighbors.parents?.length || node.inDegree || 0);
+      node.outDegree = Number(neighbors.children?.length || node.outDegree || 0);
+      node.transposition = Boolean(node.inDegree > 1);
+      setTree({ rootHash: state.rootHash, nodes: Array.from(state.tree.values()), stats: state.stats });
+    } catch {
+      // neighbors endpoint is optional for older servers
+    }
+  } catch (err) {
+    setError(err.message || String(err));
+  }
 }
 
 function handleToggle(hash) {
@@ -189,17 +276,7 @@ async function loadRemoteRootAndStats() {
 
   const map = new Map();
   const queue = [root];
-  map.set(String(root.hash), {
-    hash: String(root.hash),
-    fen: root.fen,
-    depth: Number(root.depth || 0),
-    parentHash: root.parent_hash == null ? null : String(root.parent_hash),
-    moveSequence: root.move_sequence || "",
-    eval: root.evaluation_score,
-    bestMove: root.best_move,
-    gameResult: root.game_result,
-    children: (root.children || []).map((c) => ({ move: c.move_uci || c.move || "", childHash: String(c.child_hash || c.childHash) }))
-  });
+  map.set(String(root.hash), mapRemoteNode(root));
 
   const HARD_REMOTE_LOAD = 180;
   while (queue.length > 0 && map.size < HARD_REMOTE_LOAD) {
@@ -208,17 +285,7 @@ async function loadRemoteRootAndStats() {
       const childHash = String(child.child_hash || child.childHash);
       if (map.has(childHash)) continue;
       const next = await fetchPosition(state.remoteApiBase, childHash);
-      const node = {
-        hash: String(next.hash),
-        fen: next.fen,
-        depth: Number(next.depth || 0),
-        parentHash: next.parent_hash == null ? null : String(next.parent_hash),
-        moveSequence: next.move_sequence || "",
-        eval: next.evaluation_score,
-        bestMove: next.best_move,
-        gameResult: next.game_result,
-        children: (next.children || []).map((c) => ({ move: c.move_uci || c.move || "", childHash: String(c.child_hash || c.childHash) }))
-      };
+      const node = mapRemoteNode(next);
       map.set(node.hash, node);
       queue.push(next);
       if (map.size >= HARD_REMOTE_LOAD) break;
@@ -338,30 +405,24 @@ function wireEvents() {
         if (!state.tree.has(target)) {
           const raw = await fetchPosition(state.remoteApiBase, target);
           const currentNodes = Array.from(state.tree.values());
-          currentNodes.push({
-            hash: String(raw.hash),
-            fen: raw.fen,
-            depth: Number(raw.depth || 0),
-            parentHash: raw.parent_hash == null ? null : String(raw.parent_hash),
-            moveSequence: raw.move_sequence || "",
-            eval: raw.evaluation_score,
-            bestMove: raw.best_move,
-            gameResult: raw.game_result,
-            children: (raw.children || []).map((c) => ({ move: c.move_uci || c.move || "", childHash: String(c.child_hash || c.childHash) }))
-          });
+          currentNodes.push(mapRemoteNode(raw));
           setTree({ rootHash: state.rootHash, nodes: currentNodes, stats: state.stats });
         }
-        handleSelect(target);
+        await handleSelect(target);
       } else {
         const lower = query.toLowerCase();
         const matches = Array.from(state.tree.values()).filter((node) => {
-          return (node.moveSequence || "").toLowerCase().includes(lower) || (node.fen || "").toLowerCase().includes(lower);
+          return (
+            (node.moveSequence || "").toLowerCase().includes(lower) ||
+            (node.fen || "").toLowerCase().includes(lower) ||
+            String(node.hash || "").toLowerCase().includes(lower)
+          );
         });
         if (!matches.length) {
           setError("No local match for query.");
           return;
         }
-        handleSelect(matches[0].hash);
+        await handleSelect(matches[0].hash);
       }
       setError("");
     } catch (err) {

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoardSpace Atlas | OrderSkew Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">OrderSkew Toolkit</p>
+      <h1>BoardSpace Atlas</h1>
+      <p class="subtitle">
+        Explore synthetic latent embeddings for board game positions. Each position is represented as a fixed vector in feature space,
+        then projected to 2D for inspection. Strategically similar positions and symmetry-equivalent states cluster near each other.
+      </p>
+      <div class="controls">
+        <div class="control">
+          <label for="game-select">Game</label>
+          <select id="game-select"></select>
+        </div>
+        <div class="control">
+          <label for="symmetry-toggle">Symmetry Group Highlight</label>
+          <button id="symmetry-toggle" class="symmetry-btn" data-on="false" type="button">Off</button>
+        </div>
+        <div id="selection-chip" class="selection-chip">Select a position</div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-head">
+          <h2>Positions</h2>
+          <p class="hint">Click a miniature or scatter point to inspect embedding details.</p>
+        </div>
+        <div id="mini-grid" class="mini-grid" aria-label="Position list"></div>
+        <div class="neighbors">
+          <h3>Nearest Neighbors</h3>
+          <div id="neighbor-list"></div>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Latent View</h2>
+          <p class="hint">2D coordinates are precomputed and stored with each sample.</p>
+        </div>
+
+        <div class="charts">
+          <article class="chart-card">
+            <h3>PCA Scatter</h3>
+            <div id="scatter"></div>
+            <div id="category-legend" class="legend-row"></div>
+          </article>
+
+          <article class="chart-card">
+            <h3>Embedding Vector</h3>
+            <div id="bars"></div>
+            <div id="vector-box" class="vector-box"></div>
+          </article>
+        </div>
+
+        <div class="chart-card heatmap-card">
+          <h3>Similarity Heatmap</h3>
+          <div id="heatmap"></div>
+          <div class="meta-note">
+            Darker cells indicate higher similarity (1 / (1 + Euclidean distance)).
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <p class="footnote">
+      Synthetic embeddings are deterministic and pre-defined for demonstration. Connect 4 symmetry groups only use left-right mirrors to respect gravity.
+    </p>
+  </main>
+
+  <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+
+  <script src="data.js"></script>
+  <script src="renderers.js"></script>
+  <script src="app.js"></script>
+  <script src="../../page-frame.js"></script>
+</body>
+</html>

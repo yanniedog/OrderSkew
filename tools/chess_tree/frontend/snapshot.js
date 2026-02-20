@@ -10,6 +10,14 @@ export function buildSnapshot(state) {
     eval: node.eval ?? null,
     bestMove: node.bestMove ?? null,
     gameResult: node.gameResult ?? null,
+    parents: (node.parents || []).map((parent) => ({
+      parentHash: String(parent.parentHash || ""),
+      move: String(parent.move || ""),
+      moveIndex: Number(parent.moveIndex || 0)
+    })),
+    inDegree: Number(node.inDegree || 0),
+    outDegree: Number(node.outDegree || 0),
+    transposition: Boolean(node.transposition),
     children: (node.children || []).map((child) => ({
       move: child.move,
       childHash: String(child.childHash)
@@ -49,6 +57,16 @@ export function parseSnapshot(json) {
     eval: node.eval == null ? null : Number(node.eval),
     bestMove: node.bestMove == null ? null : String(node.bestMove),
     gameResult: node.gameResult == null ? null : String(node.gameResult),
+    parents: Array.isArray(node.parents)
+      ? node.parents.map((parent) => ({
+          parentHash: String(parent.parentHash || parent.parent_hash || ""),
+          move: String(parent.move || parent.move_uci || ""),
+          moveIndex: Number(parent.moveIndex || parent.move_index || 0)
+        }))
+      : [],
+    inDegree: Number(node.inDegree || node.in_degree || 0),
+    outDegree: Number(node.outDegree || node.out_degree || 0),
+    transposition: Boolean(node.transposition),
     children: Array.isArray(node.children)
       ? node.children.map((child) => ({ move: String(child.move || ""), childHash: String(child.childHash) }))
       : []

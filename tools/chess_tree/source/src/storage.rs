@@ -53,7 +53,8 @@ impl PositionStorage {
         Ok(())
     }
     
-    /// Add an edge to the buffer
+    /// Add an edge to the buffer. Edges are stored even when the child position
+    /// already exists so transpositions are preserved in the graph.
     pub fn add_edge(&self, record: EdgeRecord) -> SqlResult<()> {
         let mut buffer = self.edge_buffer.lock().unwrap();
         buffer.push(record);
@@ -63,6 +64,11 @@ impl PositionStorage {
         }
         
         Ok(())
+    }
+
+    /// Compatibility alias for graph-first callers.
+    pub fn add_edge_always(&self, record: EdgeRecord) -> SqlResult<()> {
+        self.add_edge(record)
     }
     
     /// Flush all buffered positions to database
@@ -83,9 +89,9 @@ impl PositionStorage {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"
             )?;
             
-            let mut inserted = 0;
+            let mut inserted = 0usize;
             for record in &records {
-                stmt.execute(params![
+                inserted += stmt.execute(params![
                     record.hash as i64,
                     record.fen,
                     record.depth as i32,
@@ -95,7 +101,6 @@ impl PositionStorage {
                     record.best_move.as_ref(),
                     record.game_result.as_ref(),
                 ])?;
-                inserted += 1;
             }
             inserted
         };
@@ -122,15 +127,14 @@ impl PositionStorage {
                  VALUES (?1, ?2, ?3, ?4)"
             )?;
             
-            let mut inserted = 0;
+            let mut inserted = 0usize;
             for record in &records {
-                stmt.execute(params![
+                inserted += stmt.execute(params![
                     record.parent_hash as i64,
                     record.child_hash as i64,
                     record.move_uci,
                     record.move_index as i32,
                 ])?;
-                inserted += 1;
             }
             inserted
         };
@@ -183,4 +187,3 @@ impl PositionStorage {
 
 
 }
-

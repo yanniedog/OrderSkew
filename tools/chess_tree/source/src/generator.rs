@@ -140,6 +140,8 @@ impl TreeGenerator {
         
         // Generate all legal moves
         let legal_moves: Vec<Move> = pos.position.legal_moves().into_iter().collect();
+        self.progress.set_frontier_size(legal_moves.len() as u64);
+        self.progress.set_depth_completed(pos.depth as u64);
         
         if legal_moves.is_empty() {
             return Ok(());
@@ -181,13 +183,22 @@ impl TreeGenerator {
                     Some(pos.hash),
                 );
                 
-                // Check if we've seen this position before
+                // Check if we've seen this position before.
                 // First check the memory-efficient tracker
                 let seen_in_memory = visited.contains(child.hash);
                 
                 // Also check database/buffer
                 let exists_in_storage = storage.position_exists(child.hash)?;
                 
+                let edge = EdgeRecord {
+                    parent_hash: pos.hash,
+                    child_hash: child.hash,
+                    move_uci,
+                    move_index: move_index as u32,
+                };
+                storage.add_edge_always(edge)?;
+                progress.increment_edges();
+
                 if seen_in_memory || exists_in_storage {
                     // If bloom filter said yes but database said no, it's a false positive
                     if seen_in_memory && !exists_in_storage {
@@ -218,15 +229,6 @@ impl TreeGenerator {
                     game_result: None,
                 };
                 storage.add_position(record)?;
-                
-                // Store the edge
-                let edge = EdgeRecord {
-                    parent_hash: pos.hash,
-                    child_hash: child.hash,
-                    move_uci,
-                    move_index: move_index as u32,
-                };
-                storage.add_edge(edge)?;
                 
                 // Update progress
                 progress.increment_expanded();
@@ -269,3 +271,183 @@ impl TreeGenerator {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::DbPool;
+    use crate::storage::{EdgeRecord, PositionRecord};
+    use shakmaty::{uci::Uci, Chess};
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_db_path(prefix: &str) -> PathBuf {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        std::env::temp_dir().join(format!("{}_{}.db", prefix, stamp))
+    }
+
+    #[test]
+    fn deduplicates_positions_while_preserving_edges() {
+        let db_path = temp_db_path("chess_graph_dedup");
+        let db = Arc::new(DbPool::new(db_path.to_str().unwrap()).expect("db"));
+        db.init_schema().expect("schema");
+
+        let hasher = Arc::new(ZobristHasher::new());
+        let storage = Arc::new(PositionStorage::new(db.clone(), 128));
+        let play = |pos: &Chess, uci: &str| -> Chess {
+            let uci_move = Uci::from_ascii(uci.as_bytes()).expect("parse uci");
+            let mv = uci_move.to_move(pos).expect("uci move");
+            pos.clone().play(&mv).expect("legal play")
+        };
+
+        // Root
+        let root = Chess::default();
+        let root_hash = hasher.hash(&root);
+        storage
+            .add_position(PositionRecord {
+                hash: root_hash,
+                fen: PositionWithHash::new(root.clone(), &hasher, 0, String::new(), None).fen(),
+                depth: 0,
+                parent_hash: None,
+                move_sequence: String::new(),
+                evaluation_score: None,
+                best_move: None,
+                game_result: None,
+            })
+            .expect("root insert");
+
+        // g1f3, g8f6, f3g1 then g8h6 and h6g8 gives two edges into root-compatible state.
+        let p1 = play(&root, "g1f3");
+        let p1_hash = hasher.hash(&p1);
+        storage
+            .add_position(PositionRecord {
+                hash: p1_hash,
+                fen: PositionWithHash::new(p1.clone(), &hasher, 1, "g1f3".to_string(), Some(root_hash)).fen(),
+                depth: 1,
+                parent_hash: Some(root_hash),
+                move_sequence: "g1f3".to_string(),
+                evaluation_score: None,
+                best_move: None,
+                game_result: None,
+            })
+            .expect("p1");
+        storage
+            .add_edge_always(EdgeRecord {
+                parent_hash: root_hash,
+                child_hash: p1_hash,
+                move_uci: "g1f3".to_string(),
+                move_index: 0,
+            })
+            .expect("edge root->p1");
+
+        let p2 = play(&p1, "g8f6");
+        let p2_hash = hasher.hash(&p2);
+        storage
+            .add_position(PositionRecord {
+                hash: p2_hash,
+                fen: PositionWithHash::new(p2.clone(), &hasher, 2, "g1f3 g8f6".to_string(), Some(p1_hash)).fen(),
+                depth: 2,
+                parent_hash: Some(p1_hash),
+                move_sequence: "g1f3 g8f6".to_string(),
+                evaluation_score: None,
+                best_move: None,
+                game_result: None,
+            })
+            .expect("p2");
+        storage
+            .add_edge_always(EdgeRecord {
+                parent_hash: p1_hash,
+                child_hash: p2_hash,
+                move_uci: "g8f6".to_string(),
+                move_index: 0,
+            })
+            .expect("edge p1->p2");
+
+        let p3 = play(&p2, "f3g1");
+        let p3_hash = hasher.hash(&p3);
+        storage
+            .add_position(PositionRecord {
+                hash: p3_hash,
+                fen: PositionWithHash::new(p3.clone(), &hasher, 3, "g1f3 g8f6 f3g1".to_string(), Some(p2_hash)).fen(),
+                depth: 3,
+                parent_hash: Some(p2_hash),
+                move_sequence: "g1f3 g8f6 f3g1".to_string(),
+                evaluation_score: None,
+                best_move: None,
+                game_result: None,
+            })
+            .expect("p3");
+        storage
+            .add_edge_always(EdgeRecord {
+                parent_hash: p2_hash,
+                child_hash: p3_hash,
+                move_uci: "f3g1".to_string(),
+                move_index: 0,
+            })
+            .expect("edge p2->p3");
+
+        // Return to the root state by Ng8 (same board+turn+castle+ep key).
+        let root_again = play(&p3, "f6g8");
+        let root_again_hash = hasher.hash(&root_again);
+        assert_eq!(root_hash, root_again_hash, "expected deterministic transposition hash");
+        storage
+            .add_position(PositionRecord {
+                hash: root_again_hash,
+                fen: PositionWithHash::new(root_again.clone(), &hasher, 4, "g1f3 g8f6 f3g1 f6g8".to_string(), Some(p3_hash)).fen(),
+                depth: 4,
+                parent_hash: Some(p3_hash),
+                move_sequence: "g1f3 g8f6 f3g1 f6g8".to_string(),
+                evaluation_score: None,
+                best_move: None,
+                game_result: None,
+            })
+            .expect("root duplicate insert ignored");
+        storage
+            .add_edge_always(EdgeRecord {
+                parent_hash: p3_hash,
+                child_hash: root_again_hash,
+                move_uci: "f6g8".to_string(),
+                move_index: 0,
+            })
+            .expect("edge p3->root");
+
+        storage.flush_all().expect("flush");
+
+        let conn = db.connection().expect("conn");
+        let total_positions: i64 = conn
+            .query_row("SELECT COUNT(*) FROM positions", [], |row| row.get(0))
+            .expect("positions");
+        let distinct_positions: i64 = conn
+            .query_row("SELECT COUNT(DISTINCT hash) FROM positions", [], |row| row.get(0))
+            .expect("distinct");
+        assert_eq!(total_positions, distinct_positions);
+
+        let root_hash_db: i64 = conn
+            .query_row("SELECT hash FROM positions WHERE depth = 0 LIMIT 1", [], |row| row.get(0))
+            .expect("root");
+        let incoming_to_root: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM edges WHERE child_hash = ?1",
+                [root_hash_db],
+                |row| row.get(0),
+            )
+            .expect("incoming");
+        assert!(incoming_to_root >= 1, "expected at least one transposition edge back to root");
+
+        let dangling_edges: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM edges e
+                 LEFT JOIN positions p1 ON p1.hash = e.parent_hash
+                 LEFT JOIN positions p2 ON p2.hash = e.child_hash
+                 WHERE p1.hash IS NULL OR p2.hash IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .expect("dangling");
+        assert_eq!(dangling_edges, 0, "edges must reference existing positions");
+
+        let _ = std::fs::remove_file(db_path);
+    }
+}

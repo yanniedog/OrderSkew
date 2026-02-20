@@ -33,7 +33,7 @@ run(
 );
 
 run(
-  "Production asset checks (root, NAB, Crypto ATH, Chess Tree, Novel Indicator)",
+  "Production asset checks (root, NAB, Crypto ATH, Chess Tree, BoardSpace Atlas, Novel Indicator)",
   "node e2e-production-assets.js " + baseUrl.replace(/\/$/, "")
 );
 

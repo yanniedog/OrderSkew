@@ -32,6 +32,12 @@ export async function fetchMetrics(baseUrl) {
   return requestJson(base + "/api/metrics");
 }
 
+export async function fetchNeighbors(baseUrl, hash, parentLimit) {
+  const base = normaliseBaseUrl(baseUrl);
+  const query = parentLimit ? ("?parent_limit=" + encodeURIComponent(String(parentLimit))) : "";
+  return requestJson(base + "/api/neighbors/" + encodeURIComponent(hash) + query);
+}
+
 export async function searchPositions(baseUrl, query) {
   const base = normaliseBaseUrl(baseUrl);
   return requestJson(base + "/api/search?q=" + encodeURIComponent(query));

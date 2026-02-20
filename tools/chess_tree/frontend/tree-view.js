@@ -10,7 +10,7 @@ function createNodeElement(node, activeHash, expandedSet) {
   const toggle = document.createElement("button");
   toggle.type = "button";
   toggle.className = "toggle" + (hasChildren ? "" : " ghost");
-  toggle.textContent = hasChildren ? (expandedSet.has(String(node.hash)) ? "-" : "+") : "·";
+  toggle.textContent = hasChildren ? (expandedSet.has(String(node.hash)) ? "-" : "+") : ".";
 
   const move = document.createElement("span");
   move.className = "move";
@@ -24,7 +24,12 @@ function createNodeElement(node, activeHash, expandedSet) {
   depth.className = "depth";
   depth.textContent = "d" + node.depth;
 
-  row.append(toggle, move, evalScore, depth);
+  const transposition = document.createElement("span");
+  transposition.className = "transposition";
+  const inDegree = Number(node.inDegree || node.in_degree || 0);
+  transposition.textContent = inDegree > 1 || node.transposition ? ("shared x" + Math.max(inDegree, 2)) : "";
+
+  row.append(toggle, move, evalScore, depth, transposition);
   wrapper.appendChild(row);
 
   const children = document.createElement("div");
@@ -34,12 +39,26 @@ function createNodeElement(node, activeHash, expandedSet) {
   return { wrapper, row, toggle, children };
 }
 
-function appendChildren(parentEl, parentNode, tree, activeHash, expandedSet, onSelect, onToggle) {
+function appendChildren(parentEl, parentNode, tree, activeHash, expandedSet, onSelect, onToggle, ancestryPath = []) {
   if (!expandedSet.has(String(parentNode.hash))) return;
   if (!Array.isArray(parentNode.children)) return;
+
+  const ancestry = new Set(ancestryPath.map((x) => String(x)));
+  ancestry.add(String(parentNode.hash));
+
   for (const edge of parentNode.children) {
     const child = tree.get(String(edge.childHash));
     if (!child) continue;
+
+    if (ancestry.has(String(child.hash))) {
+      const cycleRef = document.createElement("div");
+      cycleRef.className = "cycle-ref";
+      cycleRef.textContent = "loop " + (edge.move || edge.move_uci || "") + " -> " + String(child.hash);
+      cycleRef.addEventListener("click", () => onSelect(child.hash));
+      parentEl.appendChild(cycleRef);
+      continue;
+    }
+
     const childEl = createNodeElement(child, activeHash, expandedSet);
     childEl.row.addEventListener("click", () => onSelect(child.hash));
     childEl.toggle.addEventListener("click", (event) => {
@@ -47,7 +66,16 @@ function appendChildren(parentEl, parentNode, tree, activeHash, expandedSet, onS
       onToggle(child.hash);
     });
     parentEl.appendChild(childEl.wrapper);
-    appendChildren(childEl.children, child, tree, activeHash, expandedSet, onSelect, onToggle);
+    appendChildren(
+      childEl.children,
+      child,
+      tree,
+      activeHash,
+      expandedSet,
+      onSelect,
+      onToggle,
+      Array.from(ancestry.values())
+    );
   }
 }
 
@@ -70,5 +98,5 @@ export function renderTree(container, state, expandedSet, onSelect, onToggle) {
     onToggle(root.hash);
   });
   container.appendChild(rootEl.wrapper);
-  appendChildren(rootEl.children, root, state.tree, state.activeHash, expandedSet, onSelect, onToggle);
+  appendChildren(rootEl.children, root, state.tree, state.activeHash, expandedSet, onSelect, onToggle, [root.hash]);
 }

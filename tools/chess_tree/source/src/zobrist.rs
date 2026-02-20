@@ -15,7 +15,9 @@ pub struct ZobristHasher {
 impl ZobristHasher {
     /// Create a new Zobrist hasher with random keys
     pub fn new() -> Self {
-        let mut rng = fastrand::Rng::new();
+        // Fixed seed keeps hash values stable across runs so SQLite persistence
+        // and resume/extend mode are deterministic.
+        let mut rng = fastrand::Rng::with_seed(0xC0DEFACE12345678);
         
         let mut piece_keys = [[0u64; 12]; 64];
         for square in 0..64 {
