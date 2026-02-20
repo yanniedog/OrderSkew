@@ -3,7 +3,14 @@
 
   const renderers = window.BoardSpaceAtlasRenderers;
   const STORAGE_KEY = "boardspace_atlas_live_config_v1";
-  const DEFAULT_API_BASE = "http://localhost:8008";
+  const LOCAL_API_BASE = "http://localhost:8008";
+  const PRODUCTION_API_BASE = "https://api.orderskew.com";
+  function getDefaultApiBase() {
+    const host = typeof window !== "undefined" && window.location && window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") return LOCAL_API_BASE;
+    return PRODUCTION_API_BASE;
+  }
+  const DEFAULT_API_BASE = getDefaultApiBase();
 
   const GAME_META = {
     tictactoe: { rows: 3, cols: 3, actionSize: 9, defaultSims: 200, label: "Tic-Tac-Toe" },
