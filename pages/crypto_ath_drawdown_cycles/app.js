@@ -1,4 +1,6 @@
 (function () {
+  const WORKER_VERSION = '2026-02-20-60pct-60days-v1';
+
   const els = {
     startBtn: document.getElementById('start-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
@@ -26,7 +28,7 @@
 
   function ensureWorker() {
     if (worker) return worker;
-    worker = new Worker('worker.js');
+    worker = new Worker(`worker.js?v=${encodeURIComponent(WORKER_VERSION)}`);
     worker.addEventListener('message', onWorkerMessage);
     worker.addEventListener('error', onWorkerError);
     return worker;
