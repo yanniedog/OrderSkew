@@ -17,6 +17,7 @@ Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools 
 
 | Purpose | Command | Notes |
 |--------|---------|------|
+| Full production test (site-wide + Domain Wizard + Chess Tree) | `npm run test:production:all` | From repo root. Optional: `SKIP_API_HEALTH=1` if API not deployed. Requires Playwright (e.g. in `pages/domainname_wizard/source/`). |
 | Domain Wizard full test (unit + E2E) | `npm run test:domainname_wizard` | From repo root. Requires `npm install` and `npx playwright install chromium` in `pages/domainname_wizard/source/`. |
 
 ## Subproject: Novel Indicator
@@ -60,6 +61,19 @@ Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools 
 - API: Novel Indicator `orderskew.com/api/*` returns expected status (e.g. 200 for session, 401 where appropriate); no 405 from missing route.
 - No broken links or images on tools hub and linked tools.
 - D1 migrations applied when changing Cloudflare API schema.
+
+## Full Production Test and Fix-Redeploy Loop
+
+- **Run all production checks**: From repo root, `npm run test:production:all` (or `node test-production-all.js [baseUrl]`). This runs: (1) site-wide HTTP and API health checks (root, tools hub, all five tool entry URLs, Novel Indicator `/api/health`), (2) Domain Name Wizard production tests (assets + static wizard + curated coverage E2E), (3) Chess Tree production smoke. Exit code 0 only if every step passes; 1 on first failure.
+- **Optional env**:
+  - `SKIP_API_HEALTH=1`: Skip Novel Indicator API `/api/health` check (use when API is not deployed or unreachable; full verification requires the API deployed).
+  - `PRODUCTION_SITE_WIDE_CONSOLE=1`: Run Playwright console/network checks on root and tools hub (slower).
+- **Fix-redeploy-retest**: If any check fails, fix the cause in the repo, redeploy the affected part, then run `npm run test:production:all` again. Repeat until all pass.
+- **Redeploy by subproject**:
+  - **Static site** (root, tools hub, NAB, Domain Name Wizard static, Crypto ATH): Deploy is typically push to host (e.g. Cloudflare Pages / git push). No script in repo; push and wait for host build.
+  - **Novel Indicator frontend**: Run `tools/novel_indicator/deploy-to-orderskew.ps1` (copies `frontend/dist` to `pages/novel_indicator`). Then push if the host deploys from repo.
+  - **Novel Indicator API**: `npm run deploy` in `tools/novel_indicator/cloudflare_api` (wrangler). Required if `/api/health` or auth fails.
+  - **Chess Tree**: `npm run deploy:chess_tree` (runs `tools/chess_tree/deploy-to-orderskew.ps1`). Then push if the host deploys from repo.
 
 ## Code Quality Standards
 

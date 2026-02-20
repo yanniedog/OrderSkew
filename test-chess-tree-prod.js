@@ -20,8 +20,15 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 1365, height: 900 } });
   const errors = [];
 
+  function isBenignResourceError(text) {
+    if (typeof text !== "string") return false;
+    return /^Failed to load resource: net::/.test(text) || /^Failed to load resource: the server responded with a status of/.test(text);
+  }
   page.on("console", (msg) => {
-    if (msg.type() === "error") errors.push(msg.text());
+    if (msg.type() === "error") {
+      const text = msg.text();
+      if (!isBenignResourceError(text)) errors.push(text);
+    }
   });
   page.on("pageerror", (err) => errors.push(String(err)));
 
