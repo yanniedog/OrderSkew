@@ -135,7 +135,7 @@
     }
     if (dataSourceState.synonymApi && !dataSourceState.synonymApi.accessible) issues.push('Synonym API unreachable');
     if (dataSourceState.githubApi && !dataSourceState.githubApi.accessible) issues.push('GitHub API unreachable');
-    if (dataSourceState.devEcosystem && Number(dataSourceState.devEcosystem.githubCalls || 0) > 0 && Number(dataSourceState.devEcosystem.githubSuccess || 0) === 0) {
+    if (dataSourceState.devEcosystem && Number(dataSourceState.devEcosystem.githubCalls || 0) > 0 && Number(dataSourceState.devEcosystem.githubSuccess || 0) === 0 && dataSourceState.devEcosystem.githubTokenUsed) {
       issues.push('GitHub enrichment calls failed');
     }
     if (dataSourceState.availability && (dataSourceState.availability.syntheticData || Number(dataSourceState.availability.status || 0) >= 400)) {
@@ -448,7 +448,7 @@
           // #endregion
           if (!ok) {
             issues.push('GitHub evaluation preflight failed');
-          } else if (dataSourceState.devEcosystem.githubCalls > 0 && dataSourceState.devEcosystem.githubSuccess === 0) {
+          } else if (dataSourceState.devEcosystem.githubCalls > 0 && dataSourceState.devEcosystem.githubSuccess === 0 && dataSourceState.devEcosystem.githubTokenUsed) {
             issues.push('GitHub evaluation preflight abnormal');
           }
         } catch (err) {

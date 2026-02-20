@@ -43,3 +43,22 @@ def test_blocking_ai_move_and_compat_aliases() -> None:
     gm = client.post("/get_ai_move", json={"session_id": session_id, "sims": 10, "temperature": 0.0, "emit_every": 5})
     assert gm.status_code in {200, 400}
 
+
+def test_health_ready_metrics() -> None:
+    client = TestClient(app)
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.json()["status"] == "ok"
+
+    ready = client.get("/ready")
+    assert ready.status_code == 200
+    ready_payload = ready.json()
+    assert ready_payload["status"] == "ready"
+    assert "models" in ready_payload
+    assert "runtime" in ready_payload
+
+    metrics = client.get("/metrics")
+    assert metrics.status_code == 200
+    metrics_payload = metrics.json()
+    assert "sessions_active" in metrics_payload
+    assert "jobs_active" in metrics_payload
