@@ -1,5 +1,8 @@
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3';
 const BINANCE_BASE = 'https://api.binance.com/api/v3';
+const SAME_ORIGIN = (self.location && self.location.origin) ? self.location.origin : '';
+const COINGECKO_PROXY = `${SAME_ORIGIN}/api/crypto-ath/coingecko`;
+const BINANCE_PROXY = `${SAME_ORIGIN}/api/crypto-ath/binance`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MARKET_PAGE_SIZE = 250;
 const TARGET_ASSET_COUNT = 20;
@@ -263,6 +266,14 @@ async function fetchJsonWithRetry(url, label, token, attempts) {
   throw lastError || new Error(`${label} request failed.`);
 }
 
+async function fetchJsonProxyFirst(proxyUrl, directUrl, label, token, attempts) {
+  try {
+    return await fetchJsonWithRetry(proxyUrl, `${label} (proxy)`, token, attempts);
+  } catch (_) {
+    return await fetchJsonWithRetry(directUrl, `${label} (direct)`, token, attempts);
+  }
+}
+
 async function safeReadText(response) {
   try {
     return await response.text();
@@ -285,8 +296,9 @@ async function fetchStablecoinSet(token) {
   let page = 1;
   while (page <= 6) {
     throwIfCanceled(token);
-    const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&category=stablecoins&order=market_cap_desc&per_page=${MARKET_PAGE_SIZE}&page=${page}&sparkline=false`;
-    const rows = await fetchJsonWithRetry(url, 'CoinGecko stablecoin list', token, 4);
+    const directUrl = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&category=stablecoins&order=market_cap_desc&per_page=${MARKET_PAGE_SIZE}&page=${page}&sparkline=false`;
+    const proxyUrl = `${COINGECKO_PROXY}?path=${encodeURIComponent('/coins/markets')}&vs_currency=usd&category=stablecoins&order=market_cap_desc&per_page=${MARKET_PAGE_SIZE}&page=${page}&sparkline=false`;
+    const rows = await fetchJsonProxyFirst(proxyUrl, directUrl, 'CoinGecko stablecoin list', token, 4);
     if (!Array.isArray(rows) || rows.length === 0) break;
     for (let i = 0; i < rows.length; i += 1) {
       const row = rows[i] || {};
@@ -300,8 +312,9 @@ async function fetchStablecoinSet(token) {
 }
 
 async function fetchTopMarkets(token) {
-  const url = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${MARKET_PAGE_SIZE}&page=1&sparkline=false`;
-  const rows = await fetchJsonWithRetry(url, 'CoinGecko market cap ranking', token, 4);
+  const directUrl = `${COINGECKO_BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${MARKET_PAGE_SIZE}&page=1&sparkline=false`;
+  const proxyUrl = `${COINGECKO_PROXY}?path=${encodeURIComponent('/coins/markets')}&vs_currency=usd&order=market_cap_desc&per_page=${MARKET_PAGE_SIZE}&page=1&sparkline=false`;
+  const rows = await fetchJsonProxyFirst(proxyUrl, directUrl, 'CoinGecko market cap ranking', token, 4);
   if (!Array.isArray(rows)) throw new Error('CoinGecko ranking response is invalid.');
   return rows;
 }
@@ -329,8 +342,9 @@ function buildUniverse(markets, stableIds, stableSymbols) {
 }
 
 async function fetchBinanceExchangeMap(token) {
-  const url = `${BINANCE_BASE}/exchangeInfo`;
-  const payload = await fetchJsonWithRetry(url, 'Binance exchange info', token, 4);
+  const directUrl = `${BINANCE_BASE}/exchangeInfo`;
+  const proxyUrl = `${BINANCE_PROXY}?path=${encodeURIComponent('/exchangeInfo')}`;
+  const payload = await fetchJsonProxyFirst(proxyUrl, directUrl, 'Binance exchange info', token, 4);
   if (!payload || !Array.isArray(payload.symbols)) throw new Error('Binance exchange info response is invalid.');
   const map = new Map();
   for (let i = 0; i < payload.symbols.length; i += 1) {
@@ -359,8 +373,9 @@ async function fetchAllDailyKlines(token, symbol) {
       startTime: String(startTime),
       endTime: String(endTime),
     });
-    const url = `${BINANCE_BASE}/klines?${params.toString()}`;
-    const rows = await fetchJsonWithRetry(url, `Binance klines ${symbol}`, token, 4);
+    const directUrl = `${BINANCE_BASE}/klines?${params.toString()}`;
+    const proxyUrl = `${BINANCE_PROXY}?path=${encodeURIComponent('/klines')}&${params.toString()}`;
+    const rows = await fetchJsonProxyFirst(proxyUrl, directUrl, `Binance klines ${symbol}`, token, 4);
     if (!Array.isArray(rows) || rows.length === 0) break;
 
     for (let i = 0; i < rows.length; i += 1) {

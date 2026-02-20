@@ -1,5 +1,5 @@
 (function () {
-  const WORKER_VERSION = '2026-02-20-configurable-thresholds-d3-v2';
+  const WORKER_VERSION = '2026-02-20-proxy-fallback-v3';
 
   const els = {
     startBtn: document.getElementById('start-btn'),
