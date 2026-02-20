@@ -1,441 +1,645 @@
 (function () {
   "use strict";
 
-  const data = window.BoardSpaceAtlasData;
   const renderers = window.BoardSpaceAtlasRenderers;
+  const STORAGE_KEY = "boardspace_atlas_live_config_v1";
+  const DEFAULT_API_BASE = "http://localhost:8008";
 
-  if (!Array.isArray(data) || !renderers) {
-    throw new Error("BoardSpace Atlas failed to initialize: missing data or renderers.");
+  const GAME_META = {
+    tictactoe: { rows: 3, cols: 3, actionSize: 9, defaultSims: 200, label: "Tic-Tac-Toe" },
+    connect4: { rows: 6, cols: 7, actionSize: 7, defaultSims: 800, label: "Connect 4" },
+    othello: { rows: 8, cols: 8, actionSize: 65, defaultSims: 800, label: "Othello" }
+  };
+
+  function loadConfig() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch (_) {
+      return {};
+    }
   }
 
-  const GAME_BY_ID = new Map(data.map(function (game) { return [game.gameId, game]; }));
-  const CATEGORY_COLORS = d3.scaleOrdinal()
-    .domain(["opening", "pressure", "threat", "midgame", "defense", "endgame"])
-    .range(["#68b0ff", "#5ec0a6", "#f1b749", "#ef9d62", "#6bc1d3", "#ef7b63"]);
+  function saveConfig(config) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  }
 
+  const persisted = loadConfig();
   const state = {
-    currentGameId: data[0].gameId,
-    selectedPositionId: data[0].positions[0].id,
-    symmetryEnabled: false
+    apiBase: persisted.apiBase || DEFAULT_API_BASE,
+    gameId: persisted.gameId || "tictactoe",
+    humanPlayer: persisted.humanPlayer || 1,
+    sims: persisted.sims || GAME_META[persisted.gameId || "tictactoe"].defaultSims,
+    analysisMode: persisted.analysisMode || "live",
+    sessionId: null,
+    sessionState: null,
+    analysis: null,
+    passProb: 0,
+    status: "idle",
+    aiJobId: null,
+    pollingTimer: null,
+    latentHistory: []
   };
 
   const els = {
+    backendUrl: document.getElementById("backend-url"),
     gameSelect: document.getElementById("game-select"),
-    symmetryToggle: document.getElementById("symmetry-toggle"),
-    miniGrid: document.getElementById("mini-grid"),
-    neighborList: document.getElementById("neighbor-list"),
-    selectionChip: document.getElementById("selection-chip"),
-    scatter: document.getElementById("scatter"),
-    bars: document.getElementById("bars"),
-    vectorBox: document.getElementById("vector-box"),
-    heatmap: document.getElementById("heatmap"),
-    legend: document.getElementById("category-legend"),
-    tooltip: document.getElementById("tooltip")
+    aiSims: document.getElementById("ai-sims"),
+    humanSide: document.getElementById("human-side"),
+    analysisLive: document.getElementById("analysis-live"),
+    startBtn: document.getElementById("start-btn"),
+    passBtn: document.getElementById("pass-btn"),
+    statusChip: document.getElementById("status-chip"),
+    sessionChip: document.getElementById("session-chip"),
+    turnLabel: document.getElementById("turn-label"),
+    playBoard: document.getElementById("play-board"),
+    playMeta: document.getElementById("play-meta"),
+    policyBoard: document.getElementById("policy-board"),
+    valueText: document.getElementById("value-text"),
+    valueFill: document.getElementById("value-fill"),
+    mctsProgress: document.getElementById("mcts-progress"),
+    latentBars: document.getElementById("latent-bars"),
+    latentScatter: document.getElementById("latent-scatter"),
+    topActions: document.getElementById("top-actions"),
+    archiveRoot: document.getElementById("atlas-archive"),
+    archiveGame: document.getElementById("archive-game"),
+    archiveList: document.getElementById("archive-list"),
+    archiveDetail: document.getElementById("archive-detail")
   };
 
-  function currentGame() {
-    return GAME_BY_ID.get(state.currentGameId);
-  }
+  const archiveState = {
+    data: Array.isArray(window.BoardSpaceAtlasData) ? window.BoardSpaceAtlasData : [],
+    gameId: null,
+    positionId: null,
+    initialized: false
+  };
 
-  function selectedPosition() {
-    const game = currentGame();
-    return game.positions.find(function (p) { return p.id === state.selectedPositionId; }) || game.positions[0];
-  }
-
-  function euclideanDistance(a, b) {
-    let sum = 0;
-    for (let i = 0; i < a.length; i += 1) {
-      const d = a[i] - b[i];
-      sum += d * d;
-    }
-    return Math.sqrt(sum);
-  }
-
-  function topNeighbors(pos, positions, k) {
-    return positions
-      .filter(function (p) { return p.id !== pos.id; })
-      .map(function (p) {
-        return {
-          id: p.id,
-          label: p.label,
-          category: p.category,
-          distance: euclideanDistance(pos.embedding, p.embedding)
-        };
-      })
-      .sort(function (a, b) { return a.distance - b.distance; })
-      .slice(0, k);
-  }
-
-  function similarityMatrix(positions) {
-    const n = positions.length;
-    const out = Array.from({ length: n }, function () {
-      return Array.from({ length: n }, function () { return 0; });
+  function persist() {
+    saveConfig({
+      apiBase: state.apiBase,
+      gameId: state.gameId,
+      humanPlayer: state.humanPlayer,
+      sims: state.sims,
+      analysisMode: state.analysisMode
     });
-    for (let i = 0; i < n; i += 1) {
-      for (let j = 0; j < n; j += 1) {
-        const dist = euclideanDistance(positions[i].embedding, positions[j].embedding);
-        out[i][j] = 1 / (1 + dist);
+  }
+
+  function setStatus(text) {
+    state.status = text;
+    els.statusChip.textContent = text;
+  }
+
+  function showSession() {
+    els.sessionChip.textContent = state.sessionId ? state.sessionId : "no session";
+  }
+
+  async function api(path, options) {
+    const base = String(state.apiBase || DEFAULT_API_BASE).replace(/\/+$/, "");
+    const response = await fetch(base + path, {
+      headers: { "Content-Type": "application/json" },
+      ...(options || {})
+    });
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      payload = null;
+    }
+    if (!response.ok) {
+      const detail = payload && (payload.detail || payload.message || JSON.stringify(payload));
+      throw new Error("HTTP " + response.status + (detail ? (": " + detail) : ""));
+    }
+    return payload;
+  }
+
+  function isHumanTurn() {
+    return Boolean(
+      state.sessionState &&
+      state.sessionState.result === "ongoing" &&
+      state.sessionState.to_play === state.humanPlayer
+    );
+  }
+
+  function isAiTurn() {
+    return Boolean(
+      state.sessionState &&
+      state.sessionState.result === "ongoing" &&
+      state.sessionState.to_play === -state.humanPlayer
+    );
+  }
+
+  function stopPolling() {
+    if (state.pollingTimer) {
+      window.clearInterval(state.pollingTimer);
+      state.pollingTimer = null;
+    }
+  }
+
+  function pushLatent(latent) {
+    if (!Array.isArray(latent) || latent.length === 0) return;
+    const prev = state.latentHistory[state.latentHistory.length - 1];
+    if (prev && prev.length === latent.length) {
+      let same = true;
+      for (let i = 0; i < latent.length; i += 1) {
+        if (Math.abs(prev[i] - latent[i]) > 1e-7) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return;
+    }
+    state.latentHistory.push(latent.slice());
+    if (state.latentHistory.length > 200) state.latentHistory.shift();
+  }
+
+  function applyAnalysis(analysis, progress) {
+    if (!analysis) return;
+    state.analysis = analysis;
+    state.passProb = state.gameId === "othello" && Array.isArray(analysis.policy) ? (analysis.policy[64] || 0) : 0;
+    pushLatent(analysis.latent || []);
+
+    const v = Number(analysis.value || 0);
+    els.valueText.textContent = v.toFixed(3);
+    els.valueFill.style.width = Math.max(0, Math.min(100, v * 100)) + "%";
+
+    const prog = progress ? ("Simulations: " + progress.done + "/" + progress.total) : "Simulations: -";
+    const passLine = state.gameId === "othello" ? ("\nPass prob: " + (state.passProb * 100).toFixed(1) + "%") : "";
+    els.mctsProgress.textContent = prog + passLine;
+
+    renderers.renderLatentBars(els.latentBars, analysis.latent || []);
+    const points = renderers.computePca2D(state.latentHistory);
+    renderers.renderPcaScatter(els.latentScatter, points, points.length - 1);
+    renderTopActions();
+  }
+
+  function actionLabel(action) {
+    if (state.gameId === "tictactoe") {
+      const r = Math.floor(action / 3);
+      const c = action % 3;
+      return "r" + (r + 1) + "c" + (c + 1);
+    }
+    if (state.gameId === "connect4") {
+      return "col " + (action + 1);
+    }
+    if (state.gameId === "othello") {
+      if (action === 64) return "pass";
+      const r = Math.floor(action / 8);
+      const c = action % 8;
+      return "r" + (r + 1) + "c" + (c + 1);
+    }
+    return String(action);
+  }
+
+  function renderTopActions() {
+    els.topActions.innerHTML = "";
+    if (!state.analysis || !state.analysis.mcts) {
+      els.topActions.textContent = "No MCTS details yet.";
+      return;
+    }
+    const mcts = state.analysis.mcts;
+    const visits = Array.isArray(mcts.visit_counts) ? mcts.visit_counts : [];
+    const q = Array.isArray(mcts.q_values) ? mcts.q_values : [];
+    const total = visits.reduce(function (acc, n) { return acc + Number(n || 0); }, 0) || 1;
+    const rows = visits.map(function (v, i) {
+      return { action: i, visits: Number(v || 0), prob: Number(v || 0) / total, q: Number(q[i] || 0) };
+    }).filter(function (r) { return r.visits > 0; })
+      .sort(function (a, b) { return b.visits - a.visits; })
+      .slice(0, 5);
+    if (!rows.length) {
+      els.topActions.textContent = "No expanded actions yet.";
+      return;
+    }
+    rows.forEach(function (row) {
+      const div = document.createElement("div");
+      div.className = "action-row";
+      div.innerHTML = "<span>" + actionLabel(row.action) + "</span>"
+        + "<span>" + (row.prob * 100).toFixed(1) + "%</span>"
+        + "<span>Q " + row.q.toFixed(3) + "</span>";
+      els.topActions.appendChild(div);
+    });
+  }
+
+  function legalSet() {
+    return new Set((state.sessionState && state.sessionState.legal_actions) || []);
+  }
+
+  function landingRow(board, col) {
+    for (let r = board.length - 1; r >= 0; r -= 1) {
+      if (board[r][col] === 0) return r;
+    }
+    return -1;
+  }
+
+  function buildPolicyHeat() {
+    if (!state.sessionState) return [];
+    const board = state.sessionState.board;
+    const rows = board.length;
+    const cols = board[0].length;
+    const out = Array.from({ length: rows }, function () {
+      return Array.from({ length: cols }, function () { return 0; });
+    });
+    if (!state.analysis || !Array.isArray(state.analysis.policy)) return out;
+    const p = state.analysis.policy;
+    if (state.gameId === "tictactoe") {
+      for (let a = 0; a < 9; a += 1) {
+        const r = Math.floor(a / 3);
+        const c = a % 3;
+        out[r][c] = p[a] || 0;
+      }
+    } else if (state.gameId === "connect4") {
+      for (let c = 0; c < 7; c += 1) {
+        const r = landingRow(board, c);
+        if (r >= 0) out[r][c] = p[c] || 0;
+      }
+    } else if (state.gameId === "othello") {
+      for (let a = 0; a < 64; a += 1) {
+        const r = Math.floor(a / 8);
+        const c = a % 8;
+        out[r][c] = p[a] || 0;
       }
     }
     return out;
   }
 
-  function populateGameSelector() {
-    els.gameSelect.innerHTML = "";
-    data.forEach(function (game) {
-      const option = document.createElement("option");
-      option.value = game.gameId;
-      option.textContent = game.gameName;
-      els.gameSelect.appendChild(option);
-    });
-    els.gameSelect.value = state.currentGameId;
+  function pieceCell(gameId, value) {
+    if (value === 0) return "";
+    if (gameId === "tictactoe") return value === 1 ? "X" : "O";
+    return "<span class=\"disc " + (value === 1 ? "p1" : "p2") + "\"></span>";
   }
 
-  function setTooltip(text, x, y) {
-    els.tooltip.textContent = text;
-    els.tooltip.style.left = x + 12 + "px";
-    els.tooltip.style.top = y - 10 + "px";
-    els.tooltip.style.opacity = "1";
-  }
+  function renderGrid(container, interactive) {
+    container.innerHTML = "";
+    if (!state.sessionState) return;
+    const board = state.sessionState.board;
+    const rows = board.length;
+    const cols = board[0].length;
+    const legal = legalSet();
+    const policy = buildPolicyHeat();
 
-  function hideTooltip() {
-    els.tooltip.style.opacity = "0";
-  }
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    grid.style.gridTemplateColumns = "repeat(" + cols + ", minmax(28px, 1fr))";
 
-  function renderMiniGrid() {
-    const game = currentGame();
-    const selected = selectedPosition();
-    els.miniGrid.innerHTML = "";
-    const selectedGroup = selected.symmetryGroup;
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        const value = board[r][c];
+        const prob = Number((policy[r] && policy[r][c]) || 0);
+        const action = state.gameId === "connect4" ? c : (state.gameId === "othello" ? (r * 8 + c) : (r * 3 + c));
+        const legalAction = state.gameId === "connect4" ? legal.has(c) : legal.has(action);
+        const canClick = Boolean(interactive && isHumanTurn() && legalAction && !state.aiJobId);
 
-    game.positions.forEach(function (pos) {
-      const card = document.createElement("article");
-      card.className = "mini-card";
-      if (pos.id === selected.id) card.classList.add("selected");
-      if (
-        state.symmetryEnabled &&
-        selectedGroup !== null &&
-        pos.symmetryGroup !== null &&
-        pos.symmetryGroup === selectedGroup &&
-        pos.id !== selected.id
-      ) {
-        card.classList.add("sym");
-      }
-
-      const canvas = document.createElement("canvas");
-      canvas.width = 72;
-      canvas.height = 72;
-      renderers.drawMiniBoard(canvas, game, pos.board);
-      card.appendChild(canvas);
-
-      const title = document.createElement("span");
-      title.className = "mini-title";
-      title.textContent = pos.label;
-      card.appendChild(title);
-
-      const cat = document.createElement("span");
-      cat.className = "mini-cat";
-      cat.textContent = pos.category;
-      card.appendChild(cat);
-
-      card.addEventListener("click", function () {
-        state.selectedPositionId = pos.id;
-        renderAll();
-      });
-
-      els.miniGrid.appendChild(card);
-    });
-  }
-
-  function renderNeighbors() {
-    const game = currentGame();
-    const selected = selectedPosition();
-    const nearest = topNeighbors(selected, game.positions, 3);
-    els.neighborList.innerHTML = "";
-    nearest.forEach(function (n) {
-      const row = document.createElement("div");
-      row.className = "neighbor-row";
-
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.textContent = n.label + " (" + n.category + ")";
-      btn.addEventListener("click", function () {
-        state.selectedPositionId = n.id;
-        renderAll();
-      });
-
-      const dist = document.createElement("span");
-      dist.textContent = n.distance.toFixed(3);
-
-      row.appendChild(btn);
-      row.appendChild(dist);
-      els.neighborList.appendChild(row);
-    });
-  }
-
-  function renderLegend(game) {
-    const categories = Array.from(new Set(game.positions.map(function (p) { return p.category; })));
-    els.legend.innerHTML = "";
-    categories.forEach(function (cat) {
-      const chip = document.createElement("span");
-      chip.className = "legend-chip";
-      const dot = document.createElement("span");
-      dot.className = "legend-dot";
-      dot.style.background = CATEGORY_COLORS(cat);
-      chip.appendChild(dot);
-      chip.appendChild(document.createTextNode(cat));
-      els.legend.appendChild(chip);
-    });
-  }
-
-  function renderScatter() {
-    const game = currentGame();
-    const selected = selectedPosition();
-    const width = Math.max(360, els.scatter.clientWidth || 360);
-    const height = 360;
-    const margin = { top: 24, right: 18, bottom: 34, left: 38 };
-
-    d3.select(els.scatter).selectAll("*").remove();
-    const svg = d3.select(els.scatter).append("svg").attr("width", width).attr("height", height);
-
-    const xExtent = d3.extent(game.positions, function (d) { return d.pca2d[0]; });
-    const yExtent = d3.extent(game.positions, function (d) { return d.pca2d[1]; });
-
-    const x = d3.scaleLinear().domain([xExtent[0] - 2, xExtent[1] + 2]).range([margin.left, width - margin.right]);
-    const y = d3.scaleLinear().domain([yExtent[0] - 2, yExtent[1] + 2]).range([height - margin.bottom, margin.top]);
-
-    const xAxis = d3.axisBottom(x).ticks(6).tickSizeOuter(0);
-    const yAxis = d3.axisLeft(y).ticks(6).tickSizeOuter(0);
-
-    svg.append("g")
-      .attr("transform", "translate(0," + (height - margin.bottom) + ")")
-      .call(xAxis)
-      .call(function (g) { g.selectAll("text").attr("fill", "#cde0ec").attr("font-size", 10); })
-      .call(function (g) { g.selectAll("path,line").attr("stroke", "rgba(184,206,219,0.32)"); });
-
-    svg.append("g")
-      .attr("transform", "translate(" + margin.left + ",0)")
-      .call(yAxis)
-      .call(function (g) { g.selectAll("text").attr("fill", "#cde0ec").attr("font-size", 10); })
-      .call(function (g) { g.selectAll("path,line").attr("stroke", "rgba(184,206,219,0.32)"); });
-
-    const selectedGroup = selected.symmetryGroup;
-
-    svg.append("g")
-      .selectAll("circle")
-      .data(game.positions)
-      .enter()
-      .append("circle")
-      .attr("cx", function (d) { return x(d.pca2d[0]); })
-      .attr("cy", function (d) { return y(d.pca2d[1]); })
-      .attr("r", function (d) { return d.id === selected.id ? 7 : 5.3; })
-      .attr("fill", function (d) { return CATEGORY_COLORS(d.category); })
-      .attr("opacity", function (d) {
-        if (d.id === selected.id) return 1;
-        if (state.symmetryEnabled && selectedGroup !== null && d.symmetryGroup !== null && d.symmetryGroup === selectedGroup) return 0.95;
-        return 0.76;
-      })
-      .attr("stroke", function (d) {
-        if (d.id === selected.id) return "#ffe6bc";
-        if (state.symmetryEnabled && selectedGroup !== null && d.symmetryGroup !== null && d.symmetryGroup === selectedGroup) return "#bff0cf";
-        return "rgba(230,243,250,0.6)";
-      })
-      .attr("stroke-width", function (d) { return d.id === selected.id ? 2.2 : 1.1; })
-      .style("cursor", "pointer")
-      .on("click", function (_, d) {
-        state.selectedPositionId = d.id;
-        renderAll();
-      })
-      .on("mousemove", function (event, d) {
-        setTooltip(d.label + " | " + d.category, event.pageX, event.pageY);
-      })
-      .on("mouseleave", hideTooltip);
-
-    renderLegend(game);
-  }
-
-  function renderBars() {
-    const game = currentGame();
-    const selected = selectedPosition();
-    const width = Math.max(260, els.bars.clientWidth || 260);
-    const height = 230;
-    const margin = { top: 14, right: 8, bottom: 48, left: 8 };
-    d3.select(els.bars).selectAll("*").remove();
-
-    const svg = d3.select(els.bars).append("svg").attr("width", width).attr("height", height);
-
-    const x = d3.scaleBand().domain(game.features).range([margin.left, width - margin.right]).padding(0.22);
-    const y = d3.scaleLinear().domain([0, 1]).range([height - margin.bottom, margin.top]);
-
-    svg.append("g")
-      .attr("transform", "translate(0," + (height - margin.bottom) + ")")
-      .call(d3.axisBottom(x).tickFormat(function (_, i) { return "f" + (i + 1); }))
-      .call(function (g) { g.selectAll("text").attr("fill", "#cadfeb").attr("font-size", 10); })
-      .call(function (g) { g.selectAll("path,line").attr("stroke", "rgba(184,206,219,0.28)"); });
-
-    svg.append("g")
-      .attr("transform", "translate(" + margin.left + ",0)")
-      .call(d3.axisLeft(y).ticks(4).tickSize(0).tickPadding(6))
-      .call(function (g) { g.selectAll("text").attr("fill", "#acc4d4").attr("font-size", 10); })
-      .call(function (g) { g.select("path").remove(); })
-      .call(function (g) { g.selectAll("line").remove(); });
-
-    const bars = selected.embedding.map(function (value, i) { return { value: value, feature: game.features[i] }; });
-
-    svg.selectAll("rect")
-      .data(bars)
-      .enter()
-      .append("rect")
-      .attr("x", function (d) { return x(d.feature); })
-      .attr("width", x.bandwidth())
-      .attr("y", function (d) { return y(d.value); })
-      .attr("height", function (d) { return y(0) - y(d.value); })
-      .attr("fill", "#6cb4ff")
-      .attr("rx", 5);
-
-    svg.selectAll("text.value")
-      .data(bars)
-      .enter()
-      .append("text")
-      .attr("class", "value")
-      .attr("x", function (d) { return x(d.feature) + x.bandwidth() / 2; })
-      .attr("y", function (d) { return y(d.value) - 6; })
-      .attr("text-anchor", "middle")
-      .attr("fill", "#dbecf7")
-      .attr("font-size", 10)
-      .text(function (d) { return d.value.toFixed(2); });
-  }
-
-  function renderVectorBox() {
-    const game = currentGame();
-    const selected = selectedPosition();
-    const rows = selected.embedding.map(function (v, i) {
-      return game.features[i] + ": " + v.toFixed(3);
-    });
-    const text = "Position: " + selected.label + "\n"
-      + "Category: " + selected.category + "\n"
-      + "Vector:\n"
-      + rows.join("\n")
-      + (selected.notes ? "\n\nNotes: " + selected.notes : "");
-    els.vectorBox.textContent = text;
-  }
-
-  function renderHeatmap() {
-    const game = currentGame();
-    const selected = selectedPosition();
-    const positions = game.positions;
-    const selectedIndex = positions.findIndex(function (p) { return p.id === selected.id; });
-    const sim = similarityMatrix(positions);
-    const n = positions.length;
-    const width = Math.max(440, els.heatmap.clientWidth || 440);
-    const height = 260;
-    const margin = { top: 30, right: 12, bottom: 30, left: 34 };
-    const innerW = width - margin.left - margin.right;
-    const innerH = height - margin.top - margin.bottom;
-    const cellSize = Math.min(innerW / n, innerH / n);
-    const gridW = cellSize * n;
-    const gridH = cellSize * n;
-
-    d3.select(els.heatmap).selectAll("*").remove();
-    const svg = d3.select(els.heatmap).append("svg").attr("width", width).attr("height", height);
-    const g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-    const color = d3.scaleLinear().domain([0.45, 0.75, 1.0]).range(["#203142", "#3f826f", "#b9f0cc"]).clamp(true);
-
-    for (let r = 0; r < n; r += 1) {
-      for (let c = 0; c < n; c += 1) {
-        g.append("rect")
-          .attr("x", c * cellSize)
-          .attr("y", r * cellSize)
-          .attr("width", cellSize)
-          .attr("height", cellSize)
-          .attr("fill", color(sim[r][c]))
-          .attr("stroke", "rgba(198,221,236,0.2)")
-          .attr("stroke-width", 0.5);
+        cell.className = "cell policy";
+        if (state.gameId === "tictactoe") cell.classList.add("ttt");
+        if (value === 1) cell.classList.add("p1");
+        if (value === -1) cell.classList.add("p2");
+        if (legalAction) cell.classList.add("legal");
+        if (canClick) cell.classList.add("clickable");
+        cell.style.setProperty("--policy", Math.min(0.86, prob * 2.2).toFixed(3));
+        cell.innerHTML = pieceCell(state.gameId, value);
+        if (prob > 0.001) {
+          const p = document.createElement("span");
+          p.className = "prob";
+          p.textContent = (prob * 100).toFixed(0) + "%";
+          cell.appendChild(p);
+        }
+        cell.addEventListener("click", function () {
+          if (!canClick) return;
+          if (state.gameId === "connect4") playHumanMove(c);
+          else playHumanMove(action);
+        });
+        grid.appendChild(cell);
       }
     }
-
-    g.append("rect")
-      .attr("x", selectedIndex * cellSize)
-      .attr("y", 0)
-      .attr("width", cellSize)
-      .attr("height", gridH)
-      .attr("fill", "none")
-      .attr("stroke", "rgba(241,183,73,0.9)")
-      .attr("stroke-width", 2);
-
-    g.append("rect")
-      .attr("x", 0)
-      .attr("y", selectedIndex * cellSize)
-      .attr("width", gridW)
-      .attr("height", cellSize)
-      .attr("fill", "none")
-      .attr("stroke", "rgba(241,183,73,0.9)")
-      .attr("stroke-width", 2);
-
-    const ticks = positions.map(function (_, i) { return i + 1; });
-    const tickScale = d3.scaleBand().domain(ticks).range([0, gridW]);
-
-    g.append("g")
-      .attr("transform", "translate(0," + gridH + ")")
-      .call(d3.axisBottom(tickScale).tickValues(ticks).tickFormat(function (d) { return d; }))
-      .call(function (axis) { axis.selectAll("text").attr("fill", "#cde0ec").attr("font-size", 9); })
-      .call(function (axis) { axis.selectAll("path,line").attr("stroke", "rgba(184,206,219,0.2)"); });
-
-    g.append("g")
-      .call(d3.axisLeft(tickScale).tickValues(ticks).tickFormat(function (d) { return d; }))
-      .call(function (axis) { axis.selectAll("text").attr("fill", "#cde0ec").attr("font-size", 9); })
-      .call(function (axis) { axis.selectAll("path,line").attr("stroke", "rgba(184,206,219,0.2)"); });
+    container.appendChild(grid);
   }
 
-  function renderSelectionChip() {
-    const game = currentGame();
-    const selected = selectedPosition();
-    els.selectionChip.textContent = game.gameName + " | " + selected.label;
+  function updatePassButton() {
+    const legal = legalSet();
+    const show = state.gameId === "othello" && isHumanTurn() && legal.has(64);
+    els.passBtn.style.display = show ? "block" : "none";
+    els.passBtn.textContent = show ? ("Pass (p=" + (state.passProb * 100).toFixed(1) + "%)") : "Pass (Othello)";
+  }
+
+  function renderMeta() {
+    if (!state.sessionState) {
+      els.playMeta.textContent = "No game state.";
+      els.turnLabel.textContent = "Start a session to begin.";
+      return;
+    }
+    const turn = state.sessionState.to_play === 1 ? "Player +1" : "Player -1";
+    const side = state.humanPlayer === 1 ? "Human: +1" : "Human: -1";
+    const job = state.aiJobId ? "AI job: " + state.aiJobId : "AI job: none";
+    els.turnLabel.textContent = "Turn: " + turn + " | Result: " + state.sessionState.result;
+    els.playMeta.textContent = [
+      "Session: " + state.sessionId,
+      side,
+      "Ply: " + state.sessionState.ply,
+      "Legal actions: " + state.sessionState.legal_actions.join(", "),
+      job
+    ].join("\n");
   }
 
   function renderAll() {
-    renderSelectionChip();
-    renderMiniGrid();
-    renderNeighbors();
-    renderScatter();
-    renderBars();
-    renderVectorBox();
-    renderHeatmap();
+    renderGrid(els.playBoard, true);
+    renderGrid(els.policyBoard, false);
+    renderMeta();
+    updatePassButton();
+  }
+
+  function archiveBoardText(gameId, board) {
+    if (!board) return "";
+    if (gameId === "tictactoe") {
+      const rows = [];
+      for (let i = 0; i < board.length; i += 3) {
+        rows.push(
+          board.slice(i, i + 3).map(function (c) {
+            return c === "X" || c === "O" ? c : ".";
+          }).join(" ")
+        );
+      }
+      return rows.join("\n");
+    }
+    if (Array.isArray(board) && Array.isArray(board[0])) {
+      return board.map(function (row) {
+        return row.map(function (v) {
+          if (typeof v === "string") return v || ".";
+          if (v === 0) return ".";
+          if (v === 1) return "1";
+          if (v === 2) return "2";
+          if (v === -1) return "-";
+          return String(v);
+        }).join(" ");
+      }).join("\n");
+    }
+    return JSON.stringify(board, null, 2);
+  }
+
+  function renderArchiveDetail() {
+    const game = archiveState.data.find(function (g) { return g.gameId === archiveState.gameId; });
+    if (!game) {
+      els.archiveDetail.textContent = "No archive data found.";
+      return;
+    }
+    const pos = game.positions.find(function (p) { return p.id === archiveState.positionId; }) || game.positions[0];
+    if (!pos) {
+      els.archiveDetail.textContent = "No archived positions for this game.";
+      return;
+    }
+    const emb = Array.isArray(pos.embedding) ? pos.embedding.map(function (v) { return Number(v).toFixed(3); }).join(", ") : "-";
+    els.archiveDetail.textContent = [
+      "Game: " + game.gameName,
+      "Label: " + pos.label,
+      "Category: " + pos.category,
+      "Symmetry Group: " + (pos.symmetryGroup == null ? "-" : String(pos.symmetryGroup)),
+      "",
+      "Board:",
+      archiveBoardText(game.gameId, pos.board),
+      "",
+      "Embedding:",
+      emb,
+      pos.notes ? ("\nNotes: " + pos.notes) : ""
+    ].join("\n");
+  }
+
+  function renderArchiveList() {
+    const game = archiveState.data.find(function (g) { return g.gameId === archiveState.gameId; });
+    els.archiveList.innerHTML = "";
+    if (!game || !Array.isArray(game.positions)) {
+      els.archiveList.textContent = "No archived positions.";
+      return;
+    }
+    game.positions.forEach(function (pos) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "archive-btn";
+      if (pos.id === archiveState.positionId) btn.classList.add("active");
+      btn.textContent = pos.label;
+      btn.addEventListener("click", function () {
+        archiveState.positionId = pos.id;
+        renderArchiveList();
+        renderArchiveDetail();
+      });
+      els.archiveList.appendChild(btn);
+    });
+    renderArchiveDetail();
+  }
+
+  function initArchive() {
+    if (archiveState.initialized) return;
+    archiveState.initialized = true;
+    if (!archiveState.data.length) {
+      els.archiveDetail.textContent = "Synthetic archive data not available.";
+      return;
+    }
+    els.archiveGame.innerHTML = "";
+    archiveState.data.forEach(function (game) {
+      const option = document.createElement("option");
+      option.value = game.gameId;
+      option.textContent = game.gameName;
+      els.archiveGame.appendChild(option);
+    });
+    archiveState.gameId = archiveState.data[0].gameId;
+    archiveState.positionId = archiveState.data[0].positions[0] && archiveState.data[0].positions[0].id;
+    els.archiveGame.value = archiveState.gameId;
+    els.archiveGame.addEventListener("change", function () {
+      archiveState.gameId = els.archiveGame.value;
+      const game = archiveState.data.find(function (g) { return g.gameId === archiveState.gameId; });
+      archiveState.positionId = game && game.positions[0] ? game.positions[0].id : null;
+      renderArchiveList();
+    });
+    renderArchiveList();
+  }
+
+  async function refreshAnalysis() {
+    if (!state.sessionId || state.aiJobId) return;
+    try {
+      const analysis = await api("/api/v1/analyze", {
+        method: "POST",
+        body: JSON.stringify({ session_id: state.sessionId })
+      });
+      applyAnalysis(analysis, null);
+      renderAll();
+    } catch (err) {
+      setStatus("analyze error: " + err.message);
+    }
+  }
+
+  async function playHumanMove(action) {
+    if (!state.sessionId || !isHumanTurn() || state.aiJobId) return;
+    try {
+      setStatus("playing move...");
+      const payload = await api("/api/v1/session/" + encodeURIComponent(state.sessionId) + "/human-move", {
+        method: "POST",
+        body: JSON.stringify({ action: action })
+      });
+      state.sessionState = payload.state;
+      setStatus("human moved");
+      renderAll();
+      await refreshAnalysis();
+      maybeStartAiTurn();
+    } catch (err) {
+      setStatus("move rejected: " + err.message);
+    }
+  }
+
+  async function runAiMoveBlocking() {
+    try {
+      setStatus("AI thinking...");
+      const payload = await api("/api/v1/session/" + encodeURIComponent(state.sessionId) + "/ai-move", {
+        method: "POST",
+        body: JSON.stringify({ sims: state.sims, temperature: 0.0, emit_every: 50 })
+      });
+      state.sessionState = payload.state_after;
+      applyAnalysis(payload.analysis, payload.progress || null);
+      setStatus("AI moved");
+      renderAll();
+    } catch (err) {
+      setStatus("AI error: " + err.message);
+    }
+  }
+
+  async function pollAiJob() {
+    if (!state.aiJobId) return;
+    try {
+      const payload = await api("/api/v1/jobs/" + encodeURIComponent(state.aiJobId), { method: "GET" });
+      if (payload.analysis) {
+        applyAnalysis(payload.analysis, payload.progress || null);
+      }
+      if (payload.status === "running") {
+        setStatus("AI thinking...");
+        renderAll();
+        return;
+      }
+      if (payload.status === "done") {
+        state.sessionState = payload.state_after;
+        state.aiJobId = null;
+        stopPolling();
+        setStatus("AI moved");
+        renderAll();
+        return;
+      }
+      state.aiJobId = null;
+      stopPolling();
+      setStatus("AI job error: " + (payload.error || "unknown"));
+      renderAll();
+    } catch (err) {
+      state.aiJobId = null;
+      stopPolling();
+      setStatus("job poll failed: " + err.message);
+      renderAll();
+    }
+  }
+
+  async function startAiJob() {
+    try {
+      setStatus("AI thinking...");
+      const payload = await api("/api/v1/session/" + encodeURIComponent(state.sessionId) + "/ai-move/start", {
+        method: "POST",
+        body: JSON.stringify({ sims: state.sims, temperature: 0.0, emit_every: 25 })
+      });
+      state.aiJobId = payload.job_id;
+      stopPolling();
+      state.pollingTimer = window.setInterval(pollAiJob, 100);
+    } catch (err) {
+      setStatus("AI start failed: " + err.message);
+    }
+  }
+
+  function maybeStartAiTurn() {
+    if (!state.sessionState || state.sessionState.result !== "ongoing") return;
+    if (!isAiTurn()) return;
+    if (state.analysisMode === "live") {
+      startAiJob();
+    } else {
+      runAiMoveBlocking();
+    }
+  }
+
+  async function startSession() {
+    stopPolling();
+    state.aiJobId = null;
+    state.analysis = null;
+    state.sessionState = null;
+    state.latentHistory = [];
+    state.passProb = 0;
+    renderAll();
+
+    try {
+      setStatus("starting...");
+      const payload = await api("/api/v1/session/start", {
+        method: "POST",
+        body: JSON.stringify({
+          game_id: state.gameId,
+          human_player: state.humanPlayer,
+          mcts_sims: state.sims,
+          analysis_mode: state.analysisMode
+        })
+      });
+      state.sessionId = payload.session_id;
+      state.sessionState = payload.state;
+      showSession();
+      setStatus("session ready");
+      renderAll();
+      await refreshAnalysis();
+      maybeStartAiTurn();
+    } catch (err) {
+      state.sessionId = null;
+      state.sessionState = null;
+      showSession();
+      setStatus("start failed: " + err.message);
+      renderAll();
+    }
   }
 
   function bindEvents() {
-    els.gameSelect.addEventListener("change", function (event) {
-      state.currentGameId = event.target.value;
-      const game = currentGame();
-      state.selectedPositionId = game.positions[0].id;
+    els.backendUrl.addEventListener("change", function () {
+      state.apiBase = els.backendUrl.value.trim() || DEFAULT_API_BASE;
+      persist();
+    });
+    els.gameSelect.addEventListener("change", function () {
+      state.gameId = els.gameSelect.value;
+      const def = GAME_META[state.gameId].defaultSims;
+      if (!Number.isFinite(state.sims) || state.sims <= 0) state.sims = def;
+      els.aiSims.value = String(state.sims);
+      persist();
       renderAll();
     });
-
-    els.symmetryToggle.addEventListener("click", function () {
-      state.symmetryEnabled = !state.symmetryEnabled;
-      els.symmetryToggle.dataset.on = state.symmetryEnabled ? "true" : "false";
-      els.symmetryToggle.textContent = state.symmetryEnabled ? "On" : "Off";
-      renderAll();
+    els.aiSims.addEventListener("change", function () {
+      const n = Number(els.aiSims.value);
+      state.sims = Number.isFinite(n) && n > 0 ? Math.round(n) : GAME_META[state.gameId].defaultSims;
+      els.aiSims.value = String(state.sims);
+      persist();
     });
-
-    let resizeTimer = null;
-    window.addEventListener("resize", function () {
-      if (resizeTimer) {
-        window.clearTimeout(resizeTimer);
-      }
-      resizeTimer = window.setTimeout(function () {
-        renderScatter();
-        renderBars();
-        renderHeatmap();
-      }, 120);
+    els.humanSide.addEventListener("change", function () {
+      state.humanPlayer = Number(els.humanSide.value) >= 0 ? 1 : -1;
+      persist();
     });
+    els.analysisLive.addEventListener("change", function () {
+      state.analysisMode = els.analysisLive.value === "off" ? "off" : "live";
+      persist();
+    });
+    els.startBtn.addEventListener("click", startSession);
+    els.passBtn.addEventListener("click", function () {
+      playHumanMove(64);
+    });
+    if (els.archiveRoot) {
+      els.archiveRoot.addEventListener("toggle", function () {
+        if (els.archiveRoot.open) initArchive();
+      });
+    }
   }
 
   function init() {
-    populateGameSelector();
+    els.backendUrl.value = state.apiBase;
+    els.gameSelect.value = state.gameId;
+    els.aiSims.value = String(state.sims);
+    els.humanSide.value = String(state.humanPlayer);
+    els.analysisLive.value = state.analysisMode;
+    showSession();
     bindEvents();
     renderAll();
+    if (els.archiveRoot && els.archiveRoot.open) initArchive();
   }
 
   init();
