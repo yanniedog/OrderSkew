@@ -67,6 +67,41 @@
             </div>
             <pre id="json-output" class="json-output">No results yet.</pre>
         </section>
+
+        <section id="visuals-card" class="card" hidden>
+            <div class="json-head">
+                <h2>Full Cycle Table (All Coins)</h2>
+            </div>
+            <div class="table-wrap">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Coin</th>
+                            <th>Cycle</th>
+                            <th>ATH Date</th>
+                            <th>ATH High</th>
+                            <th>Trough Date</th>
+                            <th>Trough Close</th>
+                            <th>Drawdown %</th>
+                            <th>Days ATH to Trough</th>
+                            <th>Next ATH Date</th>
+                            <th>Next ATH High</th>
+                            <th>Recovery Gain %</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="charts-card" class="card" hidden>
+            <div class="json-head">
+                <h2>Per-Coin ATH/Trough Graphs</h2>
+            </div>
+            <div id="coin-charts" class="coin-charts"></div>
+        </section>
     </main>
 
     <script src="app.js"></script>

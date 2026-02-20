@@ -232,6 +232,106 @@ h3 {
   line-height: 1.45;
 }
 
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1180px;
+}
+
+.results-table th,
+.results-table td {
+  border-bottom: 1px solid #e3edf9;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.results-table th {
+  position: sticky;
+  top: 0;
+  background: #f4f9ff;
+  color: #234566;
+  z-index: 1;
+}
+
+.results-table tbody tr:nth-child(even) td {
+  background: #fbfdff;
+}
+
+.coin-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.coin-chart-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+
+.coin-chart-card h3 {
+  margin: 0 0 5px;
+  font-size: 0.98rem;
+}
+
+.coin-chart-meta {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.coin-chart-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.coin-chart-svg {
+  width: 100%;
+  height: 220px;
+  border: 1px solid #e0ecf9;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 65%);
+}
+
+.coin-grid-line {
+  stroke: #d7e6f8;
+  stroke-width: 1;
+}
+
+.coin-line {
+  fill: none;
+  stroke: #0a84ff;
+  stroke-width: 1.75;
+}
+
+.coin-point-ath {
+  fill: #0b8f67;
+  stroke: #ffffff;
+  stroke-width: 1;
+}
+
+.coin-point-trough {
+  fill: #b4233b;
+  stroke: #ffffff;
+  stroke-width: 1;
+}
+
+.coin-axis-label {
+  fill: #48617a;
+  font-size: 10px;
+}
+
 @media (max-width: 760px) {
   .container {
     padding: 18px 12px 24px;
@@ -243,6 +343,10 @@ h3 {
 
   .json-output {
     max-height: 440px;
+  }
+
+  .coin-charts {
+    grid-template-columns: 1fr;
   }
 
 }
