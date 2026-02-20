@@ -1,5 +1,5 @@
 (function () {
-  const WORKER_VERSION = '2026-02-20-proxy-fallback-v3';
+  const WORKER_VERSION = '2026-02-20-proxy-multibinance-v4';
 
   const els = {
     startBtn: document.getElementById('start-btn'),

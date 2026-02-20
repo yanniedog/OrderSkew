@@ -1,5 +1,10 @@
 const COINGECKO_BASE = 'https://api.coingecko.com/api/v3';
 const BINANCE_BASE = 'https://api.binance.com/api/v3';
+const BINANCE_DIRECT_BASES = [
+  'https://api.binance.com/api/v3',
+  'https://api.binance.us/api/v3',
+  'https://data-api.binance.vision/api/v3',
+];
 const SAME_ORIGIN = (self.location && self.location.origin) ? self.location.origin : '';
 const COINGECKO_PROXY = `${SAME_ORIGIN}/api/crypto-ath/coingecko`;
 const BINANCE_PROXY = `${SAME_ORIGIN}/api/crypto-ath/binance`;
@@ -132,7 +137,7 @@ async function startAnalysis(thresholds) {
         ranking_currency_proxy: 'usd_as_proxy_for_usdt',
         stablecoin_filter_source: 'coingecko:/coins/markets?category=stablecoins',
         universe_policy: 'top_20_non_stablecoins_by_market_cap',
-        history_source: 'binance_spot:/api/v3/klines',
+        history_source: 'binance_spot_fallback_chain:(api.binance.com|api.binance.us|data-api.binance.vision)/api/v3/klines',
         binance_pair_policy: 'base_usdt_only',
         stable_to_stable_pair_policy: 'excluded',
         ath_definition: 'strict_new_ath_on_daily_high_for_cycle_windows',
@@ -270,7 +275,17 @@ async function fetchJsonProxyFirst(proxyUrl, directUrl, label, token, attempts) 
   try {
     return await fetchJsonWithRetry(proxyUrl, `${label} (proxy)`, token, attempts);
   } catch (_) {
-    return await fetchJsonWithRetry(directUrl, `${label} (direct)`, token, attempts);
+    const directUrls = Array.isArray(directUrl) ? directUrl : [directUrl];
+    let lastError = null;
+    for (let i = 0; i < directUrls.length; i += 1) {
+      const u = directUrls[i];
+      try {
+        return await fetchJsonWithRetry(u, `${label} (direct-${i + 1})`, token, attempts);
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError || new Error(`${label} all direct fallbacks failed.`);
   }
 }
 
@@ -342,7 +357,7 @@ function buildUniverse(markets, stableIds, stableSymbols) {
 }
 
 async function fetchBinanceExchangeMap(token) {
-  const directUrl = `${BINANCE_BASE}/exchangeInfo`;
+  const directUrl = BINANCE_DIRECT_BASES.map(function (base) { return `${base}/exchangeInfo`; });
   const proxyUrl = `${BINANCE_PROXY}?path=${encodeURIComponent('/exchangeInfo')}`;
   const payload = await fetchJsonProxyFirst(proxyUrl, directUrl, 'Binance exchange info', token, 4);
   if (!payload || !Array.isArray(payload.symbols)) throw new Error('Binance exchange info response is invalid.');
@@ -373,7 +388,7 @@ async function fetchAllDailyKlines(token, symbol) {
       startTime: String(startTime),
       endTime: String(endTime),
     });
-    const directUrl = `${BINANCE_BASE}/klines?${params.toString()}`;
+    const directUrl = BINANCE_DIRECT_BASES.map(function (base) { return `${base}/klines?${params.toString()}`; });
     const proxyUrl = `${BINANCE_PROXY}?path=${encodeURIComponent('/klines')}&${params.toString()}`;
     const rows = await fetchJsonProxyFirst(proxyUrl, directUrl, `Binance klines ${symbol}`, token, 4);
     if (!Array.isArray(rows) || rows.length === 0) break;
