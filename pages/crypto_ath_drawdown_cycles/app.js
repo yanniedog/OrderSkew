@@ -1,5 +1,5 @@
 (function () {
-  const WORKER_VERSION = '2026-02-20-60pct-60days-v1';
+  const WORKER_VERSION = '2026-02-20-configurable-thresholds-d3-v2';
 
   const els = {
     startBtn: document.getElementById('start-btn'),
@@ -10,6 +10,7 @@
     statusDetail: document.getElementById('status-detail'),
     progressFill: document.getElementById('progress-fill'),
     errorBox: document.getElementById('error-box'),
+    jsonPanel: document.getElementById('json-panel'),
     jsonOutput: document.getElementById('json-output'),
     summaryGrid: document.getElementById('summary-grid'),
     requestedAssets: document.getElementById('requested-assets'),
@@ -20,6 +21,8 @@
     resultsTableBody: document.getElementById('results-table-body'),
     chartsCard: document.getElementById('charts-card'),
     coinCharts: document.getElementById('coin-charts'),
+    minDrawdownPct: document.getElementById('min-drawdown-pct'),
+    minAthToTroughDays: document.getElementById('min-ath-to-trough-days'),
   };
 
   let worker = null;
@@ -50,6 +53,7 @@
       currentResult = msg.result || null;
       const pretty = JSON.stringify(currentResult, null, 2);
       els.jsonOutput.textContent = pretty;
+      if (els.jsonPanel) els.jsonPanel.open = false;
       setSummary(currentResult);
       try {
         renderVisuals(currentResult);
@@ -138,7 +142,10 @@
     setError('');
     setStatus('Running', 'Initializing data sources...');
     setProgress(0.02);
-    worker.postMessage({ type: 'START_ANALYSIS' });
+    worker.postMessage({
+      type: 'START_ANALYSIS',
+      config: readRunConfig(),
+    });
   }
 
   function cancelRun() {
@@ -287,15 +294,88 @@
         continue;
       }
 
-      const svg = buildAthTroughChartSvg(cycles);
-      card.appendChild(svg);
+      const host = document.createElement('div');
+      host.className = 'coin-chart-svg';
+      card.appendChild(host);
+      renderCoinChartWithD3(host, cycles);
       frag.appendChild(card);
     }
     els.coinCharts.appendChild(frag);
     els.chartsCard.hidden = false;
   }
 
-  function buildAthTroughChartSvg(cycles) {
+  function renderCoinChartWithD3(container, cycles) {
+    if (!window.d3) {
+      const msg = document.createElement('p');
+      msg.className = 'coin-chart-empty';
+      msg.textContent = 'D3 did not load.';
+      container.appendChild(msg);
+      return;
+    }
+    const points = collectChartPoints(cycles);
+    if (!points.length) {
+      container.textContent = 'No usable ATH/trough points in retained cycles.';
+      return;
+    }
+
+    const d3 = window.d3;
+    const width = 920;
+    const height = 240;
+    const margin = { top: 14, right: 12, bottom: 28, left: 58 };
+    const innerW = width - margin.left - margin.right;
+    const innerH = height - margin.top - margin.bottom;
+
+    const svg = d3.select(container)
+      .append('svg')
+      .attr('viewBox', `0 0 ${width} ${height}`)
+      .attr('preserveAspectRatio', 'none');
+
+    const x = d3.scaleTime()
+      .domain(d3.extent(points, function (d) { return new Date(d.time); }))
+      .range([margin.left, margin.left + innerW]);
+
+    const yMin = d3.min(points, function (d) { return d.price; });
+    const yMax = d3.max(points, function (d) { return d.price; });
+    const yPad = (yMax - yMin || yMax * 0.1 || 1) * 0.08;
+    const y = d3.scaleLinear()
+      .domain([Math.max(0, yMin - yPad), yMax + yPad])
+      .nice()
+      .range([margin.top + innerH, margin.top]);
+
+    const xAxis = d3.axisBottom(x).ticks(4).tickFormat(d3.timeFormat('%Y-%m-%d'));
+    const yAxis = d3.axisLeft(y).ticks(4).tickFormat(function (v) { return formatPrice(v); });
+
+    svg.append('g')
+      .attr('transform', `translate(0,${margin.top + innerH})`)
+      .attr('class', 'coin-axis')
+      .call(xAxis);
+
+    svg.append('g')
+      .attr('transform', `translate(${margin.left},0)`)
+      .attr('class', 'coin-axis')
+      .call(yAxis);
+
+    svg.append('path')
+      .datum(points)
+      .attr('fill', 'none')
+      .attr('class', 'coin-line')
+      .attr('d', d3.line()
+        .x(function (d) { return x(new Date(d.time)); })
+        .y(function (d) { return y(d.price); }));
+
+    svg.selectAll('.coin-point')
+      .data(points)
+      .enter()
+      .append('circle')
+      .attr('class', function (d) { return d.kind === 'ath' ? 'coin-point-ath' : 'coin-point-trough'; })
+      .attr('r', function (d) { return d.kind === 'ath' ? 3.8 : 3.4; })
+      .attr('cx', function (d) { return x(new Date(d.time)); })
+      .attr('cy', function (d) { return y(d.price); })
+      .append('title')
+      .text(function (d) { return `${d.kind.toUpperCase()} | ${d.date} | ${formatPrice(d.price)}`; });
+  }
+
+  function collectChartPoints(cycles) {
     const events = [];
     for (let i = 0; i < cycles.length; i += 1) {
       const c = cycles[i] || {};
@@ -319,118 +399,7 @@
       seen.add(key);
       points.push(ev);
     }
-
-    if (!points.length) {
-      const emptySvg = createSvgEl('svg');
-      emptySvg.setAttribute('class', 'coin-chart-svg');
-      emptySvg.setAttribute('viewBox', '0 0 920 260');
-      emptySvg.setAttribute('preserveAspectRatio', 'none');
-      const label = createSvgEl('text');
-      label.setAttribute('x', '460');
-      label.setAttribute('y', '132');
-      label.setAttribute('text-anchor', 'middle');
-      label.setAttribute('class', 'coin-axis-label');
-      label.textContent = 'No usable ATH/trough points in retained cycles.';
-      emptySvg.appendChild(label);
-      return emptySvg;
-    }
-
-    const width = 920;
-    const height = 260;
-    const pad = { top: 16, right: 16, bottom: 30, left: 58 };
-    const innerW = width - pad.left - pad.right;
-    const innerH = height - pad.top - pad.bottom;
-    const minTime = points[0].time;
-    const maxTime = points.length > 1 ? points[points.length - 1].time : minTime + 86400000;
-    let minPrice = Math.min.apply(null, points.map(function (p) { return p.price; }));
-    let maxPrice = Math.max.apply(null, points.map(function (p) { return p.price; }));
-    if (minPrice === maxPrice) {
-      minPrice *= 0.95;
-      maxPrice *= 1.05;
-    }
-    const pricePad = (maxPrice - minPrice) * 0.08;
-    minPrice -= pricePad;
-    maxPrice += pricePad;
-
-    const x = function (t) {
-      return pad.left + ((t - minTime) / (maxTime - minTime)) * innerW;
-    };
-    const y = function (p) {
-      return pad.top + (1 - ((p - minPrice) / (maxPrice - minPrice))) * innerH;
-    };
-
-    const svg = createSvgEl('svg');
-    svg.setAttribute('class', 'coin-chart-svg');
-    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-    svg.setAttribute('preserveAspectRatio', 'none');
-
-    for (let i = 0; i < 4; i += 1) {
-      const yy = pad.top + (i / 3) * innerH;
-      const grid = createSvgEl('line');
-      grid.setAttribute('x1', String(pad.left));
-      grid.setAttribute('x2', String(width - pad.right));
-      grid.setAttribute('y1', String(yy));
-      grid.setAttribute('y2', String(yy));
-      grid.setAttribute('class', 'coin-grid-line');
-      svg.appendChild(grid);
-    }
-
-    let d = '';
-    for (let i = 0; i < points.length; i += 1) {
-      const px = x(points[i].time);
-      const py = y(points[i].price);
-      d += `${i === 0 ? 'M' : 'L'}${px.toFixed(2)},${py.toFixed(2)} `;
-    }
-    const path = createSvgEl('path');
-    path.setAttribute('d', d.trim());
-    path.setAttribute('class', 'coin-line');
-    svg.appendChild(path);
-
-    for (let i = 0; i < points.length; i += 1) {
-      const pt = points[i];
-      const cx = x(pt.time);
-      const cy = y(pt.price);
-      const marker = createSvgEl('circle');
-      marker.setAttribute('cx', String(cx));
-      marker.setAttribute('cy', String(cy));
-      marker.setAttribute('r', pt.kind === 'ath' ? '4' : '3.6');
-      marker.setAttribute('class', pt.kind === 'ath' ? 'coin-point-ath' : 'coin-point-trough');
-      const title = createSvgEl('title');
-      title.textContent = `${pt.kind.toUpperCase()} | ${pt.date} | ${formatPrice(pt.price)}`;
-      marker.appendChild(title);
-      svg.appendChild(marker);
-    }
-
-    const yMax = createSvgEl('text');
-    yMax.setAttribute('x', '6');
-    yMax.setAttribute('y', String(pad.top + 5));
-    yMax.setAttribute('class', 'coin-axis-label');
-    yMax.textContent = formatPrice(maxPrice);
-    svg.appendChild(yMax);
-
-    const yMin = createSvgEl('text');
-    yMin.setAttribute('x', '6');
-    yMin.setAttribute('y', String(height - pad.bottom));
-    yMin.setAttribute('class', 'coin-axis-label');
-    yMin.textContent = formatPrice(minPrice);
-    svg.appendChild(yMin);
-
-    const leftDate = createSvgEl('text');
-    leftDate.setAttribute('x', String(pad.left));
-    leftDate.setAttribute('y', String(height - 8));
-    leftDate.setAttribute('class', 'coin-axis-label');
-    leftDate.textContent = points[0].date;
-    svg.appendChild(leftDate);
-
-    const rightDate = createSvgEl('text');
-    rightDate.setAttribute('x', String(width - pad.right));
-    rightDate.setAttribute('y', String(height - 8));
-    rightDate.setAttribute('text-anchor', 'end');
-    rightDate.setAttribute('class', 'coin-axis-label');
-    rightDate.textContent = points[points.length - 1].date;
-    svg.appendChild(rightDate);
-
-    return svg;
+    return points;
   }
 
   function pushChartEvent(events, dateText, priceValue, kind) {
@@ -445,8 +414,21 @@
     });
   }
 
-  function createSvgEl(name) {
-    return document.createElementNS('http://www.w3.org/2000/svg', name);
+  function readRunConfig() {
+    const minDrawdownPct = clampInteger(els.minDrawdownPct ? els.minDrawdownPct.value : 60, 1, 99, 60);
+    const minAthToTroughDays = clampInteger(els.minAthToTroughDays ? els.minAthToTroughDays.value : 60, 1, 2000, 60);
+    if (els.minDrawdownPct) els.minDrawdownPct.value = String(minDrawdownPct);
+    if (els.minAthToTroughDays) els.minAthToTroughDays.value = String(minAthToTroughDays);
+    return {
+      major_cycle_min_range_pct: minDrawdownPct,
+      major_cycle_min_ath_to_trough_days: minAthToTroughDays,
+    };
+  }
+
+  function clampInteger(value, min, max, fallback) {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
   }
 
   function valueOrDash(value) {

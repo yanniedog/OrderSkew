@@ -3,8 +3,8 @@ const BINANCE_BASE = 'https://api.binance.com/api/v3';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MARKET_PAGE_SIZE = 250;
 const TARGET_ASSET_COUNT = 20;
-const MAJOR_CYCLE_MIN_RANGE_PCT = 60;
-const MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS = 60;
+const DEFAULT_MAJOR_CYCLE_MIN_RANGE_PCT = 60;
+const DEFAULT_MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS = 60;
 
 const RUN_STATE = {
   token: 0,
@@ -15,7 +15,8 @@ const RUN_STATE = {
 self.addEventListener('message', function (event) {
   const msg = event.data || {};
   if (msg.type === 'START_ANALYSIS') {
-    startAnalysis().catch(function (error) {
+    const thresholds = sanitizeThresholds(msg.config || {});
+    startAnalysis(thresholds).catch(function (error) {
       postError(error && error.code ? String(error.code) : 'analysis_failed', error && error.message ? String(error.message) : 'Analysis failed.');
     });
     return;
@@ -25,7 +26,7 @@ self.addEventListener('message', function (event) {
   }
 });
 
-async function startAnalysis() {
+async function startAnalysis(thresholds) {
   RUN_STATE.token += 1;
   RUN_STATE.canceled = false;
   RUN_STATE.running = true;
@@ -90,7 +91,7 @@ async function startAnalysis() {
         continue;
       }
 
-      const cycles = buildCycles(candles);
+      const cycles = buildCycles(candles, thresholds);
       if (!Number.isFinite(cycles.raw_ath_cycle_count) || cycles.raw_ath_cycle_count === 0) {
         skippedAssets.push(makeSkip(asset, binanceSymbol, 'insufficient_or_invalid_candle_history', 'Could not derive any ATH cycles from candle history.'));
         continue;
@@ -137,8 +138,8 @@ async function startAnalysis() {
         recovery_formula: '((next_ath_high / trough_close) - 1) * 100',
         major_cycle_thresholding: {
           cycle_inclusion_rule: 'abs(drawdown_pct) >= major_cycle_min_range_pct AND days_ath_to_trough >= major_cycle_min_ath_to_trough_days',
-          major_cycle_min_range_pct: MAJOR_CYCLE_MIN_RANGE_PCT,
-          major_cycle_min_ath_to_trough_days: MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS,
+          major_cycle_min_range_pct: thresholds.major_cycle_min_range_pct,
+          major_cycle_min_ath_to_trough_days: thresholds.major_cycle_min_ath_to_trough_days,
         },
         duration_basis: 'utc_calendar_days',
         aggregate_mode: 'dual_reporting_completed_only_and_completed_plus_current',
@@ -406,7 +407,7 @@ function normalizeCandles(rows) {
   });
 }
 
-function buildCycles(candles) {
+function buildCycles(candles, thresholds) {
   const athIndices = [];
   let maxHigh = -Infinity;
   for (let i = 0; i < candles.length; i += 1) {
@@ -421,8 +422,9 @@ function buildCycles(candles) {
     return {
       cycles: [],
       raw_ath_cycle_count: 0,
-      majorCycleDetection: {
-        major_cycle_min_range_pct: MAJOR_CYCLE_MIN_RANGE_PCT,
+        majorCycleDetection: {
+        major_cycle_min_range_pct: thresholds.major_cycle_min_range_pct,
+        major_cycle_min_ath_to_trough_days: thresholds.major_cycle_min_ath_to_trough_days,
         raw_ath_events_found: 0,
         raw_ath_cycles_found: 0,
         major_cycles_retained: 0,
@@ -453,10 +455,10 @@ function buildCycles(candles) {
     const daysAthToTrough = utcDayDiff(ath.time_ms, trough.time_ms);
     const drawdownPct = ((trough.close / ath.high) - 1) * 100;
     const drawdownAbsPct = Math.abs(drawdownPct);
-    if (drawdownAbsPct < MAJOR_CYCLE_MIN_RANGE_PCT) {
+    if (drawdownAbsPct < thresholds.major_cycle_min_range_pct) {
       continue;
     }
-    if (daysAthToTrough < MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS) {
+    if (daysAthToTrough < thresholds.major_cycle_min_ath_to_trough_days) {
       continue;
     }
     const completed = nextAthIndex !== null;
@@ -490,13 +492,28 @@ function buildCycles(candles) {
     cycles: cycles,
     raw_ath_cycle_count: rawCycleCount,
     majorCycleDetection: {
-      major_cycle_min_range_pct: MAJOR_CYCLE_MIN_RANGE_PCT,
-      major_cycle_min_ath_to_trough_days: MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS,
+      major_cycle_min_range_pct: thresholds.major_cycle_min_range_pct,
+      major_cycle_min_ath_to_trough_days: thresholds.major_cycle_min_ath_to_trough_days,
       raw_ath_events_found: athIndices.length,
       raw_ath_cycles_found: rawCycleCount,
       major_cycles_retained: cycles.length,
     },
   };
+}
+
+function sanitizeThresholds(input) {
+  const pct = clampNumber(input.major_cycle_min_range_pct, 1, 99, DEFAULT_MAJOR_CYCLE_MIN_RANGE_PCT);
+  const days = clampNumber(input.major_cycle_min_ath_to_trough_days, 1, 2000, DEFAULT_MAJOR_CYCLE_MIN_ATH_TO_TROUGH_DAYS);
+  return {
+    major_cycle_min_range_pct: pct,
+    major_cycle_min_ath_to_trough_days: days,
+  };
+}
+
+function clampNumber(value, min, max, fallback) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
 }
 
 function buildSummary(cycles) {

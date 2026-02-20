@@ -20,8 +20,18 @@
         <section class="card">
             <h2>Run Analysis</h2>
             <p class="hint">
-                Methodology: top 20 non-stable by market cap (CoinGecko USD proxy), Binance spot <code>&lt;BASE&gt;USDT</code> daily candles, and major-cycle inclusion only when drawdown is at least 60% and ATH-to-trough duration is at least 60 UTC days.
+                Methodology: top 20 non-stable by market cap (CoinGecko USD proxy), Binance spot <code>&lt;BASE&gt;USDT</code> daily candles, and major-cycle inclusion only when cycle thresholds below are satisfied.
             </p>
+            <div class="threshold-grid">
+                <label class="field">
+                    <span>Min Drawdown (%)</span>
+                    <input id="min-drawdown-pct" type="number" min="1" max="99" step="1" value="60">
+                </label>
+                <label class="field">
+                    <span>Min ATH to Trough (days)</span>
+                    <input id="min-ath-to-trough-days" type="number" min="1" max="2000" step="1" value="60">
+                </label>
+            </div>
             <div class="controls">
                 <button id="start-btn" class="btn btn-primary" type="button">Run Analysis</button>
                 <button id="cancel-btn" class="btn btn-danger" type="button" disabled>Cancel</button>
@@ -65,7 +75,10 @@
             <div class="json-head">
                 <h2>Structured JSON Output</h2>
             </div>
-            <pre id="json-output" class="json-output">No results yet.</pre>
+            <details id="json-panel" class="json-panel">
+                <summary>Show JSON</summary>
+                <pre id="json-output" class="json-output">No results yet.</pre>
+            </details>
         </section>
 
         <section id="visuals-card" class="card" hidden>
@@ -104,6 +117,7 @@
         </section>
     </main>
 
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="app.js"></script>
     <script src="../../page-frame.js"></script>
 </body>

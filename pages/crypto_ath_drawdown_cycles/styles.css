@@ -100,6 +100,34 @@ h3 {
   gap: 8px;
 }
 
+.threshold-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 0 0 10px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 0.84rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.92rem;
+  color: var(--text);
+  background: #fff;
+}
+
 .btn {
   border: 1px solid transparent;
   border-radius: 8px;
@@ -232,6 +260,27 @@ h3 {
   line-height: 1.45;
 }
 
+.json-panel {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.json-panel summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #234566;
+  background: #f4f9ff;
+  border-bottom: 1px solid #e3edf9;
+}
+
+.json-panel:not([open]) summary {
+  border-bottom: none;
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid var(--border);
@@ -304,6 +353,12 @@ h3 {
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 65%);
 }
 
+.coin-chart-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 .coin-grid-line {
   stroke: #d7e6f8;
   stroke-width: 1;
@@ -328,6 +383,16 @@ h3 {
 }
 
 .coin-axis-label {
+  fill: #48617a;
+  font-size: 10px;
+}
+
+.coin-axis path,
+.coin-axis line {
+  stroke: #c8dbf1;
+}
+
+.coin-axis text {
   fill: #48617a;
   font-size: 10px;
 }
