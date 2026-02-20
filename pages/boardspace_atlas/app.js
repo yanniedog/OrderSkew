@@ -40,6 +40,56 @@
     latentHistory: []
   };
 
+  const debugState = {
+    entries: [],
+    maxEntries: 20000,
+    sequence: 0,
+    logUrl: null
+  };
+
+  function safeSerialize(value) {
+    const seen = new WeakSet();
+    return JSON.stringify(value, function (key, val) {
+      if (typeof val === "object" && val !== null) {
+        if (seen.has(val)) return "[Circular]";
+        seen.add(val);
+      }
+      if (typeof val === "number" && !Number.isFinite(val)) return String(val);
+      if (typeof val === "string" && val.length > 4000) return val.slice(0, 4000) + "...[truncated]";
+      return val;
+    });
+  }
+
+  function summarizeArrayTop(arr, n) {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map(function (v, i) { return { i: i, v: Number(v || 0) }; })
+      .sort(function (a, b) { return b.v - a.v; })
+      .slice(0, n);
+  }
+
+  function logDebug(level, event, details) {
+    debugState.sequence += 1;
+    const entry = {
+      seq: debugState.sequence,
+      ts: new Date().toISOString(),
+      level: level,
+      event: event,
+      details: details || {},
+      context: {
+        game_id: state.gameId,
+        session_id: state.sessionId,
+        status: state.status,
+        ai_job_id: state.aiJobId
+      }
+    };
+    debugState.entries.push(entry);
+    if (debugState.entries.length > debugState.maxEntries) {
+      debugState.entries.shift();
+    }
+    refreshDebugDownloadLink();
+  }
+
   const els = {
     backendUrl: document.getElementById("backend-url"),
     gameSelect: document.getElementById("game-select"),
@@ -63,7 +113,9 @@
     archiveRoot: document.getElementById("atlas-archive"),
     archiveGame: document.getElementById("archive-game"),
     archiveList: document.getElementById("archive-list"),
-    archiveDetail: document.getElementById("archive-detail")
+    archiveDetail: document.getElementById("archive-detail"),
+    downloadDebugLog: document.getElementById("download-debug-log"),
+    debugCount: document.getElementById("debug-count")
   };
 
   const archiveState = {
@@ -73,6 +125,36 @@
     initialized: false
   };
 
+  function buildDebugLogText() {
+    const header = [
+      "BoardSpace Atlas Live Debug Log",
+      "generated_at=" + new Date().toISOString(),
+      "user_agent=" + navigator.userAgent,
+      "page_url=" + window.location.href,
+      "entry_count=" + debugState.entries.length,
+      ""
+    ].join("\n");
+    const lines = debugState.entries.map(function (entry) {
+      return safeSerialize(entry);
+    });
+    return header + lines.join("\n");
+  }
+
+  function refreshDebugDownloadLink() {
+    if (!els.downloadDebugLog) return;
+    const text = buildDebugLogText();
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    if (debugState.logUrl) {
+      URL.revokeObjectURL(debugState.logUrl);
+    }
+    debugState.logUrl = url;
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    els.downloadDebugLog.href = url;
+    els.downloadDebugLog.download = "boardspace_atlas_debug_" + stamp + ".log";
+    if (els.debugCount) els.debugCount.textContent = debugState.entries.length + " entries";
+  }
+
   function persist() {
     saveConfig({
       apiBase: state.apiBase,
@@ -81,19 +163,41 @@
       sims: state.sims,
       analysisMode: state.analysisMode
     });
+    logDebug("DEBUG", "persist.config", {
+      api_base: state.apiBase,
+      game_id: state.gameId,
+      human_player: state.humanPlayer,
+      sims: state.sims,
+      analysis_mode: state.analysisMode
+    });
   }
 
   function setStatus(text) {
+    const previous = state.status;
     state.status = text;
     els.statusChip.textContent = text;
+    logDebug("DEBUG", "status.update", { previous: previous, next: text });
   }
 
   function showSession() {
     els.sessionChip.textContent = state.sessionId ? state.sessionId : "no session";
+    logDebug("DEBUG", "session.chip", { session_id: state.sessionId || null });
   }
 
   async function api(path, options) {
     const base = String(state.apiBase || DEFAULT_API_BASE).replace(/\/+$/, "");
+    const method = (options && options.method) || "GET";
+    const started = performance.now();
+    let requestBody = null;
+    if (options && typeof options.body === "string") {
+      requestBody = options.body.length > 3000 ? options.body.slice(0, 3000) + "...[truncated]" : options.body;
+    }
+    logDebug("DEBUG", "api.request", {
+      method: method,
+      path: path,
+      url: base + path,
+      body: requestBody
+    });
     const response = await fetch(base + path, {
       headers: { "Content-Type": "application/json" },
       ...(options || {})
@@ -104,8 +208,23 @@
     } catch (_) {
       payload = null;
     }
+    const elapsed = Math.round(performance.now() - started);
+    logDebug("DEBUG", "api.response", {
+      method: method,
+      path: path,
+      status: response.status,
+      ok: response.ok,
+      elapsed_ms: elapsed,
+      payload_preview: payload && safeSerialize(payload).slice(0, 3000)
+    });
     if (!response.ok) {
       const detail = payload && (payload.detail || payload.message || JSON.stringify(payload));
+      logDebug("ERROR", "api.error", {
+        method: method,
+        path: path,
+        status: response.status,
+        detail: detail
+      });
       throw new Error("HTTP " + response.status + (detail ? (": " + detail) : ""));
     }
     return payload;
@@ -131,6 +250,7 @@
     if (state.pollingTimer) {
       window.clearInterval(state.pollingTimer);
       state.pollingTimer = null;
+      logDebug("DEBUG", "ai.poll.stop", {});
     }
   }
 
@@ -149,6 +269,10 @@
     }
     state.latentHistory.push(latent.slice());
     if (state.latentHistory.length > 200) state.latentHistory.shift();
+    logDebug("DEBUG", "latent.push", {
+      latent_dim: latent.length,
+      latent_history_size: state.latentHistory.length
+    });
   }
 
   function applyAnalysis(analysis, progress) {
@@ -169,6 +293,13 @@
     const points = renderers.computePca2D(state.latentHistory);
     renderers.renderPcaScatter(els.latentScatter, points, points.length - 1);
     renderTopActions();
+    logDebug("DEBUG", "analysis.apply", {
+      value: v,
+      policy_size: Array.isArray(analysis.policy) ? analysis.policy.length : 0,
+      policy_top5: summarizeArrayTop(analysis.policy || [], 5),
+      latent_dim: Array.isArray(analysis.latent) ? analysis.latent.length : 0,
+      progress: progress || null
+    });
   }
 
   function actionLabel(action) {
@@ -345,6 +476,12 @@
     renderGrid(els.policyBoard, false);
     renderMeta();
     updatePassButton();
+    logDebug("DEBUG", "render.all", {
+      has_session_state: Boolean(state.sessionState),
+      result: state.sessionState ? state.sessionState.result : null,
+      to_play: state.sessionState ? state.sessionState.to_play : null,
+      legal_actions: state.sessionState ? state.sessionState.legal_actions : []
+    });
   }
 
   function archiveBoardText(gameId, board) {
@@ -400,6 +537,12 @@
       emb,
       pos.notes ? ("\nNotes: " + pos.notes) : ""
     ].join("\n");
+    logDebug("DEBUG", "archive.detail", {
+      game_id: game.gameId,
+      position_id: pos.id,
+      label: pos.label,
+      category: pos.category
+    });
   }
 
   function renderArchiveList() {
@@ -417,6 +560,7 @@
       btn.textContent = pos.label;
       btn.addEventListener("click", function () {
         archiveState.positionId = pos.id;
+        logDebug("DEBUG", "archive.position.select", { game_id: archiveState.gameId, position_id: pos.id });
         renderArchiveList();
         renderArchiveDetail();
       });
@@ -446,28 +590,38 @@
       archiveState.gameId = els.archiveGame.value;
       const game = archiveState.data.find(function (g) { return g.gameId === archiveState.gameId; });
       archiveState.positionId = game && game.positions[0] ? game.positions[0].id : null;
+      logDebug("DEBUG", "archive.game.select", { game_id: archiveState.gameId, position_id: archiveState.positionId });
       renderArchiveList();
     });
     renderArchiveList();
+    logDebug("DEBUG", "archive.init", {
+      game_count: archiveState.data.length,
+      default_game: archiveState.gameId,
+      default_position: archiveState.positionId
+    });
   }
 
   async function refreshAnalysis() {
     if (!state.sessionId || state.aiJobId) return;
     try {
+      logDebug("DEBUG", "analysis.refresh.start", { session_id: state.sessionId });
       const analysis = await api("/api/v1/analyze", {
         method: "POST",
         body: JSON.stringify({ session_id: state.sessionId })
       });
       applyAnalysis(analysis, null);
       renderAll();
+      logDebug("DEBUG", "analysis.refresh.done", { session_id: state.sessionId });
     } catch (err) {
       setStatus("analyze error: " + err.message);
+      logDebug("ERROR", "analysis.refresh.error", { error: err.message });
     }
   }
 
   async function playHumanMove(action) {
     if (!state.sessionId || !isHumanTurn() || state.aiJobId) return;
     try {
+      logDebug("DEBUG", "move.human.start", { action: action, session_id: state.sessionId });
       setStatus("playing move...");
       const payload = await api("/api/v1/session/" + encodeURIComponent(state.sessionId) + "/human-move", {
         method: "POST",
@@ -478,13 +632,20 @@
       renderAll();
       await refreshAnalysis();
       maybeStartAiTurn();
+      logDebug("DEBUG", "move.human.done", {
+        action: action,
+        result: state.sessionState.result,
+        next_to_play: state.sessionState.to_play
+      });
     } catch (err) {
       setStatus("move rejected: " + err.message);
+      logDebug("ERROR", "move.human.error", { action: action, error: err.message });
     }
   }
 
   async function runAiMoveBlocking() {
     try {
+      logDebug("DEBUG", "move.ai.blocking.start", { sims: state.sims, session_id: state.sessionId });
       setStatus("AI thinking...");
       const payload = await api("/api/v1/session/" + encodeURIComponent(state.sessionId) + "/ai-move", {
         method: "POST",
@@ -494,8 +655,14 @@
       applyAnalysis(payload.analysis, payload.progress || null);
       setStatus("AI moved");
       renderAll();
+      logDebug("DEBUG", "move.ai.blocking.done", {
+        action: payload.move && payload.move.action,
+        result: state.sessionState.result,
+        next_to_play: state.sessionState.to_play
+      });
     } catch (err) {
       setStatus("AI error: " + err.message);
+      logDebug("ERROR", "move.ai.blocking.error", { error: err.message });
     }
   }
 
@@ -509,6 +676,10 @@
       if (payload.status === "running") {
         setStatus("AI thinking...");
         renderAll();
+        logDebug("DEBUG", "ai.job.running", {
+          job_id: state.aiJobId,
+          progress: payload.progress || null
+        });
         return;
       }
       if (payload.status === "done") {
@@ -517,22 +688,30 @@
         stopPolling();
         setStatus("AI moved");
         renderAll();
+        logDebug("DEBUG", "ai.job.done", {
+          job_id: payload.job_id || state.aiJobId,
+          action: payload.move && payload.move.action,
+          result: state.sessionState.result
+        });
         return;
       }
       state.aiJobId = null;
       stopPolling();
       setStatus("AI job error: " + (payload.error || "unknown"));
       renderAll();
+      logDebug("ERROR", "ai.job.error", { job_id: state.aiJobId, error: payload.error || "unknown" });
     } catch (err) {
       state.aiJobId = null;
       stopPolling();
       setStatus("job poll failed: " + err.message);
       renderAll();
+      logDebug("ERROR", "ai.job.poll.error", { job_id: state.aiJobId, error: err.message });
     }
   }
 
   async function startAiJob() {
     try {
+      logDebug("DEBUG", "ai.job.start.request", { session_id: state.sessionId, sims: state.sims });
       setStatus("AI thinking...");
       const payload = await api("/api/v1/session/" + encodeURIComponent(state.sessionId) + "/ai-move/start", {
         method: "POST",
@@ -541,14 +720,17 @@
       state.aiJobId = payload.job_id;
       stopPolling();
       state.pollingTimer = window.setInterval(pollAiJob, 100);
+      logDebug("DEBUG", "ai.job.start.accepted", { job_id: state.aiJobId });
     } catch (err) {
       setStatus("AI start failed: " + err.message);
+      logDebug("ERROR", "ai.job.start.error", { error: err.message });
     }
   }
 
   function maybeStartAiTurn() {
     if (!state.sessionState || state.sessionState.result !== "ongoing") return;
     if (!isAiTurn()) return;
+    logDebug("DEBUG", "turn.ai.detected", { analysis_mode: state.analysisMode });
     if (state.analysisMode === "live") {
       startAiJob();
     } else {
@@ -566,6 +748,13 @@
     renderAll();
 
     try {
+      logDebug("DEBUG", "session.start.request", {
+        game_id: state.gameId,
+        human_player: state.humanPlayer,
+        sims: state.sims,
+        analysis_mode: state.analysisMode,
+        api_base: state.apiBase
+      });
       setStatus("starting...");
       const payload = await api("/api/v1/session/start", {
         method: "POST",
@@ -583,12 +772,18 @@
       renderAll();
       await refreshAnalysis();
       maybeStartAiTurn();
+      logDebug("DEBUG", "session.start.done", {
+        session_id: state.sessionId,
+        result: state.sessionState.result,
+        to_play: state.sessionState.to_play
+      });
     } catch (err) {
       state.sessionId = null;
       state.sessionState = null;
       showSession();
       setStatus("start failed: " + err.message);
       renderAll();
+      logDebug("ERROR", "session.start.error", { error: err.message });
     }
   }
 
@@ -596,6 +791,7 @@
     els.backendUrl.addEventListener("change", function () {
       state.apiBase = els.backendUrl.value.trim() || DEFAULT_API_BASE;
       persist();
+      logDebug("DEBUG", "ui.backend_url.change", { api_base: state.apiBase });
     });
     els.gameSelect.addEventListener("change", function () {
       state.gameId = els.gameSelect.value;
@@ -604,33 +800,44 @@
       els.aiSims.value = String(state.sims);
       persist();
       renderAll();
+      logDebug("DEBUG", "ui.game.change", { game_id: state.gameId, sims: state.sims });
     });
     els.aiSims.addEventListener("change", function () {
       const n = Number(els.aiSims.value);
       state.sims = Number.isFinite(n) && n > 0 ? Math.round(n) : GAME_META[state.gameId].defaultSims;
       els.aiSims.value = String(state.sims);
       persist();
+      logDebug("DEBUG", "ui.sims.change", { sims: state.sims });
     });
     els.humanSide.addEventListener("change", function () {
       state.humanPlayer = Number(els.humanSide.value) >= 0 ? 1 : -1;
       persist();
+      logDebug("DEBUG", "ui.human_side.change", { human_player: state.humanPlayer });
     });
     els.analysisLive.addEventListener("change", function () {
       state.analysisMode = els.analysisLive.value === "off" ? "off" : "live";
       persist();
+      logDebug("DEBUG", "ui.analysis_mode.change", { analysis_mode: state.analysisMode });
     });
     els.startBtn.addEventListener("click", startSession);
     els.passBtn.addEventListener("click", function () {
+      logDebug("DEBUG", "ui.pass.click", { attempted: true });
       playHumanMove(64);
     });
     if (els.archiveRoot) {
       els.archiveRoot.addEventListener("toggle", function () {
+        logDebug("DEBUG", "archive.toggle", { open: Boolean(els.archiveRoot.open) });
         if (els.archiveRoot.open) initArchive();
       });
     }
   }
 
   function init() {
+    logDebug("DEBUG", "app.init.start", {
+      version_hint: "boardspace_atlas_live_debug_v1",
+      location: window.location.href,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    });
     els.backendUrl.value = state.apiBase;
     els.gameSelect.value = state.gameId;
     els.aiSims.value = String(state.sims);
@@ -640,6 +847,26 @@
     bindEvents();
     renderAll();
     if (els.archiveRoot && els.archiveRoot.open) initArchive();
+    window.addEventListener("error", function (event) {
+      logDebug("ERROR", "window.error", {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno
+      });
+    });
+    window.addEventListener("unhandledrejection", function (event) {
+      logDebug("ERROR", "window.unhandledrejection", {
+        reason: event.reason ? String(event.reason) : "unknown"
+      });
+    });
+    logDebug("DEBUG", "app.init.done", {
+      game_id: state.gameId,
+      api_base: state.apiBase,
+      human_player: state.humanPlayer,
+      sims: state.sims,
+      analysis_mode: state.analysisMode
+    });
   }
 
   init();

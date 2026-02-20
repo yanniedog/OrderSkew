@@ -389,6 +389,29 @@ button.ghost {
   font-size: 12px;
 }
 
+.debug-footer {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  color: #b2c7d6;
+  font-size: 12px;
+}
+
+.debug-footer a {
+  color: #d3ecff;
+  border: 1px solid rgba(169, 196, 213, 0.35);
+  border-radius: 999px;
+  padding: 6px 12px;
+  text-decoration: none;
+  background: rgba(7, 16, 25, 0.72);
+}
+
+.debug-footer a:hover {
+  border-color: rgba(113, 193, 255, 0.8);
+}
+
 @media (max-width: 1220px) {
   .controls {
     grid-template-columns: repeat(3, 1fr);
