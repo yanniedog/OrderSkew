@@ -40,7 +40,9 @@ export async function onRequestPost(context) {
 
   if (!words.length) return json({ scores: {}, details: {}, _debug: { words: 0 } }, 200);
 
-  const ghToken = String(env.GITHUB_TOKEN || "").trim();
+  let ghToken = String(env.GITHUB_TOKEN || "").trim();
+  const emptyTokenValues = ["", "undefined", "none", "null", "false"];
+  if (emptyTokenValues.includes(ghToken.toLowerCase())) ghToken = "";
   const scores = {};
   const details = {};
   const _debug = {
