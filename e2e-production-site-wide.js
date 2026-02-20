@@ -99,37 +99,6 @@ async function runHttpChecks() {
   return failed;
 }
 
-async function checkApiHealth() {
-  if (process.env.SKIP_API_HEALTH === "1") {
-    log("SKIP: Novel Indicator API /api/health (SKIP_API_HEALTH=1)");
-    return 0;
-  }
-  const url = baseUrl + "/api/health";
-  try {
-    const { status, body } = await get(url);
-    if (status !== 200) {
-      log("FAIL: Novel Indicator API /api/health status " + status + " (expected 200). Body snippet: " + (body || "").slice(0, 200));
-      return 1;
-    }
-    let json;
-    try {
-      json = JSON.parse(body);
-    } catch {
-      log("FAIL: Novel Indicator API /api/health response is not JSON. Body snippet: " + (body || "").slice(0, 200));
-      return 1;
-    }
-    if (json.status !== "ok") {
-      log("FAIL: Novel Indicator API /api/health json.status=" + (json.status || "(missing)") + " (expected 'ok')");
-      return 1;
-    }
-    log("OK: Novel Indicator API /api/health 200");
-    return 0;
-  } catch (err) {
-    log("FAIL: Novel Indicator API /api/health " + (err.message || err));
-    return 1;
-  }
-}
-
 function loadPlaywright() {
   const path = require("path");
   try {
@@ -183,7 +152,6 @@ async function main() {
   log("Base URL: " + baseUrl);
   let failed = 0;
   failed += await runHttpChecks();
-  failed += await checkApiHealth();
   failed += await runConsoleChecks();
   if (failed > 0) {
     log("Total failures: " + failed);

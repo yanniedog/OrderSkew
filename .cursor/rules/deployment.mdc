@@ -17,7 +17,7 @@ Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools 
 
 | Purpose | Command | Notes |
 |--------|---------|------|
-| Full production test (site-wide + Domain Wizard + Chess Tree) | `npm run test:production:all` | From repo root. Optional: `SKIP_API_HEALTH=1` if API not deployed. Requires Playwright (e.g. in `pages/domainname_wizard/source/`). |
+| Full production test (exhaustive battery) | `npm run test:production:all` | From repo root. Runs site-wide HTTP, asset checks (root + all tools), link checker, 404 checks, Novel Indicator API, Domain Name Wizard E2E, Chess Tree smoke. Optional: `SKIP_API_HEALTH=1` or `SKIP_NOVEL_API=1` to skip API; `PRODUCTION_SITE_WIDE_CONSOLE=1` for root/hub console checks; `PRODUCTION_FULL_E2E=1` for optional E2E (root, NAB, Crypto ATH, Novel); `PRODUCTION_KEYWORD_VERIFY=1` for Domain Name Wizard keyword E2E. Requires Playwright (e.g. in `pages/domainname_wizard/source/`). |
 | Domain Wizard full test (unit + E2E) | `npm run test:domainname_wizard` | From repo root. Requires `npm install` and `npx playwright install chromium` in `pages/domainname_wizard/source/`. |
 
 ## Subproject: Novel Indicator
@@ -64,10 +64,14 @@ Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools 
 
 ## Full Production Test and Fix-Redeploy Loop
 
-- **Run all production checks**: From repo root, `npm run test:production:all` (or `node test-production-all.js [baseUrl]`). This runs: (1) site-wide HTTP and API health checks (root, tools hub, all five tool entry URLs, Novel Indicator `/api/health`), (2) Domain Name Wizard production tests (assets + static wizard + curated coverage E2E), (3) Chess Tree production smoke. Exit code 0 only if every step passes; 1 on first failure.
+- **Run all production checks**: From repo root, `npm run test:production:all` (or `node test-production-all.js [baseUrl]`). Steps: (1) site-wide HTTP (root, tools hub, all five tool entry URLs), (2) production asset checks (root, NAB, Crypto ATH, Chess Tree, Novel Indicator assets), (3) link checker and 404 checks, (4) Novel Indicator API (health, session, login, me, 404), (5) optional E2E when `PRODUCTION_FULL_E2E=1`, (6) Domain Name Wizard production (assets + static wizard + curated coverage E2E), (7) Chess Tree production smoke. Exit code 0 only if every step passes; 1 on first failure.
 - **Optional env**:
-  - `SKIP_API_HEALTH=1`: Skip Novel Indicator API `/api/health` check (use when API is not deployed or unreachable; full verification requires the API deployed).
+  - `SKIP_API_HEALTH=1` or `SKIP_NOVEL_API=1`: Skip all Novel Indicator API checks (use when API is not deployed or unreachable).
   - `PRODUCTION_SITE_WIDE_CONSOLE=1`: Run Playwright console/network checks on root and tools hub (slower).
+  - `PRODUCTION_FULL_E2E=1`: Run optional minimal E2E for root (Trading Plan Calculator), NAB, Crypto ATH, and Novel Indicator (load and key elements visible).
+  - `PRODUCTION_KEYWORD_VERIFY=1`: Run Domain Name Wizard keyword verification E2E (long; runs e2e-keyword-verification.js against production).
+  - `DOMAINNAME_WIZARD_BACKEND_URL`: When set, run a GET health check against this backend URL (or its /api/health); skip when unset.
+  - `BASE_URL`: Override base URL (default https://www.orderskew.com); can also pass as first argv to scripts.
 - **Fix-redeploy-retest**: If any check fails, fix the cause in the repo, redeploy the affected part, then run `npm run test:production:all` again. Repeat until all pass.
 - **Redeploy by subproject**:
   - **Static site** (root, tools hub, NAB, Domain Name Wizard static, Crypto ATH): Deploy is typically push to host (e.g. Cloudflare Pages / git push). No script in repo; push and wait for host build.
