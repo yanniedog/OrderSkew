@@ -280,33 +280,6 @@
         </div>
     </div>
 
-    <!-- Sticky Mobile Summary -->
-    <div id="mobile-sticky-summary" class="mobile-sticky-footer flex-col lg:hidden">
-        <div class="w-full flex justify-between items-center">
-            <div class="flex flex-col">
-                <span class="text-[10px] text-[var(--color-text-secondary)] font-medium uppercase tracking-wider">Net Profit</span>
-                <span id="sticky-net-profit" class="text-base font-bold text-[var(--color-primary)]">-</span>
-            </div>
-            <button id="sticky-expand-btn" class="p-2.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)] active:scale-90 focus:outline-none transition-all rounded-full hover:bg-[var(--color-card-alt)]">
-                <svg id="sticky-chevron" class="w-5 h-5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
-            </button>
-            <div class="flex flex-col items-end">
-                 <span class="text-[10px] text-[var(--color-text-secondary)] font-medium uppercase tracking-wider">ROI</span>
-                 <span id="sticky-roi" class="text-base font-bold text-green-600">-</span>
-            </div>
-        </div>
-        
-        <!-- Expanded Details -->
-        <div id="sticky-details" class="hidden w-full pt-3 mt-2 border-t border-[var(--color-border)] grid grid-cols-2 gap-y-3 gap-x-4 text-xs animate-fade-in">
-            <div><span id="sticky-label-avg-buy" class="text-[var(--color-text-muted)]">Avg Buy:</span><span id="sticky-avg-buy" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
-            <div class="avg-sell-section"><span id="sticky-label-avg-sell" class="text-[var(--color-text-muted)]">Avg Sell:</span><span id="sticky-avg-sell" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
-            <div><span class="text-[var(--color-text-muted)]">Fees:</span><span id="sticky-fees" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
-            <div><span class="text-[var(--color-text-muted)]">Vol:</span><span id="sticky-vol" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
-            <div><span class="text-[var(--color-text-muted)]">Range Low:</span><span id="sticky-floor" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
-            <div><span class="text-[var(--color-text-muted)]">Range High:</span><span id="sticky-ceiling" class="float-right font-mono font-medium text-[var(--color-text)]">-</span></div>
-        </div>
-    </div>
-
     <div id="app" class="max-w-7xl mx-auto space-y-6 app-shell overflow-x-hidden w-full">
         
         <!-- Header -->
