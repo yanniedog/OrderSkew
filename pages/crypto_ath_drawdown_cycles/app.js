@@ -5,6 +5,7 @@
     startBtn: document.getElementById('start-btn'),
     cancelBtn: document.getElementById('cancel-btn'),
     copyBtn: document.getElementById('copy-btn'),
+    copyTableBtn: document.getElementById('copy-table-btn'),
     downloadBtn: document.getElementById('download-btn'),
     statusLabel: document.getElementById('status-label'),
     statusDetail: document.getElementById('status-detail'),
@@ -28,6 +29,7 @@
   let worker = null;
   let isRunning = false;
   let currentResult = null;
+  let currentTableRows = [];
 
   function ensureWorker() {
     if (worker) return worker;
@@ -56,9 +58,11 @@
       if (els.jsonPanel) els.jsonPanel.open = false;
       setSummary(currentResult);
       try {
-        renderVisuals(currentResult);
+        const rowCount = renderVisuals(currentResult);
+        if (els.copyTableBtn) els.copyTableBtn.disabled = rowCount < 1;
       } catch (error) {
         setError(`Visualization rendering failed: ${error && error.message ? error.message : 'Unknown error'}`);
+        if (els.copyTableBtn) els.copyTableBtn.disabled = true;
       }
       els.copyBtn.disabled = false;
       els.downloadBtn.disabled = false;
@@ -135,6 +139,7 @@
     els.startBtn.disabled = true;
     els.cancelBtn.disabled = false;
     els.copyBtn.disabled = true;
+    if (els.copyTableBtn) els.copyTableBtn.disabled = true;
     els.downloadBtn.disabled = true;
     els.summaryGrid.hidden = true;
     clearVisuals();
@@ -156,13 +161,82 @@
 
   async function copyJson() {
     if (!currentResult) return;
-    const text = JSON.stringify(currentResult, null, 2);
+    await copyText(JSON.stringify(currentResult, null, 2), 'JSON copied to clipboard.');
+  }
+
+  async function copyTable() {
+    if (!currentTableRows.length) return;
+    const text = buildTableTsv(currentTableRows);
+    await copyText(text, 'Table copied to clipboard (TSV).');
+  }
+
+  async function copyText(text, successMessage) {
     try {
-      await navigator.clipboard.writeText(text);
-      setStatus('Done', 'JSON copied to clipboard.');
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        legacyCopyText(text);
+      }
+      setError('');
+      setStatus('Done', successMessage);
     } catch (_) {
       setError('Clipboard copy failed. Your browser may block clipboard access.');
     }
+  }
+
+  function legacyCopyText(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    textArea.remove();
+  }
+
+  function buildTableTsv(rows) {
+    const headers = [
+      'Rank',
+      'Coin',
+      'Cycle',
+      'ATH Date',
+      'ATH High',
+      'Trough Date',
+      'Trough Close',
+      'Drawdown %',
+      'Days ATH to Trough',
+      'Next ATH Date',
+      'Next ATH High',
+      'Recovery Gain %',
+      'Completed'
+    ];
+    const lines = [headers.join('\t')];
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i];
+      const values = [
+        valueOrDash(row.rank),
+        valueOrDash(row.coin),
+        valueOrDash(row.cycleIndex),
+        valueOrDash(row.athDate),
+        formatPrice(row.athHigh),
+        valueOrDash(row.troughDate),
+        formatPrice(row.troughClose),
+        formatPercent(row.drawdownPct),
+        valueOrDash(row.daysAthToTrough),
+        valueOrDash(row.nextAthDate),
+        formatPrice(row.nextAthHigh),
+        formatPercent(row.recoveryPct),
+        valueOrDash(row.completed)
+      ].map(stripTabsAndNewlines);
+      lines.push(values.join('\t'));
+    }
+    return lines.join('\n');
+  }
+
+  function stripTabsAndNewlines(value) {
+    return String(value).replace(/[\t\r\n]+/g, ' ').trim();
   }
 
   function downloadJson() {
@@ -172,7 +246,7 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `top20_exstable_ath_drawdown_cycles_${timestampForFilename(new Date())}.json`;
+    link.download = `crypto_peak_finder_${timestampForFilename(new Date())}.json`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -180,6 +254,7 @@
   }
 
   function clearVisuals() {
+    currentTableRows = [];
     if (els.resultsTableBody) els.resultsTableBody.innerHTML = '';
     if (els.coinCharts) els.coinCharts.innerHTML = '';
     if (els.visualsCard) els.visualsCard.hidden = true;
@@ -191,8 +266,9 @@
     const analyzed = result && result.results && Array.isArray(result.results.analyzed_assets)
       ? result.results.analyzed_assets
       : [];
-    renderCycleTable(analyzed);
+    const rowCount = renderCycleTable(analyzed);
     renderCoinCharts(analyzed);
+    return rowCount;
   }
 
   function renderCycleTable(analyzedAssets) {
@@ -234,7 +310,8 @@
       const noData = `<tr><td colspan="13">No retained major cycles found in analyzed assets for this run.</td></tr>`;
       els.resultsTableBody.innerHTML = noData;
       els.visualsCard.hidden = false;
-      return;
+      currentTableRows = [];
+      return 0;
     }
     const html = rows.map(function (row) {
       return `<tr>
@@ -255,6 +332,8 @@
     }).join('');
     els.resultsTableBody.innerHTML = html;
     els.visualsCard.hidden = false;
+    currentTableRows = rows;
+    return rows.length;
   }
 
   function renderCoinCharts(analyzedAssets) {
@@ -462,5 +541,6 @@
   els.startBtn.addEventListener('click', startRun);
   els.cancelBtn.addEventListener('click', cancelRun);
   els.copyBtn.addEventListener('click', copyJson);
+  if (els.copyTableBtn) els.copyTableBtn.addEventListener('click', copyTable);
   els.downloadBtn.addEventListener('click', downloadJson);
 })();
