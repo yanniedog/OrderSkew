@@ -43,7 +43,7 @@ run(
 );
 
 run(
-  "Novel Indicator API (health, session, login, me, 404); set SKIP_API_HEALTH=1 to skip",
+  "Novel Indicator API (health, session, login, me, 404); set SKIP_NOVEL_API=1 to skip or REQUIRE_NOVEL_API=1 to enforce",
   "node e2e-production-novel-api.js " + baseUrl.replace(/\/$/, "")
 );
 

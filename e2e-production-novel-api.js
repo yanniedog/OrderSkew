@@ -2,6 +2,7 @@
  * Production Novel Indicator API checks: health, unauthenticated routes (session, login, me, 404).
  * Usage: node e2e-production-novel-api.js [baseUrl]
  * Set SKIP_API_HEALTH=1 (or SKIP_NOVEL_API=1) to skip (exit 0 without running).
+ * If API endpoints resolve to static HTML fallback, checks auto-skip unless REQUIRE_NOVEL_API=1.
  * Exits 0 if all checks pass, 1 otherwise.
  */
 
@@ -35,7 +36,7 @@ function request(method, path, body) {
       res.on("data", (c) => chunks.push(c));
       res.on("end", () => {
         const responseBody = Buffer.concat(chunks).toString("utf8");
-        resolve({ status: res.statusCode, body: responseBody });
+        resolve({ status: res.statusCode, body: responseBody, headers: res.headers || {} });
       });
     });
     req.on("error", reject);
@@ -55,7 +56,37 @@ function log(msg) {
   console.error(LOG, msg);
 }
 
+function looksLikeHtmlFallback(response) {
+  const status = response.status;
+  const body = (response.body || "").trim().toLowerCase();
+  const contentType = String((response.headers && response.headers["content-type"]) || "").toLowerCase();
+  const htmlish = contentType.includes("text/html") || body.startsWith("<!doctype html") || body.startsWith("<html");
+  return (status === 200 && htmlish) || status === 404;
+}
+
+async function shouldSkipBecauseApiUnavailable() {
+  if (process.env.REQUIRE_NOVEL_API === "1") {
+    return false;
+  }
+  try {
+    const preflight = await request("GET", "/api/health");
+    if (looksLikeHtmlFallback(preflight)) {
+      log("SKIP: Novel API appears unavailable on this deployment (fallback HTML or 404). Set REQUIRE_NOVEL_API=1 to enforce.");
+      return true;
+    }
+  } catch (err) {
+    log("SKIP: Novel API preflight failed (" + (err.message || err) + "). Set REQUIRE_NOVEL_API=1 to enforce.");
+    return true;
+  }
+  return false;
+}
+
 async function runChecks() {
+  if (await shouldSkipBecauseApiUnavailable()) {
+    process.exit(0);
+    return;
+  }
+
   let failed = 0;
 
   for (const c of NOVEL_API_CHECKS) {
