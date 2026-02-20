@@ -294,6 +294,28 @@
             updateFooterLink();
         }
 
+        function serializeErrorLike(err) {
+            if (!err) return null;
+            if (typeof err === 'string') return { message: err };
+            return {
+                name: err.name || undefined,
+                message: err.message || String(err),
+                stack: err.stack ? String(err.stack).slice(0, 4000) : undefined
+            };
+        }
+
+        function summarizeArg(arg) {
+            if (arg === null || arg === undefined) return arg;
+            if (typeof arg === 'string') return arg.length > 1000 ? arg.slice(0, 1000) + '...[truncated]' : arg;
+            if (typeof arg === 'number' || typeof arg === 'boolean') return arg;
+            if (arg instanceof Error) return serializeErrorLike(arg);
+            try {
+                return JSON.parse(safeJson(redactDeep(arg, '')));
+            } catch (_) {
+                return String(arg);
+            }
+        }
+
         function clear() {
             state.entries = [];
             state.seq = 0;
@@ -321,18 +343,46 @@
             window.__osUniversalDebugHooksInstalled = true;
 
             window.addEventListener('error', function (event) {
+                var target = event.target;
+                if (target && target !== window) {
+                    log('ERROR', 'resource.error', {
+                        target: targetSummary(target),
+                        src: target.currentSrc || target.src || target.href || null
+                    });
+                    return;
+                }
                 log('ERROR', 'window.error', {
                     message: event.message,
                     filename: event.filename,
                     lineno: event.lineno,
-                    colno: event.colno
+                    colno: event.colno,
+                    error: serializeErrorLike(event.error)
                 });
-            });
+            }, true);
 
             window.addEventListener('unhandledrejection', function (event) {
                 log('ERROR', 'window.unhandledrejection', {
-                    reason: event.reason ? String(event.reason) : 'unknown'
+                    reason: summarizeArg(event.reason)
                 });
+            });
+
+            window.addEventListener('securitypolicyviolation', function (event) {
+                log('ERROR', 'security.csp_violation', {
+                    blocked_uri: event.blockedURI,
+                    violated_directive: event.violatedDirective,
+                    effective_directive: event.effectiveDirective,
+                    source_file: event.sourceFile,
+                    line: event.lineNumber,
+                    column: event.columnNumber
+                });
+            });
+
+            window.addEventListener('offline', function () {
+                log('WARN', 'network.offline', { href: window.location.href });
+            });
+
+            window.addEventListener('online', function () {
+                log('DEBUG', 'network.online', { href: window.location.href });
             });
 
             document.addEventListener('click', function (event) {
@@ -409,7 +459,8 @@
                     var bodyPreview = init && typeof init.body === 'string' ? redactStringPayload(init.body) : undefined;
                     log('DEBUG', 'net.fetch.request', { method: method, url: url, body: bodyPreview });
                     return nativeFetch(input, init).then(function (res) {
-                        log('DEBUG', 'net.fetch.response', {
+                        var level = res.ok ? 'DEBUG' : 'ERROR';
+                        log(level, res.ok ? 'net.fetch.response' : 'net.fetch.http_error', {
                             method: method,
                             url: url,
                             status: res.status,
@@ -445,25 +496,107 @@
                         body: typeof body === 'string' ? redactStringPayload(body) : undefined
                     });
                     this.addEventListener('loadend', function () {
-                        log('DEBUG', 'net.xhr.response', {
+                        var ok = this.status >= 200 && this.status < 400;
+                        log(ok ? 'DEBUG' : 'ERROR', ok ? 'net.xhr.response' : 'net.xhr.http_error', {
                             method: this.__osMethod || 'GET',
                             url: this.__osUrl || '',
                             status: this.status,
                             elapsed_ms: Math.round(performance.now() - (this.__osStarted || performance.now()))
                         });
                     });
+                    this.addEventListener('error', function () {
+                        log('ERROR', 'net.xhr.error', {
+                            method: this.__osMethod || 'GET',
+                            url: this.__osUrl || ''
+                        });
+                    });
+                    this.addEventListener('timeout', function () {
+                        log('ERROR', 'net.xhr.timeout', {
+                            method: this.__osMethod || 'GET',
+                            url: this.__osUrl || ''
+                        });
+                    });
+                    this.addEventListener('abort', function () {
+                        log('WARN', 'net.xhr.abort', {
+                            method: this.__osMethod || 'GET',
+                            url: this.__osUrl || ''
+                        });
+                    });
                     return send.apply(this, arguments);
                 };
             }
+
+            if (window.Worker && !window.Worker.__osWrapped) {
+                var NativeWorker = window.Worker;
+                var WrappedWorker = function (scriptURL, options) {
+                    var worker = options === undefined ? new NativeWorker(scriptURL) : new NativeWorker(scriptURL, options);
+                    log('DEBUG', 'worker.create', { script: String(scriptURL || '') });
+                    worker.addEventListener('error', function (event) {
+                        log('ERROR', 'worker.error', {
+                            script: String(scriptURL || ''),
+                            message: event && event.message,
+                            filename: event && event.filename,
+                            lineno: event && event.lineno,
+                            colno: event && event.colno
+                        });
+                    });
+                    worker.addEventListener('messageerror', function (event) {
+                        log('ERROR', 'worker.messageerror', {
+                            script: String(scriptURL || ''),
+                            data: summarizeArg(event && event.data)
+                        });
+                    });
+                    return worker;
+                };
+                WrappedWorker.prototype = NativeWorker.prototype;
+                Object.setPrototypeOf(WrappedWorker, NativeWorker);
+                WrappedWorker.__osWrapped = true;
+                window.Worker = WrappedWorker;
+            }
+
+            if (window.console && !window.console.__osWrapped) {
+                var originalError = console.error ? console.error.bind(console) : null;
+                var originalWarn = console.warn ? console.warn.bind(console) : null;
+                if (originalError) {
+                    console.error = function () {
+                        try {
+                            var args = Array.prototype.slice.call(arguments).map(summarizeArg);
+                            log('ERROR', 'console.error', { args: args });
+                        } catch (_) {}
+                        return originalError.apply(console, arguments);
+                    };
+                }
+                if (originalWarn) {
+                    console.warn = function () {
+                        try {
+                            var args = Array.prototype.slice.call(arguments).map(summarizeArg);
+                            log('WARN', 'console.warn', { args: args });
+                        } catch (_) {}
+                        return originalWarn.apply(console, arguments);
+                    };
+                }
+                window.console.__osWrapped = true;
+            }
+
+            window.addEventListener('pagehide', function () {
+                storageSaveNow();
+            });
+            window.addEventListener('beforeunload', function () {
+                storageSaveNow();
+            });
         }
 
         storageLoad();
         var logger = {
             log: log,
             clear: clear,
-            updateFooter: attachFooterActions
+            updateFooter: attachFooterActions,
+            flush: storageSaveNow
         };
         window.OrderSkewDebugLogger = logger;
+        window.OrderSkewLog = function (level, event, details) {
+            try { log(level || 'DEBUG', event || 'custom.event', details || {}); } catch (_) {}
+        };
         installGlobalHooks();
         log('DEBUG', 'logger.init', {
             persisted_entries: state.entries.length,
@@ -528,6 +661,8 @@
         logger.updateFooter();
         loadCommitStamp();
     }
+
+    createUniversalLogger();
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
