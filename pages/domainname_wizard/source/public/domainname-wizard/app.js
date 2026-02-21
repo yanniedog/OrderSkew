@@ -1673,6 +1673,7 @@
 
     if (job.results) {
       currentResults = job.results;
+      resultsPanelEl.hidden = false;
       if (job.status === 'done' || job.status === 'failed') {
         if (renderResultsTimeoutId != null) {
           clearTimeout(renderResultsTimeoutId);
