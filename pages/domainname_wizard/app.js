@@ -31,7 +31,6 @@
   const clearDomainFiltersBtn = document.getElementById('clear-domain-filters-btn');
   const domainFilterStatusEl = document.getElementById('domain-filter-status');
   const summaryKpisEl = document.getElementById('summary-kpis');
-  const allRankedTableEl = document.getElementById('all-ranked-table');
   const withinBudgetTableEl = document.getElementById('within-budget-table');
   const unavailableTableEl = document.getElementById('unavailable-table');
   const loopSummaryTableEl = document.getElementById('loop-summary-table');
@@ -68,7 +67,6 @@
   const TABLE_PAGE_SIZE = 200;
   const tablePageState = {};
   const SECTION_COLUMN_OPTIONS = {
-    'all-ranked-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'within-budget-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
@@ -76,7 +74,6 @@
     'keyword-library-table': ['rank', 'word', 'state', 'usage', 'evidence', 'lastLoop'],
   };
   const DEFAULT_SECTION_COLUMNS = {
-    'all-ranked-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'within-budget-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
@@ -490,7 +487,7 @@
   }
 
   function resetDomainTablePages() {
-    ['all-ranked-table', 'within-budget-table', 'unavailable-table'].forEach(function (id) {
+    ['within-budget-table', 'unavailable-table'].forEach(function (id) {
       tablePageState[id] = 1;
     });
   }
@@ -1006,7 +1003,6 @@
 
   function captureResultsScrollState() {
     const ids = [
-      'all-ranked-table',
       'within-budget-table',
       'unavailable-table',
       'loop-summary-table',
@@ -1390,10 +1386,7 @@
       };
     });
     var combinedRanked = allRanked.concat(pendingRows);
-    if (sectionId === 'all-ranked-table') {
-      rows = sortRows(applyDomainFilters(combinedRanked), sortMode).map(domainRowForCsv);
-      columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
-    } else if (sectionId === 'within-budget-table') {
+    if (sectionId === 'within-budget-table') {
       rows = sortRows(applyDomainFilters(results.withinBudget || []), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
     } else if (sectionId === 'unavailable-table') {
@@ -1418,7 +1411,7 @@
     var visible = getVisibleColumns(sectionId);
     if (visible && visible.length && columns && columns.length) {
       var keyMap = {};
-      if (sectionId === 'all-ranked-table' || sectionId === 'within-budget-table' || sectionId === 'unavailable-table') {
+      if (sectionId === 'within-budget-table' || sectionId === 'unavailable-table') {
         keyMap = {
           estimatedValue: 'estimatedValueUSD',
           notes: '_valueDriversStr',
@@ -1450,7 +1443,6 @@
 
   function getFullCsv(results, sortMode) {
     var sections = [
-      { id: 'all-ranked-table', title: 'All Ranked Available Domains' },
       { id: 'within-budget-table', title: 'Within Budget' },
       { id: 'unavailable-table', title: 'Unavailable' },
       { id: 'loop-summary-table', title: 'Loop Summaries' },
@@ -1636,7 +1628,7 @@
     if (!rows || rows.length === 0) {
       return '<p>No rows.</p>';
     }
-    const sec = sectionId || 'all-ranked-table';
+    const sec = sectionId || 'within-budget-table';
     const show = function (key) { return isColumnVisible(sec, key); };
     const headerCells = [];
     if (show('domain')) headerCells.push(th('Domain', 'The full candidate domain name including TLD.'));
@@ -1932,7 +1924,6 @@
     const withinBudget = sortRows(filteredWithinBudget, currentSortMode);
     const unavailable = sortRows(filteredUnavailable, currentSortMode);
     const tokenPerfLookup = buildTokenPerformanceLookup(results.keywordLibrary || null);
-    const rankedPage = paginateRows('all-ranked-table', sortedRanked);
     const withinPage = paginateRows('within-budget-table', withinBudget);
     const unavailablePage = paginateRows('unavailable-table', unavailable);
     const loopPage = paginateRows('loop-summary-table', results.loopSummaries || []);
@@ -1948,7 +1939,6 @@
     updateDomainFilterStatus(combinedRanked.length, sortedRanked.length);
 
     renderSummary(results);
-    allRankedTableEl.innerHTML = renderDomainTable(rankedPage.rows, false, 'all-ranked-table') + renderPager('all-ranked-table', rankedPage);
     withinBudgetTableEl.innerHTML = renderDomainTable(withinPage.rows, false, 'within-budget-table') + renderPager('within-budget-table', withinPage);
     unavailableTableEl.innerHTML = renderDomainTable(unavailablePage.rows, true, 'unavailable-table') + renderPager('unavailable-table', unavailablePage);
 
@@ -2261,7 +2251,6 @@
   }
 
   var SECTION_CSV_FILENAMES = {
-    'all-ranked-table': 'domainname_wizard_all_ranked.csv',
     'within-budget-table': 'domainname_wizard_within_budget.csv',
     'unavailable-table': 'domainname_wizard_unavailable.csv',
     'loop-summary-table': 'domainname_wizard_loop_summaries.csv',
