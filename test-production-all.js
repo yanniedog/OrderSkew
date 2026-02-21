@@ -2,7 +2,7 @@
  * Run all production tests for www.orderskew.com. Exits 0 only if every step passes; 1 on first failure.
  * Usage: node test-production-all.js [baseUrl]
  * Example: node test-production-all.js https://www.orderskew.com
- * Steps: site-wide HTTP, asset checks, link checker + 404, Novel Indicator API, optional E2E, Domain Name Wizard production, keyword verify (optional), Domain Name Wizard backend health (optional), Chess Tree smoke.
+ * Steps: site-wide HTTP, asset checks, link checker + 404, Novel Indicator API, optional E2E, Domain Name Wizard production, keyword verify (optional), Domain Name Wizard backend health (optional).
  */
 
 const { execSync } = require("child_process");
@@ -33,7 +33,7 @@ run(
 );
 
 run(
-  "Production asset checks (root, NAB, Crypto ATH, Chess Tree, BoardSpace Atlas, Novel Indicator)",
+  "Production asset checks (root, NAB, Crypto ATH, BoardSpace Atlas, Novel Indicator)",
   "node e2e-production-assets.js " + baseUrl.replace(/\/$/, "")
 );
 
@@ -66,8 +66,6 @@ run(
   "Domain Name Wizard backend health; set DOMAINNAME_WIZARD_BACKEND_URL to run",
   "node e2e-production-domainname-backend.js"
 );
-
-run("Chess Tree production smoke", "npm run test:chess_tree:prod");
 
 console.error("[test-production-all] All production checks passed.");
 process.exit(0);

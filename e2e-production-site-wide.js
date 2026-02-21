@@ -70,7 +70,6 @@ const SITE_WIDE_CHECKS = [
   { path: "/pages/novel_indicator/index.html", name: "Novel Indicator", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/domainname_wizard/index.html", name: "Domain Name Wizard", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/crypto_ath_drawdown_cycles/index.html", name: "Crypto ATH drawdown", expectStatus: HTML_OK_STATUSES, expectHtml: true },
-  { path: "/pages/chess_tree/index.html", name: "Chess Tree", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/boardspace_atlas/index.html", name: "BoardSpace Atlas", expectStatus: HTML_OK_STATUSES, expectHtml: true },
 ];
 

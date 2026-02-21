@@ -12,8 +12,3 @@
 *.log
 pages/domainname_wizard/temporary-logs-manually-saved/*.*
 pages/domainname_wizard/source/keyword-verification-results.png
-
-# Chess tree / Rust: build and tooling
-tools/chess_tree/source/target/
-**/target/
-*.rs.bk

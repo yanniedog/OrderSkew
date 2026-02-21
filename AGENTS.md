@@ -1,11 +1,30 @@
----
-description: "Deployment configuration and verification standards for Order Skew"
-alwaysApply: true
----
-
 # Order Skew Project Configuration
 
 Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools hub at `pages/`, and multiple subprojects with different deploy and test flows.
+
+## Hard Enforcement Rules (Must Always Be Followed)
+
+These rules are mandatory and override any conflicting preference.
+
+1. Before claiming any deploy-related task is complete, run from repo root:
+   - `npm run test:production:all`
+2. If the command exits non-zero:
+   - Do not mark the task complete.
+   - Fix the failure, redeploy the affected subproject, and rerun `npm run test:production:all`.
+   - Repeat until the command exits `0`.
+3. In the final response for deploy-related tasks, include evidence:
+   - Exact command run.
+   - Exit code.
+   - Brief pass/fail summary by major check group.
+4. Deploy or production-impacting changes are not complete unless all required checks pass or the user explicitly instructs to skip checks.
+5. Allowed skip flags must be explicitly stated when used:
+   - `SKIP_API_HEALTH=1`
+   - `SKIP_NOVEL_API=1`
+   - `PRODUCTION_SITE_WIDE_CONSOLE=1`
+   - `PRODUCTION_FULL_E2E=1`
+   - `PRODUCTION_KEYWORD_VERIFY=1`
+6. Never present assumptions as verification.
+   - If a check was not run, state it was not run.
 
 ## Production and Hosting
 
@@ -16,7 +35,7 @@ Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools 
 ## Repo-Level Commands
 
 | Purpose | Command | Notes |
-|--------|---------|------|
+|-----|---|---|
 | Full production test (exhaustive battery) | `npm run test:production:all` | From repo root. Runs site-wide HTTP, asset checks (root + all tools), link checker, 404 checks, Novel Indicator API, Domain Name Wizard E2E. Optional: `SKIP_API_HEALTH=1` or `SKIP_NOVEL_API=1` to skip API; `PRODUCTION_SITE_WIDE_CONSOLE=1` for root/hub console checks; `PRODUCTION_FULL_E2E=1` for optional E2E (root, NAB, Crypto ATH, Novel); `PRODUCTION_KEYWORD_VERIFY=1` for Domain Name Wizard keyword E2E. Requires Playwright (e.g. in `pages/domainname_wizard/source/`). |
 | Domain Wizard full test (unit + E2E) | `npm run test:domainname_wizard` | From repo root. Requires `npm install` and `npx playwright install chromium` in `pages/domainname_wizard/source/`. |
 

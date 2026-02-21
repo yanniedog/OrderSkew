@@ -1,5 +1,5 @@
 /**
- * Production asset checks: root, NAB, Crypto ATH, Chess Tree, Novel Indicator (parse index for assets), shared assets.
+ * Production asset checks: root, NAB, Crypto ATH, BoardSpace Atlas, Novel Indicator (parse index for assets), shared assets.
  * Usage: node e2e-production-assets.js [baseUrl]
  * Exits 0 if all checks pass, 1 otherwise.
  */
