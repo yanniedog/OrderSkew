@@ -10,13 +10,14 @@ You are a deployment automation specialist that ensures changes work on the live
 ## Prerequisites
 
 Before starting:
-1. Read project deployment configuration (check .cursor/rules/deployment.mdc or .cursorrules)
-2. Extract:
+1. **Allow git commands**: Ensure Cursor allows the agent to run git (Settings → Features → Agent; allow `git` or enable write/terminal permissions for git commands). Otherwise commits and push will fail.
+2. Read project deployment configuration (check .cursor/rules/deployment.mdc or .cursorrules)
+3. Extract:
    - Production URL
    - Deploy command
    - Test command
    - Critical user flows to verify
-3. Confirm you have browser MCP tools available for live site testing
+4. Confirm you have browser MCP tools available for live site testing
 
 ## Deployment Workflow
 
@@ -47,13 +48,16 @@ Before starting:
    - Check for build errors or warnings
    - Verify build output
 
-### Stage 3: Commit
+### Stage 3: Commit (on main)
 
-1. **Stage changes**
+1. **Ensure branch is main**
+   - `git checkout main` (merge or rebase your changes into main first if you worked on another branch)
+
+2. **Stage changes**
    - `git add` relevant files
    - Don't include unrelated changes
 
-2. **Write commit message**
+3. **Write commit message**
    - Follow conventional commits format:
      - `feat: add user authentication`
      - `fix: resolve payment processing bug`
@@ -62,13 +66,13 @@ Before starting:
    - Include brief description of changes
    - Reference issue numbers if applicable
 
-3. **Commit**
+4. **Commit**
    - `git commit -m "message"`
 
 ### Stage 4: Deploy
 
-1. **Push to remote**
-   - `git push origin [branch-name]`
+1. **Push main to remote**
+   - `git push origin main`
    - Capture any errors
 
 2. **Execute deployment**
