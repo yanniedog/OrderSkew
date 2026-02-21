@@ -1,0 +1,2 @@
+{"sessionId":"d7acbb","location":"client.ts:serverFetch","message":"API request failed","data":{"url":"http://localhost:5173/api/auth/session","method":"GET","status":401,"path":"/api/auth/session","origin":"http://localhost:5173"},"hypothesisId":"H1","timestamp":1771421755334}
+{"sessionId":"d7acbb","location":"client.ts:serverFetch","message":"API request failed","data":{"url":"http://localhost:5173/api/auth/session","method":"GET","status":401,"path":"/api/auth/session","origin":"http://localhost:5173"},"hypothesisId":"H1","timestamp":1771421755352}

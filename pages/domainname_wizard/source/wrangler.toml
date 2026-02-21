@@ -1,0 +1,12 @@
+# Cloudflare Worker for domain availability API.
+# Deploy: npx wrangler deploy
+# Set secrets: npx wrangler secret put GODADDY_API_KEY (and GODADDY_API_SECRET, GODADDY_ENV)
+
+name = "domainname-wizard-availability"
+main = "cloudflare-availability-worker.js"
+compatibility_date = "2024-01-01"
+
+# Routes: uncomment and set your zone/domain if you want a custom URL, e.g.:
+# routes = [{ pattern = "api.yourdomain.com/api/domains/availability", zone_name = "yourdomain.com" }]
+# Otherwise the Worker will be at https://domainname-wizard-availability.<your-subdomain>.workers.dev
+# The wizard expects the base URL (e.g. https://domainname-wizard-availability.xxx.workers.dev) and will call /api/domains/availability

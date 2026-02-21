@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NAB Homeloan Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-grid" aria-hidden="true"></div>
+    <div class="bg-orb orb-a" aria-hidden="true"></div>
+    <div class="bg-orb orb-b" aria-hidden="true"></div>
+
+    <main class="shell">
+        <header class="surface hero">
+            <p class="eyebrow">NAB Homeloan Calculator</p>
+            <h1>Fast, local mortgage analysis from your transaction CSV</h1>
+            <p class="hero-copy">
+                Drop in a Pocketsmith export, inspect offset impact, and run repayment scenarios with daily-interest projection logic.
+            </p>
+        </header>
+
+        <section class="surface upload" aria-labelledby="upload-title">
+            <div class="section-head">
+                <h2 id="upload-title">1. Upload transaction history</h2>
+                <p>Local browser processing only. No backend storage.</p>
+            </div>
+            <div class="upload-shell">
+                <input type="file" id="pocketsmithFile" accept=".csv" class="file-input-hidden">
+                <div class="upload-actions">
+                    <button id="uploadBtn" type="button">Choose CSV</button>
+                    <button id="analyzeBtn" type="button" disabled>Analyze</button>
+                </div>
+                <p id="selectedFileName" class="selected-file">No file selected</p>
+                <div id="uploadStatus" class="status-box"></div>
+            </div>
+        </section>
+
+        <section id="groundTruthSection" class="surface hidden" aria-labelledby="ground-truth-title">
+            <div class="section-head">
+                <h2 id="ground-truth-title">Optional ground truth</h2>
+                <p>Use if you want tighter categorization of repayment behavior.</p>
+            </div>
+            <form id="groundTruthForm" class="form-grid compact" novalidate>
+                <label>
+                    <span>Current interest rate (% p.a.)</span>
+                    <input type="number" id="currentInterestRate" step="0.01" min="0" max="100">
+                </label>
+                <label>
+                    <span>As-of date</span>
+                    <input type="date" id="asOfDate">
+                </label>
+                <label>
+                    <span>Scheduled monthly repayment (AUD)</span>
+                    <input type="number" id="scheduledMonthlyRepayment" step="0.01" min="0">
+                </label>
+                <div class="action-row">
+                    <button id="skipGroundTruthBtn" class="secondary" type="button">Skip</button>
+                    <button id="submitWithGroundTruthBtn" type="button">Apply & Continue</button>
+                </div>
+            </form>
+        </section>
+
+        <section id="analysisSummary" class="surface hidden" aria-labelledby="analysis-title">
+            <div class="section-head">
+                <h2 id="analysis-title">Transaction analysis summary</h2>
+                <p>Derived from detected loan/offset accounts and interest periods.</p>
+            </div>
+            <div class="result-grid">
+                <article class="metric-card">
+                    <h3>Effective monthly rate</h3>
+                    <p id="analyzedEffectiveRate">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Projected payoff date</h3>
+                    <p id="analyzedPayoffDate">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Transactions processed</h3>
+                    <p id="analyzedTransactionCount">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Current annual rate</h3>
+                    <p id="analyzedCurrentRate">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Current offset balance</h3>
+                    <p id="analyzedCurrentMargin">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Rate change from initial</h3>
+                    <p id="analyzedRateChange">-</p>
+                </article>
+                <article class="metric-card highlight">
+                    <h3>Total interest saved</h3>
+                    <p id="analyzedTotalSavings">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Average offset balance</h3>
+                    <p id="analyzedAvgOffset">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Projected annual savings</h3>
+                    <p id="analyzedProjectedSavings">-</p>
+                </article>
+            </div>
+            <p id="analyzedAccounts" class="helper-text"></p>
+        </section>
+
+        <div class="workspace">
+            <section class="surface" aria-labelledby="inputs-title">
+                <div class="section-head">
+                    <h2 id="inputs-title">2. Configure scenario</h2>
+                    <p>Tune repayment strategy and offset assumptions.</p>
+                </div>
+                <form id="loan-form" class="form-grid" novalidate>
+                    <label>
+                        <span>Loan amount (AUD)</span>
+                        <input id="loan-amount" type="number" min="1" step="1000" value="650000" required>
+                    </label>
+
+                    <label>
+                        <span>Interest rate (% p.a.)</span>
+                        <input id="interest-rate" type="number" min="0" max="100" step="0.01" value="6.19" required>
+                    </label>
+
+                    <label>
+                        <span>Loan term (years)</span>
+                        <input id="loan-term-years" type="number" min="1" max="50" step="1" value="30" required>
+                    </label>
+
+                    <label>
+                        <span>Repayment frequency</span>
+                        <select id="repayment-frequency">
+                            <option value="monthly" selected>Monthly</option>
+                            <option value="fortnightly">Fortnightly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span>Offset balance (AUD)</span>
+                        <input id="offset-balance" type="number" min="0" step="100" value="0">
+                    </label>
+
+                    <label>
+                        <span>Extra repayment per period (AUD)</span>
+                        <input id="extra-repayment" type="number" min="0" step="10" value="0">
+                    </label>
+
+                    <label>
+                        <span>Start date</span>
+                        <input id="start-date" type="date" required>
+                    </label>
+
+                    <div class="action-row">
+                        <button id="calculate-btn" type="submit">Calculate</button>
+                        <button id="reset-btn" type="button" class="secondary">Reset</button>
+                    </div>
+                </form>
+                <p class="helper-text">
+                    Fixed-rate assumption. Interest is accrued daily using actual day counts.
+                </p>
+            </section>
+
+            <section class="surface" aria-labelledby="results-title">
+                <div class="section-head">
+                    <h2 id="results-title">3. Compare outcomes</h2>
+                    <p>Baseline loan versus your offset + extra repayment plan.</p>
+                </div>
+                <div id="error-box" class="error-box hidden" role="alert"></div>
+                <div class="result-grid">
+                    <article class="metric-card">
+                        <h3>Minimum repayment</h3>
+                        <p id="minimum-repayment">-</p>
+                    </article>
+                    <article class="metric-card">
+                        <h3>Planned repayment</h3>
+                        <p id="planned-repayment">-</p>
+                    </article>
+                    <article class="metric-card">
+                        <h3>Projected payoff date</h3>
+                        <p id="payoff-date">-</p>
+                    </article>
+                    <article class="metric-card">
+                        <h3>Interest (no plan)</h3>
+                        <p id="baseline-interest">-</p>
+                    </article>
+                    <article class="metric-card">
+                        <h3>Interest (with plan)</h3>
+                        <p id="optimized-interest">-</p>
+                    </article>
+                    <article class="metric-card highlight">
+                        <h3>Estimated interest saved</h3>
+                        <p id="interest-saved">-</p>
+                    </article>
+                    <article class="metric-card">
+                        <h3>Loan term reduction</h3>
+                        <p id="term-reduction">-</p>
+                    </article>
+                    <article class="metric-card">
+                        <h3>Total paid (with plan)</h3>
+                        <p id="total-paid">-</p>
+                    </article>
+                </div>
+            </section>
+        </div>
+
+        <section class="surface chart-surface" aria-labelledby="chart-title">
+            <div class="section-head">
+                <h2 id="chart-title">Balance projection</h2>
+                <p>Blue: baseline path. Green: optimized plan.</p>
+            </div>
+            <canvas id="balance-chart" width="900" height="320" aria-label="Loan balance chart"></canvas>
+        </section>
+
+        <section class="surface" aria-labelledby="table-title">
+            <div class="panel-head">
+                <h2 id="table-title">Repayment schedule</h2>
+                <button id="download-csv-btn" type="button" class="secondary">Download CSV</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Period</th>
+                            <th>Date</th>
+                            <th>Days</th>
+                            <th>Payment</th>
+                            <th>Interest</th>
+                            <th>Principal</th>
+                            <th>Ending balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body"></tbody>
+                </table>
+            </div>
+            <p id="schedule-note" class="helper-text"></p>
+        </section>
+    </main>
+
+    <script src="nab_utils.js"></script>
+    <script src="app.js"></script>
+    <script src="../../page-frame.js"></script>
+</body>
+</html>

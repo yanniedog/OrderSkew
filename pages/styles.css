@@ -1,0 +1,163 @@
+:root {
+    --bg-a: #f5f8ff;
+    --bg-b: #f0fff9;
+    --text: #172235;
+    --muted: #4f6077;
+    --card: #ffffff;
+    --border: #d8e3f5;
+    --primary: #0a84ff;
+    --primary-dark: #0066d6;
+    --accent: #00a67e;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--text);
+    background: linear-gradient(145deg, var(--bg-a), var(--bg-b));
+    position: relative;
+}
+
+.page-bg {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 10% 20%, rgba(10, 132, 255, 0.18) 0%, transparent 38%),
+        radial-gradient(circle at 90% 10%, rgba(0, 166, 126, 0.14) 0%, transparent 35%),
+        radial-gradient(circle at 50% 100%, rgba(10, 132, 255, 0.11) 0%, transparent 40%);
+}
+
+.container {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 48px 20px 28px;
+    position: relative;
+    z-index: 1;
+}
+
+.hero {
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 30px;
+    backdrop-filter: blur(4px);
+    box-shadow: 0 16px 42px rgba(23, 34, 53, 0.09);
+}
+
+.eyebrow {
+    margin: 0;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 700;
+}
+
+h1 {
+    margin: 8px 0 10px;
+    font-size: clamp(1.8rem, 3.6vw, 2.7rem);
+}
+
+.subtitle {
+    margin: 0;
+    color: var(--muted);
+    max-width: 720px;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    transition: transform 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+.btn-secondary {
+    background: #fff;
+    border-color: var(--border);
+    color: var(--text);
+}
+
+.tool-grid {
+    margin-top: 22px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.tool-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 10px 24px rgba(23, 34, 53, 0.06);
+}
+
+.tool-card h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.tool-card p {
+    margin: 10px 0 18px;
+    color: var(--muted);
+    line-height: 1.45;
+    font-size: 0.95rem;
+}
+
+.card-link {
+    color: var(--primary-dark);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.card-link:hover {
+    text-decoration: underline;
+}
+
+.placeholder .card-tag {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(0, 166, 126, 0.12);
+    color: #00795c;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+@media (max-width: 680px) {
+    .hero {
+        padding: 22px 16px;
+    }
+}

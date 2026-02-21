@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Crypto Peak Finder | OrderSkew Tools</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-bg" aria-hidden="true"></div>
+    <main class="container">
+        <header class="hero card">
+            <p class="eyebrow">OrderSkew Toolkit</p>
+            <h1>Crypto Peak Finder</h1>
+            <p class="subtitle">
+                Computes ATH cycle drawdown analytics for the top 20 non-stablecoins by market cap, using CoinGecko for ranking and Binance daily USDT candles for historical price cycles.
+            </p>
+        </header>
+
+        <section class="card">
+            <h2>Run Analysis</h2>
+            <p class="hint">
+                Methodology: top 20 non-stable by market cap (CoinGecko USD proxy), Binance spot <code>&lt;BASE&gt;USDT</code> daily candles, and major-cycle inclusion only when cycle thresholds below are satisfied.
+            </p>
+            <div class="threshold-grid">
+                <label class="field">
+                    <span>Min Drawdown (%)</span>
+                    <input id="min-drawdown-pct" type="number" min="1" max="99" step="1" value="60">
+                </label>
+                <label class="field">
+                    <span>Min ATH to Trough (days)</span>
+                    <input id="min-ath-to-trough-days" type="number" min="1" max="2000" step="1" value="60">
+                </label>
+            </div>
+            <div class="controls">
+                <button id="start-btn" class="btn btn-primary" type="button">Run Analysis</button>
+                <button id="cancel-btn" class="btn btn-danger" type="button" disabled>Cancel</button>
+                <button id="copy-btn" class="btn btn-secondary" type="button" disabled>Copy JSON</button>
+                <button id="download-btn" class="btn btn-secondary" type="button" disabled>Download JSON</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="status-head">
+                <h2>Status</h2>
+                <span id="status-label" class="status-label">Idle</span>
+            </div>
+            <p id="status-detail" class="status-detail">Ready to run.</p>
+            <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+            <p id="error-box" class="error" hidden></p>
+
+            <div id="summary-grid" class="summary-grid" hidden>
+                <article class="metric-card">
+                    <h3>Requested Assets</h3>
+                    <p id="requested-assets">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Analyzed Assets</h3>
+                    <p id="analyzed-assets">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Skipped Assets</h3>
+                    <p id="skipped-assets">-</p>
+                </article>
+                <article class="metric-card">
+                    <h3>Generated At (UTC)</h3>
+                    <p id="generated-at">-</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="json-head">
+                <h2>Structured JSON Output</h2>
+            </div>
+            <details id="json-panel" class="json-panel">
+                <summary>Show JSON</summary>
+                <pre id="json-output" class="json-output">No results yet.</pre>
+            </details>
+        </section>
+
+        <section id="visuals-card" class="card" hidden>
+            <div class="json-head">
+                <h2>Full Cycle Table (All Coins)</h2>
+                <button id="copy-table-btn" class="btn btn-secondary" type="button" disabled>Copy Table</button>
+            </div>
+            <div class="table-wrap">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Coin</th>
+                            <th>Cycle</th>
+                            <th>ATH Date</th>
+                            <th>ATH High</th>
+                            <th>Trough Date</th>
+                            <th>Trough Close</th>
+                            <th>Drawdown %</th>
+                            <th>Days ATH to Trough</th>
+                            <th>Next ATH Date</th>
+                            <th>Next ATH High</th>
+                            <th>Recovery Gain %</th>
+                            <th>Completed</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="charts-card" class="card" hidden>
+            <div class="json-head">
+                <h2>Per-Coin ATH/Trough Graphs</h2>
+            </div>
+            <div id="coin-charts" class="coin-charts"></div>
+        </section>
+    </main>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="app.js"></script>
+    <script src="../../page-frame.js"></script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoardSpace Atlas Live | OrderSkew Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">OrderSkew Toolkit</p>
+      <h1>BoardSpace Atlas Live</h1>
+      <p class="subtitle">
+        Play Tic-Tac-Toe, Connect 4, or Othello against an AlphaZero-style engine and inspect its live policy, value, and latent trajectory.
+      </p>
+
+      <div class="controls">
+        <div class="control">
+          <label for="backend-url">Backend URL</label>
+          <input id="backend-url" type="text" placeholder="http://localhost:8008">
+        </div>
+        <div class="control">
+          <label for="game-select">Game</label>
+          <select id="game-select">
+            <option value="tictactoe">Tic-Tac-Toe</option>
+            <option value="connect4">Connect 4</option>
+            <option value="othello">Othello</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="ai-sims">AI Simulations</label>
+          <input id="ai-sims" type="number" min="50" max="3000" step="50" value="800">
+        </div>
+        <div class="control">
+          <label for="human-side">Human Side</label>
+          <select id="human-side">
+            <option value="1">Play First</option>
+            <option value="-1">Play Second</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="analysis-live">Live Think Trace</label>
+          <select id="analysis-live">
+            <option value="live">On</option>
+            <option value="off">Off</option>
+          </select>
+        </div>
+        <div class="button-row">
+          <button id="start-btn" class="primary" type="button">Start New Game</button>
+          <button id="pass-btn" class="ghost" type="button">Pass (Othello)</button>
+        </div>
+      </div>
+      <div class="status-row">
+        <span id="status-chip" class="status-chip">idle</span>
+        <span id="session-chip" class="status-chip">no session</span>
+      </div>
+    </section>
+
+    <section class="layout">
+      <section class="panel play-panel">
+        <div class="panel-head">
+          <h2>Playable Board</h2>
+          <p id="turn-label" class="hint">Start a session to begin.</p>
+        </div>
+        <div id="play-board" class="play-board"></div>
+        <div id="play-meta" class="meta-box">No game state.</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Model Policy</h2>
+          <p class="hint">Brighter cells represent higher move probability.</p>
+        </div>
+        <div id="policy-board" class="policy-board"></div>
+        <div class="value-wrap">
+          <div class="value-row">
+            <span>Value (current player)</span>
+            <span id="value-text">-</span>
+          </div>
+          <div class="value-meter">
+            <div id="value-fill"></div>
+          </div>
+          <div id="mcts-progress" class="mono small"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Latent Vector</h2>
+          <p class="hint">128-dim backbone embedding for current position.</p>
+        </div>
+        <div id="latent-bars" class="chart-scroll"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Live PCA</h2>
+          <p class="hint">Recent game states projected from latent space.</p>
+        </div>
+        <div id="latent-scatter" class="scatter"></div>
+        <div id="top-actions" class="top-actions"></div>
+      </section>
+    </section>
+
+    <section class="panel archive-panel">
+      <details id="atlas-archive">
+        <summary>Synthetic Atlas Archive (Optional)</summary>
+        <p class="archive-note">
+          This is the original synthetic embedding exhibit. It is intentionally hidden by default and does not affect live gameplay.
+        </p>
+        <div class="archive-controls">
+          <label for="archive-game">Archive Game</label>
+          <select id="archive-game"></select>
+        </div>
+        <div id="archive-list" class="archive-list"></div>
+        <pre id="archive-detail" class="archive-detail">Select an archived position.</pre>
+      </details>
+    </section>
+  </main>
+  <script src="data.js"></script>
+  <script src="renderers.js"></script>
+  <script src="app.js"></script>
+  <script src="../../page-frame.js"></script>
+</body>
+</html>

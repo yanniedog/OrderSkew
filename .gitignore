@@ -1,0 +1,14 @@
+# Cursor: ignore local/debug only; keep .cursor/rules/ and .cursor/agents/ for version control
+.cursor/debug*.log
+.cursor/*.log
+**/node_modules/
+.env.local
+**/.env.local
+**/dist/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+*.tsbuildinfo
+*.log
+pages/domainname_wizard/temporary-logs-manually-saved/*.*
+pages/domainname_wizard/source/keyword-verification-results.png

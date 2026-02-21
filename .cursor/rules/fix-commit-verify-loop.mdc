@@ -1,0 +1,17 @@
+---
+description: "Fix-commit-verify loop: make fixes, commit, check production, repeat until fixed"
+alwaysApply: true
+---
+
+# Fix-Commit-Verify Loop (Always Follow)
+
+When fixing issues that affect production (www.orderskew.com), follow this loop until the problem is **definitely** fixed:
+
+1. **Make fixes** – Apply the necessary code or config changes in the repo.
+2. **Commit** – Commit the changes (with a clear message).
+3. **Check production** – Verify it works on https://www.orderskew.com:
+   - From repo root run: `npm run test:production:all` (or `node test-production-all.js` with optional base URL).
+   - Use `BASE_URL=https://www.orderskew.com` if overriding; optional env like `SKIP_NOVEL_API=1` only when API is unavailable.
+4. **Loop** – If any check fails, fix the cause, commit again, redeploy the affected part if needed (see deployment.mdc), then re-run production checks. Do **not** stop until all checks pass.
+
+Do not consider the task done until production verification passes. If you cannot run the production test (e.g. no network or deploy not done), say so explicitly and note that the user should run `npm run test:production:all` after deploy.

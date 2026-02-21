@@ -1,0 +1,85 @@
+name: Novel Indicator CI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/novel-indicator-ci.yml'
+      - 'tools/novel_indicator/**'
+      - 'pages/index.html'
+      - 'README.md'
+  pull_request:
+    paths:
+      - '.github/workflows/novel-indicator-ci.yml'
+      - 'tools/novel_indicator/**'
+      - 'pages/index.html'
+      - 'README.md'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install frontend deps
+        working-directory: tools/novel_indicator/frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: tools/novel_indicator/frontend
+        run: npm run build
+
+      - name: Install Cloudflare API deps
+        working-directory: tools/novel_indicator/cloudflare_api
+        run: npm ci
+
+      - name: Typecheck Cloudflare API
+        working-directory: tools/novel_indicator/cloudflare_api
+        run: npm run typecheck
+
+      - name: Test Cloudflare API
+        working-directory: tools/novel_indicator/cloudflare_api
+        run: npm run test
+
+      - name: Check D1 migrations exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d tools/novel_indicator/cloudflare_api/migrations
+          count=$(find tools/novel_indicator/cloudflare_api/migrations -maxdepth 1 -name '*.sql' | wc -l)
+          if [ "$count" -lt 1 ]; then
+            echo "Expected at least one SQL migration file."
+            exit 1
+          fi
+
+      - name: Guardrail - no Binance in server code
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "api\\.binance\\.com|binance\\.com" tools/novel_indicator/cloudflare_api/src; then
+            echo "Forbidden Binance host reference found in Cloudflare server code."
+            exit 1
+          fi
+
+      - name: Guardrail - no localhost in frontend source/bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "127\\.0\\.0\\.1|localhost" tools/novel_indicator/frontend/src tools/novel_indicator/frontend/dist; then
+            echo "Forbidden localhost reference found in frontend source or production bundle."
+            exit 1
+          fi
+
+      - name: Guardrail - no demo fallback markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "demo mode|demo artifacts|/demo/|loadDemo|retry engine" tools/novel_indicator/frontend/src; then
+            echo "Forbidden demo fallback marker found in frontend source."
+            exit 1
+          fi

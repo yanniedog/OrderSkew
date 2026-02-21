@@ -26,13 +26,28 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - PDF export captures the on-screen layout (configuration, charts, and tables) for quick sharing.
 
 ## Architecture Notes
-- `index.html` contains the full application: Tailwind CSS (CDN), D3.js (v7), `html2canvas`, and `jsPDF` are loaded from trusted CDNs.
-- The script maintains a single source of truth for ladder calculations, ensuring charts, tables, and exports share consistent data.
+- `index.html` hosts the static app shell and loads CDN dependencies (Tailwind CSS, D3.js v7, `html2canvas`, and `jsPDF`).
+- Core logic is split across focused scripts: `app.js` (shared constants/state/calculator primitives), `main.navigation.js`, `main.ui.js`, `main.calculator.js`, `main.events.js`, and `main.js` (bootstrap/composition).
+- `State.currentPlanData` remains the single source of truth so charts, tables, exports, and summaries stay consistent.
 - Sell-only workflows clone baseline buy ladders, track executed rungs, and derive existing positions for accurate profit and fee calculations.
 
 ## Development Tips
 - Keep browser dev tools open to monitor console logs and verify there are no warnings/errors while editing.
 - When extending the calculator, preserve DRY principles by updating shared helpers (formatting, fee handling, export builders) instead of duplicating logic.
 - If you introduce new dependencies, prefer CDN builds compatible with static hosting since the project is currently serverless.
+
+## Additional Tools
+- `pages/index.html` is the tools hub.
+- `pages/novel_indicator/` hosts the Novel Indicator Lab static frontend.
+- Novel Indicator optimization and Binance data fetching run locally in the end user browser (Web Worker) with no login required for runs.
+- Optional account/profile persistence can still be handled by Cloudflare Worker + D1 when enabled.
+- Binance API rate limits apply per end-user IP because calls are made directly from the browser to Binance.
+- Full source for this tool lives under `tools/novel_indicator/` (frontend, Cloudflare API, migrations, deploy scripts, and legacy backend reference code).
+- `pages/domainname_wizard/` hosts a browser-native Domain Name Wizard tool with local worker processing.
+- Imported source snapshot from `C:\code\domainname-wizard` is stored at `pages/domainname_wizard/source/` (excluding `.next`, `node_modules`, and local env/debug artifacts).
+- Full automated test (unit + E2E): from repo root run `node test-domainname-wizard.js`. Requires `npm install` in `pages/domainname_wizard/source/` and Playwright browsers (`npx playwright install chromium` in that directory) for E2E.
+- `pages/crypto_ath_drawdown_cycles/` hosts the Top 20 Ex-Stable ATH Drawdown Cycles tool (CoinGecko non-stable top-20 ranking + Binance daily USDT cycle analysis with structured JSON output).
+- `pages/boardspace_atlas/` hosts BoardSpace Atlas Live (playable Tic-Tac-Toe, Connect 4, Othello against an AlphaZero-style backend) plus the optional synthetic archive view.
+- BoardSpace Atlas backend source lives under `tools/boardspace_atlas_rl/` (FastAPI + PyTorch service, MCTS engine, self-play/training pipeline, and tests).
 
 

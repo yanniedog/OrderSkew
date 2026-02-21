@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Other Tools | OrderSkew</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="page-bg"></div>
+    <main class="container">
+        <header class="hero">
+            <p class="eyebrow">OrderSkew Toolkit</p>
+            <h1>Other tools</h1>
+            <p class="subtitle">
+                Gateway for standalone tools and subprojects. OrderSkew remains the primary app.
+            </p>
+            <div class="hero-actions">
+                <a class="btn btn-secondary" href="au_home_loan_rates/index.html">Open AU Home Loan Rates</a>
+                <a class="btn btn-secondary" href="nab_homeloan_calculator/index.html">Open NAB homeloan calculator</a>
+                <a class="btn btn-secondary" href="novel_indicator/index.html">Open Novel Indicator</a>
+                <a class="btn btn-secondary" href="domainname_wizard/index.html">Open Domain Name Wizard</a>
+                <a class="btn btn-secondary" href="crypto_ath_drawdown_cycles/index.html">Open Crypto Peak Finder</a>
+                <a class="btn btn-secondary" href="boardspace_atlas/index.html">Open BoardSpace Atlas</a>
+            </div>
+        </header>
+
+        <section class="tool-grid" aria-label="Tools list">
+            <article class="tool-card">
+                <h2>AU Home Loan Rates</h2>
+                <p>
+                    Cloudflare-native historical recorder scaffold for Australian home-loan products.
+                    Includes Worker API health, latest-rate preview, and admin run status checks.
+                </p>
+                <a class="card-link" href="au_home_loan_rates/index.html">Launch tool</a>
+            </article>
+
+            <article class="tool-card">
+                <h2>NAB Homeloan Calculator</h2>
+                <p>
+                    Public browser edition adapted from your NAB transaction-history workflow.
+                    Includes repayment, offset, payoff, and schedule projection.
+                </p>
+                <a class="card-link" href="nab_homeloan_calculator/index.html">Launch tool</a>
+            </article>
+
+            <article class="tool-card">
+                <h2>Novel Indicator Lab</h2>
+                <p>
+                    Login-gated web app where optimization and Binance historical-data fetches run locally in each user's browser. Auth, preferences, and saved run summaries are handled by Cloudflare Workers + D1.
+                </p>
+                <a class="card-link" href="novel_indicator/index.html">Launch tool</a>
+            </article>
+
+            <article class="tool-card">
+                <h2>Domain Name Wizard</h2>
+                <p>
+                    Browser-native domain naming and ranking workflow imported from your domainname-wizard repo. Iterative tuning, scoring, and result generation run locally in a web worker.
+                </p>
+                <a class="card-link" href="domainname_wizard/index.html">Launch tool</a>
+            </article>
+
+            <article class="tool-card">
+                <h2>Crypto Peak Finder</h2>
+                <p>
+                    Computes ATH cycle drawdown statistics for the top 20 non-stablecoins by market cap using CoinGecko ranking and Binance daily USDT spot history, then returns a structured JSON report.
+                </p>
+                <a class="card-link" href="crypto_ath_drawdown_cycles/index.html">Launch tool</a>
+            </article>
+
+            <article class="tool-card">
+                <h2>BoardSpace Atlas</h2>
+                <p>
+                    Interactive latent-embedding explorer for board game positions. Compare strategic clusters, symmetry-equivalent states, nearest neighbors, and similarity heatmaps across ten games.
+                </p>
+                <a class="card-link" href="boardspace_atlas/index.html">Launch tool</a>
+            </article>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script src="../page-frame.js"></script>
+</body>
+</html>

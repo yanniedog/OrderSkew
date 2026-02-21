@@ -1,0 +1,27 @@
+name = "novel-indicator-api"
+main = "src/index.ts"
+compatibility_date = "2026-02-18"
+
+# Route so that orderskew.com/api/* is handled by this Worker.
+# Requires the orderskew.com zone to be on Cloudflare. Adjust zone_name if your zone differs.
+[[routes]]
+pattern = "orderskew.com/api/*"
+zone_name = "orderskew.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "novel_indicator"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[vars]
+COOKIE_DOMAIN = ""
+APP_ORIGIN = ""
+GOOGLE_CLIENT_ID = ""
+GOOGLE_REDIRECT_URI = ""
+EMAIL_FROM = ""
+ALLOW_DEV_TOKEN_ECHO = "false"
+
+# Add via `wrangler secret put`
+# SESSION_SECRET
+# GOOGLE_CLIENT_SECRET
+# EMAIL_API_KEY

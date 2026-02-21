@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Domain Name Wizard | OrderSkew Tools</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+  <main class="container">
+    <header class="hero card">
+      <p class="eyebrow">OrderSkew Toolkit</p>
+      <h1>Domain Name Wizard</h1>
+      <p class="subtitle">Browser-native domain discovery and optimization.</p>
+    </header>
+
+    <section class="card">
+      <h2>Search Setup</h2>
+      <form id="search-form" class="grid">
+        <label>Keywords
+          <input name="keywords" required placeholder="e.g. edge ai automation">
+        </label>
+        <label>Description
+          <input name="description" placeholder="Business description">
+        </label>
+        <label>Style
+          <select name="style">
+            <option value="default">default</option>
+            <option value="brandable">brandable</option>
+            <option value="twowords">twowords</option>
+            <option value="threewords">threewords</option>
+            <option value="compound">compound</option>
+            <option value="spelling">spelling</option>
+            <option value="nonenglish">nonenglish</option>
+            <option value="dictionary">dictionary</option>
+          </select>
+        </label>
+        <label class="checkbox-label">Prefer English
+          <span class="checkbox-row">
+            <input name="preferEnglish" type="checkbox" checked>
+          </span>
+        </label>
+        <label>Randomness
+          <select name="randomness">
+            <option value="low">low</option>
+            <option value="medium" selected>medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <label>Mutation
+          <select name="mutationIntensity">
+            <option value="off">off</option>
+            <option value="low">low</option>
+            <option value="medium" selected>medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+        <label>Blacklist
+          <input name="blacklist" placeholder="comma,separated,blocked,terms">
+        </label>
+        <label>Maximum Name Length
+          <input name="maxLength" type="number" min="1" value="10">
+        </label>
+        <label>TLD
+          <input name="tld" placeholder="com" value="com">
+        </label>
+        <label>Max Names / Loop
+          <input name="maxNames" type="number" min="1" value="5">
+        </label>
+        <label>Yearly Budget (USD)
+          <input name="yearlyBudget" type="number" min="1" value="50">
+        </label>
+        <label>Loop Count
+          <input name="loopCount" type="number" min="1" value="100">
+        </label>
+        <label>Repetition penalty
+          <select name="repetitionPenaltyLevel" title="How heavily to penalize reusing the same keywords across successive loops">
+            <option value="gentle">Gentle</option>
+            <option value="moderate">Moderate</option>
+            <option value="strong" selected>Strong</option>
+            <option value="very_severe">Very severe</option>
+            <option value="extremely_severe">Extremely severe</option>
+            <option value="excessive">Excessive</option>
+          </select>
+        </label>
+        <label class="checkbox-label">Low Memory Mode
+          <span class="checkbox-row">
+            <input name="lowMemoryMode" type="checkbox" checked>
+          </span>
+        </label>
+        <label class="checkbox-label" title="Collect and display unavailable domains. Off by default to save memory and reduce noise.">Collect Unavailable
+          <span class="checkbox-row">
+            <input name="collectUnavailable" type="checkbox">
+          </span>
+        </label>
+      </form>
+      <div class="reward-policy" id="reward-policy-card">
+        <h3>Reward Prioritization</h3>
+        <div class="reward-grid">
+          <label>Preset
+            <select id="reward-preset">
+              <option value="balanced" selected>Balanced</option>
+              <option value="brandability">Brandability Focus</option>
+              <option value="commercial">Commercial Focus</option>
+              <option value="devsignal">Developer Signal Focus</option>
+            </select>
+          </label>
+          <label>Real Word Parts <input id="reward-realwordparts" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-realwordparts">1.0</span></label>
+          <label>CPC Signal <input id="reward-cpc" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-cpc">1.0</span></label>
+          <label>CV Flow <input id="reward-cvflow" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-cvflow">1.0</span></label>
+          <label>Keyword Match <input id="reward-keywordmatch" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-keywordmatch">1.0</span></label>
+          <label>Brandability <input id="reward-brandability" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-brandability">1.0</span></label>
+          <label>Memorability <input id="reward-memorability" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-memorability">1.0</span></label>
+          <label>Dev Signal <input id="reward-devsignal" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-devsignal">1.0</span></label>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="start-btn" class="btn btn-primary" type="button">Start Search</button>
+        <button id="cancel-btn" class="btn btn-danger" type="button" disabled>Cancel Run</button>
+        <button id="download-json-btn" class="btn btn-secondary" type="button" disabled>Download Results JSON</button>
+      </div>
+      <p id="form-error" class="error" hidden></p>
+    </section>
+
+    <section class="card" id="data-source-panel" hidden>
+    </section>
+
+    <section class="card" id="status-card">
+      <div class="status-head">
+        <h2>Status</h2>
+        <span class="job-id" id="job-id">Run: -</span>
+      </div>
+      <div class="status-kpis">
+        <p><strong id="status-label">Idle</strong> <span id="progress-label">(0%)</span></p>
+        <p id="loop-label">Loop -/-</p>
+        <p id="elapsed-label">Elapsed: 00:00</p>
+      </div>
+      <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="progress-fill" class="progress-fill" style="width: 0%;"></div>
+      </div>
+      <p id="job-error" class="error" hidden></p>
+    </section>
+
+    <section class="card" id="results-panel" hidden>
+      <div class="results-head">
+        <h2>Results</h2>
+        <label>Sort ranked domains
+          <select id="sort-mode">
+            <option value="valueRatio">Value Ratio (underpriced first)</option>
+            <option value="estimatedValue">Estimated Value ($)</option>
+            <option value="expectedValue">Expected Value (EV 24m)</option>
+            <option value="intrinsicValue">Intrinsic Score</option>
+            <option value="liquidityScore">Liquidity</option>
+            <option value="devEcosystem">Dev Ecosystem</option>
+            <option value="marketability">Marketability</option>
+            <option value="financialValue">Financial</option>
+            <option value="alphabetical">Alphabetical</option>
+            <option value="syllableCount">Syllable Count</option>
+            <option value="labelLength">Label Length</option>
+          </select>
+        </label>
+        <div class="domain-filters">
+          <label>Include terms
+            <input id="domain-filter-include" type="text" placeholder="comma,separated,terms">
+          </label>
+          <label>Exclude terms
+            <input id="domain-filter-exclude" type="text" placeholder="comma,separated,terms">
+          </label>
+          <button type="button" class="btn btn-secondary btn-sm" id="clear-domain-filters-btn">Clear filters</button>
+          <span id="domain-filter-status" class="domain-filter-status" aria-live="polite"></span>
+        </div>
+        <span class="results-export" title="Export current results; updates as the run progresses.">
+          <button type="button" class="btn btn-secondary btn-sm" id="copy-full-csv-btn" title="Export current results; updates as the run progresses.">Copy full CSV</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="download-full-csv-btn" title="Export current results; updates as the run progresses.">Download full CSV</button>
+        </span>
+      </div>
+
+      <div id="summary-kpis" class="summary-grid"></div>
+
+      <section class="table-section is-collapsed" data-table-section>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="all-ranked-table-panel">
+            All Ranked Available Domains
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="all-ranked-table" data-action="columns">Columns</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="all-ranked-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="all-ranked-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
+        <div id="all-ranked-table-panel" class="table-section-panel" hidden>
+          <div id="all-ranked-table" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="table-section is-collapsed" data-table-section>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="within-budget-table-panel">
+            Within Budget
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="within-budget-table" data-action="columns">Columns</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="within-budget-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="within-budget-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
+        <div id="within-budget-table-panel" class="table-section-panel" hidden>
+          <div id="within-budget-table" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="table-section is-collapsed" data-table-section>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="unavailable-table-panel">
+            Unavailable
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="unavailable-table" data-action="columns">Columns</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="unavailable-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="unavailable-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
+        <div id="unavailable-table-panel" class="table-section-panel" hidden>
+          <div id="unavailable-table" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="table-section is-collapsed" data-table-section>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="loop-summary-table-panel">
+            Loop Summaries
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="loop-summary-table" data-action="columns">Columns</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="loop-summary-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="loop-summary-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
+        <div id="loop-summary-table-panel" class="table-section-panel" hidden>
+          <div id="loop-summary-table" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="table-section is-collapsed" data-table-section>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="keyword-library-table-panel">
+            Keyword Library (Live)
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="keyword-library-table" data-action="columns">Columns</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="keyword-library-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="keyword-library-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
+        <div id="keyword-library-table-panel" class="table-section-panel" hidden>
+          <div id="keyword-library-table" class="table-wrap"></div>
+        </div>
+      </section>
+
+      <section class="table-section is-collapsed" data-table-section>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="tuning-table-panel">
+            Tuning History
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="tuning-table" data-action="columns">Columns</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="tuning-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="tuning-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
+        <div id="tuning-table-panel" class="table-section-panel" hidden>
+          <div id="tuning-table" class="table-wrap"></div>
+        </div>
+      </section>
+    </section>
+
+    <p class="debug-log-footer" style="margin-top:2rem;font-size:0.8rem;color:var(--muted, #666);">
+      <a href="#" id="download-debug-log">Debug log</a>
+    </p>
+  </main>
+
+  <script src="domainname_wizard_utils.js"></script>
+  <script src="app.js"></script>
+  <script src="../../page-frame.js"></script>
+</body>
+</html>

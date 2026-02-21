@@ -1,0 +1,124 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e9eef5 100%);
+  color: #14212f;
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #d7dfe8;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 8px 26px rgba(10, 35, 60, 0.06);
+}
+
+h1,
+h2,
+h3 {
+  margin-top: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.75rem;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.92rem;
+}
+
+input,
+select,
+button {
+  border-radius: 8px;
+  border: 1px solid #b6c4d3;
+  padding: 0.52rem 0.65rem;
+  font-size: 0.95rem;
+}
+
+button {
+  cursor: pointer;
+  background: #106ba3;
+  color: white;
+  border-color: #106ba3;
+  max-width: max-content;
+}
+
+button[disabled] {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.error {
+  color: #b5162a;
+  font-weight: 600;
+}
+
+.progress {
+  background: #e6edf4;
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.progress > div {
+  height: 100%;
+  background: linear-gradient(90deg, #0582c5 0%, #29b473 100%);
+  transition: width 0.3s ease;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+th,
+td {
+  border: 1px solid #d7dfe8;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  background: #f1f5f9;
+}
+
+@media (max-width: 700px) {
+  main {
+    padding: 1rem 0.65rem 2rem;
+  }
+
+  .card {
+    padding: 0.8rem;
+  }
+}
+

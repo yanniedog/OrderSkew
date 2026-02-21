@@ -1,0 +1,55 @@
+name = "orderskew-bootstrap-worker"
+main = "src/index.ts"
+compatibility_date = "2026-02-20"
+
+[[routes]]
+pattern = "orderskew.com/api/health"
+zone_name = "orderskew.com"
+
+[[routes]]
+pattern = "orderskew.com/api/version"
+zone_name = "orderskew.com"
+
+[[routes]]
+pattern = "www.orderskew.com/api/health"
+zone_name = "orderskew.com"
+
+[[routes]]
+pattern = "www.orderskew.com/api/version"
+zone_name = "orderskew.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "orderskew_bootstrap"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "RAW_BUCKET"
+bucket_name = "orderskew-bootstrap-raw"
+
+[[queues.producers]]
+binding = "INGEST_QUEUE"
+queue = "orderskew-bootstrap-ingest"
+
+[[queues.consumers]]
+queue = "orderskew-bootstrap-ingest"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "orderskew-bootstrap-ingest-dlq"
+
+[[durable_objects.bindings]]
+name = "COORDINATOR_DO"
+class_name = "CoordinatorDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CoordinatorDO"]
+
+[triggers]
+crons = ["0 20 * * *"]
+
+[vars]
+APP_ENV = "dev"
+APP_VERSION = "phase1-bootstrap"
+LOG_LEVEL = "info"

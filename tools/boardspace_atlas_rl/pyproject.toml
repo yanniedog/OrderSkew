@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "boardspace-atlas-rl"
+version = "0.1.0"
+description = "BoardSpace Atlas live AlphaZero backend"
+authors = [{ name = "Codex" }]
+requires-python = ">=3.10,<3.12"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.10.0",
+  "numpy>=1.26.0",
+  "torch>=2.2.0",
+  "scikit-learn>=1.5.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.3",
+  "httpx>=0.28.1"
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
