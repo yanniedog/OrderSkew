@@ -1404,13 +1404,20 @@ function looksEnglishLikeLabel(label) {
   return tri >= -2.45;
 }
 
+function parseBlacklistTokens(value) {
+  return text(value)
+    .split(/[,\n\r;\s]+/)
+    .map((x) => x.trim().toLowerCase().replace(/[^a-z0-9]/g, ''))
+    .filter(Boolean);
+}
+
 function makeBatch(plan, seed, target, seen) {
   const rand = rng(seed >>> 0);
   const preferEnglish = plan.preferEnglish !== false;
   const style = preferEnglish && plan.style === 'nonenglish' ? 'default' : plan.style;
   const tokens = tokenize(`${plan.keywords} ${plan.description}`).map((t) => t.replace(/[^a-z0-9]/g, '')).filter((t) => t.length >= 2);
   const pool = tokens.length ? tokens : ['nova', 'orbit', 'lumen', 'quant', 'forge', 'signal'];
-  const blocked = new Set(text(plan.blacklist).split(',').map((x) => x.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean));
+  const blocked = new Set(parseBlacklistTokens(plan.blacklist));
   const out = [];
   let tries = 0;
   while (out.length < target && tries < target * 20) {

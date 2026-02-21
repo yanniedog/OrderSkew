@@ -13,9 +13,6 @@
       <p class="eyebrow">OrderSkew Toolkit</p>
       <h1>Domain Name Wizard</h1>
       <p class="subtitle">Browser-native domain discovery and optimization.</p>
-      <div class="hero-actions">
-        <a class="btn btn-secondary" href="DEPLOY.md" target="_blank" rel="noreferrer">Deployment guide</a>
-      </div>
     </header>
 
     <section class="card">
@@ -158,6 +155,16 @@
             <option value="labelLength">Label Length</option>
           </select>
         </label>
+        <div class="domain-filters">
+          <label>Include terms
+            <input id="domain-filter-include" type="text" placeholder="comma,separated,terms">
+          </label>
+          <label>Exclude terms
+            <input id="domain-filter-exclude" type="text" placeholder="comma,separated,terms">
+          </label>
+          <button type="button" class="btn btn-secondary btn-sm" id="clear-domain-filters-btn">Clear filters</button>
+          <span id="domain-filter-status" class="domain-filter-status" aria-live="polite"></span>
+        </div>
         <span class="results-export" title="Export current results; updates as the run progresses.">
           <button type="button" class="btn btn-secondary btn-sm" id="copy-full-csv-btn" title="Export current results; updates as the run progresses.">Copy full CSV</button>
           <button type="button" class="btn btn-secondary btn-sm" id="download-full-csv-btn" title="Export current results; updates as the run progresses.">Download full CSV</button>

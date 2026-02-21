@@ -275,6 +275,23 @@ function compactUnavailableRow(row) {
   return compact;
 }
 
+function parseBlacklistTerms(value) {
+  return text(value)
+    .split(/[,\n\r;\s]+/)
+    .map(function (part) { return String(part || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); })
+    .filter(Boolean);
+}
+
+function isBlacklistedDomain(domain, blockedTerms) {
+  if (!Array.isArray(blockedTerms) || blockedTerms.length === 0) return false;
+  const label = String(domain || '').toLowerCase().split('.')[0].replace(/[^a-z0-9]/g, '');
+  if (!label) return false;
+  for (const term of blockedTerms) {
+    if (term && label.includes(term)) return true;
+  }
+  return false;
+}
+
 function trackRowDetails(detailStore, row) {
   if (!detailStore || !(detailStore instanceof Map) || !row || !row.domain) return;
   const key = String(row.domain || '').toLowerCase();
@@ -392,6 +409,7 @@ async function run(job) {
   clearRunCaches();
   await loadValuationData();
   const input = job.input;
+  const blockedTerms = parseBlacklistTerms(input.blacklist);
   const backendBaseUrl = String(input.apiBaseUrl || '').trim();
   let useBackend = Boolean(backendBaseUrl);
   emitDebugLog('engine.worker.js:run', useBackend ? 'Using backend availability API' : 'Using RDAP availability API', {
@@ -527,6 +545,7 @@ async function run(job) {
             const key = String(n.domain || '').toLowerCase();
             const label = key.split('.')[0] || '';
             if (!key || seen.has(key)) return null;
+            if (isBlacklistedDomain(key, blockedTerms)) return null;
             if (label && seenLabels.has(label)) return null;
             seen.add(key);
             if (label) seenLabels.add(label);
@@ -565,6 +584,12 @@ async function run(job) {
           candidateCount: cands.length,
           sampleCandidates: cands.slice(0, 3).map(function(c) { return { domain: c.domain, premiumPricing: c.premiumPricing }; }),
         }, 'H3');
+      }
+
+      if (blockedTerms.length) {
+        cands = cands.filter(function (candidate) {
+          return !isBlacklistedDomain(candidate && candidate.domain, blockedTerms);
+        });
       }
 
       if (!cands.length) {
@@ -624,6 +649,7 @@ async function run(job) {
       }
 
       for (const cand of cands) {
+        if (isBlacklistedDomain(cand && cand.domain, blockedTerms)) continue;
         let result;
         const key = cand.domain.toLowerCase();
         const res = availabilityByDomain[key] || {};

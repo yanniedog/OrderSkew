@@ -480,6 +480,26 @@ tbody tr:nth-child(odd) {
   gap: 6px;
 }
 
+.domain-filters {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.domain-filters label {
+  min-width: 180px;
+}
+
+.domain-filters input {
+  min-width: 180px;
+}
+
+.domain-filter-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .table-section-toggle {
   width: 100%;
   text-align: left;

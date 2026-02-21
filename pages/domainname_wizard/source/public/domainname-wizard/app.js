@@ -26,6 +26,10 @@
 
   const resultsPanelEl = document.getElementById('results-panel');
   const sortModeEl = document.getElementById('sort-mode');
+  const domainFilterIncludeEl = document.getElementById('domain-filter-include');
+  const domainFilterExcludeEl = document.getElementById('domain-filter-exclude');
+  const clearDomainFiltersBtn = document.getElementById('clear-domain-filters-btn');
+  const domainFilterStatusEl = document.getElementById('domain-filter-status');
   const summaryKpisEl = document.getElementById('summary-kpis');
   const allRankedTableEl = document.getElementById('all-ranked-table');
   const withinBudgetTableEl = document.getElementById('within-budget-table');
@@ -232,6 +236,59 @@
         <button type="button" class="btn btn-sm pager-btn" data-section-id="${sectionId}" data-page-action="next" ${pageMeta.page >= pageMeta.totalPages ? 'disabled' : ''}>Next</button>
       </div>
     `;
+  }
+
+  function normalizeFilterTerm(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function parseFilterTerms(value) {
+    return String(value || '')
+      .split(/[,\n\r;]+/)
+      .map(function (part) { return normalizeFilterTerm(part); })
+      .filter(Boolean);
+  }
+
+  function getDomainFilterState() {
+    return {
+      include: parseFilterTerms(domainFilterIncludeEl && domainFilterIncludeEl.value),
+      exclude: parseFilterTerms(domainFilterExcludeEl && domainFilterExcludeEl.value),
+    };
+  }
+
+  function rowMatchesDomainFilters(row, filters) {
+    const f = filters || getDomainFilterState();
+    if (!row) return false;
+    const domain = String(row.domain || '').toLowerCase();
+    const sourceName = String(row.sourceName || '').toLowerCase();
+    const haystack = normalizeFilterTerm(domain + ' ' + sourceName);
+    if (f.include.length > 0 && !f.include.some(function (term) { return haystack.includes(term); })) return false;
+    if (f.exclude.some(function (term) { return haystack.includes(term); })) return false;
+    return true;
+  }
+
+  function applyDomainFilters(rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    const filters = getDomainFilterState();
+    if (!filters.include.length && !filters.exclude.length) return list;
+    return list.filter(function (row) { return rowMatchesDomainFilters(row, filters); });
+  }
+
+  function updateDomainFilterStatus(totalRows, shownRows) {
+    if (!domainFilterStatusEl) return;
+    const include = parseFilterTerms(domainFilterIncludeEl && domainFilterIncludeEl.value);
+    const exclude = parseFilterTerms(domainFilterExcludeEl && domainFilterExcludeEl.value);
+    if (!include.length && !exclude.length) {
+      domainFilterStatusEl.textContent = '';
+      return;
+    }
+    domainFilterStatusEl.textContent = `Filtered ${Number(shownRows || 0).toLocaleString()} / ${Number(totalRows || 0).toLocaleString()} rows`;
+  }
+
+  function resetDomainTablePages() {
+    ['all-ranked-table', 'within-budget-table', 'over-budget-table', 'unavailable-table'].forEach(function (id) {
+      tablePageState[id] = 1;
+    });
   }
 
   function showFormError(message) {
@@ -1132,16 +1189,16 @@
     });
     var combinedRanked = allRanked.concat(pendingRows);
     if (sectionId === 'all-ranked-table') {
-      rows = sortRows(combinedRanked, sortMode).map(domainRowForCsv);
+      rows = sortRows(applyDomainFilters(combinedRanked), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
     } else if (sectionId === 'within-budget-table') {
-      rows = sortRows(results.withinBudget || [], sortMode).map(domainRowForCsv);
+      rows = sortRows(applyDomainFilters(results.withinBudget || []), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
     } else if (sectionId === 'over-budget-table') {
-      rows = sortRows(results.overBudget || [], sortMode).map(domainRowForCsv);
+      rows = sortRows(applyDomainFilters(results.overBudget || []), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
     } else if (sectionId === 'unavailable-table') {
-      rows = sortRows(results.unavailable || [], sortMode).map(domainRowForCsv);
+      rows = sortRows(applyDomainFilters(results.unavailable || []), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS;
     } else if (sectionId === 'loop-summary-table') {
       rows = (results.loopSummaries || []).map(function (r) {
@@ -1671,10 +1728,14 @@
       };
     });
     const combinedRanked = allRanked.concat(pendingRows);
-    const sortedRanked = sortRows(combinedRanked, currentSortMode);
-    const withinBudget = sortRows(results.withinBudget || [], currentSortMode);
-    const overBudget = sortRows(results.overBudget || [], currentSortMode);
-    const unavailable = sortRows(results.unavailable || [], currentSortMode);
+    const filteredCombinedRanked = applyDomainFilters(combinedRanked);
+    const filteredWithinBudget = applyDomainFilters(results.withinBudget || []);
+    const filteredOverBudget = applyDomainFilters(results.overBudget || []);
+    const filteredUnavailable = applyDomainFilters(results.unavailable || []);
+    const sortedRanked = sortRows(filteredCombinedRanked, currentSortMode);
+    const withinBudget = sortRows(filteredWithinBudget, currentSortMode);
+    const overBudget = sortRows(filteredOverBudget, currentSortMode);
+    const unavailable = sortRows(filteredUnavailable, currentSortMode);
     const tokenPerfLookup = buildTokenPerformanceLookup(results.keywordLibrary || null);
     const rankedPage = paginateRows('all-ranked-table', sortedRanked);
     const withinPage = paginateRows('within-budget-table', withinBudget);
@@ -1690,6 +1751,7 @@
       dataSourceState.devEcosystem = results.keywordLibrary.devEcosystemStatus;
       renderDataSourcePanel();
     }
+    updateDomainFilterStatus(combinedRanked.length, sortedRanked.length);
 
     renderSummary(results);
     allRankedTableEl.innerHTML = renderDomainTable(rankedPage.rows, false, 'all-ranked-table') + renderPager('all-ranked-table', rankedPage);
@@ -2014,53 +2076,123 @@
     'tuning-table': 'domainname_wizard_tuning_history.csv',
   };
 
-  function copySectionCsv(sectionId) {
-    if (!currentResults) return;
-    var csv = getSectionCsv(sectionId, currentResults, currentSortMode);
-    if (!csv || csv.length < 2) return;
-    navigator.clipboard.writeText(csv).then(function () {}, function () {});
-  }
-
-  function downloadSectionCsv(sectionId) {
-    if (!currentResults) return;
-    var csv = getSectionCsv(sectionId, currentResults, currentSortMode);
-    if (!csv || csv.length < 2) return;
-    var filename = SECTION_CSV_FILENAMES[sectionId] || 'domainname_wizard_section.csv';
+  function downloadCsvBlob(csv, filename) {
+    if (!csv) return false;
     var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     var url = URL.createObjectURL(blob);
     var link = document.createElement('a');
     link.href = url;
-    link.download = filename;
+    link.download = filename || 'domainname_wizard_export.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    return true;
   }
 
-  function copyFullCsv() {
-    if (!currentResults) return;
+  function copyTextFallback(text) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', 'readonly');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      ta.style.pointerEvents = 'none';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      var ok = Boolean(document.execCommand && document.execCommand('copy'));
+      document.body.removeChild(ta);
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function copyTextRobust(text) {
+    if (!text) return false;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (_) {}
+    }
+    return copyTextFallback(text);
+  }
+
+  async function copySectionCsv(sectionId) {
+    if (!currentResults) {
+      showJobError('No results available yet for CSV export.');
+      return;
+    }
+    var csv = getSectionCsv(sectionId, currentResults, currentSortMode);
+    if (!csv || csv.length < 2) {
+      showJobError('No CSV rows available for this section.');
+      return;
+    }
+    var copied = await copyTextRobust(csv);
+    if (!copied) {
+      downloadCsvBlob(csv, SECTION_CSV_FILENAMES[sectionId] || 'domainname_wizard_section.csv');
+      showJobError('Clipboard is unavailable in this browser context. Downloaded CSV instead.');
+      return;
+    }
+    showJobError('');
+  }
+
+  function downloadSectionCsv(sectionId) {
+    if (!currentResults) {
+      showJobError('No results available yet for CSV export.');
+      return;
+    }
+    var csv = getSectionCsv(sectionId, currentResults, currentSortMode);
+    if (!csv || csv.length < 2) {
+      showJobError('No CSV rows available for this section.');
+      return;
+    }
+    var filename = SECTION_CSV_FILENAMES[sectionId] || 'domainname_wizard_section.csv';
+    downloadCsvBlob(csv, filename);
+    showJobError('');
+  }
+
+  async function copyFullCsv() {
+    if (!currentResults) {
+      showJobError('No results available yet for CSV export.');
+      return;
+    }
     var csv = getFullCsv(currentResults, currentSortMode);
-    if (!csv) return;
-    navigator.clipboard.writeText(csv).then(function () {}, function () {});
+    if (!csv) {
+      showJobError('No CSV rows available for full export.');
+      return;
+    }
+    var copied = await copyTextRobust(csv);
+    if (!copied) {
+      var nowForCopy = new Date();
+      var dateStrForCopy = nowForCopy.getFullYear() + '-' + String(nowForCopy.getMonth() + 1).padStart(2, '0') + '-' + String(nowForCopy.getDate()).padStart(2, '0') + '_' + String(nowForCopy.getHours()).padStart(2, '0') + '-' + String(nowForCopy.getMinutes()).padStart(2, '0');
+      var fallbackName = 'domainname_wizard_full_' + dateStrForCopy + '.csv';
+      if (currentJob && currentJob.id) fallbackName = 'domainname_wizard_full_' + String(currentJob.id) + '_' + dateStrForCopy + '.csv';
+      downloadCsvBlob(csv, fallbackName);
+      showJobError('Clipboard is unavailable in this browser context. Downloaded CSV instead.');
+      return;
+    }
+    showJobError('');
   }
 
   function downloadFullCsv() {
-    if (!currentResults) return;
+    if (!currentResults) {
+      showJobError('No results available yet for CSV export.');
+      return;
+    }
     var csv = getFullCsv(currentResults, currentSortMode);
-    if (!csv) return;
+    if (!csv) {
+      showJobError('No CSV rows available for full export.');
+      return;
+    }
     var now = new Date();
     var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') + '-' + String(now.getMinutes()).padStart(2, '0');
     var filename = 'domainname_wizard_full_' + dateStr + '.csv';
     if (currentJob && currentJob.id) filename = 'domainname_wizard_full_' + String(currentJob.id) + '_' + dateStr + '.csv';
-    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    downloadCsvBlob(csv, filename);
+    showJobError('');
   }
 
   function handleStart() {
@@ -2228,10 +2360,27 @@
 
   sortModeEl.addEventListener('change', function () {
     currentSortMode = sortModeEl.value || 'marketability';
+    resetDomainTablePages();
     if (currentResults) {
       renderResults(currentResults);
     }
   });
+
+  function onDomainFilterInputChange() {
+    resetDomainTablePages();
+    if (currentResults) renderResults(currentResults);
+    else updateDomainFilterStatus(0, 0);
+  }
+
+  if (domainFilterIncludeEl) domainFilterIncludeEl.addEventListener('input', onDomainFilterInputChange);
+  if (domainFilterExcludeEl) domainFilterExcludeEl.addEventListener('input', onDomainFilterInputChange);
+  if (clearDomainFiltersBtn) {
+    clearDomainFiltersBtn.addEventListener('click', function () {
+      if (domainFilterIncludeEl) domainFilterIncludeEl.value = '';
+      if (domainFilterExcludeEl) domainFilterExcludeEl.value = '';
+      onDomainFilterInputChange();
+    });
+  }
 
   downloadJsonBtn.addEventListener('click', function () {
     void downloadResultsJson();
