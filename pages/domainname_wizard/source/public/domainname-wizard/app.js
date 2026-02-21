@@ -43,6 +43,8 @@
   let lastLoggedJobErrorKey = '';
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
+  let renderResultsTimeoutId = null;
+  const DEBUG_LOGS_MAX = 500;
   const ENGINE_WORKER_VERSION = '2026-02-20-1';
   const tableSortState = new WeakMap();
   let dataSourceCollapsed = true;
@@ -790,6 +792,9 @@
       data: data || {},
       timestamp: Date.now(),
     });
+    if (debugLogs.length > DEBUG_LOGS_MAX) {
+      debugLogs.splice(0, debugLogs.length - DEBUG_LOGS_MAX);
+    }
   }
 
   function cloneForExport(value) {
@@ -798,6 +803,222 @@
     } catch (_) {
       return null;
     }
+  }
+
+  function escapeCsvCell(value) {
+    if (value == null) return '';
+    const s = String(value);
+    if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function getCsvValue(row, key) {
+    if (row == null || key == null) return '';
+    const parts = String(key).split('.');
+    let v = row;
+    for (let i = 0; i < parts.length && v != null; i++) v = v[parts[i]];
+    return v == null ? '' : v;
+  }
+
+  function rowsToCsv(rows, columns, skipBom) {
+    if (!columns || columns.length === 0) return '';
+    const header = columns.map(function (c) { return escapeCsvCell(c.label || c.key); }).join(',');
+    const body = (rows || []).map(function (row) {
+      return columns.map(function (c) { return escapeCsvCell(getCsvValue(row, c.key)); }).join(',');
+    }).join('\r\n');
+    return (skipBom ? '' : '\uFEFF') + header + '\r\n' + body;
+  }
+
+  var CSV_DOMAIN_COLUMNS = [
+    { key: 'domain', label: 'Domain' },
+    { key: 'available', label: 'Availability' },
+    { key: 'price', label: 'Price' },
+    { key: 'currency', label: 'Currency' },
+    { key: 'estimatedValueUSD', label: 'Estimated Value USD' },
+    { key: 'valueRatio', label: 'Value Ratio' },
+    { key: 'intrinsicValue', label: 'Intrinsic Value' },
+    { key: 'liquidityScore', label: 'Liquidity Score' },
+    { key: 'marketabilityScore', label: 'Marketability Score' },
+    { key: 'ev24m', label: 'EV 24m' },
+    { key: 'expectedROI', label: 'Expected ROI' },
+    { key: 'phoneticScore', label: 'Phonetic Score' },
+    { key: 'brandabilityScore', label: 'Brandability Score' },
+    { key: 'seoScore', label: 'SEO Score' },
+    { key: 'commercialScore', label: 'Commercial Score' },
+    { key: 'devEcosystemScore', label: 'Dev Ecosystem Score' },
+    { key: 'devEcosystemEvidence.githubRepos', label: 'GitHub Repos' },
+    { key: 'devEcosystemEvidence.npmPackages', label: 'NPM Packages' },
+    { key: 'hasArchiveHistory', label: 'Has Archive History' },
+    { key: 'syllableCount', label: 'Syllable Count' },
+    { key: 'labelLength', label: 'Label Length' },
+    { key: '_segmentedWordsStr', label: 'Segmented Words' },
+    { key: '_valueDriversStr', label: 'Value Drivers' },
+    { key: '_valueDetractorsStr', label: 'Value Detractors' },
+    { key: 'underpricedFlag', label: 'Underpriced Flag' },
+  ];
+
+  function domainRowForCsv(row) {
+    var r = Object.assign({}, row);
+    r._segmentedWordsStr = Array.isArray(row.segmentedWords) ? row.segmentedWords.join(' ') : '';
+    r._valueDriversStr = (row.valueDrivers || []).slice(0, 5).map(function (x) { return (x.component || '') + ' (' + formatScore(x.impact, 1) + ')'; }).join(', ');
+    r._valueDetractorsStr = (row.valueDetractors || []).slice(0, 5).map(function (x) { return (x.component || '') + ' (' + formatScore(x.impact, 1) + ')'; }).join(', ');
+    return r;
+  }
+
+  var CSV_LOOP_SUMMARY_COLUMNS = [
+    { key: 'loop', label: 'Loop' },
+    { key: '_keywordsPlain', label: 'Keywords' },
+    { key: 'style', label: 'Style' },
+    { key: 'randomness', label: 'Randomness' },
+    { key: 'mutationIntensity', label: 'Mutation Intensity' },
+    { key: 'explorationRate', label: 'Exploration Rate' },
+    { key: 'elitePoolSize', label: 'Elite Pool Size' },
+    { key: 'curatedCoveragePct', label: 'Curated Coverage Pct' },
+    { key: 'curatedCoverageTargetPct', label: 'Curated Coverage Target Pct' },
+    { key: 'requiredQuota', label: 'Required Quota' },
+    { key: 'withinBudgetCount', label: 'Within Budget Count' },
+    { key: 'overBudgetCount', label: 'Over Budget Count' },
+    { key: 'consideredCount', label: 'Considered Count' },
+    { key: 'averageOverallScore', label: 'Average Overall Score' },
+    { key: 'topDomain', label: 'Top Domain' },
+    { key: 'topScore', label: 'Top Score' },
+    { key: 'nameSource', label: 'Name Source' },
+    { key: 'skipReason', label: 'Skip Reason' },
+    { key: 'quotaMet', label: 'Quota Met' },
+  ];
+
+  var CSV_TUNING_COLUMNS = [
+    { key: 'loop', label: 'Loop' },
+    { key: '_keywordsPlain', label: 'Keywords' },
+    { key: 'sourceLoop', label: 'Source Loop' },
+    { key: 'selectedStyle', label: 'Selected Style' },
+    { key: 'selectedRandomness', label: 'Selected Randomness' },
+    { key: 'selectedMutationIntensity', label: 'Selected Mutation Intensity' },
+    { key: 'explorationRate', label: 'Exploration Rate' },
+    { key: 'elitePoolSize', label: 'Elite Pool Size' },
+    { key: 'repetitionPenaltyApplied', label: 'Repetition Penalty Applied' },
+    { key: 'reward', label: 'Reward' },
+  ];
+
+  var CSV_KEYWORD_LIBRARY_COLUMNS = [
+    { key: 'rank', label: 'Rank' },
+    { key: 'token', label: 'Token' },
+    { key: 'source', label: 'Source' },
+    { key: 'inCurrentKeywords', label: 'In Current Keywords' },
+    { key: 'plays', label: 'Plays' },
+    { key: 'avgReward', label: 'Avg Reward' },
+    { key: 'successRate', label: 'Success Rate' },
+    { key: 'performanceScore', label: 'Performance Score' },
+    { key: 'selectionScore', label: 'Selection Score' },
+    { key: 'confidence', label: 'Confidence' },
+    { key: 'githubRepos', label: 'GitHub Repos' },
+    { key: 'npmPackages', label: 'NPM Packages' },
+    { key: 'githubPrior', label: 'GitHub Prior' },
+    { key: 'meanDomainScore', label: 'Mean Domain Score' },
+    { key: 'lastLoop', label: 'Last Loop' },
+  ];
+
+  function getSectionRowsAndColumns(sectionId, results, sortMode) {
+    if (!results) return { rows: [], columns: [] };
+    var rows = [];
+    var columns = [];
+    var allRanked = results.allRanked || [];
+    var pending = results.pending || [];
+    var pendingRows = pending.map(function (p) {
+      var label = String(p.domain || '').split('.')[0];
+      return {
+        domain: p.domain,
+        sourceName: p.sourceName,
+        premiumPricing: Boolean(p.premiumPricing),
+        available: null,
+        price: undefined,
+        overBudget: false,
+        intrinsicValue: 0,
+        marketabilityScore: 0,
+        financialValueScore: 0,
+        phoneticScore: 0,
+        brandabilityScore: 0,
+        seoScore: 0,
+        commercialScore: 0,
+        memorabilityScore: 0,
+        overallScore: 0,
+        syllableCount: 0,
+        labelLength: label.length,
+        timesDiscovered: 0,
+        firstSeenLoop: 0,
+        lastSeenLoop: 0,
+        estimatedValueUSD: 0,
+        estimatedValueLow: 0,
+        estimatedValueHigh: 0,
+        valueRatio: null,
+        underpricedFlag: null,
+        liquidityScore: 0,
+        ev24m: 0,
+        expectedROI: null,
+        devEcosystemScore: 0,
+        hasArchiveHistory: false,
+        segmentedWords: [],
+        valueDrivers: [],
+        valueDetractors: [],
+        _pending: true,
+      };
+    });
+    var combinedRanked = allRanked.concat(pendingRows);
+    if (sectionId === 'all-ranked-table') {
+      rows = sortRows(combinedRanked, sortMode).map(domainRowForCsv);
+      columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
+    } else if (sectionId === 'within-budget-table') {
+      rows = sortRows(results.withinBudget || [], sortMode).map(domainRowForCsv);
+      columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
+    } else if (sectionId === 'over-budget-table') {
+      rows = sortRows(results.overBudget || [], sortMode).map(domainRowForCsv);
+      columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
+    } else if (sectionId === 'unavailable-table') {
+      rows = sortRows(results.unavailable || [], sortMode).map(domainRowForCsv);
+      columns = CSV_DOMAIN_COLUMNS;
+    } else if (sectionId === 'loop-summary-table') {
+      rows = (results.loopSummaries || []).map(function (r) {
+        var plain = sortKeywordsForDisplay(r.keywords || '');
+        return Object.assign({}, r, { _keywordsPlain: plain });
+      });
+      columns = CSV_LOOP_SUMMARY_COLUMNS;
+    } else if (sectionId === 'tuning-table') {
+      rows = (results.tuningHistory || []).map(function (r) {
+        var plain = sortKeywordsForDisplay(r.keywords || '');
+        return Object.assign({}, r, { _keywordsPlain: plain });
+      });
+      columns = CSV_TUNING_COLUMNS;
+    } else if (sectionId === 'keyword-library-table') {
+      rows = Array.isArray(results.keywordLibrary && results.keywordLibrary.tokens) ? results.keywordLibrary.tokens : [];
+      columns = CSV_KEYWORD_LIBRARY_COLUMNS;
+    }
+    return { rows: rows, columns: columns };
+  }
+
+  function getSectionCsv(sectionId, results, sortMode) {
+    var data = getSectionRowsAndColumns(sectionId, results, sortMode);
+    return rowsToCsv(data.rows, data.columns);
+  }
+
+  function getFullCsv(results, sortMode) {
+    var sections = [
+      { id: 'all-ranked-table', title: 'All Ranked Available Domains' },
+      { id: 'within-budget-table', title: 'Within Budget' },
+      { id: 'over-budget-table', title: 'Over Budget' },
+      { id: 'unavailable-table', title: 'Unavailable / Unknown' },
+      { id: 'loop-summary-table', title: 'Loop Summaries' },
+      { id: 'keyword-library-table', title: 'Keyword Library (Live)' },
+      { id: 'tuning-table', title: 'Tuning History' },
+    ];
+    var parts = [];
+    for (var i = 0; i < sections.length; i++) {
+      var data = getSectionRowsAndColumns(sections[i].id, results, sortMode);
+      if (data.rows.length > 0) {
+        parts.push(escapeCsvCell('[' + sections[i].title + ']'));
+        parts.push(rowsToCsv(data.rows, data.columns, true));
+      }
+    }
+    return parts.length ? '\uFEFF' + parts.join('\r\n\r\n') : '';
   }
 
   function sortRows(rows, mode) {
@@ -1452,7 +1673,19 @@
 
     if (job.results) {
       currentResults = job.results;
-      renderResults(currentResults);
+      if (job.status === 'done' || job.status === 'failed') {
+        if (renderResultsTimeoutId != null) {
+          clearTimeout(renderResultsTimeoutId);
+          renderResultsTimeoutId = null;
+        }
+        renderResults(currentResults);
+      } else {
+        if (renderResultsTimeoutId != null) clearTimeout(renderResultsTimeoutId);
+        renderResultsTimeoutId = setTimeout(function () {
+          renderResultsTimeoutId = null;
+          if (currentResults) renderResults(currentResults);
+        }, 150);
+      }
     }
 
     if (job.status === 'done' || job.status === 'failed') {
@@ -1485,6 +1718,65 @@
     const link = document.createElement('a');
     link.href = url;
     link.download = `domainname_wizard_${latestRunExport.run.id || 'run'}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  var SECTION_CSV_FILENAMES = {
+    'all-ranked-table': 'domainname_wizard_all_ranked.csv',
+    'within-budget-table': 'domainname_wizard_within_budget.csv',
+    'over-budget-table': 'domainname_wizard_over_budget.csv',
+    'unavailable-table': 'domainname_wizard_unavailable.csv',
+    'loop-summary-table': 'domainname_wizard_loop_summaries.csv',
+    'keyword-library-table': 'domainname_wizard_keyword_library.csv',
+    'tuning-table': 'domainname_wizard_tuning_history.csv',
+  };
+
+  function copySectionCsv(sectionId) {
+    if (!currentResults) return;
+    var csv = getSectionCsv(sectionId, currentResults, currentSortMode);
+    if (!csv || csv.length < 2) return;
+    navigator.clipboard.writeText(csv).then(function () {}, function () {});
+  }
+
+  function downloadSectionCsv(sectionId) {
+    if (!currentResults) return;
+    var csv = getSectionCsv(sectionId, currentResults, currentSortMode);
+    if (!csv || csv.length < 2) return;
+    var filename = SECTION_CSV_FILENAMES[sectionId] || 'domainname_wizard_section.csv';
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function copyFullCsv() {
+    if (!currentResults) return;
+    var csv = getFullCsv(currentResults, currentSortMode);
+    if (!csv) return;
+    navigator.clipboard.writeText(csv).then(function () {}, function () {});
+  }
+
+  function downloadFullCsv() {
+    if (!currentResults) return;
+    var csv = getFullCsv(currentResults, currentSortMode);
+    if (!csv) return;
+    var now = new Date();
+    var dateStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') + '-' + String(now.getMinutes()).padStart(2, '0');
+    var filename = 'domainname_wizard_full_' + dateStr + '.csv';
+    if (currentJob && currentJob.id) filename = 'domainname_wizard_full_' + String(currentJob.id) + '_' + dateStr + '.csv';
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -1538,6 +1830,9 @@
 
     if (message.type === 'debugLog' && message.payload) {
       debugLogs.push(message.payload);
+      if (debugLogs.length > DEBUG_LOGS_MAX) {
+        debugLogs.splice(0, debugLogs.length - DEBUG_LOGS_MAX);
+      }
       updateDataSourcePanel(message.payload);
       return;
     }
@@ -1593,6 +1888,19 @@
   downloadJsonBtn.addEventListener('click', function () {
     downloadResultsJson();
   });
+
+  resultsPanelEl.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest && e.target.closest('.csv-section-btn');
+    if (!btn || !btn.dataset.sectionId) return;
+    var sectionId = btn.dataset.sectionId;
+    if (btn.dataset.action === 'copy') copySectionCsv(sectionId);
+    else if (btn.dataset.action === 'download') downloadSectionCsv(sectionId);
+  });
+
+  var copyFullCsvBtn = document.getElementById('copy-full-csv-btn');
+  var downloadFullCsvBtn = document.getElementById('download-full-csv-btn');
+  if (copyFullCsvBtn) copyFullCsvBtn.addEventListener('click', copyFullCsv);
+  if (downloadFullCsvBtn) downloadFullCsvBtn.addEventListener('click', downloadFullCsv);
 
   function downloadDebugLog() {
     const exportLogs = debugLogs.slice();

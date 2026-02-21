@@ -197,6 +197,7 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
 // ---------------------------------------------------------------------------
 
 async function run(job) {
+  clearRunCaches();
   await loadValuationData();
   const input = job.input;
   const backendBaseUrl = String(input.apiBaseUrl || '').trim();
@@ -436,9 +437,6 @@ async function run(job) {
         } else {
           unavailableMap.set(key, mergeBest(unavailableMap.get(key), ranked, loop));
         }
-
-        const nextPending = (job.results && job.results.pending) ? job.results.pending.filter(function (p) { return String(p.domain || '').toLowerCase() !== key; }) : [];
-        patch(job, { results: makeSnapshot(nextPending) });
       }
 
       if (gotWithinBudget > 0) stalls = 0;

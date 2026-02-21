@@ -125,68 +125,114 @@
             <option value="labelLength">Label Length</option>
           </select>
         </label>
+        <span class="results-export">
+          <button type="button" class="btn btn-secondary btn-sm" id="copy-full-csv-btn">Copy full CSV</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="download-full-csv-btn">Download full CSV</button>
+        </span>
       </div>
 
       <div id="summary-kpis" class="summary-grid"></div>
 
       <section class="table-section is-collapsed" data-table-section>
-        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="all-ranked-table-panel">
-          All Ranked Available Domains
-        </button>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="all-ranked-table-panel">
+            All Ranked Available Domains
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="all-ranked-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="all-ranked-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
         <div id="all-ranked-table-panel" class="table-section-panel" hidden>
           <div id="all-ranked-table" class="table-wrap"></div>
         </div>
       </section>
 
       <section class="table-section is-collapsed" data-table-section>
-        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="within-budget-table-panel">
-          Within Budget
-        </button>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="within-budget-table-panel">
+            Within Budget
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="within-budget-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="within-budget-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
         <div id="within-budget-table-panel" class="table-section-panel" hidden>
           <div id="within-budget-table" class="table-wrap"></div>
         </div>
       </section>
 
       <section class="table-section is-collapsed" data-table-section>
-        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="over-budget-table-panel">
-          Over Budget
-        </button>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="over-budget-table-panel">
+            Over Budget
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="over-budget-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="over-budget-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
         <div id="over-budget-table-panel" class="table-section-panel" hidden>
           <div id="over-budget-table" class="table-wrap"></div>
         </div>
       </section>
 
       <section class="table-section is-collapsed" data-table-section>
-        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="unavailable-table-panel">
-          Unavailable / Unknown
-        </button>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="unavailable-table-panel">
+            Unavailable / Unknown
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="unavailable-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="unavailable-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
         <div id="unavailable-table-panel" class="table-section-panel" hidden>
           <div id="unavailable-table" class="table-wrap"></div>
         </div>
       </section>
 
       <section class="table-section is-collapsed" data-table-section>
-        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="loop-summary-table-panel">
-          Loop Summaries
-        </button>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="loop-summary-table-panel">
+            Loop Summaries
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="loop-summary-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="loop-summary-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
         <div id="loop-summary-table-panel" class="table-section-panel" hidden>
           <div id="loop-summary-table" class="table-wrap"></div>
         </div>
       </section>
 
       <section class="table-section is-collapsed" data-table-section>
-        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="keyword-library-table-panel">
-          Keyword Library (Live)
-        </button>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="keyword-library-table-panel">
+            Keyword Library (Live)
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="keyword-library-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="keyword-library-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
         <div id="keyword-library-table-panel" class="table-section-panel" hidden>
           <div id="keyword-library-table" class="table-wrap"></div>
         </div>
       </section>
 
       <section class="table-section is-collapsed" data-table-section>
-        <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="tuning-table-panel">
-          Tuning History
-        </button>
+        <div class="table-section-head">
+          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="tuning-table-panel">
+            Tuning History
+          </button>
+          <span class="table-section-csv">
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="tuning-table" data-action="copy">Copy CSV</button>
+            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="tuning-table" data-action="download">Download CSV</button>
+          </span>
+        </div>
         <div id="tuning-table-panel" class="table-section-panel" hidden>
           <div id="tuning-table" class="table-wrap"></div>
         </div>

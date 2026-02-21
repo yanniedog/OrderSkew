@@ -423,6 +423,33 @@ tbody tr:nth-child(odd) {
   margin-top: 10px;
 }
 
+.table-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.table-section-head .table-section-toggle {
+  flex: 1;
+  min-width: 0;
+}
+
+.table-section-csv {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+}
+
+.results-export {
+  display: flex;
+  gap: 6px;
+}
+
 .table-section-toggle {
   width: 100%;
   text-align: left;

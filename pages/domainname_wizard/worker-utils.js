@@ -29,6 +29,13 @@ let DEV_ECOSYSTEM_DETAIL_CACHE = new Map();
 let DEV_ECOSYSTEM_LAST_META = null;
 let ARCHIVE_CACHE = new Map();
 
+function clearRunCaches() {
+  DEV_ECOSYSTEM_CACHE.clear();
+  DEV_ECOSYSTEM_DETAIL_CACHE.clear();
+  ARCHIVE_CACHE.clear();
+  DEV_ECOSYSTEM_LAST_META = null;
+}
+
 const FALLBACK_TLD_TIERS = {
   com: 1.0, ai: 0.85, io: 0.70, co: 0.55, net: 0.40, org: 0.42,
   app: 0.45, dev: 0.40, tech: 0.30, xyz: 0.12, me: 0.25, info: 0.15,
