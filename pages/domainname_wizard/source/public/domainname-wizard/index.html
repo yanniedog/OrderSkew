@@ -89,6 +89,11 @@
             <input name="lowMemoryMode" type="checkbox" checked>
           </span>
         </label>
+        <label class="checkbox-label" title="Collect and display unavailable domains. Off by default to save memory and reduce noise.">Collect Unavailable
+          <span class="checkbox-row">
+            <input name="collectUnavailable" type="checkbox">
+          </span>
+        </label>
       </form>
       <div class="reward-policy" id="reward-policy-card">
         <h3>Reward Prioritization</h3>
@@ -207,24 +212,8 @@
 
       <section class="table-section is-collapsed" data-table-section>
         <div class="table-section-head">
-          <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="over-budget-table-panel">
-            Over Budget
-          </button>
-          <span class="table-section-csv">
-            <button type="button" class="btn btn-sm column-section-btn" data-section-id="over-budget-table" data-action="columns">Columns</button>
-            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="over-budget-table" data-action="copy">Copy CSV</button>
-            <button type="button" class="btn btn-sm csv-section-btn" data-section-id="over-budget-table" data-action="download">Download CSV</button>
-          </span>
-        </div>
-        <div id="over-budget-table-panel" class="table-section-panel" hidden>
-          <div id="over-budget-table" class="table-wrap"></div>
-        </div>
-      </section>
-
-      <section class="table-section is-collapsed" data-table-section>
-        <div class="table-section-head">
           <button type="button" class="table-section-toggle" data-table-toggle aria-expanded="false" aria-controls="unavailable-table-panel">
-            Unavailable / Unknown
+            Unavailable
           </button>
           <span class="table-section-csv">
             <button type="button" class="btn btn-sm column-section-btn" data-section-id="unavailable-table" data-action="columns">Columns</button>

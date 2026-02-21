@@ -424,6 +424,7 @@ async function run(job) {
   const tuningHistory = [];
   const detailStore = new Map();
   const lowMemoryMode = input.lowMemoryMode !== false;
+  const collectUnavailable = input.collectUnavailable === true;
   const unavailableCap = lowMemoryMode ? 1500 : 4000;
   const loopHistoryRamCap = lowMemoryMode ? 120 : 240;
   const recentHistoryLoops = 40;
@@ -716,13 +717,15 @@ async function run(job) {
           overBudgetMap.set(key, mergeBest(overBudgetMap.get(key), ranked, loop));
         } else {
           unavailableTotalSeen += 1;
-          const hadUnavailable = unavailableMap.has(key);
-          unavailableMap.set(key, mergeBest(unavailableMap.get(key), ranked, loop));
-          if (!hadUnavailable && unavailableMap.size > unavailableCap) {
-            const firstKey = unavailableMap.keys().next().value;
-            if (firstKey != null) {
-              unavailableMap.delete(firstKey);
-              unavailableDropped += 1;
+          if (collectUnavailable) {
+            const hadUnavailable = unavailableMap.has(key);
+            unavailableMap.set(key, mergeBest(unavailableMap.get(key), ranked, loop));
+            if (!hadUnavailable && unavailableMap.size > unavailableCap) {
+              const firstKey = unavailableMap.keys().next().value;
+              if (firstKey != null) {
+                unavailableMap.delete(firstKey);
+                unavailableDropped += 1;
+              }
             }
           }
         }

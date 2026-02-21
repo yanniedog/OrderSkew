@@ -200,8 +200,7 @@
                 submitBtn.disabled = false;
                 var r = job.results;
                 var html = "<h3>Within Budget (" + r.withinBudget.length + ")</h3>" + table(r.withinBudget);
-                html += "<h3>Over Budget (" + r.overBudget.length + ")</h3>" + table(r.overBudget);
-                html += "<h3>Unavailable / Unknown (" + r.unavailable.length + ")</h3>" + table(r.unavailable);
+                html += "<h3>Unavailable (" + (r.unavailable || []).length + ")</h3>" + table(r.unavailable || []);
                 resultsEl.innerHTML = html;
                 return;
               }

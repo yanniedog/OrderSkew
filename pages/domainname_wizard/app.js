@@ -33,7 +33,6 @@
   const summaryKpisEl = document.getElementById('summary-kpis');
   const allRankedTableEl = document.getElementById('all-ranked-table');
   const withinBudgetTableEl = document.getElementById('within-budget-table');
-  const overBudgetTableEl = document.getElementById('over-budget-table');
   const unavailableTableEl = document.getElementById('unavailable-table');
   const loopSummaryTableEl = document.getElementById('loop-summary-table');
   const tuningTableEl = document.getElementById('tuning-table');
@@ -71,7 +70,6 @@
   const SECTION_COLUMN_OPTIONS = {
     'all-ranked-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'within-budget-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
-    'over-budget-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
     'tuning-table': ['loop', 'keywords', 'strategy', 'explore', 'repetitionPenalty', 'reward', 'featureWeights'],
@@ -80,7 +78,6 @@
   const DEFAULT_SECTION_COLUMNS = {
     'all-ranked-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'within-budget-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
-    'over-budget-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
     'tuning-table': ['loop', 'keywords', 'strategy', 'explore', 'repetitionPenalty', 'reward'],
@@ -286,7 +283,7 @@
   }
 
   function resetDomainTablePages() {
-    ['all-ranked-table', 'within-budget-table', 'over-budget-table', 'unavailable-table'].forEach(function (id) {
+    ['all-ranked-table', 'within-budget-table', 'unavailable-table'].forEach(function (id) {
       tablePageState[id] = 1;
     });
   }
@@ -426,7 +423,6 @@
         input: input || currentInput || {},
         results: {
           withinBudget: Array.isArray(job.results.withinBudget) ? job.results.withinBudget.slice(0, 1200) : [],
-          overBudget: Array.isArray(job.results.overBudget) ? job.results.overBudget.slice(0, 1200) : [],
           allRanked: Array.isArray(job.results.allRanked) ? job.results.allRanked.slice(0, 1500) : [],
           loopSummaries: Array.isArray(job.results.loopSummaries) ? job.results.loopSummaries.slice(0, 500) : [],
           tuningHistory: Array.isArray(job.results.tuningHistory) ? job.results.tuningHistory.slice(0, 500) : [],
@@ -805,7 +801,6 @@
     const ids = [
       'all-ranked-table',
       'within-budget-table',
-      'over-budget-table',
       'unavailable-table',
       'loop-summary-table',
       'keyword-library-table',
@@ -1194,9 +1189,6 @@
     } else if (sectionId === 'within-budget-table') {
       rows = sortRows(applyDomainFilters(results.withinBudget || []), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
-    } else if (sectionId === 'over-budget-table') {
-      rows = sortRows(applyDomainFilters(results.overBudget || []), sortMode).map(domainRowForCsv);
-      columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
     } else if (sectionId === 'unavailable-table') {
       rows = sortRows(applyDomainFilters(results.unavailable || []), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS;
@@ -1219,7 +1211,7 @@
     var visible = getVisibleColumns(sectionId);
     if (visible && visible.length && columns && columns.length) {
       var keyMap = {};
-      if (sectionId === 'all-ranked-table' || sectionId === 'within-budget-table' || sectionId === 'over-budget-table' || sectionId === 'unavailable-table') {
+      if (sectionId === 'all-ranked-table' || sectionId === 'within-budget-table' || sectionId === 'unavailable-table') {
         keyMap = {
           estimatedValue: 'estimatedValueUSD',
           notes: '_valueDriversStr',
@@ -1253,8 +1245,7 @@
     var sections = [
       { id: 'all-ranked-table', title: 'All Ranked Available Domains' },
       { id: 'within-budget-table', title: 'Within Budget' },
-      { id: 'over-budget-table', title: 'Over Budget' },
-      { id: 'unavailable-table', title: 'Unavailable / Unknown' },
+      { id: 'unavailable-table', title: 'Unavailable' },
       { id: 'loop-summary-table', title: 'Loop Summaries' },
       { id: 'keyword-library-table', title: 'Keyword Library (Live)' },
       { id: 'tuning-table', title: 'Tuning History' },
@@ -1402,7 +1393,6 @@
     const avg = (field) => allRanked.reduce((sum, row) => sum + (Number(row[field]) || 0), 0) / allRanked.length;
     const top = sortRows(allRanked, currentSortMode)[0];
     const positiveBudget = (results.withinBudget || []).length;
-    const overBudgetCount = (results.overBudget || []).length;
     const underpricedCount = allRanked.filter(r => r.underpricedFlag).length;
     const avgEstValue = allRanked.filter(r => r.estimatedValueUSD > 0).reduce((s, r) => s + r.estimatedValueUSD, 0) / Math.max(1, allRanked.filter(r => r.estimatedValueUSD > 0).length);
     const bestRatio = allRanked.reduce((best, r) => Math.max(best, r.valueRatio || 0), 0);
@@ -1730,16 +1720,13 @@
     const combinedRanked = allRanked.concat(pendingRows);
     const filteredCombinedRanked = applyDomainFilters(combinedRanked);
     const filteredWithinBudget = applyDomainFilters(results.withinBudget || []);
-    const filteredOverBudget = applyDomainFilters(results.overBudget || []);
     const filteredUnavailable = applyDomainFilters(results.unavailable || []);
     const sortedRanked = sortRows(filteredCombinedRanked, currentSortMode);
     const withinBudget = sortRows(filteredWithinBudget, currentSortMode);
-    const overBudget = sortRows(filteredOverBudget, currentSortMode);
     const unavailable = sortRows(filteredUnavailable, currentSortMode);
     const tokenPerfLookup = buildTokenPerformanceLookup(results.keywordLibrary || null);
     const rankedPage = paginateRows('all-ranked-table', sortedRanked);
     const withinPage = paginateRows('within-budget-table', withinBudget);
-    const overPage = paginateRows('over-budget-table', overBudget);
     const unavailablePage = paginateRows('unavailable-table', unavailable);
     const loopPage = paginateRows('loop-summary-table', results.loopSummaries || []);
     const tuningPage = paginateRows('tuning-table', results.tuningHistory || []);
@@ -1756,7 +1743,6 @@
     renderSummary(results);
     allRankedTableEl.innerHTML = renderDomainTable(rankedPage.rows, false, 'all-ranked-table') + renderPager('all-ranked-table', rankedPage);
     withinBudgetTableEl.innerHTML = renderDomainTable(withinPage.rows, false, 'within-budget-table') + renderPager('within-budget-table', withinPage);
-    overBudgetTableEl.innerHTML = renderDomainTable(overPage.rows, false, 'over-budget-table') + renderPager('over-budget-table', overPage);
     unavailableTableEl.innerHTML = renderDomainTable(unavailablePage.rows, true, 'unavailable-table') + renderPager('unavailable-table', unavailablePage);
 
     loopSummaryTableEl.innerHTML = historyNotice + renderLoopSummaryTable(loopPage.rows, tokenPerfLookup, 'loop-summary-table') + renderPager('loop-summary-table', loopPage);
@@ -1887,6 +1873,7 @@
       apiBaseUrl: BACKEND_URL,
       preferEnglish: String(data.get('preferEnglish') || '').toLowerCase() === 'on',
       lowMemoryMode: String(data.get('lowMemoryMode') || '').toLowerCase() === 'on',
+      collectUnavailable: String(data.get('collectUnavailable') || '').toLowerCase() === 'on',
       rewardPolicy: (function () {
         const level = String(data.get('repetitionPenaltyLevel') || 'strong').trim();
         const base = persistentRewardPolicy && typeof persistentRewardPolicy === 'object' ? { ...persistentRewardPolicy } : {};
@@ -2069,7 +2056,6 @@
   var SECTION_CSV_FILENAMES = {
     'all-ranked-table': 'domainname_wizard_all_ranked.csv',
     'within-budget-table': 'domainname_wizard_within_budget.csv',
-    'over-budget-table': 'domainname_wizard_over_budget.csv',
     'unavailable-table': 'domainname_wizard_unavailable.csv',
     'loop-summary-table': 'domainname_wizard_loop_summaries.csv',
     'keyword-library-table': 'domainname_wizard_keyword_library.csv',
@@ -2367,6 +2353,10 @@
   });
 
   function onDomainFilterInputChange() {
+    if (renderResultsTimeoutId != null) {
+      clearTimeout(renderResultsTimeoutId);
+      renderResultsTimeoutId = null;
+    }
     resetDomainTablePages();
     if (currentResults) renderResults(currentResults);
     else updateDomainFilterStatus(0, 0);
