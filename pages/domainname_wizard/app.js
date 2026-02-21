@@ -2376,7 +2376,8 @@
     void downloadResultsJson();
   });
 
-  resultsPanelEl.addEventListener('click', function (e) {
+  if (resultsPanelEl) {
+    resultsPanelEl.addEventListener('click', function (e) {
     var pagerBtn = e.target && e.target.closest && e.target.closest('.pager-btn');
     if (pagerBtn && pagerBtn.dataset.sectionId && pagerBtn.dataset.pageAction) {
       var sid = pagerBtn.dataset.sectionId;
@@ -2402,7 +2403,8 @@
     var sectionId = btn.dataset.sectionId;
     if (btn.dataset.action === 'copy') copySectionCsv(sectionId);
     else if (btn.dataset.action === 'download') downloadSectionCsv(sectionId);
-  });
+    });
+  }
 
   var copyFullCsvBtn = document.getElementById('copy-full-csv-btn');
   var downloadFullCsvBtn = document.getElementById('download-full-csv-btn');
