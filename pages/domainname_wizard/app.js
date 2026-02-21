@@ -194,23 +194,230 @@
     return getVisibleColumns(sectionId).includes(key);
   }
 
+  function getColumnLabel(sectionId, key) {
+    const labelMap = {
+      'domain': 'Domain',
+      'availability': 'Availability',
+      'price': 'Price',
+      'estimatedValue': 'Est. Value',
+      'valueRatio': 'Value Ratio',
+      'valueMetrics': 'Value Metrics',
+      'finance': 'Finance',
+      'quality': 'Quality',
+      'signals': 'Signals',
+      'words': 'Words',
+      'notes': 'Notes',
+      'realWordPartsScore': 'Real Word Parts',
+      'cpcKeywordScore': 'CPC',
+      'bestCpcTier': 'CPC Tier',
+      'bestCpcWord': 'CPC Word',
+      'cvFlowScore': 'CV Flow',
+      'keywordMatchScore': 'Keyword Match',
+      'devSignalScore': 'Dev Signal',
+      'notesPriorityScore': 'Notes Priority',
+      'loop': 'Loop',
+      'keywords': 'Keywords',
+      'strategy': 'Strategy',
+      'explore': 'Explore',
+      'quota': 'Quota',
+      'results': 'Results',
+      'top': 'Top',
+      'sourceNote': 'Source/Note',
+      'repetitionPenalty': 'Rep. Penalty',
+      'reward': 'Reward',
+      'featureWeights': 'Feature Weights',
+      'rank': 'Rank',
+      'word': 'Word',
+      'state': 'State',
+      'usage': 'Usage',
+      'evidence': 'Evidence',
+      'lastLoop': 'Last Loop',
+    };
+    return labelMap[key] || key;
+  }
+
   function openColumnPicker(sectionId) {
     const options = SECTION_COLUMN_OPTIONS[sectionId] || [];
     if (!options.length) return;
     const current = getVisibleColumns(sectionId);
-    const promptText = [
-      `Columns for ${sectionId}`,
-      `Available: ${options.join(', ')}`,
-      'Enter comma-separated keys to show:',
-    ].join('\n');
-    const raw = window.prompt(promptText, current.join(', '));
-    if (raw == null) return;
-    const selected = raw.split(',').map(function (x) { return String(x || '').trim(); }).filter(Boolean);
-    const valid = selected.filter(function (x) { return options.includes(x); });
-    if (!valid.length) return;
-    sectionColumnState[sectionId] = valid;
-    saveColumnPrefs();
-    if (currentResults) renderResults(currentResults);
+    
+    const modal = document.createElement('div');
+    modal.className = 'column-picker-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'column-picker-title');
+    
+    const sectionName = sectionId.replace(/-table$/, '').replace(/-/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); });
+    
+    modal.innerHTML = `
+      <div class="column-picker-dialog">
+        <div class="column-picker-header">
+          <h3 id="column-picker-title">Column Configuration: ${sectionName}</h3>
+          <button type="button" class="column-picker-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="column-picker-body">
+          <p class="column-picker-hint">Drag to reorder, check/uncheck to show/hide columns</p>
+          <ul class="column-picker-list" id="column-picker-list"></ul>
+        </div>
+        <div class="column-picker-footer">
+          <button type="button" class="btn btn-secondary" id="column-picker-reset">Reset to Default</button>
+          <div class="column-picker-actions">
+            <button type="button" class="btn btn-secondary" id="column-picker-cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="column-picker-save">Save</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const listEl = modal.querySelector('#column-picker-list');
+    const closeBtn = modal.querySelector('.column-picker-close');
+    const cancelBtn = modal.querySelector('#column-picker-cancel');
+    const saveBtn = modal.querySelector('#column-picker-save');
+    const resetBtn = modal.querySelector('#column-picker-reset');
+    
+    let workingOrder = current.slice();
+    let workingChecked = new Set(workingOrder);
+    let draggedElement = null;
+    
+    function renderList() {
+      listEl.innerHTML = '';
+      options.forEach(function (key) {
+        const li = document.createElement('li');
+        li.className = 'column-picker-item';
+        li.draggable = true;
+        li.dataset.key = key;
+        if (!workingChecked.has(key)) {
+          li.classList.add('column-picker-item-hidden');
+        }
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'col-' + key;
+        checkbox.checked = workingChecked.has(key);
+        checkbox.addEventListener('change', function () {
+          if (checkbox.checked) {
+            workingChecked.add(key);
+            li.classList.remove('column-picker-item-hidden');
+            if (!workingOrder.includes(key)) {
+              workingOrder.push(key);
+            }
+          } else {
+            workingChecked.delete(key);
+            li.classList.add('column-picker-item-hidden');
+          }
+        });
+        
+        const label = document.createElement('label');
+        label.htmlFor = 'col-' + key;
+        label.textContent = getColumnLabel(sectionId, key);
+        
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'column-picker-drag-handle';
+        dragHandle.textContent = '☰';
+        dragHandle.setAttribute('aria-label', 'Drag to reorder');
+        
+        li.appendChild(checkbox);
+        li.appendChild(label);
+        li.appendChild(dragHandle);
+        
+        li.addEventListener('dragstart', function (e) {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', key);
+          li.classList.add('column-picker-item-dragging');
+          draggedElement = li;
+        });
+        
+        li.addEventListener('dragend', function () {
+          li.classList.remove('column-picker-item-dragging');
+          draggedElement = null;
+        });
+        
+        li.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (!draggedElement || draggedElement === li) return;
+          const afterElement = getDragAfterElement(listEl, e.clientY);
+          if (afterElement == null) {
+            listEl.appendChild(draggedElement);
+          } else {
+            listEl.insertBefore(draggedElement, afterElement);
+          }
+        });
+        
+        li.addEventListener('drop', function (e) {
+          e.preventDefault();
+          updateOrderFromDOM();
+        });
+        
+        listEl.appendChild(li);
+      });
+      updateOrderFromDOM();
+    }
+    
+    function getDragAfterElement(container, y) {
+      const draggableElements = Array.from(container.querySelectorAll('.column-picker-item:not(.column-picker-item-dragging)'));
+      return draggableElements.reduce(function (closest, child) {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+    
+    function updateOrderFromDOM() {
+      const items = Array.from(listEl.querySelectorAll('.column-picker-item'));
+      workingOrder = items.map(function (li) { return li.dataset.key; }).filter(function (key) { return workingChecked.has(key); });
+      const unchecked = options.filter(function (key) { return !workingChecked.has(key); });
+      workingOrder = workingOrder.concat(unchecked);
+    }
+    
+    function closeModal() {
+      document.body.removeChild(modal);
+    }
+    
+    function saveAndClose() {
+      const visible = Array.from(workingChecked);
+      const ordered = workingOrder.filter(function (key) { return visible.includes(key); });
+      if (ordered.length === 0) {
+        alert('At least one column must be visible.');
+        return;
+      }
+      sectionColumnState[sectionId] = ordered;
+      saveColumnPrefs();
+      if (currentResults) renderResults(currentResults);
+      closeModal();
+    }
+    
+    function resetToDefault() {
+      const defaultCols = DEFAULT_SECTION_COLUMNS[sectionId] || options;
+      workingOrder = options.slice();
+      workingChecked = new Set(defaultCols);
+      renderList();
+    }
+    
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    saveBtn.addEventListener('click', saveAndClose);
+    resetBtn.addEventListener('click', resetToDefault);
+    
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+    
+    modal.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+    
+    renderList();
+    saveBtn.focus();
   }
 
   function paginateRows(sectionId, rows) {
