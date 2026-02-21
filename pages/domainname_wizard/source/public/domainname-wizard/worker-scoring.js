@@ -101,7 +101,7 @@ function scorePhoneticQuality(label) {
   const vowelScore = clamp(100 - Math.abs(vowelRatio - 0.40) * 250, 0, 100);
 
   const score = clamp(triNorm * 0.50 + altScore * 0.30 + vowelScore * 0.20, 0, 100);
-  return { score: round(score, 1), drivers, detractors };
+  return { score: round(score, 1), cvFlowScore: round(altScore, 1), drivers, detractors };
 }
 
 // ---------------------------------------------------------------------------
@@ -165,7 +165,12 @@ function scoreBrandability(label, keyTokens) {
     (trigramScore(clean) > -1.5 ? 6 : 0),
     0, 100
   );
-  return { score: round(score, 1), drivers, detractors };
+  return {
+    score: round(score, 1),
+    realWordPartsScore: round(clamp(seg.quality * 100, 0, 100), 1),
+    drivers,
+    detractors,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +228,12 @@ function scoreSeo(label, keyTokens, tld) {
     tldSeo * 0.25 + imageBonus + (clean.length <= 12 ? 10 : 0) * 0.15,
     0, 100
   );
-  return { score: round(score, 1), drivers, detractors };
+  return {
+    score: round(score, 1),
+    keywordMatchScore: round(clamp(kwDensity * 0.55 + directRel * 0.45, 0, 100), 1),
+    drivers,
+    detractors,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +274,7 @@ function scoreCommercialValue(label, tld) {
   const score = clamp(cpcScore * 0.40 + categoryKiller + tldMult * 40 * 0.30 + seg.quality * 30, 0, 100);
   return {
     score: round(score, 1), drivers, detractors,
+    cpcKeywordScore: round(cpcScore, 1),
     bestCpcTier: bestTier, bestCpcWord: bestWord,
     cpcScoreRaw: bestTier > 0 ? 6 - bestTier : 0,
     isCategoryKiller: categoryKiller > 0,
@@ -578,6 +589,50 @@ function scoreDomain(row, input, enrichment) {
     phonetic.detractors, brand.detractors, seo.detractors, commercial.detractors, financial.detractors, memo.detractors
   ).sort((a, b) => b.impact - a.impact).slice(0, 5);
 
+  const devSignalScore = round(clamp(
+    enrich.devEcosystemScore > 0 ? (Math.log10(1 + Number(enrich.devEcosystemScore) || 0) / 6) * 100 : 0,
+    0,
+    100,
+  ), 1);
+  const rewardPolicy = input && input.rewardPolicy && typeof input.rewardPolicy === 'object' ? input.rewardPolicy : {};
+  const featureWeights = rewardPolicy.featureWeights && typeof rewardPolicy.featureWeights === 'object'
+    ? rewardPolicy.featureWeights
+    : {};
+  const fw = {
+    realWordParts: clamp(Number(featureWeights.realWordParts) || 1, 0, 3),
+    cpcKeywords: clamp(Number(featureWeights.cpcKeywords) || 1, 0, 3),
+    cvFlow: clamp(Number(featureWeights.cvFlow) || 1, 0, 3),
+    keywordMatch: clamp(Number(featureWeights.keywordMatch) || 1, 0, 3),
+    brandability: clamp(Number(featureWeights.brandability) || 1, 0, 3),
+    memorability: clamp(Number(featureWeights.memorability) || 1, 0, 3),
+    devSignal: clamp(Number(featureWeights.devSignal) || 1, 0, 3),
+  };
+  const fwSum = Math.max(
+    1e-6,
+    fw.realWordParts + fw.cpcKeywords + fw.cvFlow + fw.keywordMatch + fw.brandability + fw.memorability + fw.devSignal,
+  );
+  const notesPriorityScore = round(clamp(
+    (
+      (Number(brand.realWordPartsScore || 0) * fw.realWordParts)
+      + (Number(commercial.cpcKeywordScore || 0) * fw.cpcKeywords)
+      + (Number(phonetic.cvFlowScore || 0) * fw.cvFlow)
+      + (Number(seo.keywordMatchScore || 0) * fw.keywordMatch)
+      + (Number(brand.score || 0) * fw.brandability)
+      + (Number(memo.score || 0) * fw.memorability)
+      + (Number(devSignalScore || 0) * fw.devSignal)
+    ) / fwSum,
+    0,
+    100,
+  ), 1);
+  const valueDriversSummary = topValueDrivers
+    .slice(0, 3)
+    .map((x) => `${x.component} (${round(Number(x.impact) || 0, 1)})`)
+    .join(', ');
+  const valueDetractorsSummary = valueDetractors
+    .slice(0, 3)
+    .map((x) => `${x.component} (${round(Number(x.impact) || 0, 1)})`)
+    .join(', ');
+
   return {
     marketabilityScore,
     financialValueScore,
@@ -588,6 +643,14 @@ function scoreDomain(row, input, enrichment) {
     seoScore: seo.score,
     commercialScore: commercial.score,
     memorabilityScore: memo.score,
+    realWordPartsScore: Number(brand.realWordPartsScore || 0),
+    cpcKeywordScore: Number(commercial.cpcKeywordScore || 0),
+    bestCpcTier: Number(commercial.bestCpcTier || 0),
+    bestCpcWord: commercial.bestCpcWord || '',
+    cvFlowScore: Number(phonetic.cvFlowScore || 0),
+    keywordMatchScore: Number(seo.keywordMatchScore || 0),
+    devSignalScore,
+    notesPriorityScore,
     syllableCount: syl,
     labelLength: len,
     estimatedValueUSD: valuation.estimated,
@@ -608,6 +671,8 @@ function scoreDomain(row, input, enrichment) {
     segmentedWords: seg.words,
     valueDrivers: topValueDrivers,
     valueDetractors,
+    valueDriversSummary,
+    valueDetractorsSummary,
     devEcosystemEvidence: enrich.devEcosystemEvidence || null,
   };
 }

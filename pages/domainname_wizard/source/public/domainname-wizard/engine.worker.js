@@ -5,6 +5,8 @@ const jobs = new Map();
 const canceled = new Set();
 let dbPromise = null;
 const WORKER_ASSET_VERSION = '2026-02-20-1';
+const RUN_HISTORY_STORE = 'run_history';
+const MAX_DETAIL_ROWS = 200;
 
 importScripts(
   `worker-utils.js?v=${WORKER_ASSET_VERSION}`,
@@ -22,10 +24,11 @@ function openDb() {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null);
   dbPromise = new Promise((resolve) => {
     try {
-      const req = indexedDB.open(DB_NAME, 2);
+      const req = indexedDB.open(DB_NAME, 3);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'key' });
+        if (!db.objectStoreNames.contains(RUN_HISTORY_STORE)) db.createObjectStore(RUN_HISTORY_STORE, { keyPath: 'key' });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
@@ -123,11 +126,195 @@ async function saveModel(model) {
   }
 }
 
+function historyKey(jobId, type, loop) {
+  return `${String(jobId || '')}:${String(type || '')}:${String(Math.max(0, Number(loop) || 0)).padStart(6, '0')}`;
+}
+
+function runHistoryPrefix(jobId, type) {
+  return `${String(jobId || '')}:${String(type || '')}:`;
+}
+
+async function appendRunHistory(jobId, type, loop, value) {
+  const db = await openDb();
+  if (!db) return;
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(RUN_HISTORY_STORE, 'readwrite');
+      tx.objectStore(RUN_HISTORY_STORE).put({
+        key: historyKey(jobId, type, loop),
+        jobId: String(jobId || ''),
+        type: String(type || ''),
+        loop: Math.max(0, Number(loop) || 0),
+        value: value || null,
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // Ignore history persistence errors.
+  }
+}
+
+async function clearRunHistory(jobId) {
+  const db = await openDb();
+  if (!db) return;
+  const job = String(jobId || '');
+  if (!job) return;
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(RUN_HISTORY_STORE, 'readwrite');
+      const store = tx.objectStore(RUN_HISTORY_STORE);
+      const req = store.openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor) return;
+        if (String(cursor.value && cursor.value.jobId) === job) cursor.delete();
+        cursor.continue();
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // Ignore history cleanup errors.
+  }
+}
+
+async function readRunHistory(jobId, type) {
+  const db = await openDb();
+  if (!db) return [];
+  const prefix = runHistoryPrefix(jobId, type);
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(RUN_HISTORY_STORE, 'readonly');
+      const store = tx.objectStore(RUN_HISTORY_STORE);
+      const req = store.openCursor();
+      const out = [];
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor) return;
+        const key = String(cursor.key || '');
+        if (key.startsWith(prefix) && cursor.value && cursor.value.value) out.push(cursor.value.value);
+        cursor.continue();
+      };
+      tx.oncomplete = () => resolve(out.sort((a, b) => (Number(a.loop) || 0) - (Number(b.loop) || 0)));
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    return [];
+  }
+}
+
+function summarizeFactors(list) {
+  if (!Array.isArray(list) || !list.length) return '';
+  return list.slice(0, 3).map(function (x) {
+    return `${x.component || ''} (${round(Number(x.impact) || 0, 1)})`;
+  }).join(', ');
+}
+
+function compactRankedRow(row) {
+  if (!row || typeof row !== 'object') return row;
+  return {
+    domain: row.domain,
+    sourceName: row.sourceName,
+    premiumPricing: Boolean(row.premiumPricing),
+    available: row.available,
+    definitive: Boolean(row.definitive),
+    price: row.price,
+    currency: row.currency || 'USD',
+    period: row.period != null ? row.period : 1,
+    reason: row.reason || '',
+    overBudget: Boolean(row.overBudget),
+    marketabilityScore: Number(row.marketabilityScore || 0),
+    financialValueScore: Number(row.financialValueScore || 0),
+    overallScore: Number(row.overallScore || 0),
+    intrinsicValue: Number(row.intrinsicValue || 0),
+    phoneticScore: Number(row.phoneticScore || 0),
+    brandabilityScore: Number(row.brandabilityScore || 0),
+    seoScore: Number(row.seoScore || 0),
+    commercialScore: Number(row.commercialScore || 0),
+    memorabilityScore: Number(row.memorabilityScore || 0),
+    realWordPartsScore: Number(row.realWordPartsScore || 0),
+    cpcKeywordScore: Number(row.cpcKeywordScore || 0),
+    bestCpcTier: Number(row.bestCpcTier || 0),
+    bestCpcWord: row.bestCpcWord || '',
+    cvFlowScore: Number(row.cvFlowScore || 0),
+    keywordMatchScore: Number(row.keywordMatchScore || 0),
+    devSignalScore: Number(row.devSignalScore || 0),
+    notesPriorityScore: Number(row.notesPriorityScore || 0),
+    syllableCount: Number(row.syllableCount || 0),
+    labelLength: Number(row.labelLength || 0),
+    estimatedValueUSD: Number(row.estimatedValueUSD || 0),
+    estimatedValueLow: Number(row.estimatedValueLow || 0),
+    estimatedValueHigh: Number(row.estimatedValueHigh || 0),
+    valueConfidence: row.valueConfidence || null,
+    valueRatio: row.valueRatio == null ? null : Number(row.valueRatio || 0),
+    underpricedFlag: row.underpricedFlag || null,
+    liquidityScore: Number(row.liquidityScore || 0),
+    timeToSaleMonths: Number(row.timeToSaleMonths || 0),
+    saleProbability24m: Number(row.saleProbability24m || 0),
+    ev24m: Number(row.ev24m || 0),
+    expectedROI: row.expectedROI == null ? null : Number(row.expectedROI || 0),
+    comparableMedianPrice: Number(row.comparableMedianPrice || 0),
+    devEcosystemScore: Number(row.devEcosystemScore || 0),
+    hasArchiveHistory: Boolean(row.hasArchiveHistory),
+    segmentedWords: Array.isArray(row.segmentedWords) ? row.segmentedWords.slice(0, 10) : [],
+    valueDriversSummary: row.valueDriversSummary || summarizeFactors(row.valueDrivers),
+    valueDetractorsSummary: row.valueDetractorsSummary || summarizeFactors(row.valueDetractors),
+    devEcosystemEvidence: row.devEcosystemEvidence || null,
+    firstSeenLoop: Number(row.firstSeenLoop || 0),
+    lastSeenLoop: Number(row.lastSeenLoop || 0),
+    timesDiscovered: Number(row.timesDiscovered || 1),
+  };
+}
+
+function compactUnavailableRow(row) {
+  const compact = compactRankedRow(row);
+  if (!compact || typeof compact !== 'object') return compact;
+  compact.segmentedWords = [];
+  compact.devEcosystemEvidence = null;
+  return compact;
+}
+
+function trackRowDetails(detailStore, row) {
+  if (!detailStore || !(detailStore instanceof Map) || !row || !row.domain) return;
+  const key = String(row.domain || '').toLowerCase();
+  const detail = {
+    domain: row.domain,
+    score: Number(row.overallScore || 0),
+    comparableSales: Array.isArray(row.comparableSales) ? row.comparableSales.slice(0, 8) : [],
+    valueDrivers: Array.isArray(row.valueDrivers) ? row.valueDrivers.slice(0, 8) : [],
+    valueDetractors: Array.isArray(row.valueDetractors) ? row.valueDetractors.slice(0, 8) : [],
+  };
+  if (detailStore.has(key)) {
+    detailStore.set(key, detail);
+    return;
+  }
+  if (detailStore.size < MAX_DETAIL_ROWS) {
+    detailStore.set(key, detail);
+    return;
+  }
+  let minKey = null;
+  let minScore = Number.POSITIVE_INFINITY;
+  for (const [k, v] of detailStore.entries()) {
+    const s = Number(v && v.score) || 0;
+    if (s < minScore) {
+      minScore = s;
+      minKey = k;
+    }
+  }
+  if (detail.score > minScore && minKey) {
+    detailStore.delete(minKey);
+    detailStore.set(key, detail);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Snapshot
 // ---------------------------------------------------------------------------
 
-function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending, keywordState) {
+function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending, keywordState, meta) {
+  const m = meta || {};
+  const keywordRowsLimit = Math.max(20, Math.min(240, Number(m.keywordRowsLimit) || 120));
   const allRanked = sortRanked(Array.from(availableMap.values()), 'marketability');
   const withinBudgetOnly = allRanked.filter(function (r) { return r.overBudget !== true; });
   let keywordLibrary = null;
@@ -139,14 +326,14 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
     keywordLibrary = {
       seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
       currentKeywords: Array.isArray(keywordState.optimizer.curTokens) ? keywordState.optimizer.curTokens.slice(0, 8) : [],
-      tokens: keywordState.optimizer.getKeywordLibraryRows(120),
+      tokens: keywordState.optimizer.getKeywordLibraryRows(keywordRowsLimit),
       apiStatus: lib.apiStatus || null,
       devEcosystemStatus: keywordState.devEcosystemStatus || null,
       coverageMetrics: coverage || null,
     };
   } else if (keywordState && keywordState.library) {
     const lib = keywordState.library || {};
-    const fallbackTokens = Array.isArray(lib.tokens) ? lib.tokens.slice(0, 120) : [];
+    const fallbackTokens = Array.isArray(lib.tokens) ? lib.tokens.slice(0, keywordRowsLimit) : [];
     keywordLibrary = {
       seedTokens: Array.isArray(lib.seedTokens) ? lib.seedTokens.slice(0, 16) : [],
       currentKeywords: [],
@@ -181,6 +368,7 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
     };
   }
   return {
+    resultsVersion: Number(m.resultsVersion || 0),
     withinBudget: withinBudgetOnly.slice().sort(sortByPrice),
     overBudget: sortRanked(Array.from(overBudgetMap.values()), 'financialValue'),
     unavailable: sortRanked(Array.from(unavailableMap.values()), 'marketability'),
@@ -189,6 +377,10 @@ function snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tu
     tuningHistory: tuningHistory.slice(),
     pending: Array.isArray(pending) ? pending : [],
     keywordLibrary,
+    unavailableTotalSeen: Number(m.unavailableTotalSeen || 0),
+    unavailableDropped: Number(m.unavailableDropped || 0),
+    historyWindowStartLoop: Number(m.historyWindowStartLoop || 1),
+    historyTruncated: Boolean(m.historyTruncated),
   };
 }
 
@@ -212,6 +404,20 @@ async function run(job) {
   const unavailableMap = new Map();
   const loopSummaries = [];
   const tuningHistory = [];
+  const detailStore = new Map();
+  const lowMemoryMode = input.lowMemoryMode !== false;
+  const unavailableCap = lowMemoryMode ? 1500 : 4000;
+  const loopHistoryRamCap = lowMemoryMode ? 120 : 240;
+  const recentHistoryLoops = 40;
+  const keywordRowsLimit = lowMemoryMode ? 80 : 120;
+  const snapshotThrottleMs = lowMemoryMode ? 650 : 240;
+  let unavailableTotalSeen = 0;
+  let unavailableDropped = 0;
+  let latestLoopRecorded = 0;
+  let resultsVersion = 0;
+  let lastResultsEmitAt = 0;
+  let historyTruncated = false;
+  await clearRunHistory(job.id);
 
   let keywordLibrary = {
     seedTokens: tokenize(`${input.keywords} ${input.description || ''}`).slice(0, 8),
@@ -248,10 +454,43 @@ async function run(job) {
   const keywordState = { optimizer, library: keywordLibrary };
   let prevCoverage01 = optimizer.getCoverageMetrics ? (optimizer.getCoverageMetrics().coverage01 || 0) : 0;
   const makeSnapshot = function (pending) {
-    return snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending, keywordState);
+    const historyWindowStartLoop = Math.max(1, latestLoopRecorded - Math.max(1, recentHistoryLoops) + 1);
+    return snapshot(availableMap, overBudgetMap, unavailableMap, loopSummaries, tuningHistory, pending, keywordState, {
+      keywordRowsLimit,
+      resultsVersion,
+      unavailableTotalSeen,
+      unavailableDropped,
+      historyWindowStartLoop,
+      historyTruncated,
+    });
+  };
+  const pushBounded = function (arr, item) {
+    arr.push(item);
+    if (arr.length > loopHistoryRamCap) {
+      arr.shift();
+      historyTruncated = true;
+    }
+  };
+  const persistLoopHistory = async function (loopSummary, tuningStep) {
+    if (loopSummary) await appendRunHistory(job.id, 'loop', loopSummary.loop, loopSummary);
+    if (tuningStep) await appendRunHistory(job.id, 'tuning', tuningStep.loop, tuningStep);
+  };
+  const emitProgressOnly = function (fields) {
+    patch(job, { ...fields, resultsVersion }, true, { includeResults: false });
+  };
+  const emitSnapshot = function (fields, pendingRows, force) {
+    const nowTs = now();
+    const shouldEmitResults = Boolean(force) || (nowTs - lastResultsEmitAt >= snapshotThrottleMs);
+    if (shouldEmitResults) {
+      resultsVersion += 1;
+      lastResultsEmitAt = nowTs;
+      patch(job, { ...fields, resultsVersion, results: makeSnapshot(pendingRows || []) }, true, { includeResults: true });
+      return;
+    }
+    emitProgressOnly(fields);
   };
 
-  patch(job, { status: 'running', phase: 'looping', progress: 5, currentLoop: 0, totalLoops: input.loopCount, results: makeSnapshot([]) });
+  emitSnapshot({ status: 'running', phase: 'looping', progress: 5, currentLoop: 0, totalLoops: input.loopCount }, [], true);
 
   for (let loop = 1; loop <= input.loopCount; loop += 1) {
     if (canceled.has(job.id)) throw new Error('Run canceled by user.');
@@ -275,7 +514,7 @@ async function run(job) {
     for (const label of prevNamesBase) if (label) seenLabels.add(label.toLowerCase());
 
     while (loopAvail.length < plan.input.maxNames && batches < MAX_BATCH && stalls < MAX_STALL) {
-      patch(job, { status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03), currentLoop: loop, totalLoops: input.loopCount });
+      emitProgressOnly({ status: 'running', phase: 'namelix', progress: progress(input.loopCount, loop, 0.03), currentLoop: loop, totalLoops: input.loopCount });
 
       const prevNames = Array.from(new Set(prevNamesBase.concat(Array.from(seenLabels)))).slice(0, 320);
       let cands = [];
@@ -334,10 +573,23 @@ async function run(job) {
         continue;
       }
 
+      if (considered >= LOOP_LIMIT) {
+        limitHit = true;
+        skipReason = 'Loop consider limit reached (251)';
+        break;
+      }
+      const remainingConsider = Math.max(0, LOOP_LIMIT - considered);
+      if (remainingConsider <= 0) {
+        limitHit = true;
+        skipReason = 'Loop consider limit reached (251)';
+        break;
+      }
+      if (cands.length > remainingConsider) cands = cands.slice(0, remainingConsider);
       considered += cands.length;
+      if (considered >= LOOP_LIMIT) limitHit = true;
       batches += 1;
       const pendingRows = cands.map(function (c) { return { domain: c.domain, sourceName: c.sourceName, premiumPricing: c.premiumPricing }; });
-      patch(job, { status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount, results: makeSnapshot(pendingRows) });
+      emitSnapshot({ status: 'running', phase: 'godaddy', progress: progress(input.loopCount, loop, 0.1 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))), currentLoop: loop, totalLoops: input.loopCount }, pendingRows, false);
 
       let gotWithinBudget = 0;
       let gotAvailableAny = 0;
@@ -356,18 +608,18 @@ async function run(job) {
           const primaryError = error instanceof Error ? error.message : String(error || 'unknown');
           sendIngest('engine.worker.js:run', 'Primary availability failed, falling back to RDAP', { primaryError, backendBaseUrl }, 'H4');
           useBackend = false;
-          patch(job, { phase: 'rdap' });
+          emitProgressOnly({ phase: 'rdap' });
           availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
             const frac = total > 0 ? done / total : 0;
-            patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+            emitProgressOnly({ phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
           });
           emitDebugLog('engine.worker.js:run', 'Backend unavailable, switched to RDAP (no prices available)', { backendBaseUrl, error: primaryError });
         }
       } else {
-        patch(job, { phase: 'rdap' });
+        emitProgressOnly({ phase: 'rdap' });
         availabilityByDomain = await fetchRdapAvailability(domainList, job.id, function (done, total) {
           const frac = total > 0 ? done / total : 0;
-          patch(job, { phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
+          emitProgressOnly({ phase: 'rdap', progress: progress(input.loopCount, loop, 0.1 + 0.5 * frac) });
         });
       }
 
@@ -420,7 +672,9 @@ async function run(job) {
           };
         }
 
-        const ranked = { ...result, ...scoreDomain(result, plan.input), firstSeenLoop: loop, lastSeenLoop: loop, timesDiscovered: 1 };
+        const fullRanked = { ...result, ...scoreDomain(result, plan.input), firstSeenLoop: loop, lastSeenLoop: loop, timesDiscovered: 1 };
+        trackRowDetails(detailStore, fullRanked);
+        const ranked = result.available ? compactRankedRow(fullRanked) : compactUnavailableRow(fullRanked);
         loopAllDomains.push(ranked);
 
         if (result.available && !result.overBudget) {
@@ -435,7 +689,16 @@ async function run(job) {
           availableMap.delete(key);
           overBudgetMap.set(key, mergeBest(overBudgetMap.get(key), ranked, loop));
         } else {
+          unavailableTotalSeen += 1;
+          const hadUnavailable = unavailableMap.has(key);
           unavailableMap.set(key, mergeBest(unavailableMap.get(key), ranked, loop));
+          if (!hadUnavailable && unavailableMap.size > unavailableCap) {
+            const firstKey = unavailableMap.keys().next().value;
+            if (firstKey != null) {
+              unavailableMap.delete(firstKey);
+              unavailableDropped += 1;
+            }
+          }
         }
       }
 
@@ -447,14 +710,13 @@ async function run(job) {
         break;
       }
 
-      patch(job, {
+      emitSnapshot({
         status: 'running',
         phase: 'looping',
         progress: progress(input.loopCount, loop, 0.2 + 0.78 * (loopAvail.length / Math.max(1, plan.input.maxNames))),
         currentLoop: loop,
         totalLoops: input.loopCount,
-        results: makeSnapshot([]),
-      });
+      }, [], false);
     }
 
     const nameSource = nameSources.size ? Array.from(nameSources).join(' + ') : 'unknown';
@@ -481,7 +743,8 @@ async function run(job) {
     });
     prevCoverage01 = Number(coverage.coverage01 || 0);
     const step = optimizer.record(plan, reward, loopAllDomains);
-    tuningHistory.push(step);
+    latestLoopRecorded = Math.max(latestLoopRecorded, Number(step.loop || loop));
+    pushBounded(tuningHistory, step);
 
     const avg = rankedAvailableAll.length ? round(rankedAvailableAll.reduce((s, r) => s + (r.overallScore || 0), 0) / rankedAvailableAll.length, 2) : 0;
     const valueRatios = rankedLoop.map((r) => Number(r.valueRatio) || 0).filter((v) => v > 0);
@@ -489,7 +752,7 @@ async function run(job) {
     const underpricedCount = rankedLoop.filter((r) => Boolean(r.underpricedFlag)).length;
     const top = rankedAvailableAll[0];
 
-    loopSummaries.push({
+    const loopSummary = {
       loop,
       keywords: plan.input.keywords,
       description: plan.input.description || '',
@@ -521,22 +784,23 @@ async function run(job) {
       topDomain: top ? top.domain : undefined,
       topScore: top ? top.overallScore : undefined,
       nameSource,
-    });
+    };
+    pushBounded(loopSummaries, loopSummary);
+    await persistLoopHistory(loopSummary, step);
 
-    patch(job, {
+    emitSnapshot({
       status: 'running',
       phase: 'looping',
       progress: progress(input.loopCount, loop, 1),
       currentLoop: loop,
       totalLoops: input.loopCount,
-      results: makeSnapshot([]),
-    });
+    }, [], true);
 
     await new Promise((resolve) => setTimeout(resolve, 50 + Math.floor(Math.random() * 120)));
   }
 
   if (VDATA_LOADED) {
-    patch(job, { phase: 'enrichment', progress: 96 });
+    emitProgressOnly({ phase: 'enrichment', progress: 96 });
     try {
       const allDomains = [...availableMap.values(), ...overBudgetMap.values()];
       const allWords = new Set();
@@ -580,10 +844,12 @@ async function run(job) {
           } : null,
         };
         const updated = scoreDomain(dom, input, enrich);
-        Object.assign(dom, updated);
+        const fullUpdated = { ...dom, ...updated };
+        trackRowDetails(detailStore, fullUpdated);
+        const compactUpdated = compactRankedRow(fullUpdated);
         const key = dom.domain.toLowerCase();
-        if (availableMap.has(key)) availableMap.set(key, dom);
-        if (overBudgetMap.has(key)) overBudgetMap.set(key, dom);
+        if (availableMap.has(key)) availableMap.set(key, compactUpdated);
+        if (overBudgetMap.has(key)) overBudgetMap.set(key, compactUpdated);
       }
       emitDebugLog('engine.worker.js:run', 'API enrichment complete', {
         wordsQueried: wordsForDev.length,
@@ -598,15 +864,14 @@ async function run(job) {
 
   await saveModel(optimizer.snapshot());
 
-  patch(job, {
+  emitSnapshot({
     status: 'done',
     phase: 'finalize',
     progress: 100,
     currentLoop: input.loopCount,
     totalLoops: input.loopCount,
     completedAt: now(),
-    results: makeSnapshot([]),
-  });
+  }, [], true);
 }
 
 // ---------------------------------------------------------------------------
@@ -632,6 +897,7 @@ async function start(rawInput) {
     startedAt: createdAt,
     currentLoop: 0,
     totalLoops: input.loopCount,
+    resultsVersion: 0,
     results: { withinBudget: [], overBudget: [], unavailable: [], allRanked: [], loopSummaries: [], tuningHistory: [], pending: [], keywordLibrary: null },
     error: null,
   };
@@ -666,9 +932,29 @@ function cancel(jobId) {
   canceled.add(jid);
 }
 
+async function emitHistory(jobId, requestId) {
+  const jid = text(jobId);
+  if (!jid) {
+    self.postMessage({ type: 'history', requestId: requestId || null, jobId: null, loopSummaries: [], tuningHistory: [] });
+    return;
+  }
+  const [loopSummaries, tuningHistory] = await Promise.all([
+    readRunHistory(jid, 'loop'),
+    readRunHistory(jid, 'tuning'),
+  ]);
+  self.postMessage({
+    type: 'history',
+    requestId: requestId || null,
+    jobId: jid,
+    loopSummaries,
+    tuningHistory,
+  });
+}
+
 self.onmessage = (event) => {
   const msg = event.data || {};
   if (msg.type === 'start') { void start(msg.input || {}); return; }
   if (msg.type === 'cancel') { cancel(msg.jobId); return; }
+  if (msg.type === 'getHistory') { void emitHistory(msg.jobId, msg.requestId); return; }
   emitError(`Unknown worker command: ${String(msg.type || 'undefined')}`);
 };

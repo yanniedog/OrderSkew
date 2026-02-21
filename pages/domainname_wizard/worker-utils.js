@@ -3,6 +3,7 @@
 
 const STYLE_VALUES = ['default', 'brandable', 'twowords', 'threewords', 'compound', 'spelling', 'nonenglish', 'dictionary'];
 const RANDOMNESS_VALUES = ['low', 'medium', 'high'];
+const MUTATION_INTENSITY_VALUES = ['off', 'low', 'medium', 'high'];
 const LOOP_LIMIT = 251;
 const MAX_STALL = 3;
 const MAX_BATCH = 12;
@@ -137,12 +138,25 @@ function rng(seed) {
 function pick(arr, rand) { return arr[Math.floor(rand() * arr.length)] || ''; }
 
 function emitError(message, jobId) { self.postMessage({ type: 'error', message: String(message || 'Worker error'), jobId: jobId || null }); }
-function emitJob(job) { self.postMessage({ type: 'state', job: JSON.parse(JSON.stringify(job)) }); }
+function cloneForMessage(value) {
+  if (typeof structuredClone === 'function') {
+    try { return structuredClone(value); } catch (_) {}
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+function emitJob(job, options) {
+  const includeResults = Boolean(options && options.includeResults);
+  const payload = includeResults ? { ...job } : {
+    ...job,
+    resultsVersion: Number(job.resultsVersion || 0),
+  };
+  if (!includeResults) delete payload.results;
+  self.postMessage({ type: 'state', job: cloneForMessage(payload) });
+}
 
 function sendIngest(location, message, data, hypothesisId) {
   const payload = { sessionId: 'efbcb6', location: String(location || 'engine.worker.js'), message: String(message || 'log'), data: data || {}, timestamp: Date.now(), runId: 'run1', hypothesisId: hypothesisId || null };
   self.postMessage({ type: 'debugLog', payload: payload });
-  fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'efbcb6' }, body: JSON.stringify(payload) }).catch(function () {});
 }
 
 function emitDebugLog(location, message, data) {
@@ -158,10 +172,14 @@ function emitDebugLog(location, message, data) {
   });
 }
 
-function patch(job, fields, emit = true) {
+function patch(job, fields, emit = true, options) {
   Object.assign(job, fields);
   job.updatedAt = now();
-  if (emit) emitJob(job);
+  if (emit) {
+    const includeResults = Boolean(options && options.includeResults)
+      || Object.prototype.hasOwnProperty.call(fields || {}, 'results');
+    emitJob(job, { includeResults });
+  }
 }
 
 function normalizeTld(v) {
@@ -201,6 +219,7 @@ function parseInput(raw) {
   if (keywords.length < 2) throw new Error('Keywords must be at least 2 characters.');
   const style = STYLE_VALUES.includes(input.style) ? input.style : 'default';
   const randomness = RANDOMNESS_VALUES.includes(input.randomness) ? input.randomness : 'medium';
+  const mutationIntensity = MUTATION_INTENSITY_VALUES.includes(input.mutationIntensity) ? input.mutationIntensity : 'medium';
   const tld = normalizeTld(input.tld || 'com');
   if (!tld) throw new Error('Invalid TLD.');
   const REPETITION_PENALTY_LEVELS = ['gentle', 'moderate', 'strong', 'very_severe', 'extremely_severe', 'excessive'];
@@ -208,6 +227,18 @@ function parseInput(raw) {
   const repetitionPenaltyLevel = REPETITION_PENALTY_LEVELS.includes(String(rawRepLevel)) ? String(rawRepLevel) : 'strong';
 
   const rewardPolicyRaw = input.rewardPolicy && typeof input.rewardPolicy === 'object' ? input.rewardPolicy : null;
+  const featureWeightsRaw = rewardPolicyRaw && rewardPolicyRaw.featureWeights && typeof rewardPolicyRaw.featureWeights === 'object'
+    ? rewardPolicyRaw.featureWeights
+    : null;
+  const featureWeights = {
+    realWordParts: clamp(Number(featureWeightsRaw && featureWeightsRaw.realWordParts) || 1, 0, 3),
+    cpcKeywords: clamp(Number(featureWeightsRaw && featureWeightsRaw.cpcKeywords) || 1, 0, 3),
+    cvFlow: clamp(Number(featureWeightsRaw && featureWeightsRaw.cvFlow) || 1, 0, 3),
+    keywordMatch: clamp(Number(featureWeightsRaw && featureWeightsRaw.keywordMatch) || 1, 0, 3),
+    brandability: clamp(Number(featureWeightsRaw && featureWeightsRaw.brandability) || 1, 0, 3),
+    memorability: clamp(Number(featureWeightsRaw && featureWeightsRaw.memorability) || 1, 0, 3),
+    devSignal: clamp(Number(featureWeightsRaw && featureWeightsRaw.devSignal) || 1, 0, 3),
+  };
   const rewardPolicy = rewardPolicyRaw
     ? {
       performanceVsExploration: clamp(Number(rewardPolicyRaw.performanceVsExploration) || 0.78, 0.55, 0.95),
@@ -216,14 +247,16 @@ function parseInput(raw) {
       qualityWeight: clamp(Number(rewardPolicyRaw.qualityWeight) || 0.24, 0.10, 0.40),
       availabilityWeight: clamp(Number(rewardPolicyRaw.availabilityWeight) || 0.18, 0.08, 0.35),
       inBudgetWeight: clamp(Number(rewardPolicyRaw.inBudgetWeight) || 0.12, 0.05, 0.30),
+      featureWeights,
       repetitionPenaltyLevel,
     }
-    : { repetitionPenaltyLevel };
+    : { featureWeights, repetitionPenaltyLevel };
   return {
     keywords,
     description: text(input.description),
     style,
     randomness,
+    mutationIntensity,
     preferEnglish: input.preferEnglish !== false,
     blacklist: text(input.blacklist),
     tld,
@@ -232,6 +265,7 @@ function parseInput(raw) {
     yearlyBudget: Math.max(1, Number(input.yearlyBudget) || 50),
     loopCount: Math.max(1, Math.round(Number(input.loopCount) || 100)),
     apiBaseUrl: text(input.apiBaseUrl),
+    lowMemoryMode: input.lowMemoryMode !== false,
     rewardPolicy,
     keywordLibraryTokens: Array.isArray(input.keywordLibraryTokens) ? input.keywordLibraryTokens.slice(0, 120) : [],
     keywordLibraryPhrases: Array.isArray(input.keywordLibraryPhrases) ? input.keywordLibraryPhrases.slice(0, 80) : [],

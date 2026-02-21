@@ -51,6 +51,14 @@
             <option value="high">high</option>
           </select>
         </label>
+        <label>Mutation
+          <select name="mutationIntensity">
+            <option value="off">off</option>
+            <option value="low">low</option>
+            <option value="medium" selected>medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
         <label>Blacklist
           <input name="blacklist" placeholder="comma,separated,blocked,terms">
         </label>
@@ -79,7 +87,32 @@
             <option value="excessive">Excessive</option>
           </select>
         </label>
+        <label class="checkbox-label">Low Memory Mode
+          <span class="checkbox-row">
+            <input name="lowMemoryMode" type="checkbox" checked>
+          </span>
+        </label>
       </form>
+      <div class="reward-policy" id="reward-policy-card">
+        <h3>Reward Prioritization</h3>
+        <div class="reward-grid">
+          <label>Preset
+            <select id="reward-preset">
+              <option value="balanced" selected>Balanced</option>
+              <option value="brandability">Brandability Focus</option>
+              <option value="commercial">Commercial Focus</option>
+              <option value="devsignal">Developer Signal Focus</option>
+            </select>
+          </label>
+          <label>Real Word Parts <input id="reward-realwordparts" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-realwordparts">1.0</span></label>
+          <label>CPC Signal <input id="reward-cpc" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-cpc">1.0</span></label>
+          <label>CV Flow <input id="reward-cvflow" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-cvflow">1.0</span></label>
+          <label>Keyword Match <input id="reward-keywordmatch" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-keywordmatch">1.0</span></label>
+          <label>Brandability <input id="reward-brandability" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-brandability">1.0</span></label>
+          <label>Memorability <input id="reward-memorability" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-memorability">1.0</span></label>
+          <label>Dev Signal <input id="reward-devsignal" type="range" min="0" max="3" step="0.1" value="1"><span class="reward-value" data-reward-value-for="reward-devsignal">1.0</span></label>
+        </div>
+      </div>
       <div class="controls">
         <button id="start-btn" class="btn btn-primary" type="button">Start Search</button>
         <button id="cancel-btn" class="btn btn-danger" type="button" disabled>Cancel Run</button>
@@ -139,6 +172,7 @@
             All Ranked Available Domains
           </button>
           <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="all-ranked-table" data-action="columns">Columns</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="all-ranked-table" data-action="copy">Copy CSV</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="all-ranked-table" data-action="download">Download CSV</button>
           </span>
@@ -154,6 +188,7 @@
             Within Budget
           </button>
           <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="within-budget-table" data-action="columns">Columns</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="within-budget-table" data-action="copy">Copy CSV</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="within-budget-table" data-action="download">Download CSV</button>
           </span>
@@ -169,6 +204,7 @@
             Over Budget
           </button>
           <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="over-budget-table" data-action="columns">Columns</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="over-budget-table" data-action="copy">Copy CSV</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="over-budget-table" data-action="download">Download CSV</button>
           </span>
@@ -184,6 +220,7 @@
             Unavailable / Unknown
           </button>
           <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="unavailable-table" data-action="columns">Columns</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="unavailable-table" data-action="copy">Copy CSV</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="unavailable-table" data-action="download">Download CSV</button>
           </span>
@@ -199,6 +236,7 @@
             Loop Summaries
           </button>
           <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="loop-summary-table" data-action="columns">Columns</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="loop-summary-table" data-action="copy">Copy CSV</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="loop-summary-table" data-action="download">Download CSV</button>
           </span>
@@ -214,6 +252,7 @@
             Keyword Library (Live)
           </button>
           <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="keyword-library-table" data-action="columns">Columns</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="keyword-library-table" data-action="copy">Copy CSV</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="keyword-library-table" data-action="download">Download CSV</button>
           </span>
@@ -229,6 +268,7 @@
             Tuning History
           </button>
           <span class="table-section-csv">
+            <button type="button" class="btn btn-sm column-section-btn" data-section-id="tuning-table" data-action="columns">Columns</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="tuning-table" data-action="copy">Copy CSV</button>
             <button type="button" class="btn btn-sm csv-section-btn" data-section-id="tuning-table" data-action="download">Download CSV</button>
           </span>

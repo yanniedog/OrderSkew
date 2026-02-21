@@ -81,9 +81,6 @@
 
   <script>
     (function () {
-      // #region agent log
-      fetch('http://127.0.0.1:7278/ingest/12c75e00-6c9a-482c-b25d-6079b2218f1d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'89960b'},body:JSON.stringify({sessionId:'89960b',location:'wizard.html:page-init',message:'page load',data:{protocol:window.location.protocol,origin:window.location.origin,href:window.location.href,isFile:window.location.protocol==='file:'},timestamp:Date.now(),hypothesisId:'H1'})}).catch(function(){});
-      // #endregion
       if (window.location.protocol === "file:") {
         document.getElementById("file-notice").style.display = "block";
         return;
@@ -160,10 +157,6 @@
         };
 
         var fetchUrl = window.location.origin + "/api/searches";
-        // #region agent log
-        fetch('http://127.0.0.1:7278/ingest/12c75e00-6c9a-482c-b25d-6079b2218f1d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'89960b'},body:JSON.stringify({sessionId:'89960b',location:'wizard.html:pre-fetch',message:'before POST',data:{fetchUrl:fetchUrl,origin:window.location.origin},timestamp:Date.now(),hypothesisId:'H2-H4'})}).catch(function(){});
-        // #endregion
-
         fetch("/api/searches", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -177,9 +170,6 @@
             pollJob(result.data.jobId);
           })
           .catch(function (err) {
-            // #region agent log
-            fetch('http://127.0.0.1:7278/ingest/12c75e00-6c9a-482c-b25d-6079b2218f1d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'89960b'},body:JSON.stringify({sessionId:'89960b',location:'wizard.html:catch',message:'submit fetch failed',data:{errMessage:err&&err.message,errName:err&&err.name,errCause:err&&err.cause&&String(err.cause)},timestamp:Date.now(),hypothesisId:'H5'})}).catch(function(){});
-            // #endregion
             submitError.textContent = err.message || "Unexpected error.";
             submitError.style.display = "block";
             submitBtn.disabled = false;

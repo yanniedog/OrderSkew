@@ -34,6 +34,22 @@
   const loopSummaryTableEl = document.getElementById('loop-summary-table');
   const tuningTableEl = document.getElementById('tuning-table');
   const keywordLibraryTableEl = document.getElementById('keyword-library-table');
+  const rewardPresetEl = document.getElementById('reward-preset');
+  const rewardSliderEls = {
+    realWordParts: document.getElementById('reward-realwordparts'),
+    cpcKeywords: document.getElementById('reward-cpc'),
+    cvFlow: document.getElementById('reward-cvflow'),
+    keywordMatch: document.getElementById('reward-keywordmatch'),
+    brandability: document.getElementById('reward-brandability'),
+    memorability: document.getElementById('reward-memorability'),
+    devSignal: document.getElementById('reward-devsignal'),
+  };
+  const REWARD_PRESETS = {
+    balanced: { realWordParts: 1.0, cpcKeywords: 1.0, cvFlow: 1.0, keywordMatch: 1.0, brandability: 1.0, memorability: 1.0, devSignal: 1.0 },
+    brandability: { realWordParts: 1.2, cpcKeywords: 0.6, cvFlow: 1.4, keywordMatch: 1.0, brandability: 1.8, memorability: 1.5, devSignal: 0.7 },
+    commercial: { realWordParts: 1.1, cpcKeywords: 2.0, cvFlow: 0.9, keywordMatch: 1.6, brandability: 0.9, memorability: 0.8, devSignal: 0.9 },
+    devsignal: { realWordParts: 0.9, cpcKeywords: 0.9, cvFlow: 1.0, keywordMatch: 1.2, brandability: 1.0, memorability: 0.9, devSignal: 2.2 },
+  };
 
   let currentJob = null;
   let currentResults = null;
@@ -44,7 +60,32 @@
   let lastLoggedJobStateKey = '';
   let latestRunExport = null;
   let renderResultsTimeoutId = null;
-  const DEBUG_LOGS_MAX = 500;
+  let lastRenderedResultsVersion = -1;
+  const COLUMN_PREFS_KEY = 'domainname_wizard.table_columns.v1';
+  const TABLE_PAGE_SIZE = 200;
+  const tablePageState = {};
+  const SECTION_COLUMN_OPTIONS = {
+    'all-ranked-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
+    'within-budget-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
+    'over-budget-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
+    'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
+    'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
+    'tuning-table': ['loop', 'keywords', 'strategy', 'explore', 'repetitionPenalty', 'reward', 'featureWeights'],
+    'keyword-library-table': ['rank', 'word', 'state', 'usage', 'evidence', 'lastLoop'],
+  };
+  const DEFAULT_SECTION_COLUMNS = {
+    'all-ranked-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
+    'within-budget-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
+    'over-budget-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
+    'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
+    'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
+    'tuning-table': ['loop', 'keywords', 'strategy', 'explore', 'repetitionPenalty', 'reward'],
+    'keyword-library-table': ['rank', 'word', 'state', 'usage', 'evidence', 'lastLoop'],
+  };
+  let sectionColumnState = {};
+  const DEBUG_LOGS_MAX_DEFAULT = 500;
+  const DEBUG_LOGS_MAX_LOW_MEMORY = 200;
+  let currentDebugLogsMax = DEBUG_LOGS_MAX_DEFAULT;
   const ENGINE_WORKER_VERSION = '2026-02-20-1';
   const tableSortState = new WeakMap();
   let dataSourceCollapsed = true;
@@ -85,6 +126,112 @@
       try { sessionStorage.setItem(SESSION_KEYWORDS_KEY, chosen); } catch (_) {}
     }
     keywordsInput.value = chosen;
+  }
+
+  function updateRewardValueBadges() {
+    Object.values(rewardSliderEls).forEach(function (el) {
+      if (!el) return;
+      const badge = document.querySelector(`[data-reward-value-for="${el.id}"]`);
+      if (badge) badge.textContent = Number(el.value || 0).toFixed(1);
+    });
+  }
+
+  function getRewardFeatureWeights() {
+    return {
+      realWordParts: parseNumber(rewardSliderEls.realWordParts && rewardSliderEls.realWordParts.value, 1),
+      cpcKeywords: parseNumber(rewardSliderEls.cpcKeywords && rewardSliderEls.cpcKeywords.value, 1),
+      cvFlow: parseNumber(rewardSliderEls.cvFlow && rewardSliderEls.cvFlow.value, 1),
+      keywordMatch: parseNumber(rewardSliderEls.keywordMatch && rewardSliderEls.keywordMatch.value, 1),
+      brandability: parseNumber(rewardSliderEls.brandability && rewardSliderEls.brandability.value, 1),
+      memorability: parseNumber(rewardSliderEls.memorability && rewardSliderEls.memorability.value, 1),
+      devSignal: parseNumber(rewardSliderEls.devSignal && rewardSliderEls.devSignal.value, 1),
+    };
+  }
+
+  function setRewardFeatureWeights(weights) {
+    const w = weights || {};
+    if (rewardSliderEls.realWordParts) rewardSliderEls.realWordParts.value = String(parseNumber(w.realWordParts, 1));
+    if (rewardSliderEls.cpcKeywords) rewardSliderEls.cpcKeywords.value = String(parseNumber(w.cpcKeywords, 1));
+    if (rewardSliderEls.cvFlow) rewardSliderEls.cvFlow.value = String(parseNumber(w.cvFlow, 1));
+    if (rewardSliderEls.keywordMatch) rewardSliderEls.keywordMatch.value = String(parseNumber(w.keywordMatch, 1));
+    if (rewardSliderEls.brandability) rewardSliderEls.brandability.value = String(parseNumber(w.brandability, 1));
+    if (rewardSliderEls.memorability) rewardSliderEls.memorability.value = String(parseNumber(w.memorability, 1));
+    if (rewardSliderEls.devSignal) rewardSliderEls.devSignal.value = String(parseNumber(w.devSignal, 1));
+    updateRewardValueBadges();
+  }
+
+  function applyRewardPreset(presetName) {
+    const key = String(presetName || 'balanced').toLowerCase();
+    const preset = REWARD_PRESETS[key] || REWARD_PRESETS.balanced;
+    setRewardFeatureWeights(preset);
+  }
+
+  function loadColumnPrefs() {
+    try {
+      const raw = localStorage.getItem(COLUMN_PREFS_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function saveColumnPrefs() {
+    try { localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify(sectionColumnState)); } catch (_) {}
+  }
+
+  function getVisibleColumns(sectionId) {
+    const options = SECTION_COLUMN_OPTIONS[sectionId] || [];
+    const fallback = DEFAULT_SECTION_COLUMNS[sectionId] || options;
+    const stored = Array.isArray(sectionColumnState[sectionId]) ? sectionColumnState[sectionId] : fallback;
+    const filtered = stored.filter(function (k) { return options.includes(k); });
+    return filtered.length ? filtered : fallback.slice();
+  }
+
+  function isColumnVisible(sectionId, key) {
+    return getVisibleColumns(sectionId).includes(key);
+  }
+
+  function openColumnPicker(sectionId) {
+    const options = SECTION_COLUMN_OPTIONS[sectionId] || [];
+    if (!options.length) return;
+    const current = getVisibleColumns(sectionId);
+    const promptText = [
+      `Columns for ${sectionId}`,
+      `Available: ${options.join(', ')}`,
+      'Enter comma-separated keys to show:',
+    ].join('\n');
+    const raw = window.prompt(promptText, current.join(', '));
+    if (raw == null) return;
+    const selected = raw.split(',').map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+    const valid = selected.filter(function (x) { return options.includes(x); });
+    if (!valid.length) return;
+    sectionColumnState[sectionId] = valid;
+    saveColumnPrefs();
+    if (currentResults) renderResults(currentResults);
+  }
+
+  function paginateRows(sectionId, rows) {
+    const allRows = Array.isArray(rows) ? rows : [];
+    if (!tablePageState[sectionId]) tablePageState[sectionId] = 1;
+    const totalPages = Math.max(1, Math.ceil(allRows.length / TABLE_PAGE_SIZE));
+    const page = Math.max(1, Math.min(totalPages, Number(tablePageState[sectionId]) || 1));
+    tablePageState[sectionId] = page;
+    const start = (page - 1) * TABLE_PAGE_SIZE;
+    const end = start + TABLE_PAGE_SIZE;
+    return { page: page, totalPages: totalPages, totalRows: allRows.length, rows: allRows.slice(start, end) };
+  }
+
+  function renderPager(sectionId, pageMeta) {
+    if (!pageMeta || pageMeta.totalPages <= 1) return '';
+    return `
+      <div class="table-pager">
+        <button type="button" class="btn btn-sm pager-btn" data-section-id="${sectionId}" data-page-action="prev" ${pageMeta.page <= 1 ? 'disabled' : ''}>Prev</button>
+        <span>Page ${pageMeta.page}/${pageMeta.totalPages} (${pageMeta.totalRows.toLocaleString()} rows)</span>
+        <button type="button" class="btn btn-sm pager-btn" data-section-id="${sectionId}" data-page-action="next" ${pageMeta.page >= pageMeta.totalPages ? 'disabled' : ''}>Next</button>
+      </div>
+    `;
   }
 
   function showFormError(message) {
@@ -150,8 +297,7 @@
   }
 
   function ensureDataSourceExpandedForIssues() {
-    const issues = hasDataSourceIssues();
-    if (issues.length > 0) dataSourceCollapsed = false;
+    // User-controlled only; keep collapsed unless user expands explicitly.
   }
 
   async function fetchJsonWithTimeout(url, options, timeoutMs) {
@@ -181,6 +327,9 @@
       }
       persistentRewardPolicy = resp.json.rewardPolicy && typeof resp.json.rewardPolicy === 'object' ? resp.json.rewardPolicy : null;
       persistentRewardPolicyMeta = resp.json.rewardPolicyMeta && typeof resp.json.rewardPolicyMeta === 'object' ? resp.json.rewardPolicyMeta : null;
+      if (persistentRewardPolicy && persistentRewardPolicy.featureWeights) {
+        setRewardFeatureWeights(persistentRewardPolicy.featureWeights);
+      }
       dataSourceState.persistence = {
         enabled: true,
         runCount: Number(resp.json.runCount || 0),
@@ -441,13 +590,6 @@
               })
               : [],
           };
-          // #region agent log
-          (function () {
-            var de = dataSourceState.devEcosystem;
-            var aboutToPushAbnormal = ok && de.githubCalls > 0 && de.githubSuccess === 0;
-            fetch('http://127.0.0.1:7244/ingest/0500be7a-802e-498d-b34c-96092e89bf3b', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '65d412' }, body: JSON.stringify({ sessionId: '65d412', location: 'app.js:runPreflightDiagnostics', message: 'GitHub evaluation preflight', data: { ok: ok, backendStatus: dev.response ? dev.response.status : null, rawDebug: debug ? { githubCalls: debug.githubCalls, githubSuccess: debug.githubSuccess, githubFailures: debug.githubFailures, githubTokenPresent: debug.githubTokenPresent, sampleErrors: (debug.sampleErrors || []).slice(0, 5) } : null, computed: { githubCalls: de.githubCalls, githubSuccess: de.githubSuccess, githubFailures: de.githubFailures, githubTokenUsed: de.githubTokenUsed }, aboutToPushAbnormal: aboutToPushAbnormal }, timestamp: Date.now(), hypothesisId: 'H1' }) }).catch(function () {});
-          })();
-          // #endregion
           if (!ok) {
             issues.push('GitHub evaluation preflight failed');
           } else if (dataSourceState.devEcosystem.githubCalls > 0 && dataSourceState.devEcosystem.githubSuccess === 0 && dataSourceState.devEcosystem.githubTokenUsed) {
@@ -792,8 +934,8 @@
       data: data || {},
       timestamp: Date.now(),
     });
-    if (debugLogs.length > DEBUG_LOGS_MAX) {
-      debugLogs.splice(0, debugLogs.length - DEBUG_LOGS_MAX);
+    if (debugLogs.length > currentDebugLogsMax) {
+      debugLogs.splice(0, debugLogs.length - currentDebugLogsMax);
     }
   }
 
@@ -845,6 +987,14 @@
     { key: 'brandabilityScore', label: 'Brandability Score' },
     { key: 'seoScore', label: 'SEO Score' },
     { key: 'commercialScore', label: 'Commercial Score' },
+    { key: 'realWordPartsScore', label: 'Real Word Parts Score' },
+    { key: 'cpcKeywordScore', label: 'CPC Keyword Score' },
+    { key: 'bestCpcTier', label: 'Best CPC Tier' },
+    { key: 'bestCpcWord', label: 'Best CPC Word' },
+    { key: 'cvFlowScore', label: 'CV Flow Score' },
+    { key: 'keywordMatchScore', label: 'Keyword Match Score' },
+    { key: 'devSignalScore', label: 'Dev Signal Score' },
+    { key: 'notesPriorityScore', label: 'Notes Priority Score' },
     { key: 'devEcosystemScore', label: 'Dev Ecosystem Score' },
     { key: 'devEcosystemEvidence.githubRepos', label: 'GitHub Repos' },
     { key: 'devEcosystemEvidence.npmPackages', label: 'NPM Packages' },
@@ -860,8 +1010,8 @@
   function domainRowForCsv(row) {
     var r = Object.assign({}, row);
     r._segmentedWordsStr = Array.isArray(row.segmentedWords) ? row.segmentedWords.join(' ') : '';
-    r._valueDriversStr = (row.valueDrivers || []).slice(0, 5).map(function (x) { return (x.component || '') + ' (' + formatScore(x.impact, 1) + ')'; }).join(', ');
-    r._valueDetractorsStr = (row.valueDetractors || []).slice(0, 5).map(function (x) { return (x.component || '') + ' (' + formatScore(x.impact, 1) + ')'; }).join(', ');
+    r._valueDriversStr = row.valueDriversSummary || (row.valueDrivers || []).slice(0, 5).map(function (x) { return (x.component || '') + ' (' + formatScore(x.impact, 1) + ')'; }).join(', ');
+    r._valueDetractorsStr = row.valueDetractorsSummary || (row.valueDetractors || []).slice(0, 5).map(function (x) { return (x.component || '') + ' (' + formatScore(x.impact, 1) + ')'; }).join(', ');
     return r;
   }
 
@@ -897,6 +1047,13 @@
     { key: 'explorationRate', label: 'Exploration Rate' },
     { key: 'elitePoolSize', label: 'Elite Pool Size' },
     { key: 'repetitionPenaltyApplied', label: 'Repetition Penalty Applied' },
+    { key: 'featureWeights.realWordParts', label: 'FW Real Word Parts' },
+    { key: 'featureWeights.cpcKeywords', label: 'FW CPC Keywords' },
+    { key: 'featureWeights.cvFlow', label: 'FW CV Flow' },
+    { key: 'featureWeights.keywordMatch', label: 'FW Keyword Match' },
+    { key: 'featureWeights.brandability', label: 'FW Brandability' },
+    { key: 'featureWeights.memorability', label: 'FW Memorability' },
+    { key: 'featureWeights.devSignal', label: 'FW Dev Signal' },
     { key: 'reward', label: 'Reward' },
   ];
 
@@ -941,6 +1098,14 @@
         seoScore: 0,
         commercialScore: 0,
         memorabilityScore: 0,
+        realWordPartsScore: 0,
+        cpcKeywordScore: 0,
+        bestCpcTier: 0,
+        bestCpcWord: '',
+        cvFlowScore: 0,
+        keywordMatchScore: 0,
+        devSignalScore: 0,
+        notesPriorityScore: 0,
         overallScore: 0,
         syllableCount: 0,
         labelLength: label.length,
@@ -960,6 +1125,8 @@
         segmentedWords: [],
         valueDrivers: [],
         valueDetractors: [],
+        valueDriversSummary: '',
+        valueDetractorsSummary: '',
         _pending: true,
       };
     });
@@ -991,6 +1158,31 @@
     } else if (sectionId === 'keyword-library-table') {
       rows = Array.isArray(results.keywordLibrary && results.keywordLibrary.tokens) ? results.keywordLibrary.tokens : [];
       columns = CSV_KEYWORD_LIBRARY_COLUMNS;
+    }
+    var visible = getVisibleColumns(sectionId);
+    if (visible && visible.length && columns && columns.length) {
+      var keyMap = {};
+      if (sectionId === 'all-ranked-table' || sectionId === 'within-budget-table' || sectionId === 'over-budget-table' || sectionId === 'unavailable-table') {
+        keyMap = {
+          estimatedValue: 'estimatedValueUSD',
+          notes: '_valueDriversStr',
+          words: '_segmentedWordsStr',
+          valueMetrics: 'intrinsicValue',
+          finance: 'ev24m',
+          quality: 'phoneticScore',
+          signals: 'devEcosystemScore',
+          availability: 'available',
+        };
+      } else if (sectionId === 'loop-summary-table') {
+        keyMap = { keywords: '_keywordsPlain', strategy: 'style', explore: 'explorationRate', quota: 'requiredQuota', results: 'averageOverallScore', top: 'topDomain', sourceNote: 'nameSource' };
+      } else if (sectionId === 'tuning-table') {
+        keyMap = { keywords: '_keywordsPlain', strategy: 'selectedStyle', explore: 'explorationRate', repetitionPenalty: 'repetitionPenaltyApplied', featureWeights: 'featureWeights.realWordParts' };
+      } else if (sectionId === 'keyword-library-table') {
+        keyMap = { word: 'token', state: 'source', usage: 'plays', evidence: 'selectionScore', lastLoop: 'lastLoop' };
+      }
+      var visibleCsv = visible.map(function (k) { return keyMap[k] || k; });
+      var filteredCols = columns.filter(function (c) { return visibleCsv.includes(c.key); });
+      if (filteredCols.length) columns = filteredCols;
     }
     return { rows: rows, columns: columns };
   }
@@ -1186,16 +1378,32 @@
       .join('');
   }
 
-  function renderDomainTable(rows, includeAvailability) {
+  function renderDomainTable(rows, includeAvailability, sectionId) {
     if (!rows || rows.length === 0) {
       return '<p>No rows.</p>';
     }
-
-    const availabilityHeader = includeAvailability ? th('Availability', 'Current availability status for this domain based on API response.') : '';
-    const availabilityCell = (row) => {
-      if (!includeAvailability) return '';
-      return `<td class="${row.available ? 'good' : 'bad'}">${row.available ? 'Available' : 'Unavailable'}</td>`;
-    };
+    const sec = sectionId || 'all-ranked-table';
+    const show = function (key) { return isColumnVisible(sec, key); };
+    const headerCells = [];
+    if (show('domain')) headerCells.push(th('Domain', 'The full candidate domain name including TLD.'));
+    if ((includeAvailability || show('availability')) && show('availability')) headerCells.push(th('Availability', 'Current availability status for this domain based on API response.'));
+    if (show('price')) headerCells.push(th('Price', 'Year-1 registration price from availability provider.'));
+    if (show('estimatedValue')) headerCells.push(th('Est. Value', 'Model-estimated resale value in USD.'));
+    if (show('valueRatio')) headerCells.push(th('Value Ratio', 'Estimated value divided by current price; higher suggests more upside.'));
+    if (show('valueMetrics')) headerCells.push(th('Value Metrics', 'Compact view: Intrinsic, Liquidity, and Marketability.'));
+    if (show('finance')) headerCells.push(th('Finance', 'Compact view: EV (24m) and expected ROI.'));
+    if (show('quality')) headerCells.push(th('Quality', 'Compact view: Phonetic, Brandability, SEO, Commercial.'));
+    if (show('signals')) headerCells.push(th('Signals', 'Compact view: Dev ecosystem total, GitHub repos, npm packages, archive flag, syllables, length.'));
+    if (show('words')) headerCells.push(th('Words', 'Detected meaningful morphemes/word segments in the domain label.'));
+    if (show('notes')) headerCells.push(th('Notes', 'Top positive and negative value factors (trimmed).'));
+    if (show('realWordPartsScore')) headerCells.push(th('Real Word Parts', 'Real-word decomposition signal.'));
+    if (show('cpcKeywordScore')) headerCells.push(th('CPC', 'Commercial CPC keyword signal.'));
+    if (show('bestCpcTier')) headerCells.push(th('CPC Tier', 'Best CPC tier hit.'));
+    if (show('bestCpcWord')) headerCells.push(th('CPC Word', 'Highest-impact CPC word.'));
+    if (show('cvFlowScore')) headerCells.push(th('CV Flow', 'Consonant-vowel flow score.'));
+    if (show('keywordMatchScore')) headerCells.push(th('Keyword Match', 'Seed keyword relevance signal.'));
+    if (show('devSignalScore')) headerCells.push(th('Dev Signal', 'Developer ecosystem signal score.'));
+    if (show('notesPriorityScore')) headerCells.push(th('Notes Priority', 'Composite notes-priority score using selected feature weights.'));
 
     const body = rows
       .map((row) => {
@@ -1228,130 +1436,134 @@
         ].join(' | ');
         const wordsCell = (row.segmentedWords || []).join(' + ') || '-';
         const notes = [
-          (row.valueDrivers || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
-          (row.valueDetractors || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
+          row.valueDriversSummary || (row.valueDrivers || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
+          row.valueDetractorsSummary || (row.valueDetractors || []).slice(0, 2).map((x) => `${x.component} (${formatScore(x.impact, 1)})`).join(', '),
         ].filter(Boolean).join(' | ');
-        return `
-          <tr class="${row.underpricedFlag ? 'underpriced-row' : ''}">
-            <td>${escapeHtml(row.domain)} ${flagCell}</td>
-            ${availabilityCell(row)}
-            <td>${priceCell}</td>
-            <td>${estVal}</td>
-            <td class="${row.valueRatio >= 3 ? 'good' : ''}">${vrCell}</td>
-            <td>${valueCell}</td>
-            <td>${financeCell}</td>
-            <td>${qualityCell}</td>
-            <td>${signalsCell}</td>
-            <td>${escapeHtml(wordsCell)}</td>
-            <td>${escapeHtml(notes || '-')}</td>
-          </tr>
-        `;
+        const cells = [];
+        if (show('domain')) cells.push(`<td>${escapeHtml(row.domain)} ${flagCell}</td>`);
+        if ((includeAvailability || show('availability')) && show('availability')) {
+          const isAvail = row.available === true;
+          const cls = row.available == null ? '' : (isAvail ? 'good' : 'bad');
+          const text = row.available == null ? '-' : (isAvail ? 'Available' : 'Unavailable');
+          cells.push(`<td class="${cls}">${text}</td>`);
+        }
+        if (show('price')) cells.push(`<td>${priceCell}</td>`);
+        if (show('estimatedValue')) cells.push(`<td>${estVal}</td>`);
+        if (show('valueRatio')) cells.push(`<td class="${row.valueRatio >= 3 ? 'good' : ''}">${vrCell}</td>`);
+        if (show('valueMetrics')) cells.push(`<td>${escapeHtml(valueCell)}</td>`);
+        if (show('finance')) cells.push(`<td>${escapeHtml(financeCell)}</td>`);
+        if (show('quality')) cells.push(`<td>${escapeHtml(qualityCell)}</td>`);
+        if (show('signals')) cells.push(`<td>${escapeHtml(signalsCell)}</td>`);
+        if (show('words')) cells.push(`<td>${escapeHtml(wordsCell)}</td>`);
+        if (show('notes')) cells.push(`<td>${escapeHtml(notes || '-')}</td>`);
+        if (show('realWordPartsScore')) cells.push(`<td>${formatScore(row.realWordPartsScore, 1)}</td>`);
+        if (show('cpcKeywordScore')) cells.push(`<td>${formatScore(row.cpcKeywordScore, 1)}</td>`);
+        if (show('bestCpcTier')) cells.push(`<td>${row.bestCpcTier || '-'}</td>`);
+        if (show('bestCpcWord')) cells.push(`<td>${escapeHtml(row.bestCpcWord || '-')}</td>`);
+        if (show('cvFlowScore')) cells.push(`<td>${formatScore(row.cvFlowScore, 1)}</td>`);
+        if (show('keywordMatchScore')) cells.push(`<td>${formatScore(row.keywordMatchScore, 1)}</td>`);
+        if (show('devSignalScore')) cells.push(`<td>${formatScore(row.devSignalScore, 1)}</td>`);
+        if (show('notesPriorityScore')) cells.push(`<td>${formatScore(row.notesPriorityScore, 1)}</td>`);
+        return `<tr class="${row.underpricedFlag ? 'underpriced-row' : ''}">${cells.join('')}</tr>`;
       })
       .join('');
 
     return `
       <table>
-        <thead>
-          <tr>
-            ${th('Domain', 'The full candidate domain name including TLD.')}
-            ${availabilityHeader}
-            ${th('Price', 'Year-1 registration price from availability provider.')}
-            ${th('Est. Value', 'Model-estimated resale value in USD.')}
-            ${th('Value Ratio', 'Estimated value divided by current price; higher suggests more upside.')}
-            ${th('Value Metrics', 'Compact view: Intrinsic, Liquidity, and Marketability.')}
-            ${th('Finance', 'Compact view: EV (24m) and expected ROI.')}
-            ${th('Quality', 'Compact view: Phonetic, Brandability, SEO, Commercial.')}
-            ${th('Signals', 'Compact view: Dev ecosystem total, GitHub repos, npm packages, archive flag, syllables, length.')}
-            ${th('Words', 'Detected meaningful morphemes/word segments in the domain label.')}
-            ${th('Notes', 'Top positive and negative value factors (trimmed).')}
-          </tr>
-        </thead>
+        <thead><tr>${headerCells.join('')}</tr></thead>
         <tbody>${body}</tbody>
       </table>
     `;
   }
 
-  function renderLoopSummaryTable(rows, tokenPerfLookup) {
+  function renderLoopSummaryTable(rows, tokenPerfLookup, sectionId) {
     if (!rows || rows.length === 0) {
       return '<p>No loop summaries yet.</p>';
     }
-
+    const sec = sectionId || 'loop-summary-table';
+    const show = function (key) { return isColumnVisible(sec, key); };
     return `
       <table>
         <thead>
           <tr>
-            ${th('Loop', 'Loop index within the current search run.')}
-            ${th('Keywords', 'Keywords used by this loop. Tokens are colored by learned term performance (blue low -> red high).')}
-            ${th('Strategy', 'Style, randomness, and mutation used in this loop.')}
-            ${th('Explore', 'Exploration rate, elite pool size, curated coverage progress, and strict target coverage (keywords assessed at least target times).')}
-            ${th('Quota', 'Required and in-budget available names for this loop (max names/loop target).')}
-            ${th('Results', 'Considered candidates, available split (in-budget/over-budget), and average score for this loop.')}
-            ${th('Top', 'Top domain and top score for this loop.')}
-            ${th('Source/Note', 'Name source and any skip note for this loop.')}
+            ${show('loop') ? th('Loop', 'Loop index within the current search run.') : ''}
+            ${show('keywords') ? th('Keywords', 'Keywords used by this loop. Tokens are colored by learned term performance (blue low -> red high).') : ''}
+            ${show('strategy') ? th('Strategy', 'Style, randomness, and mutation used in this loop.') : ''}
+            ${show('explore') ? th('Explore', 'Exploration rate, elite pool size, curated coverage progress, and strict target coverage (keywords assessed at least target times).') : ''}
+            ${show('quota') ? th('Quota', 'Required and in-budget available names for this loop (max names/loop target).') : ''}
+            ${show('results') ? th('Results', 'Considered candidates, available split (in-budget/over-budget), and average score for this loop.') : ''}
+            ${show('top') ? th('Top', 'Top domain and top score for this loop.') : ''}
+            ${show('sourceNote') ? th('Source/Note', 'Name source and any skip note for this loop.') : ''}
           </tr>
         </thead>
         <tbody>
           ${rows
-            .map((row) => `
-              <tr>
-                <td>${row.loop}</td>
-                <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
-                <td>${escapeHtml(`${row.style || '-'} | ${row.randomness || '-'} | ${row.mutationIntensity || '-'}`)}</td>
-                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)} | cov=${formatScore(Number(row.curatedCoveragePct || 0), 1)}% | target=${formatScore(Number(row.curatedCoverageTargetPct || 0), 1)}%`)}</td>
-                <td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.withinBudgetCount || 0)}`)}</span></td>
-                <td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avail=${Number(row.withinBudgetCount || 0)}/${Number(row.overBudgetCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>
-                <td>${escapeHtml(`${row.topDomain || '-'} | ${formatScore(row.topScore, 1)}`)}</td>
-                <td>${escapeHtml(`${row.nameSource || '-'} | ${row.skipReason || '-'}`)}</td>
-              </tr>
-            `)
+            .map((row) => {
+              const cells = [];
+              if (show('loop')) cells.push(`<td>${row.loop}</td>`);
+              if (show('keywords')) cells.push(`<td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>`);
+              if (show('strategy')) cells.push(`<td>${escapeHtml(`${row.style || '-'} | ${row.randomness || '-'} | ${row.mutationIntensity || '-'}`)}</td>`);
+              if (show('explore')) cells.push(`<td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)} | cov=${formatScore(Number(row.curatedCoveragePct || 0), 1)}% | target=${formatScore(Number(row.curatedCoverageTargetPct || 0), 1)}%`)}</td>`);
+              if (show('quota')) cells.push(`<td>${row.quotaMet ? '<span class="good">' : '<span class="bad">'}${escapeHtml(`${Number(row.requiredQuota || 0)} -> ${Number(row.withinBudgetCount || 0)}`)}</span></td>`);
+              if (show('results')) cells.push(`<td>${escapeHtml(`n=${Number(row.consideredCount || 0)} | avail=${Number(row.withinBudgetCount || 0)}/${Number(row.overBudgetCount || 0)} | avg=${formatScore(row.averageOverallScore, 2)}`)}</td>`);
+              if (show('top')) cells.push(`<td>${escapeHtml(`${row.topDomain || '-'} | ${formatScore(row.topScore, 1)}`)}</td>`);
+              if (show('sourceNote')) cells.push(`<td>${escapeHtml(`${row.nameSource || '-'} | ${row.skipReason || '-'}`)}</td>`);
+              return `<tr>${cells.join('')}</tr>`;
+            })
             .join('')}
         </tbody>
       </table>
     `;
   }
 
-  function renderTuningTable(rows, tokenPerfLookup) {
+  function renderTuningTable(rows, tokenPerfLookup, sectionId) {
     if (!rows || rows.length === 0) {
       return '<p>No tuning history yet.</p>';
     }
+    const sec = sectionId || 'tuning-table';
+    const show = function (key) { return isColumnVisible(sec, key); };
 
     return `
       <table>
         <thead>
           <tr>
-            ${th('Loop', 'Loop index where this tuning decision was recorded.')}
-            ${th('Keywords', 'Keyword set chosen for this loop. Tokens are colored by learned performance.')}
-            ${th('Strategy', 'Source loop and selected style/randomness/mutation.')}
-            ${th('Explore', 'Exploration rate and elite pool at decision time.')}
-            ${th('Rep. penalty', 'Average repetition penalty (0–1) applied to selected keywords for this run; higher = stronger penalty for reusing same keywords across successive loops.')}
-            ${th('Reward', 'Composite 0-1 RL reward: in-budget quota completion, availability rate, in-budget ratio, undervaluation (value ratio/underpriced), quality of available domains, and curated-keyword coverage progress.')}
+            ${show('loop') ? th('Loop', 'Loop index where this tuning decision was recorded.') : ''}
+            ${show('keywords') ? th('Keywords', 'Keyword set chosen for this loop. Tokens are colored by learned performance.') : ''}
+            ${show('strategy') ? th('Strategy', 'Source loop and selected style/randomness/mutation.') : ''}
+            ${show('explore') ? th('Explore', 'Exploration rate and elite pool at decision time.') : ''}
+            ${show('repetitionPenalty') ? th('Rep. penalty', 'Average repetition penalty (0-1) applied to selected keywords for this run; higher = stronger penalty for reusing same keywords across successive loops.') : ''}
+            ${show('featureWeights') ? th('Feature Weights', 'Reward prioritization feature weights used for this loop.') : ''}
+            ${show('reward') ? th('Reward', 'Composite 0-1 RL reward.') : ''}
           </tr>
         </thead>
         <tbody>
           ${rows
-            .map((row) => `
-              <tr>
-                <td>${row.loop}</td>
-                <td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>
-                <td>${escapeHtml(`src=${row.sourceLoop == null ? '-' : row.sourceLoop} | ${row.selectedStyle || '-'} | ${row.selectedRandomness || '-'} | ${row.selectedMutationIntensity || '-'}`)}</td>
-                <td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>
-                <td>${row.repetitionPenaltyApplied != null ? formatScore(row.repetitionPenaltyApplied, 4) : '-'}</td>
-                <td>${formatScore(row.reward, 4)}</td>
-              </tr>
-            `)
+            .map((row) => {
+              const cells = [];
+              const fw = row.featureWeights || {};
+              if (show('loop')) cells.push(`<td>${row.loop}</td>`);
+              if (show('keywords')) cells.push(`<td>${renderPerformancePhrase(row.keywords || '-', tokenPerfLookup)}</td>`);
+              if (show('strategy')) cells.push(`<td>${escapeHtml(`src=${row.sourceLoop == null ? '-' : row.sourceLoop} | ${row.selectedStyle || '-'} | ${row.selectedRandomness || '-'} | ${row.selectedMutationIntensity || '-'}`)}</td>`);
+              if (show('explore')) cells.push(`<td>${escapeHtml(`r=${formatScore(row.explorationRate, 3)} | elite=${Number(row.elitePoolSize || 0)}`)}</td>`);
+              if (show('repetitionPenalty')) cells.push(`<td>${row.repetitionPenaltyApplied != null ? formatScore(row.repetitionPenaltyApplied, 4) : '-'}</td>`);
+              if (show('featureWeights')) cells.push(`<td>${escapeHtml(`rw=${formatScore(Number(fw.realWordParts || 0), 1)} cpc=${formatScore(Number(fw.cpcKeywords || 0), 1)} cv=${formatScore(Number(fw.cvFlow || 0), 1)} km=${formatScore(Number(fw.keywordMatch || 0), 1)} br=${formatScore(Number(fw.brandability || 0), 1)} mem=${formatScore(Number(fw.memorability || 0), 1)} dev=${formatScore(Number(fw.devSignal || 0), 1)}`)}</td>`);
+              if (show('reward')) cells.push(`<td>${formatScore(row.reward, 4)}</td>`);
+              return `<tr>${cells.join('')}</tr>`;
+            })
             .join('')}
         </tbody>
       </table>
     `;
   }
-
-  function renderKeywordLibraryTable(keywordLibrary) {
+  function renderKeywordLibraryTable(keywordLibrary, sectionId) {
     const lib = keywordLibrary || {};
     const rows = Array.isArray(lib.tokens) ? lib.tokens : [];
     const current = Array.isArray(lib.currentKeywords) ? lib.currentKeywords : [];
     const seeds = Array.isArray(lib.seedTokens) ? lib.seedTokens : [];
     const coverage = lib.coverageMetrics || null;
     const dev = lib.devEcosystemStatus || null;
+    const sec = sectionId || 'keyword-library-table';
+    const show = function (key) { return isColumnVisible(sec, key); };
 
     if (!rows.length) {
       return '<p>No keyword library metrics yet.</p>';
@@ -1369,16 +1581,14 @@
       const perf01 = clamp((Number(row.performanceScore) || 0) / 100, 0, 1);
       const wordColor = rainbowColorForScore01(perf01);
       const wordTitle = `Perf ${formatScore(row.performanceScore || 0, 1)} | AvgReward ${formatScore(row.avgReward || 0, 3)} | Success ${formatScore((row.successRate || 0) * 100, 1)}% | Plays ${row.plays || 0} | GitHub ${row.githubRepos == null ? '-' : Number(row.githubRepos).toLocaleString()} | npm ${row.npmPackages == null ? '-' : Number(row.npmPackages).toLocaleString()} | GHPrior ${formatScore(row.githubPrior || 0, 1)}`;
-      return `
-        <tr${row.inCurrentKeywords ? ' class="keyword-row-active"' : ''}>
-          <td>${row.rank || '-'}</td>
-          <td><span class="perf-token" style="background:${wordColor}" title="${escapeHtml(wordTitle)}">${escapeHtml(row.token || '-')}</span></td>
-          <td>${escapeHtml(`${row.source || '-'} | ${row.inCurrentKeywords ? 'active' : 'idle'}`)}</td>
-          <td>${escapeHtml(`plays=${row.plays || 0} | avg=${formatScore(row.avgReward || 0, 4)} | succ=${formatScore((row.successRate || 0) * 100, 1)}% | gh=${row.githubRepos == null ? '-' : Number(row.githubRepos).toLocaleString()} | npm=${row.npmPackages == null ? '-' : Number(row.npmPackages).toLocaleString()}`)}</td>
-          <td>${escapeHtml(`conf=${formatScore((row.confidence || 0) * 100, 1)}% | dom=${formatScore(row.meanDomainScore || 0, 1)} | perf=${formatScore(row.performanceScore || 0, 1)} | sel=${formatScore(row.selectionScore || 0, 1)} | ghPrior=${formatScore(row.githubPrior || 0, 1)} | ucb=${row.ucb == null ? '-' : formatScore(row.ucb, 4)} | theme=${formatScore(row.themeScore || 0, 2)}`)}</td>
-          <td>${row.lastLoop == null ? '-' : row.lastLoop}</td>
-        </tr>
-      `;
+      const cells = [];
+      if (show('rank')) cells.push(`<td>${row.rank || '-'}</td>`);
+      if (show('word')) cells.push(`<td><span class="perf-token" style="background:${wordColor}" title="${escapeHtml(wordTitle)}">${escapeHtml(row.token || '-')}</span></td>`);
+      if (show('state')) cells.push(`<td>${escapeHtml(`${row.source || '-'} | ${row.inCurrentKeywords ? 'active' : 'idle'}`)}</td>`);
+      if (show('usage')) cells.push(`<td>${escapeHtml(`plays=${row.plays || 0} | avg=${formatScore(row.avgReward || 0, 4)} | succ=${formatScore((row.successRate || 0) * 100, 1)}% | gh=${row.githubRepos == null ? '-' : Number(row.githubRepos).toLocaleString()} | npm=${row.npmPackages == null ? '-' : Number(row.npmPackages).toLocaleString()}`)}</td>`);
+      if (show('evidence')) cells.push(`<td>${escapeHtml(`conf=${formatScore((row.confidence || 0) * 100, 1)}% | dom=${formatScore(row.meanDomainScore || 0, 1)} | perf=${formatScore(row.performanceScore || 0, 1)} | sel=${formatScore(row.selectionScore || 0, 1)} | ghPrior=${formatScore(row.githubPrior || 0, 1)} | ucb=${row.ucb == null ? '-' : formatScore(row.ucb, 4)} | theme=${formatScore(row.themeScore || 0, 2)}`)}</td>`);
+      if (show('lastLoop')) cells.push(`<td>${row.lastLoop == null ? '-' : row.lastLoop}</td>`);
+      return `<tr${row.inCurrentKeywords ? ' class="keyword-row-active"' : ''}>${cells.join('')}</tr>`;
     }).join('');
 
     return `
@@ -1389,12 +1599,12 @@
       <table>
         <thead>
           <tr>
-            ${th('Rank', 'Ranking order in the current curated keyword library view.')}
-            ${th('Word', 'Keyword token. Color shows learned performance (blue worst -> red best).')}
-            ${th('State', 'Source and whether token is active in current loop keywords.')}
-            ${th('Usage', 'Core usage metrics plus GitHub/npm ecosystem counts for this token.')}
-            ${th('Evidence', 'Confidence and composite evidence metrics used for RL prioritization, including GitHub prior contribution.')}
-            ${th('Last Loop', 'Most recent loop index where this token was selected.')}
+            ${show('rank') ? th('Rank', 'Ranking order in the current curated keyword library view.') : ''}
+            ${show('word') ? th('Word', 'Keyword token. Color shows learned performance (blue worst -> red best).') : ''}
+            ${show('state') ? th('State', 'Source and whether token is active in current loop keywords.') : ''}
+            ${show('usage') ? th('Usage', 'Core usage metrics plus GitHub/npm ecosystem counts for this token.') : ''}
+            ${show('evidence') ? th('Evidence', 'Confidence and composite evidence metrics used for RL prioritization, including GitHub prior contribution.') : ''}
+            ${show('lastLoop') ? th('Last Loop', 'Most recent loop index where this token was selected.') : ''}
           </tr>
         </thead>
         <tbody>${body}</tbody>
@@ -1428,6 +1638,14 @@
         seoScore: 0,
         commercialScore: 0,
         memorabilityScore: 0,
+        realWordPartsScore: 0,
+        cpcKeywordScore: 0,
+        bestCpcTier: 0,
+        bestCpcWord: '',
+        cvFlowScore: 0,
+        keywordMatchScore: 0,
+        devSignalScore: 0,
+        notesPriorityScore: 0,
         overallScore: 0,
         syllableCount: 0,
         labelLength: label.length,
@@ -1447,6 +1665,8 @@
         segmentedWords: [],
         valueDrivers: [],
         valueDetractors: [],
+        valueDriversSummary: '',
+        valueDetractorsSummary: '',
         _pending: true,
       };
     });
@@ -1456,20 +1676,33 @@
     const overBudget = sortRows(results.overBudget || [], currentSortMode);
     const unavailable = sortRows(results.unavailable || [], currentSortMode);
     const tokenPerfLookup = buildTokenPerformanceLookup(results.keywordLibrary || null);
+    const rankedPage = paginateRows('all-ranked-table', sortedRanked);
+    const withinPage = paginateRows('within-budget-table', withinBudget);
+    const overPage = paginateRows('over-budget-table', overBudget);
+    const unavailablePage = paginateRows('unavailable-table', unavailable);
+    const loopPage = paginateRows('loop-summary-table', results.loopSummaries || []);
+    const tuningPage = paginateRows('tuning-table', results.tuningHistory || []);
+    const keywordPage = paginateRows('keyword-library-table', (results.keywordLibrary && results.keywordLibrary.tokens) || []);
+    const historyNotice = results.historyTruncated
+      ? '<p class="history-notice">Showing recent loop history only. <button type="button" class="btn btn-sm load-history-btn">Load full history</button></p>'
+      : '';
     if (results.keywordLibrary && results.keywordLibrary.devEcosystemStatus) {
       dataSourceState.devEcosystem = results.keywordLibrary.devEcosystemStatus;
       renderDataSourcePanel();
     }
 
     renderSummary(results);
-    allRankedTableEl.innerHTML = renderDomainTable(sortedRanked, false);
-    withinBudgetTableEl.innerHTML = renderDomainTable(withinBudget, false);
-    overBudgetTableEl.innerHTML = renderDomainTable(overBudget, false);
-    unavailableTableEl.innerHTML = renderDomainTable(unavailable, true);
+    allRankedTableEl.innerHTML = renderDomainTable(rankedPage.rows, false, 'all-ranked-table') + renderPager('all-ranked-table', rankedPage);
+    withinBudgetTableEl.innerHTML = renderDomainTable(withinPage.rows, false, 'within-budget-table') + renderPager('within-budget-table', withinPage);
+    overBudgetTableEl.innerHTML = renderDomainTable(overPage.rows, false, 'over-budget-table') + renderPager('over-budget-table', overPage);
+    unavailableTableEl.innerHTML = renderDomainTable(unavailablePage.rows, true, 'unavailable-table') + renderPager('unavailable-table', unavailablePage);
 
-    loopSummaryTableEl.innerHTML = renderLoopSummaryTable(results.loopSummaries || [], tokenPerfLookup);
-    tuningTableEl.innerHTML = renderTuningTable(results.tuningHistory || [], tokenPerfLookup);
-    if (keywordLibraryTableEl) keywordLibraryTableEl.innerHTML = renderKeywordLibraryTable(results.keywordLibrary || null);
+    loopSummaryTableEl.innerHTML = historyNotice + renderLoopSummaryTable(loopPage.rows, tokenPerfLookup, 'loop-summary-table') + renderPager('loop-summary-table', loopPage);
+    tuningTableEl.innerHTML = historyNotice + renderTuningTable(tuningPage.rows, tokenPerfLookup, 'tuning-table') + renderPager('tuning-table', tuningPage);
+    if (keywordLibraryTableEl) {
+      const keywordLib = { ...(results.keywordLibrary || {}), tokens: keywordPage.rows };
+      keywordLibraryTableEl.innerHTML = renderKeywordLibraryTable(keywordLib, 'keyword-library-table') + renderPager('keyword-library-table', keywordPage);
+    }
     wireTableSorting();
     restoreResultsScrollState(scrollState);
 
@@ -1487,6 +1720,14 @@
     toggleButton.setAttribute('aria-expanded', expanded ? 'false' : 'true');
     panel.hidden = expanded;
     section.classList.toggle('is-collapsed', expanded);
+    const opening = expanded;
+    if (opening && currentResults && currentResults.historyTruncated && currentJob && currentJob.id) {
+      if (panelId === 'loop-summary-table-panel' || panelId === 'tuning-table-panel') {
+        requestRunHistory(currentJob.id).then(function (historyPayload) {
+          mergeHistoryIntoCurrent(historyPayload);
+        });
+      }
+    }
   }
 
   function initTableSections() {
@@ -1568,11 +1809,13 @@
 
   function collectInput() {
     const data = new FormData(formEl);
+    const featureWeights = getRewardFeatureWeights();
     return {
       keywords: String(data.get('keywords') || '').trim(),
       description: String(data.get('description') || '').trim(),
       style: String(data.get('style') || 'default'),
       randomness: String(data.get('randomness') || 'medium'),
+      mutationIntensity: String(data.get('mutationIntensity') || 'medium'),
       blacklist: String(data.get('blacklist') || '').trim(),
       maxLength: Math.max(1, Math.round(parseNumber(data.get('maxLength'), 10))),
       tld: String(data.get('tld') || 'com').trim(),
@@ -1581,10 +1824,13 @@
       loopCount: Math.max(1, Math.round(parseNumber(data.get('loopCount'), 100))),
       apiBaseUrl: BACKEND_URL,
       preferEnglish: String(data.get('preferEnglish') || '').toLowerCase() === 'on',
+      lowMemoryMode: String(data.get('lowMemoryMode') || '').toLowerCase() === 'on',
       rewardPolicy: (function () {
         const level = String(data.get('repetitionPenaltyLevel') || 'strong').trim();
         const base = persistentRewardPolicy && typeof persistentRewardPolicy === 'object' ? { ...persistentRewardPolicy } : {};
         base.repetitionPenaltyLevel = ['gentle', 'moderate', 'strong', 'very_severe', 'extremely_severe', 'excessive'].includes(level) ? level : 'strong';
+        base.featureWeights = featureWeights;
+        base.notesBlendWeight = 0.2;
         return base;
       })(),
     };
@@ -1672,24 +1918,39 @@
     }
 
     if (job.results) {
+      const incomingVersion = Number(
+        job.resultsVersion != null
+          ? job.resultsVersion
+          : (job.results && job.results.resultsVersion != null ? job.results.resultsVersion : 0)
+      );
       currentResults = job.results;
       resultsPanelEl.hidden = false;
+      const shouldRender = incomingVersion !== lastRenderedResultsVersion || job.status === 'done' || job.status === 'failed';
       if (job.status === 'done' || job.status === 'failed') {
         if (renderResultsTimeoutId != null) {
           clearTimeout(renderResultsTimeoutId);
           renderResultsTimeoutId = null;
         }
-        renderResults(currentResults);
+        if (shouldRender) {
+          lastRenderedResultsVersion = incomingVersion;
+          renderResults(currentResults);
+        }
       } else {
-        if (renderResultsTimeoutId != null) clearTimeout(renderResultsTimeoutId);
-        renderResultsTimeoutId = setTimeout(function () {
-          renderResultsTimeoutId = null;
-          if (currentResults) renderResults(currentResults);
-        }, 150);
+        if (shouldRender) {
+          if (renderResultsTimeoutId != null) clearTimeout(renderResultsTimeoutId);
+          renderResultsTimeoutId = setTimeout(function () {
+            renderResultsTimeoutId = null;
+            if (currentResults) {
+              lastRenderedResultsVersion = incomingVersion;
+              renderResults(currentResults);
+            }
+          }, 220);
+        }
       }
     }
 
     if (job.status === 'done' || job.status === 'failed') {
+      destroyEngine();
       latestRunExport = {
         run: cloneForExport(job),
         results: cloneForExport(job.results || currentResults || {}),
@@ -1697,15 +1958,33 @@
       downloadJsonBtn.disabled = !latestRunExport || !latestRunExport.run || !latestRunExport.results;
       startBtn.disabled = false;
       cancelBtn.disabled = true;
+      if (job.id && job.results && job.results.historyTruncated) {
+        requestRunHistory(job.id).then(function (historyPayload) {
+          mergeHistoryIntoCurrent(historyPayload);
+          latestRunExport = {
+            run: cloneForExport(job),
+            results: cloneForExport(currentResults || job.results || {}),
+          };
+          downloadJsonBtn.disabled = !latestRunExport || !latestRunExport.run || !latestRunExport.results;
+        });
+      }
       if (job.status === 'done') {
         void ingestCompletedRun(job, currentInput);
       }
     }
   }
 
-  function downloadResultsJson() {
+  async function downloadResultsJson() {
     if (!latestRunExport || !latestRunExport.run || !latestRunExport.results) {
       return;
+    }
+    if (currentResults && currentResults.historyTruncated && currentJob && currentJob.id) {
+      const historyPayload = await requestRunHistory(currentJob.id);
+      mergeHistoryIntoCurrent(historyPayload);
+      latestRunExport = {
+        run: cloneForExport(latestRunExport.run),
+        results: cloneForExport(currentResults || latestRunExport.results),
+      };
     }
 
     const payload = {
@@ -1797,6 +2076,7 @@
 
     const input = collectInput();
     currentInput = input;
+    currentDebugLogsMax = input.lowMemoryMode ? DEBUG_LOGS_MAX_LOW_MEMORY : DEBUG_LOGS_MAX_DEFAULT;
     pushDebugLog('app.js:handleStart', 'Run started', {
       apiBaseUrl: input.apiBaseUrl,
       origin: (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '',
@@ -1811,10 +2091,14 @@
 
     resultsPanelEl.hidden = true;
     currentResults = null;
+    lastRenderedResultsVersion = -1;
     latestRunExport = null;
+    Object.keys(tablePageState).forEach(function (k) { tablePageState[k] = 1; });
     downloadJsonBtn.disabled = true;
 
-    engine.postMessage({ type: 'start', input: input });
+    destroyEngine();
+    const activeEngine = ensureEngine();
+    activeEngine.postMessage({ type: 'start', input: input });
     startBtn.disabled = true;
     cancelBtn.disabled = false;
     statusLabelEl.textContent = 'Queued';
@@ -1824,44 +2108,106 @@
     progressFillEl.style.width = '0%';
   }
 
-  const engine = createEngineBridge();
+  let engine = null;
+  let historyReqCounter = 0;
+  const historyReqResolvers = new Map();
 
-  engine.addEventListener('message', function (event) {
-    const message = event.data || {};
+  function mergeHistoryRows(existingRows, incomingRows) {
+    const byLoop = new Map();
+    (existingRows || []).forEach(function (row) { byLoop.set(Number(row.loop || 0), row); });
+    (incomingRows || []).forEach(function (row) { byLoop.set(Number(row.loop || 0), row); });
+    return Array.from(byLoop.values()).sort(function (a, b) { return (Number(a.loop) || 0) - (Number(b.loop) || 0); });
+  }
 
-    if (message.type === 'debugLog' && message.payload) {
-      debugLogs.push(message.payload);
-      if (debugLogs.length > DEBUG_LOGS_MAX) {
-        debugLogs.splice(0, debugLogs.length - DEBUG_LOGS_MAX);
+  function mergeHistoryIntoCurrent(historyPayload) {
+    if (!currentResults || !historyPayload) return;
+    const loopRows = Array.isArray(historyPayload.loopSummaries) ? historyPayload.loopSummaries : [];
+    const tuningRows = Array.isArray(historyPayload.tuningHistory) ? historyPayload.tuningHistory : [];
+    currentResults.loopSummaries = mergeHistoryRows(currentResults.loopSummaries || [], loopRows);
+    currentResults.tuningHistory = mergeHistoryRows(currentResults.tuningHistory || [], tuningRows);
+    currentResults.historyTruncated = false;
+    currentResults.historyWindowStartLoop = 1;
+    renderResults(currentResults);
+  }
+
+  function bindEngine(worker) {
+    if (!worker || !worker.addEventListener) return;
+    worker.addEventListener('message', function (event) {
+      const message = event.data || {};
+
+      if (message.type === 'debugLog' && message.payload) {
+        debugLogs.push(message.payload);
+        if (debugLogs.length > currentDebugLogsMax) {
+          debugLogs.splice(0, debugLogs.length - currentDebugLogsMax);
+        }
+        updateDataSourcePanel(message.payload);
+        return;
       }
-      updateDataSourcePanel(message.payload);
-      return;
-    }
 
-    if (message.type === 'state' && message.job) {
-      updateStatus(message.job);
-      return;
-    }
+      if (message.type === 'history') {
+        const reqId = message.requestId || null;
+        if (reqId && historyReqResolvers.has(reqId)) {
+          const resolve = historyReqResolvers.get(reqId);
+          historyReqResolvers.delete(reqId);
+          resolve(message);
+        }
+        return;
+      }
 
-    if (message.type === 'error') {
-      const details = message.message || 'Unknown worker error.';
-      pushDebugLog('app.js:workerMessage', 'Worker error message', {
-        jobId: message.jobId || null,
-        message: details,
-      });
-      showFormError(details);
+      if (message.type === 'state' && message.job) {
+        updateStatus(message.job);
+        return;
+      }
+
+      if (message.type === 'error') {
+        const details = message.message || 'Unknown worker error.';
+        pushDebugLog('app.js:workerMessage', 'Worker error message', {
+          jobId: message.jobId || null,
+          message: details,
+        });
+        showFormError(details);
+        startBtn.disabled = false;
+        cancelBtn.disabled = true;
+      }
+    });
+
+    worker.addEventListener('error', function (event) {
+      const errorMessage = event.message || 'Worker runtime error.';
+      pushDebugLog('app.js:workerErrorEvent', 'Worker runtime error', { message: errorMessage });
+      showFormError(errorMessage);
       startBtn.disabled = false;
       cancelBtn.disabled = true;
-    }
-  });
+    });
+  }
 
-  engine.addEventListener('error', function (event) {
-    const errorMessage = event.message || 'Worker runtime error.';
-    pushDebugLog('app.js:workerErrorEvent', 'Worker runtime error', { message: errorMessage });
-    showFormError(errorMessage);
-    startBtn.disabled = false;
-    cancelBtn.disabled = true;
-  });
+  function ensureEngine() {
+    if (engine) return engine;
+    engine = createEngineBridge();
+    bindEngine(engine);
+    return engine;
+  }
+
+  function destroyEngine() {
+    if (engine && typeof engine.terminate === 'function') {
+      engine.terminate();
+    }
+    engine = null;
+  }
+
+  function requestRunHistory(jobId) {
+    const activeEngine = ensureEngine();
+    const requestId = `hist-${Date.now()}-${++historyReqCounter}`;
+    return new Promise(function (resolve) {
+      historyReqResolvers.set(requestId, resolve);
+      activeEngine.postMessage({ type: 'getHistory', jobId: jobId, requestId: requestId });
+      setTimeout(function () {
+        if (!historyReqResolvers.has(requestId)) return;
+        const done = historyReqResolvers.get(requestId);
+        historyReqResolvers.delete(requestId);
+        done({ loopSummaries: [], tuningHistory: [] });
+      }, 10000);
+    });
+  }
 
   startBtn.addEventListener('click', function () {
     Promise.allSettled([
@@ -1876,7 +2222,8 @@
     if (!currentJob || !currentJob.id) {
       return;
     }
-    engine.postMessage({ type: 'cancel', jobId: currentJob.id });
+    const activeEngine = ensureEngine();
+    activeEngine.postMessage({ type: 'cancel', jobId: currentJob.id });
   });
 
   sortModeEl.addEventListener('change', function () {
@@ -1887,10 +2234,30 @@
   });
 
   downloadJsonBtn.addEventListener('click', function () {
-    downloadResultsJson();
+    void downloadResultsJson();
   });
 
   resultsPanelEl.addEventListener('click', function (e) {
+    var pagerBtn = e.target && e.target.closest && e.target.closest('.pager-btn');
+    if (pagerBtn && pagerBtn.dataset.sectionId && pagerBtn.dataset.pageAction) {
+      var sid = pagerBtn.dataset.sectionId;
+      var cur = Number(tablePageState[sid] || 1);
+      tablePageState[sid] = pagerBtn.dataset.pageAction === 'prev' ? Math.max(1, cur - 1) : (cur + 1);
+      if (currentResults) renderResults(currentResults);
+      return;
+    }
+    var historyBtn = e.target && e.target.closest && e.target.closest('.load-history-btn');
+    if (historyBtn && currentJob && currentJob.id) {
+      requestRunHistory(currentJob.id).then(function (historyPayload) {
+        mergeHistoryIntoCurrent(historyPayload);
+      });
+      return;
+    }
+    var columnBtn = e.target && e.target.closest && e.target.closest('.column-section-btn');
+    if (columnBtn && columnBtn.dataset.sectionId) {
+      openColumnPicker(columnBtn.dataset.sectionId);
+      return;
+    }
     var btn = e.target && e.target.closest && e.target.closest('.csv-section-btn');
     if (!btn || !btn.dataset.sectionId) return;
     var sectionId = btn.dataset.sectionId;
@@ -1939,6 +2306,18 @@
       downloadDebugLog();
     });
   }
+
+  if (rewardPresetEl) {
+    rewardPresetEl.addEventListener('change', function () {
+      applyRewardPreset(rewardPresetEl.value || 'balanced');
+    });
+  }
+  Object.values(rewardSliderEls).forEach(function (slider) {
+    if (!slider) return;
+    slider.addEventListener('input', updateRewardValueBadges);
+  });
+  applyRewardPreset((rewardPresetEl && rewardPresetEl.value) || 'balanced');
+  sectionColumnState = loadColumnPrefs();
 
   initTableSections();
   setSessionDefaultKeywords();

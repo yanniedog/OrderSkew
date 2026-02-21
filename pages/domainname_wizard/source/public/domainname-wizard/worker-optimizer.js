@@ -63,14 +63,48 @@ function scoreReward(rows, eliteSet, context) {
     ? testedKeywords.filter((t) => (Number((tokenPlaysMap[t] && tokenPlaysMap[t].plays) || 0) > 0)).length / testedKeywords.length
     : 0;
   const policy = (ctx.rewardPolicy && typeof ctx.rewardPolicy === 'object') ? ctx.rewardPolicy : {};
+  const featureWeights = (policy.featureWeights && typeof policy.featureWeights === 'object') ? policy.featureWeights : {};
+  const fw = {
+    realWordParts: clamp(Number(featureWeights.realWordParts) || 1, 0, 3),
+    cpcKeywords: clamp(Number(featureWeights.cpcKeywords) || 1, 0, 3),
+    cvFlow: clamp(Number(featureWeights.cvFlow) || 1, 0, 3),
+    keywordMatch: clamp(Number(featureWeights.keywordMatch) || 1, 0, 3),
+    brandability: clamp(Number(featureWeights.brandability) || 1, 0, 3),
+    memorability: clamp(Number(featureWeights.memorability) || 1, 0, 3),
+    devSignal: clamp(Number(featureWeights.devSignal) || 1, 0, 3),
+  };
+  const fwSum = Math.max(
+    1e-6,
+    fw.realWordParts + fw.cpcKeywords + fw.cvFlow + fw.keywordMatch + fw.brandability + fw.memorability + fw.devSignal,
+  );
+  const notesRows = withinBudgetRows.length ? withinBudgetRows : availableRows;
+  const notesPriority01 = notesRows.length
+    ? clamp(
+      notesRows.reduce((sum, row) => {
+        const componentScore = (
+          (clamp((Number(row.realWordPartsScore) || 0) / 100, 0, 1) * fw.realWordParts)
+          + (clamp((Number(row.cpcKeywordScore) || 0) / 100, 0, 1) * fw.cpcKeywords)
+          + (clamp((Number(row.cvFlowScore) || 0) / 100, 0, 1) * fw.cvFlow)
+          + (clamp((Number(row.keywordMatchScore) || 0) / 100, 0, 1) * fw.keywordMatch)
+          + (clamp((Number(row.brandabilityScore) || 0) / 100, 0, 1) * fw.brandability)
+          + (clamp((Number(row.memorabilityScore) || 0) / 100, 0, 1) * fw.memorability)
+          + (clamp((Number(row.devSignalScore) || 0) / 100, 0, 1) * fw.devSignal)
+        ) / fwSum;
+        return sum + componentScore;
+      }, 0) / notesRows.length,
+      0,
+      1,
+    )
+    : 0;
   const perfVsExplore = clamp(Number(policy.performanceVsExploration) || 0.78, 0.55, 0.95);
   const quotaWeight = clamp(Number(policy.quotaWeight) || 0.22, 0.10, 0.35);
   const undervalueWeight = clamp(Number(policy.undervalueWeight) || 0.24, 0.10, 0.40);
   const qualityWeight = clamp(Number(policy.qualityWeight) || 0.24, 0.10, 0.40);
   const availabilityWeight = clamp(Number(policy.availabilityWeight) || 0.18, 0.08, 0.35);
   const inBudgetWeight = clamp(Number(policy.inBudgetWeight) || 0.12, 0.05, 0.30);
+  const notesBlendWeight = clamp(Number(policy.notesBlendWeight) || 0.20, 0.05, 0.40);
   const perfWeightSum = Math.max(1e-6, quotaWeight + undervalueWeight + qualityWeight + availabilityWeight + inBudgetWeight);
-  const perfComposite = clamp(
+  let perfComposite = clamp(
     (
       quotaCompletion * quotaWeight
       + (((undervWithin * 0.7) + (underpricedShare * 0.3)) * undervalueWeight)
@@ -81,6 +115,7 @@ function scoreReward(rows, eliteSet, context) {
     0,
     1,
   );
+  perfComposite = clamp(perfComposite * (1 - notesBlendWeight) + notesPriority01 * notesBlendWeight, 0, 1);
   const exploreComposite = clamp(
     explorationKeywordBonus * 0.55
     + novelty * 0.20
@@ -1066,13 +1101,8 @@ class Optimizer {
     const styleOptions = this.base.preferEnglish !== false
       ? STYLE_VALUES.filter((value) => value !== 'nonenglish')
       : STYLE_VALUES;
-
-    const style = this.rand() < explorationRate
-      ? pick(styleOptions, this.rand)
-      : this.thompsonChoose(this.model.style, styleOptions);
-    const randomness = this.rand() < explorationRate
-      ? pick(RANDOMNESS_VALUES, this.rand)
-      : this.thompsonChoose(this.model.randomness, RANDOMNESS_VALUES);
+    const style = styleOptions.includes(this.base.style) ? this.base.style : (styleOptions[0] || 'default');
+    const randomness = RANDOMNESS_VALUES.includes(this.base.randomness) ? this.base.randomness : 'medium';
 
     // Rank across the full theme pool so unseen tokens can be sampled and assessed.
     const tokenUniverse = dedupeTokens(
@@ -1106,10 +1136,8 @@ class Optimizer {
     const adaptivePool = dedupeTokens(tokenRank.slice(0, 40).map(function (x) { return x.token; }).concat(anchorPool));
     const eliteTokens = this._collectEliteThemeTokens();
 
-    const intensity = explorationBurst || this.rand() < explorationRate
-      ? 'high'
-      : this.rand() > 0.25 ? 'medium' : 'low';
-    const mut = intensity === 'high' ? 7 : intensity === 'medium' ? 5 : 3;
+    const intensity = MUTATION_INTENSITY_VALUES.includes(this.base.mutationIntensity) ? this.base.mutationIntensity : 'medium';
+    const mut = intensity === 'off' ? 0 : intensity === 'high' ? 7 : intensity === 'medium' ? 5 : 3;
     const locked = this._lockedSeedTokens.slice();
     const lockedSet = new Set(locked);
     const prevTokens = (this.curTokens || []).slice();
@@ -1328,6 +1356,9 @@ class Optimizer {
       elitePoolSize: this.model.elitePool.length,
       reward: round(r, 4),
       repetitionPenaltyApplied: repPenalty,
+      featureWeights: plan.input && plan.input.rewardPolicy && plan.input.rewardPolicy.featureWeights
+        ? { ...plan.input.rewardPolicy.featureWeights }
+        : null,
     };
   }
 

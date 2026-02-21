@@ -153,6 +153,36 @@ select {
   gap: 8px;
 }
 
+.reward-policy {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: #f9fbff;
+}
+
+.reward-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.reward-grid label {
+  font-size: 0.82rem;
+}
+
+.reward-grid input[type="range"] {
+  width: 100%;
+  padding: 0;
+}
+
+.reward-value {
+  margin-top: 4px;
+  display: inline-block;
+  font-weight: 700;
+  color: #26425f;
+}
+
 .btn {
   border: 1px solid transparent;
   border-radius: 8px;
@@ -464,6 +494,24 @@ tbody tr:nth-child(odd) {
 
 .table-section-panel {
   margin-top: 8px;
+}
+
+.table-pager {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-pager span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.history-notice {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  color: #6b4f00;
 }
 
 .keyword-library-meta {
