@@ -31,7 +31,6 @@
   const clearDomainFiltersBtn = document.getElementById('clear-domain-filters-btn');
   const domainFilterStatusEl = document.getElementById('domain-filter-status');
   const summaryKpisEl = document.getElementById('summary-kpis');
-  const allRankedTableEl = document.getElementById('all-ranked-table');
   const withinBudgetTableEl = document.getElementById('within-budget-table');
   const unavailableTableEl = document.getElementById('unavailable-table');
   const loopSummaryTableEl = document.getElementById('loop-summary-table');
@@ -68,7 +67,6 @@
   const TABLE_PAGE_SIZE = 200;
   const tablePageState = {};
   const SECTION_COLUMN_OPTIONS = {
-    'all-ranked-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'within-budget-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes', 'realWordPartsScore', 'cpcKeywordScore', 'bestCpcTier', 'bestCpcWord', 'cvFlowScore', 'keywordMatchScore', 'devSignalScore', 'notesPriorityScore'],
     'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
@@ -76,7 +74,6 @@
     'keyword-library-table': ['rank', 'word', 'state', 'usage', 'evidence', 'lastLoop'],
   };
   const DEFAULT_SECTION_COLUMNS = {
-    'all-ranked-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'within-budget-table': ['domain', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'unavailable-table': ['domain', 'availability', 'price', 'estimatedValue', 'valueRatio', 'valueMetrics', 'finance', 'quality', 'signals', 'words', 'notes'],
     'loop-summary-table': ['loop', 'keywords', 'strategy', 'explore', 'quota', 'results', 'top', 'sourceNote'],
@@ -194,23 +191,230 @@
     return getVisibleColumns(sectionId).includes(key);
   }
 
+  function getColumnLabel(sectionId, key) {
+    const labelMap = {
+      'domain': 'Domain',
+      'availability': 'Availability',
+      'price': 'Price',
+      'estimatedValue': 'Est. Value',
+      'valueRatio': 'Value Ratio',
+      'valueMetrics': 'Value Metrics',
+      'finance': 'Finance',
+      'quality': 'Quality',
+      'signals': 'Signals',
+      'words': 'Words',
+      'notes': 'Notes',
+      'realWordPartsScore': 'Real Word Parts',
+      'cpcKeywordScore': 'CPC',
+      'bestCpcTier': 'CPC Tier',
+      'bestCpcWord': 'CPC Word',
+      'cvFlowScore': 'CV Flow',
+      'keywordMatchScore': 'Keyword Match',
+      'devSignalScore': 'Dev Signal',
+      'notesPriorityScore': 'Notes Priority',
+      'loop': 'Loop',
+      'keywords': 'Keywords',
+      'strategy': 'Strategy',
+      'explore': 'Explore',
+      'quota': 'Quota',
+      'results': 'Results',
+      'top': 'Top',
+      'sourceNote': 'Source/Note',
+      'repetitionPenalty': 'Rep. Penalty',
+      'reward': 'Reward',
+      'featureWeights': 'Feature Weights',
+      'rank': 'Rank',
+      'word': 'Word',
+      'state': 'State',
+      'usage': 'Usage',
+      'evidence': 'Evidence',
+      'lastLoop': 'Last Loop',
+    };
+    return labelMap[key] || key;
+  }
+
   function openColumnPicker(sectionId) {
     const options = SECTION_COLUMN_OPTIONS[sectionId] || [];
     if (!options.length) return;
     const current = getVisibleColumns(sectionId);
-    const promptText = [
-      `Columns for ${sectionId}`,
-      `Available: ${options.join(', ')}`,
-      'Enter comma-separated keys to show:',
-    ].join('\n');
-    const raw = window.prompt(promptText, current.join(', '));
-    if (raw == null) return;
-    const selected = raw.split(',').map(function (x) { return String(x || '').trim(); }).filter(Boolean);
-    const valid = selected.filter(function (x) { return options.includes(x); });
-    if (!valid.length) return;
-    sectionColumnState[sectionId] = valid;
-    saveColumnPrefs();
-    if (currentResults) renderResults(currentResults);
+    
+    const modal = document.createElement('div');
+    modal.className = 'column-picker-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'column-picker-title');
+    
+    const sectionName = sectionId.replace(/-table$/, '').replace(/-/g, ' ').replace(/\b\w/g, function (l) { return l.toUpperCase(); });
+    
+    modal.innerHTML = `
+      <div class="column-picker-dialog">
+        <div class="column-picker-header">
+          <h3 id="column-picker-title">Column Configuration: ${sectionName}</h3>
+          <button type="button" class="column-picker-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="column-picker-body">
+          <p class="column-picker-hint">Drag to reorder, check/uncheck to show/hide columns</p>
+          <ul class="column-picker-list" id="column-picker-list"></ul>
+        </div>
+        <div class="column-picker-footer">
+          <button type="button" class="btn btn-secondary" id="column-picker-reset">Reset to Default</button>
+          <div class="column-picker-actions">
+            <button type="button" class="btn btn-secondary" id="column-picker-cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="column-picker-save">Save</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const listEl = modal.querySelector('#column-picker-list');
+    const closeBtn = modal.querySelector('.column-picker-close');
+    const cancelBtn = modal.querySelector('#column-picker-cancel');
+    const saveBtn = modal.querySelector('#column-picker-save');
+    const resetBtn = modal.querySelector('#column-picker-reset');
+    
+    let workingOrder = current.slice();
+    let workingChecked = new Set(workingOrder);
+    let draggedElement = null;
+    
+    function renderList() {
+      listEl.innerHTML = '';
+      options.forEach(function (key) {
+        const li = document.createElement('li');
+        li.className = 'column-picker-item';
+        li.draggable = true;
+        li.dataset.key = key;
+        if (!workingChecked.has(key)) {
+          li.classList.add('column-picker-item-hidden');
+        }
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'col-' + key;
+        checkbox.checked = workingChecked.has(key);
+        checkbox.addEventListener('change', function () {
+          if (checkbox.checked) {
+            workingChecked.add(key);
+            li.classList.remove('column-picker-item-hidden');
+            if (!workingOrder.includes(key)) {
+              workingOrder.push(key);
+            }
+          } else {
+            workingChecked.delete(key);
+            li.classList.add('column-picker-item-hidden');
+          }
+        });
+        
+        const label = document.createElement('label');
+        label.htmlFor = 'col-' + key;
+        label.textContent = getColumnLabel(sectionId, key);
+        
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'column-picker-drag-handle';
+        dragHandle.textContent = '☰';
+        dragHandle.setAttribute('aria-label', 'Drag to reorder');
+        
+        li.appendChild(checkbox);
+        li.appendChild(label);
+        li.appendChild(dragHandle);
+        
+        li.addEventListener('dragstart', function (e) {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', key);
+          li.classList.add('column-picker-item-dragging');
+          draggedElement = li;
+        });
+        
+        li.addEventListener('dragend', function () {
+          li.classList.remove('column-picker-item-dragging');
+          draggedElement = null;
+        });
+        
+        li.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          if (!draggedElement || draggedElement === li) return;
+          const afterElement = getDragAfterElement(listEl, e.clientY);
+          if (afterElement == null) {
+            listEl.appendChild(draggedElement);
+          } else {
+            listEl.insertBefore(draggedElement, afterElement);
+          }
+        });
+        
+        li.addEventListener('drop', function (e) {
+          e.preventDefault();
+          updateOrderFromDOM();
+        });
+        
+        listEl.appendChild(li);
+      });
+      updateOrderFromDOM();
+    }
+    
+    function getDragAfterElement(container, y) {
+      const draggableElements = Array.from(container.querySelectorAll('.column-picker-item:not(.column-picker-item-dragging)'));
+      return draggableElements.reduce(function (closest, child) {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+    
+    function updateOrderFromDOM() {
+      const items = Array.from(listEl.querySelectorAll('.column-picker-item'));
+      workingOrder = items.map(function (li) { return li.dataset.key; }).filter(function (key) { return workingChecked.has(key); });
+      const unchecked = options.filter(function (key) { return !workingChecked.has(key); });
+      workingOrder = workingOrder.concat(unchecked);
+    }
+    
+    function closeModal() {
+      document.body.removeChild(modal);
+    }
+    
+    function saveAndClose() {
+      const visible = Array.from(workingChecked);
+      const ordered = workingOrder.filter(function (key) { return visible.includes(key); });
+      if (ordered.length === 0) {
+        alert('At least one column must be visible.');
+        return;
+      }
+      sectionColumnState[sectionId] = ordered;
+      saveColumnPrefs();
+      if (currentResults) renderResults(currentResults);
+      closeModal();
+    }
+    
+    function resetToDefault() {
+      const defaultCols = DEFAULT_SECTION_COLUMNS[sectionId] || options;
+      workingOrder = options.slice();
+      workingChecked = new Set(defaultCols);
+      renderList();
+    }
+    
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    saveBtn.addEventListener('click', saveAndClose);
+    resetBtn.addEventListener('click', resetToDefault);
+    
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+    
+    modal.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+    
+    renderList();
+    saveBtn.focus();
   }
 
   function paginateRows(sectionId, rows) {
@@ -283,7 +487,7 @@
   }
 
   function resetDomainTablePages() {
-    ['all-ranked-table', 'within-budget-table', 'unavailable-table'].forEach(function (id) {
+    ['within-budget-table', 'unavailable-table'].forEach(function (id) {
       tablePageState[id] = 1;
     });
   }
@@ -799,7 +1003,6 @@
 
   function captureResultsScrollState() {
     const ids = [
-      'all-ranked-table',
       'within-budget-table',
       'unavailable-table',
       'loop-summary-table',
@@ -1183,10 +1386,7 @@
       };
     });
     var combinedRanked = allRanked.concat(pendingRows);
-    if (sectionId === 'all-ranked-table') {
-      rows = sortRows(applyDomainFilters(combinedRanked), sortMode).map(domainRowForCsv);
-      columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
-    } else if (sectionId === 'within-budget-table') {
+    if (sectionId === 'within-budget-table') {
       rows = sortRows(applyDomainFilters(results.withinBudget || []), sortMode).map(domainRowForCsv);
       columns = CSV_DOMAIN_COLUMNS.filter(function (c) { return c.key !== 'available'; });
     } else if (sectionId === 'unavailable-table') {
@@ -1211,7 +1411,7 @@
     var visible = getVisibleColumns(sectionId);
     if (visible && visible.length && columns && columns.length) {
       var keyMap = {};
-      if (sectionId === 'all-ranked-table' || sectionId === 'within-budget-table' || sectionId === 'unavailable-table') {
+      if (sectionId === 'within-budget-table' || sectionId === 'unavailable-table') {
         keyMap = {
           estimatedValue: 'estimatedValueUSD',
           notes: '_valueDriversStr',
@@ -1243,7 +1443,6 @@
 
   function getFullCsv(results, sortMode) {
     var sections = [
-      { id: 'all-ranked-table', title: 'All Ranked Available Domains' },
       { id: 'within-budget-table', title: 'Within Budget' },
       { id: 'unavailable-table', title: 'Unavailable' },
       { id: 'loop-summary-table', title: 'Loop Summaries' },
@@ -1429,7 +1628,7 @@
     if (!rows || rows.length === 0) {
       return '<p>No rows.</p>';
     }
-    const sec = sectionId || 'all-ranked-table';
+    const sec = sectionId || 'within-budget-table';
     const show = function (key) { return isColumnVisible(sec, key); };
     const headerCells = [];
     if (show('domain')) headerCells.push(th('Domain', 'The full candidate domain name including TLD.'));
@@ -1725,7 +1924,6 @@
     const withinBudget = sortRows(filteredWithinBudget, currentSortMode);
     const unavailable = sortRows(filteredUnavailable, currentSortMode);
     const tokenPerfLookup = buildTokenPerformanceLookup(results.keywordLibrary || null);
-    const rankedPage = paginateRows('all-ranked-table', sortedRanked);
     const withinPage = paginateRows('within-budget-table', withinBudget);
     const unavailablePage = paginateRows('unavailable-table', unavailable);
     const loopPage = paginateRows('loop-summary-table', results.loopSummaries || []);
@@ -1741,7 +1939,6 @@
     updateDomainFilterStatus(combinedRanked.length, sortedRanked.length);
 
     renderSummary(results);
-    allRankedTableEl.innerHTML = renderDomainTable(rankedPage.rows, false, 'all-ranked-table') + renderPager('all-ranked-table', rankedPage);
     withinBudgetTableEl.innerHTML = renderDomainTable(withinPage.rows, false, 'within-budget-table') + renderPager('within-budget-table', withinPage);
     unavailableTableEl.innerHTML = renderDomainTable(unavailablePage.rows, true, 'unavailable-table') + renderPager('unavailable-table', unavailablePage);
 
@@ -2054,7 +2251,6 @@
   }
 
   var SECTION_CSV_FILENAMES = {
-    'all-ranked-table': 'domainname_wizard_all_ranked.csv',
     'within-budget-table': 'domainname_wizard_within_budget.csv',
     'unavailable-table': 'domainname_wizard_unavailable.csv',
     'loop-summary-table': 'domainname_wizard_loop_summaries.csv',
