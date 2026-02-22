@@ -2,23 +2,30 @@ import { env, createExecutionContext, waitOnExecutionContext, SELF } from 'cloud
 import { describe, it, expect } from 'vitest';
 import worker from '../src/index';
 
-// For now, you'll need to do something like this to get a correctly-typed
-// `Request` to pass to `worker.fetch()`.
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
-describe('Hello World worker', () => {
-	it('responds with Hello World! (unit style)', async () => {
-		const request = new IncomingRequest('http://example.com');
-		// Create an empty context to pass to `worker.fetch()`.
+describe('home-loan-archive worker', () => {
+	it('returns 404 for unknown path (unit style)', async () => {
+		const request = new IncomingRequest('http://example.com/');
 		const ctx = createExecutionContext();
 		const response = await worker.fetch(request, env, ctx);
-		// Wait for all `Promise`s passed to `ctx.waitUntil()` to settle before running test assertions
 		await waitOnExecutionContext(ctx);
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+		expect(response.status).toBe(404);
+		expect(await response.text()).toBe('Not Found');
 	});
 
-	it('responds with Hello World! (integration style)', async () => {
-		const response = await SELF.fetch('https://example.com');
-		expect(await response.text()).toMatchInlineSnapshot(`"Hello World!"`);
+	it('returns 404 for unknown path (integration style)', async () => {
+		const response = await SELF.fetch('https://example.com/');
+		expect(response.status).toBe(404);
+		expect(await response.text()).toBe('Not Found');
+	});
+
+	it('returns JSON with ok and version for /api/debug/version', async () => {
+		const response = await SELF.fetch('https://example.com/api/debug/version');
+		expect(response.status).toBe(200);
+		const data = (await response.json()) as { ok: boolean; version?: string; hasBindings?: object };
+		expect(data.ok).toBe(true);
+		expect(typeof data.version).toBe('string');
+		expect(data.hasBindings).toBeDefined();
 	});
 });
