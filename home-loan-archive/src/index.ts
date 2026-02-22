@@ -1,6 +1,7 @@
 import {
   acquireRunLock,
   discoverCdrRegister,
+  getDiscoveryHealth,
   insertRunReport,
   runDateHobart,
 } from "./discovery";
@@ -13,7 +14,7 @@ export interface Env {
 }
 
 const KV_KEY = "last_queue_ping";
-const DEPLOY_VERSION = "2026-02-22-phase1-discovery";
+const DEPLOY_VERSION = "2026-02-22-discovery-retry-health";
 const WORKER_NAME = "home-loan-archive-dev";
 
 function nowIso(): string {
@@ -99,6 +100,17 @@ async function handleAdminCdrDiscover(env: Env): Promise<Response> {
   } catch (e: unknown) {
     console.error("FETCH_ERROR", "admin/cdr/discover", (e as Error)?.stack ?? e);
     return errorResponse("admin_cdr_discover", "Internal error");
+  }
+}
+
+/** GET /api/admin/cdr/health - discovery health (last run, cache count, status counts). */
+async function handleAdminCdrHealth(env: Env): Promise<Response> {
+  try {
+    const health = await getDiscoveryHealth(env.DB);
+    return jsonResponse(health);
+  } catch (e: unknown) {
+    console.error("FETCH_ERROR", "admin/cdr/health", (e as Error)?.stack ?? e);
+    return errorResponse("admin_cdr_health", "Internal error");
   }
 }
 
@@ -241,6 +253,10 @@ export default {
 
       if (url.pathname === "/api/admin/cdr/discover" && req.method === "POST") {
         return handleAdminCdrDiscover(env);
+      }
+
+      if (url.pathname === "/api/admin/cdr/health" && req.method === "GET") {
+        return handleAdminCdrHealth(env);
       }
 
       if (url.pathname === "/api/admin/runs" && req.method === "GET") {
