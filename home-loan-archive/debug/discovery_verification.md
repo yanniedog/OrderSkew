@@ -51,3 +51,20 @@ Verification run after deploy to `home-loan-archive-dev` (2026-02-22).
 - Queue ping path works; consumer updates app_kv.
 - No 1101; errors are returned as JSON and logged.
 - When the CDR register API returns 200, discovery will populate `lender_endpoints_cache` and `raw_payloads`; re-run POST /api/admin/cdr/discover when the API is healthy to verify cache population.
+
+---
+
+## Upgrade: retry, fallback, failure capture, health (2026-02-22)
+
+### Changes
+- **Retry**: Up to 3 attempts per URL with delay (1.5s * attempt); 20s fetch timeout.
+- **Fallback**: Primary `.../banking/register`, fallback `.../banking/data-holders/brands`; tries fallback when primary returns non-2xx.
+- **Failure payload capture**: On non-2xx or parse error, row in `raw_payloads` with `source_type='cdr_register_failure'`, `http_status`, `payload_json` (truncated to 50k).
+- **Run statuses**: `completed`, `completed_with_warnings`, `partial` (some brands upserted), `failed`, `failed_payload_captured`.
+- **GET /api/admin/cdr/health**: Returns `lastRun`, `cachedEndpointsCount`, `lastSuccessAt`, `statusCounts`.
+
+### Verification
+- **GET /api/admin/cdr/health**: 200, `{"ok":true,"lastRun":{...},"cachedEndpointsCount":0,"lastSuccessAt":null,"statusCounts":{"failed":1,"failed_payload_captured":1}}`.
+- **POST /api/admin/cdr/discover** then wait ~45s: new run has `status: "failed_payload_captured"`, `errors_json: ["Fetch failed: 500 from last attempted URL"]` (primary and fallback tried).
+- **GET /api/admin/runs**: Both runs visible; latest shows `failed_payload_captured`.
+- **GET /api/debug/version**: `version": "2026-02-22-discovery-retry-health"`.

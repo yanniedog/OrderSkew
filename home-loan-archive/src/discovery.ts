@@ -1,12 +1,19 @@
 /**
- * CDR Register discovery: fetch banking register, parse brands, cache endpoints.
+ * CDR Register discovery: fetch with retry, fallback endpoint, failure capture.
  * Never throws; returns outcome for run_reports and queue retry decisions.
  */
 
 import { resolveLenderKey } from "./config/lenders";
 
-const CDR_REGISTER_URL = "https://api.cdr.gov.au/cdr-register/v1/banking/register";
+const CDR_REGISTER_PRIMARY =
+  "https://api.cdr.gov.au/cdr-register/v1/banking/register";
+const CDR_REGISTER_FALLBACK =
+  "https://api.cdr.gov.au/cdr-register/v1/banking/data-holders/brands";
 const LOCK_TTL_HOURS = 6;
+const FETCH_TIMEOUT_MS = 20000;
+const MAX_RETRIES_PER_URL = 3;
+const RETRY_DELAY_MS = 1500;
+const FAILURE_PAYLOAD_MAX_CHARS = 50000;
 
 export interface DiscoveryResult {
   ok: boolean;
@@ -14,6 +21,8 @@ export interface DiscoveryResult {
   error?: string;
   perLenderCounts?: Record<string, number>;
   warnings?: string[];
+  status?: string;
+  sourceUrl?: string;
 }
 
 interface EndpointDetail {
@@ -36,6 +45,51 @@ interface RegisterBrand {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Fetch with timeout and optional retries. Returns [response, bodyText] or throws. */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { timeoutMs?: number } = {}
+): Promise<[Response, string]> {
+  const { timeoutMs = FETCH_TIMEOUT_MS, ...fetchOpts } = options;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, {
+      ...fetchOpts,
+      signal: controller.signal,
+      headers: { Accept: "application/json", ...(fetchOpts.headers as object) },
+    });
+    const text = await resp.text();
+    return [resp, text];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/** Try one URL with retries. Returns [response, body, finalUrl] or [null, null, attemptedUrl]. */
+async function fetchWithRetry(
+  url: string
+): Promise<{ resp: Response; body: string; url: string } | null> {
+  for (let attempt = 1; attempt <= MAX_RETRIES_PER_URL; attempt++) {
+    try {
+      const [resp, body] = await fetchWithTimeout(url, { timeoutMs: FETCH_TIMEOUT_MS });
+      return { resp, body, url };
+    } catch (e) {
+      console.error("discoverCdrRegister fetch attempt", { url, attempt, error: (e as Error)?.message });
+      if (attempt < MAX_RETRIES_PER_URL) {
+        await sleep(RETRY_DELAY_MS * attempt);
+      } else {
+        return null;
+      }
+    }
+  }
+  return null;
 }
 
 function normalizeBaseUrl(url: string): string {
@@ -109,11 +163,12 @@ export async function acquireRunLock(
   }
 }
 
-/** Persist raw register payload and return content hash. */
+/** Persist raw register payload (success). */
 async function saveRawPayload(
   db: D1Database,
   payloadJson: string,
-  fetchedAt: string
+  fetchedAt: string,
+  sourceUrl: string
 ): Promise<string> {
   const id = `cdr_register_${fetchedAt.replace(/[:.]/g, "-")}`;
   const encoder = new TextEncoder();
@@ -128,12 +183,47 @@ async function saveRawPayload(
       .prepare(
         "INSERT INTO raw_payloads (id, source_type, fetched_at, source_url, content_hash, payload_json) VALUES (?, ?, ?, ?, ?, ?)"
       )
-      .bind(id, "cdr_register", fetchedAt, CDR_REGISTER_URL, hashHex, payloadJson)
+      .bind(id, "cdr_register", fetchedAt, sourceUrl, hashHex, payloadJson)
       .run();
   } catch (e) {
     console.error("saveRawPayload", e);
   }
   return hashHex;
+}
+
+/** Persist failure response for debugging. */
+async function saveFailurePayload(
+  db: D1Database,
+  runId: string,
+  sourceUrl: string,
+  httpStatus: number,
+  bodyText: string,
+  errorMessage: string,
+  fetchedAt: string
+): Promise<void> {
+  const id = `cdr_register_failure_${runId}_${Date.now()}`;
+  const truncated =
+    bodyText.length > FAILURE_PAYLOAD_MAX_CHARS
+      ? bodyText.slice(0, FAILURE_PAYLOAD_MAX_CHARS) + "\n...[truncated]"
+      : bodyText;
+  try {
+    await db
+      .prepare(
+        "INSERT INTO raw_payloads (id, source_type, fetched_at, source_url, http_status, notes, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?)"
+      )
+      .bind(
+        id,
+        "cdr_register_failure",
+        fetchedAt,
+        sourceUrl,
+        httpStatus,
+        errorMessage.slice(0, 500),
+        truncated
+      )
+      .run();
+  } catch (e) {
+    console.error("saveFailurePayload", e);
+  }
 }
 
 /** Upsert one brand into lender_endpoints_cache. */
@@ -185,7 +275,7 @@ async function upsertEndpoint(
   }
 }
 
-/** Fetch CDR register, parse brands, upsert into lender_endpoints_cache and raw_payloads. */
+/** Fetch CDR register (primary then fallback with retries), parse, cache, and report. */
 export async function discoverCdrRegister(
   db: D1Database,
   runId: string
@@ -193,34 +283,85 @@ export async function discoverCdrRegister(
   const startedAt = nowIso();
   const warnings: string[] = [];
   const perLenderCounts: Record<string, number> = {};
+  const urlsToTry = [CDR_REGISTER_PRIMARY, CDR_REGISTER_FALLBACK];
+
+  let lastResp: Response | null = null;
+  let lastBody: string | null = null;
+  let lastUrl: string | null = null;
+  let lastFailure: { url: string; status: number; body: string } | null = null;
+
+  for (const url of urlsToTry) {
+    const result = await fetchWithRetry(url);
+    if (result) {
+      if (result.resp.ok) {
+        lastResp = result.resp;
+        lastBody = result.body;
+        lastUrl = result.url;
+        break;
+      }
+      lastFailure = {
+        url: result.url,
+        status: result.resp.status,
+        body: result.body,
+      };
+    }
+  }
+
+  if (!lastResp || lastBody === null || !lastUrl) {
+    if (lastFailure) {
+      await saveFailurePayload(
+        db,
+        runId,
+        lastFailure.url,
+        lastFailure.status,
+        lastFailure.body,
+        `HTTP ${lastFailure.status} (primary and fallback tried)`,
+        startedAt
+      );
+      await updateRunReport(db, runId, "failed_payload_captured", startedAt, null, [
+        `Fetch failed: ${lastFailure.status} from last attempted URL`,
+      ]);
+      return {
+        ok: false,
+        runId,
+        error: `HTTP ${lastFailure.status}`,
+        status: "failed_payload_captured",
+        sourceUrl: lastFailure.url,
+      };
+    }
+    const errMsg = "All fetch attempts failed (primary and fallback)";
+    await updateRunReport(db, runId, "failed", startedAt, null, [errMsg]);
+    return { ok: false, runId, error: errMsg, status: "failed" };
+  }
 
   try {
-    const resp = await fetch(CDR_REGISTER_URL, {
-      headers: { Accept: "application/json" },
-    });
-
-    if (!resp.ok) {
-      const text = await resp.text();
-      console.error("discoverCdrRegister fetch", resp.status, text?.slice(0, 500));
-      await updateRunReport(db, runId, "failed", startedAt, null, [
-        `Fetch failed: ${resp.status} ${text?.slice(0, 200)}`,
-      ]);
-      return { ok: false, runId, error: `HTTP ${resp.status}` };
-    }
-
-    const rawText = await resp.text();
     let data: unknown;
     try {
-      data = JSON.parse(rawText);
+      data = JSON.parse(lastBody);
     } catch (e) {
       console.error("discoverCdrRegister parse", e);
-      await updateRunReport(db, runId, "failed", startedAt, null, [
+      await saveFailurePayload(
+        db,
+        runId,
+        lastUrl,
+        lastResp.status,
+        lastBody,
+        "Invalid JSON from CDR register",
+        startedAt
+      );
+      await updateRunReport(db, runId, "failed_payload_captured", startedAt, null, [
         "Invalid JSON from CDR register",
       ]);
-      return { ok: false, runId, error: "JSON parse error" };
+      return {
+        ok: false,
+        runId,
+        error: "JSON parse error",
+        status: "failed_payload_captured",
+        sourceUrl: lastUrl,
+      };
     }
 
-    await saveRawPayload(db, rawText, startedAt);
+    await saveRawPayload(db, lastBody, startedAt, lastUrl);
 
     const brands = extractBrands(data);
     if (brands.length === 0) {
@@ -228,6 +369,7 @@ export async function discoverCdrRegister(
     }
 
     const lastSeen = nowIso();
+    let upsertErrors = 0;
     for (const b of brands) {
       const publicUri = b.endpointDetail?.publicBaseUri ?? b.endpointDetail?.resourceBaseUri ?? "";
       if (!publicUri) {
@@ -263,10 +405,16 @@ export async function discoverCdrRegister(
       } catch (e) {
         console.error("upsertEndpoint", brandId, e);
         warnings.push(`Failed to upsert ${brandId}: ${(e as Error)?.message}`);
+        upsertErrors++;
       }
     }
 
-    const status = warnings.length > 0 ? "completed_with_warnings" : "completed";
+    const status =
+      upsertErrors > 0 && Object.keys(perLenderCounts).length > 0
+        ? "partial"
+        : warnings.length > 0
+          ? "completed_with_warnings"
+          : "completed";
     await updateRunReport(db, runId, status, startedAt, perLenderCounts, warnings);
 
     return {
@@ -274,12 +422,14 @@ export async function discoverCdrRegister(
       runId,
       perLenderCounts,
       warnings: warnings.length > 0 ? warnings : undefined,
+      status,
+      sourceUrl: lastUrl,
     };
   } catch (e) {
     const msg = (e as Error)?.message ?? String(e);
     console.error("discoverCdrRegister", e);
     await updateRunReport(db, runId, "failed", startedAt, null, [msg]);
-    return { ok: false, runId, error: msg };
+    return { ok: false, runId, error: msg, status: "failed" };
   }
 }
 
@@ -339,5 +489,63 @@ export async function insertRunReport(
       .run();
   } catch (e) {
     console.error("insertRunReport", e);
+  }
+}
+
+/** Get discovery health: last run, cache count, optional live check. */
+export async function getDiscoveryHealth(db: D1Database): Promise<{
+  ok: boolean;
+  lastRun: { run_id: string; status: string; finished_at: string | null } | null;
+  cachedEndpointsCount: number;
+  lastSuccessAt: string | null;
+  statusCounts: Record<string, number>;
+}> {
+  try {
+    const lastRunRow = await db
+      .prepare(
+        "SELECT run_id, status, finished_at FROM run_reports WHERE run_type IN ('daily','manual_discover') ORDER BY started_at DESC LIMIT 1"
+      )
+      .first<{ run_id: string; status: string; finished_at: string | null }>();
+
+    const countResult = await db
+      .prepare("SELECT COUNT(*) AS c FROM lender_endpoints_cache")
+      .first<{ c: number }>();
+    const cachedEndpointsCount = countResult?.c ?? 0;
+
+    const lastSuccess = await db
+      .prepare(
+        "SELECT finished_at FROM run_reports WHERE status IN ('completed','completed_with_warnings','partial') AND finished_at IS NOT NULL ORDER BY finished_at DESC LIMIT 1"
+      )
+      .first<{ finished_at: string }>();
+    const lastSuccessAt = lastSuccess?.finished_at ?? null;
+
+    const statusRows = await db
+      .prepare(
+        "SELECT status, COUNT(*) AS cnt FROM run_reports GROUP BY status"
+      )
+      .all();
+    const statusCounts: Record<string, number> = {};
+    for (const row of Array.isArray((statusRows as any)?.results) ? (statusRows as any).results : []) {
+      const s = (row as any)?.status as string;
+      const n = (row as any)?.cnt as number;
+      if (s != null) statusCounts[s] = n;
+    }
+
+    return {
+      ok: true,
+      lastRun: lastRunRow ?? null,
+      cachedEndpointsCount,
+      lastSuccessAt,
+      statusCounts,
+    };
+  } catch (e) {
+    console.error("getDiscoveryHealth", e);
+    return {
+      ok: false,
+      lastRun: null,
+      cachedEndpointsCount: 0,
+      lastSuccessAt: null,
+      statusCounts: {},
+    };
   }
 }
