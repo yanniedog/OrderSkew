@@ -1,0 +1,16 @@
+Tail session: 2026-02-22 (wrangler tail home-loan-archive-dev)
+
+Reproduction attempt:
+- Hit GET https://home-loan-archive-dev.jkokavec.workers.dev/api/queue-test/result twice while tail was connected.
+
+Observed:
+- No exception or 1101 was captured. Both requests returned HTTP 200 with valid JSON:
+  {"ok":true,"last_queue_ping":{...},"updated_at":"..."}
+
+Conclusion:
+- The previously reported 1101 could not be reproduced during this tail session. Possible causes that were mitigated in code:
+  1) D1 .all() returning results = null (documented) leading to r.results[0] access throwing.
+  2) Row object having unexpected shape (e.g. different key casing or missing value/updated_at) causing property access or JSON.parse to throw.
+  3) env or env.DB undefined in some cold-start or edge path, causing a throw before the handler try/catch.
+
+Fix applied defensively: safe result array handling, safe row/value/updated_at access, safe JSON parse, env.DB validation for DB-using routes, and top-level try/catch with FETCH_ERROR logging so any future throw is logged and returns 500 JSON instead of 1101.

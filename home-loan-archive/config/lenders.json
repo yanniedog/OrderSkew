@@ -1,0 +1,12 @@
+{
+  "cba": { "displayName": "Commonwealth Bank" },
+  "westpac": { "displayName": "Westpac", "aliases": ["St George", "Bank of Melbourne", "BankSA"] },
+  "nab": { "displayName": "NAB" },
+  "anz": { "displayName": "ANZ" },
+  "macquarie": { "displayName": "Macquarie" },
+  "bendigo": { "displayName": "Bendigo Bank" },
+  "suncorp": { "displayName": "Suncorp" },
+  "bankwest": { "displayName": "Bankwest" },
+  "ing": { "displayName": "ING" },
+  "amp": { "displayName": "AMP" }
+}
