@@ -1433,7 +1433,7 @@ function makeBatch(plan, seed, target, seen) {
     let sourceName = styleName(style, a, b, c, rand);
     if (plan.randomness === 'high' && rand() > 0.45) sourceName += pick(SUFFIX, rand);
     if (plan.randomness === 'low' && sourceName.length > 16) sourceName = sourceName.slice(0, 16);
-    const label = toLabel(sourceName);
+    const label = sourceName && /^[a-z0-9]+$/.test(sourceName.toLowerCase()) ? sourceName.toLowerCase() : toLabel(sourceName);
     if (!label || label.length > plan.maxLength) continue;
     const compact = label.replace(/-/g, '');
     if (/^([a-z0-9]{2,10})\1$/.test(compact)) continue;
