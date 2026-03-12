@@ -63,6 +63,17 @@ h1 {
   max-width: 980px;
 }
 
+.mode-note {
+  margin: 12px 0 0;
+  max-width: 980px;
+  padding: 12px 14px;
+  border: 1px solid rgba(247, 187, 106, 0.26);
+  border-radius: 12px;
+  background: rgba(42, 30, 12, 0.34);
+  color: #f3d4ab;
+  line-height: 1.5;
+}
+
 .controls {
   margin-top: 16px;
   display: grid;
@@ -98,6 +109,11 @@ button {
 
 button {
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 button.primary {

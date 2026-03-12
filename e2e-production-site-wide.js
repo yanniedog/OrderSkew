@@ -63,14 +63,36 @@ function log(msg) {
 const HTML_OK_STATUSES = [200, 308];
 
 const SITE_WIDE_CHECKS = [
-  { path: "/", name: "Trading Plan Calculator (root)", expectStatus: HTML_OK_STATUSES, expectHtml: true },
+  {
+    path: "/",
+    name: "Trading Plan Calculator (root)",
+    expectStatus: HTML_OK_STATUSES,
+    expectHtml: true,
+    expectPatterns: [
+      { regex: /id="starting_capital"[^>]*value="[^"]+"/, label: "starting capital default" },
+      { regex: /id="current_price"[^>]*value="[^"]+"/, label: "current price default" },
+      { regex: /tailwind\.generated\.css/, label: "compiled Tailwind stylesheet" },
+    ],
+    forbiddenPatterns: [
+      { regex: /cdn\.tailwindcss\.com/, label: "Tailwind CDN runtime" },
+    ],
+  },
   { path: "/pages/", name: "Tools hub (pages/)", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/index.html", name: "Tools hub index", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/nab_homeloan_calculator/index.html", name: "NAB homeloan", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/novel_indicator/index.html", name: "Novel Indicator", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/domainname_wizard/index.html", name: "Domain Name Wizard", expectStatus: HTML_OK_STATUSES, expectHtml: true },
   { path: "/pages/crypto_ath_drawdown_cycles/index.html", name: "Crypto ATH drawdown", expectStatus: HTML_OK_STATUSES, expectHtml: true },
-  { path: "/pages/boardspace_atlas/index.html", name: "BoardSpace Atlas", expectStatus: HTML_OK_STATUSES, expectHtml: true },
+  {
+    path: "/pages/boardspace_atlas/index.html",
+    name: "BoardSpace Atlas",
+    expectStatus: HTML_OK_STATUSES,
+    expectHtml: true,
+    expectPatterns: [
+      { regex: /Hosted mode on orderskew\.com includes the synthetic archive\./, label: "hosted archive notice" },
+      { regex: /id="start-btn"[^>]*disabled/, label: "disabled live start button default" },
+    ],
+  },
 ];
 
 async function runHttpChecks() {
@@ -89,6 +111,22 @@ async function runHttpChecks() {
         log("FAIL: " + c.name + " does not look like HTML");
         failed++;
         continue;
+      }
+      if (Array.isArray(c.expectPatterns)) {
+        const missingPattern = c.expectPatterns.find((pattern) => !pattern.regex.test(body));
+        if (missingPattern) {
+          log("FAIL: " + c.name + " missing " + missingPattern.label);
+          failed++;
+          continue;
+        }
+      }
+      if (Array.isArray(c.forbiddenPatterns)) {
+        const forbiddenPattern = c.forbiddenPatterns.find((pattern) => pattern.regex.test(body));
+        if (forbiddenPattern) {
+          log("FAIL: " + c.name + " still contains " + forbiddenPattern.label);
+          failed++;
+          continue;
+        }
       }
       log("OK: " + c.name + " " + status);
     } catch (err) {

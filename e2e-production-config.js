@@ -14,6 +14,7 @@ function getBaseUrl() {
 
 const ROOT_ASSETS = [
   "styles.css",
+  "tailwind.generated.css",
   "app.js",
   "wizard-questions.js",
   "wizard.js",

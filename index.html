@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Order Skew | Trading Plan Calculator</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22 fill=%22none%22 stroke=%22%230ea5e9%22 stroke-width=%228%22 stroke-linecap=%22round%22><line x1=%2220%22 y1=%2280%22 x2=%2235%22 y2=%2280%22 /><line x1=%2220%22 y1=%2260%22 x2=%2250%22 y2=%2260%22 /><line x1=%2220%22 y1=%2240%22 x2=%2265%22 y2=%2240%22 /><line x1=%2220%22 y1=%2220%22 x2=%2280%22 y2=%2220%22 /></svg>">
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="tailwind.generated.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body class="p-3 sm:p-6 theme-light layout-desktop antialiased design-overhaul">
@@ -539,7 +539,7 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="text" id="starting_capital" placeholder="e.g., 10,000" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="starting_capital_help">
+                                            <input type="text" id="starting_capital" value="50,000" placeholder="e.g., 10,000" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="starting_capital_help">
                                         </div>
                                         <p id="starting_capital_help" class="input-helper-text">Total capital to allocate.</p>
                                     </div>
@@ -550,7 +550,7 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="text" id="current_price" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_help">
+                                            <input type="text" id="current_price" value="100" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_help">
                                         </div>
                                         <p id="current_price_help" class="input-helper-text">Reference price for the ladder.</p>
                                     </div>
@@ -562,7 +562,7 @@
                                             <label class="text-xs font-medium text-[var(--color-text)]">Held Quantity</label>
                                             <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
                                         </div>
-                                        <input type="number" id="existing_quantity" placeholder="e.g., 50" class="form-input w-full rounded-lg p-3 text-sm font-mono" aria-describedby="existing_quantity_help">
+                                        <input type="number" id="existing_quantity" value="0" placeholder="e.g., 50" class="form-input w-full rounded-lg p-3 text-sm font-mono" aria-describedby="existing_quantity_help">
                                         <p id="existing_quantity_help" class="input-helper-text">Quantity you hold.</p>
                                     </div>
                                     <div>
@@ -572,7 +572,7 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="text" id="current_price_sell" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_sell_help">
+                                            <input type="text" id="current_price_sell" value="100" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_sell_help">
                                         </div>
                                         <p id="current_price_sell_help" class="input-helper-text">Reference price for the ladder.</p>
                                     </div>
@@ -583,7 +583,7 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="number" id="existing_avg_price" placeholder="e.g., 80" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="existing_avg_price_help">
+                                            <input type="number" id="existing_avg_price" value="0" placeholder="e.g., 80" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="existing_avg_price_help">
                                         </div>
                                         <p id="existing_avg_price_help" class="input-helper-text">Optional for profit projections.</p>
                                     </div>

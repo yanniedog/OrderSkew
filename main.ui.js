@@ -93,7 +93,7 @@
             const modeToggleContainer = document.getElementById('mode-toggle-container');
             const chartDisplayOptions = document.getElementById('chart-display-options');
             const tableOptions = document.getElementById('table-options');
-            const exportMenu = document.getElementById('export-menu');
+            const exportMenu = document.getElementById('export-menu-items');
             const priceRangeDetails = document.getElementById('price-range-details');
             const allocationDetails = document.getElementById('allocation-details');
             const advancedPanels = [modeToggleContainer, chartDisplayOptions, tableOptions, exportMenu];

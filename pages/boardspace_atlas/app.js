@@ -5,11 +5,24 @@
   const STORAGE_KEY = "boardspace_atlas_live_config_v1";
   const LOCAL_API_BASE = "http://localhost:8008";
   const PRODUCTION_API_BASE = "https://api.orderskew.com";
+  const HOSTNAME = (typeof window !== "undefined" && window.location && window.location.hostname) ? window.location.hostname : "";
+  const IS_LOCALHOST = HOSTNAME === "localhost" || HOSTNAME === "127.0.0.1";
   const SAME_ORIGIN_API_BASE = (typeof window !== "undefined" && window.location && window.location.origin) ? window.location.origin : "";
+
+  function normalizeApiBase(value) {
+    return String(value || "").trim().replace(/\/+$/, "");
+  }
+
   function getDefaultApiBase() {
-    const host = typeof window !== "undefined" && window.location && window.location.hostname;
-    if (host === "localhost" || host === "127.0.0.1") return LOCAL_API_BASE;
-    return PRODUCTION_API_BASE;
+    if (IS_LOCALHOST) return LOCAL_API_BASE;
+    return "";
+  }
+
+  function resolveInitialApiBase(value) {
+    const normalized = normalizeApiBase(value);
+    if (IS_LOCALHOST) return normalized || LOCAL_API_BASE;
+    if (!normalized || normalized === PRODUCTION_API_BASE || normalized === SAME_ORIGIN_API_BASE) return "";
+    return normalized;
   }
   const DEFAULT_API_BASE = getDefaultApiBase();
 
@@ -33,7 +46,7 @@
 
   const persisted = loadConfig();
   const state = {
-    apiBase: persisted.apiBase || DEFAULT_API_BASE,
+    apiBase: resolveInitialApiBase(persisted.apiBase || DEFAULT_API_BASE),
     gameId: persisted.gameId || "tictactoe",
     humanPlayer: persisted.humanPlayer || 1,
     sims: persisted.sims || GAME_META[persisted.gameId || "tictactoe"].defaultSims,
@@ -80,6 +93,7 @@
 
   const els = {
     backendUrl: document.getElementById("backend-url"),
+    modeNote: document.getElementById("mode-note"),
     gameSelect: document.getElementById("game-select"),
     aiSims: document.getElementById("ai-sims"),
     humanSide: document.getElementById("human-side"),
@@ -111,9 +125,37 @@
     initialized: false
   };
 
+  function hasConfiguredApiBase() {
+    return Boolean(normalizeApiBase(state.apiBase || DEFAULT_API_BASE));
+  }
+
+  function isHostedArchiveMode() {
+    return !IS_LOCALHOST && !hasConfiguredApiBase();
+  }
+
+  function backendRequiredMessage() {
+    return "Live engine play is not hosted on " + HOSTNAME + ". Enter a backend URL to enable live play, or use the synthetic archive below.";
+  }
+
+  function modeNoteText() {
+    if (isHostedArchiveMode()) return backendRequiredMessage();
+    if (hasConfiguredApiBase()) return "Live backend URL configured: " + state.apiBase + ". Start a session to test the backend.";
+    return "Set a backend URL to enable live engine play.";
+  }
+
+  function syncModeUi() {
+    const liveEnabled = hasConfiguredApiBase();
+    els.startBtn.disabled = !liveEnabled;
+    els.startBtn.title = liveEnabled ? "" : "Enter a backend URL to enable live play.";
+    if (els.modeNote) els.modeNote.textContent = modeNoteText();
+    if (isHostedArchiveMode() && els.archiveRoot) {
+      els.archiveRoot.open = true;
+    }
+  }
+
   function persist() {
     saveConfig({
-      apiBase: state.apiBase,
+      apiBase: normalizeApiBase(state.apiBase || DEFAULT_API_BASE),
       gameId: state.gameId,
       humanPlayer: state.humanPlayer,
       sims: state.sims,
@@ -136,8 +178,12 @@
   }
 
   function showSession() {
-    els.sessionChip.textContent = state.sessionId ? state.sessionId : "no session";
-    logDebug("DEBUG", "session.chip", { session_id: state.sessionId || null });
+    const label = state.sessionId ? state.sessionId : (isHostedArchiveMode() ? "backend required" : "no session");
+    els.sessionChip.textContent = label;
+    logDebug("DEBUG", "session.chip", {
+      session_id: state.sessionId || null,
+      chip_label: label
+    });
   }
 
   function uniqueBases(candidates) {
@@ -153,20 +199,24 @@
   }
 
   function candidateApiBases() {
-    const configured = String(state.apiBase || DEFAULT_API_BASE).trim();
-    const host = typeof window !== "undefined" && window.location && window.location.hostname;
-    if (host === "localhost" || host === "127.0.0.1") {
+    const configured = normalizeApiBase(state.apiBase || DEFAULT_API_BASE);
+    if (IS_LOCALHOST) {
       return uniqueBases([configured, LOCAL_API_BASE]);
     }
-    return uniqueBases([configured, SAME_ORIGIN_API_BASE, LOCAL_API_BASE]);
+    return uniqueBases([configured]);
   }
 
   async function api(path, options, allowFallback) {
-    const candidates = allowFallback === false ? uniqueBases([state.apiBase || DEFAULT_API_BASE]) : candidateApiBases();
+    const candidates = allowFallback === false
+      ? uniqueBases([normalizeApiBase(state.apiBase || DEFAULT_API_BASE)])
+      : candidateApiBases();
     const method = (options && options.method) || "GET";
     let requestBody = null;
     if (options && typeof options.body === "string") {
       requestBody = options.body.length > 3000 ? options.body.slice(0, 3000) + "...[truncated]" : options.body;
+    }
+    if (!candidates.length) {
+      throw new Error(backendRequiredMessage());
     }
     let lastErr = null;
     for (let i = 0; i < candidates.length; i += 1) {
@@ -466,8 +516,19 @@
 
   function renderMeta() {
     if (!state.sessionState) {
-      els.playMeta.textContent = "No game state.";
-      els.turnLabel.textContent = "Start a session to begin.";
+      if (isHostedArchiveMode()) {
+        els.playMeta.textContent = [
+          "No live session.",
+          "",
+          backendRequiredMessage(),
+          "",
+          "Tip: the Synthetic Atlas Archive below works entirely in-browser."
+        ].join("\n");
+        els.turnLabel.textContent = "Archive mode on hosted OrderSkew.";
+        return;
+      }
+      els.playMeta.textContent = hasConfiguredApiBase() ? ("Backend: " + state.apiBase) : "No game state.";
+      els.turnLabel.textContent = hasConfiguredApiBase() ? "Start a live session to begin." : "Enter a backend URL to begin.";
       return;
     }
     const turn = state.sessionState.to_play === 1 ? "Player +1" : "Player -1";
@@ -484,6 +545,8 @@
   }
 
   function renderAll() {
+    showSession();
+    syncModeUi();
     renderGrid(els.playBoard, true);
     renderGrid(els.policyBoard, false);
     renderMeta();
@@ -751,6 +814,11 @@
   }
 
   async function startSession() {
+    if (!hasConfiguredApiBase()) {
+      setStatus("backend required");
+      renderAll();
+      return;
+    }
     stopPolling();
     state.aiJobId = null;
     state.analysis = null;
@@ -800,11 +868,35 @@
   }
 
   function bindEvents() {
-    els.backendUrl.addEventListener("change", function () {
-      state.apiBase = els.backendUrl.value.trim() || DEFAULT_API_BASE;
+    function applyBackendUrlChange() {
+      const previousBase = state.apiBase;
+      const nextBase = normalizeApiBase(els.backendUrl.value) || DEFAULT_API_BASE;
+      const hadSession = Boolean(state.sessionId || state.sessionState || state.aiJobId);
+      state.apiBase = nextBase;
+      els.backendUrl.value = state.apiBase;
+      stopPolling();
+      state.aiJobId = null;
+      if (hadSession && previousBase !== nextBase) {
+        state.sessionId = null;
+        state.sessionState = null;
+        state.analysis = null;
+        state.passProb = 0;
+        state.latentHistory = [];
+        setStatus("backend changed; start a new session");
+      } else if (!state.sessionId) {
+        setStatus(isHostedArchiveMode() ? "archive mode" : "idle");
+      }
       persist();
-      logDebug("DEBUG", "ui.backend_url.change", { api_base: state.apiBase });
-    });
+      renderAll();
+      logDebug("DEBUG", "ui.backend_url.change", {
+        api_base: state.apiBase,
+        previous_api_base: previousBase,
+        had_session: hadSession
+      });
+    }
+
+    els.backendUrl.addEventListener("input", applyBackendUrlChange);
+    els.backendUrl.addEventListener("change", applyBackendUrlChange);
     els.gameSelect.addEventListener("change", function () {
       state.gameId = els.gameSelect.value;
       const def = GAME_META[state.gameId].defaultSims;
@@ -855,8 +947,8 @@
     els.aiSims.value = String(state.sims);
     els.humanSide.value = String(state.humanPlayer);
     els.analysisLive.value = state.analysisMode;
-    showSession();
     bindEvents();
+    setStatus(isHostedArchiveMode() ? "archive mode" : "idle");
     renderAll();
     if (els.archiveRoot && els.archiveRoot.open) initArchive();
     logDebug("DEBUG", "app.init.done", {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BoardSpace Atlas Live | OrderSkew Tools</title>
+  <title>BoardSpace Atlas | OrderSkew Tools</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -14,15 +14,18 @@
   <main class="wrap">
     <section class="hero">
       <p class="eyebrow">OrderSkew Toolkit</p>
-      <h1>BoardSpace Atlas Live</h1>
+      <h1>BoardSpace Atlas</h1>
       <p class="subtitle">
-        Play Tic-Tac-Toe, Connect 4, or Othello against an AlphaZero-style engine and inspect its live policy, value, and latent trajectory.
+        Inspect archived board-game embeddings in-browser, or connect your own backend to play Tic-Tac-Toe, Connect 4, or Othello against the live AlphaZero-style engine.
+      </p>
+      <p id="mode-note" class="mode-note">
+        Hosted mode on orderskew.com includes the synthetic archive. Live engine play requires a backend URL that you control.
       </p>
 
       <div class="controls">
         <div class="control">
-          <label for="backend-url">Backend URL</label>
-          <input id="backend-url" type="text" placeholder="http://localhost:8008">
+          <label for="backend-url">Live Backend URL</label>
+          <input id="backend-url" type="text" placeholder="https://your-backend.example.com or http://localhost:8008">
         </div>
         <div class="control">
           <label for="game-select">Game</label>
@@ -51,7 +54,7 @@
           </select>
         </div>
         <div class="button-row">
-          <button id="start-btn" class="primary" type="button">Start New Game</button>
+          <button id="start-btn" class="primary" type="button" disabled>Start Live Game</button>
           <button id="pass-btn" class="ghost" type="button">Pass (Othello)</button>
         </div>
       </div>
@@ -109,9 +112,9 @@
 
     <section class="panel archive-panel">
       <details id="atlas-archive">
-        <summary>Synthetic Atlas Archive (Optional)</summary>
+        <summary>Synthetic Atlas Archive</summary>
         <p class="archive-note">
-          This is the original synthetic embedding exhibit. It is intentionally hidden by default and does not affect live gameplay.
+          This is the original synthetic embedding exhibit. It works entirely in-browser and does not depend on the live backend.
         </p>
         <div class="archive-controls">
           <label for="archive-game">Archive Game</label>

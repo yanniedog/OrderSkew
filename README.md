@@ -47,7 +47,7 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - Imported source snapshot from `C:\code\domainname-wizard` is stored at `pages/domainname_wizard/source/` (excluding `.next`, `node_modules`, and local env/debug artifacts).
 - Full automated test (unit + E2E): from repo root run `node test-domainname-wizard.js`. Requires `npm install` in `pages/domainname_wizard/source/` and Playwright browsers (`npx playwright install chromium` in that directory) for E2E.
 - `pages/crypto_ath_drawdown_cycles/` hosts the Top 20 Ex-Stable ATH Drawdown Cycles tool (CoinGecko non-stable top-20 ranking + Binance daily USDT cycle analysis with structured JSON output).
-- `pages/boardspace_atlas/` hosts BoardSpace Atlas Live (playable Tic-Tac-Toe, Connect 4, Othello against an AlphaZero-style backend) plus the optional synthetic archive view.
+- `pages/boardspace_atlas/` hosts BoardSpace Atlas with an in-browser synthetic archive plus an optional live-play client that can connect to a user-supplied AlphaZero-style backend.
 - BoardSpace Atlas backend source lives under `tools/boardspace_atlas_rl/` (FastAPI + PyTorch service, MCTS engine, self-play/training pipeline, and tests).
 
 
