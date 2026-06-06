@@ -21,6 +21,7 @@ body {
   font-family: "Segoe UI", Tahoma, sans-serif;
   color: var(--text);
   background: linear-gradient(145deg, var(--bg-a), var(--bg-b));
+  overflow-x: clip;
 }
 
 code {
@@ -404,6 +405,25 @@ h3 {
 
   .card {
     padding: 14px;
+    min-width: 0;
+  }
+
+  .btn {
+    min-height: 44px;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .controls .btn {
+    width: 100%;
+  }
+
+  .status-head {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .json-output {

@@ -496,7 +496,14 @@ td {
 
 @media (max-width: 720px) {
   .page-shell {
-    padding: 12px;
+    padding: 12px 10px 28px;
+  }
+
+  .aurora {
+    width: 220px;
+    height: 220px;
+    top: -40px;
+    right: -80px;
   }
 
   .header-line {
@@ -519,5 +526,20 @@ td {
   .slice-controls,
   .seed-row {
     grid-template-columns: 1fr;
+  }
+
+  button,
+  .chip {
+    min-height: 44px;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 44px;
+  }
+
+  .chip {
+    padding: 10px 14px;
   }
 }

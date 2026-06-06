@@ -21,6 +21,7 @@ body {
     color: var(--text);
     background: linear-gradient(145deg, var(--bg-a), var(--bg-b));
     position: relative;
+    overflow-x: clip;
 }
 
 .page-bg {
@@ -140,6 +141,10 @@ h1 {
     color: var(--primary-dark);
     font-weight: 700;
     text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.35rem 0;
 }
 
 .card-link:hover {
@@ -157,7 +162,28 @@ h1 {
 }
 
 @media (max-width: 680px) {
+    .container {
+        padding: 28px 14px 24px;
+    }
+
     .hero {
         padding: 22px 16px;
+    }
+
+    .btn {
+        min-height: 44px;
+        padding: 12px 14px;
+    }
+
+    .hero-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .card-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 10px 0;
     }
 }

@@ -20,6 +20,10 @@
     box-sizing: border-box;
 }
 
+html {
+    overflow-x: clip;
+}
+
 body {
     margin: 0;
     min-height: 100vh;
@@ -27,7 +31,7 @@ body {
     color: var(--ink);
     font-family: "Manrope", "Segoe UI", sans-serif;
     position: relative;
-    overflow-x: hidden;
+    overflow-x: clip;
 }
 
 .bg-grid {
@@ -67,6 +71,8 @@ body {
 
 .shell {
     max-width: 1180px;
+    width: 100%;
+    min-width: 0;
     margin: 0 auto;
     padding: 26px 16px 38px;
     display: grid;
@@ -102,6 +108,8 @@ body {
     box-shadow: var(--shadow);
     backdrop-filter: blur(8px);
     padding: 18px;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .hero {
@@ -400,6 +408,9 @@ button.secondary {
     border-radius: 12px;
     overflow: auto;
     background: rgba(255, 255, 255, 0.96);
+    width: 100%;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -460,10 +471,24 @@ tbody tr:hover {
         padding: 14px;
     }
 
+    .form-grid,
+    .form-grid.compact {
+        grid-template-columns: 1fr;
+    }
+
+    .result-grid {
+        grid-template-columns: 1fr;
+    }
+
     .action-row,
     .upload-actions {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .upload-actions button,
+    .action-row button {
+        width: 100%;
     }
 
     .hero-links {
@@ -472,5 +497,30 @@ tbody tr:hover {
 
     h1 {
         font-size: clamp(1.5rem, 7vw, 2rem);
+        max-width: none;
+    }
+
+    .btn {
+        min-height: 44px;
+    }
+
+    input,
+    select,
+    textarea {
+        min-height: 44px;
+    }
+
+    .orb-a {
+        width: 220px;
+        height: 220px;
+        top: -80px;
+        right: -60px;
+    }
+
+    .orb-b {
+        width: 200px;
+        height: 200px;
+        bottom: -70px;
+        left: -60px;
     }
 }

@@ -26,6 +26,7 @@ body {
     radial-gradient(900px 580px at 100% 6%, rgba(113, 193, 255, 0.18), transparent 60%),
     linear-gradient(150deg, var(--bg-0), var(--bg-1) 42%, var(--bg-2));
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 .wrap {
@@ -426,5 +427,51 @@ button.ghost {
 
   .controls {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .wrap {
+    width: min(1480px, calc(100vw - 1rem));
+    padding: 16px 0.5rem 28px;
+  }
+
+  .hero {
+    padding: 16px;
+  }
+
+  .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .button-row {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .action-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .archive-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  button,
+  .archive-btn {
+    min-height: 44px;
+  }
+
+  input,
+  select {
+    min-height: 44px;
+  }
+
+  .play-board button,
+  .play-board .cell {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
