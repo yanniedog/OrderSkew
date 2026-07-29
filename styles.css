@@ -86,6 +86,7 @@ body.theme-dark {
     --focus-ring-color: rgba(45, 212, 191, 0.34);
 }
 * { box-sizing: border-box; }
+html { overflow-x: clip; }
 .hidden { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 body.design-overhaul {
@@ -838,7 +839,8 @@ button:focus-visible,
     body.design-overhaul #graph-column > * + * { margin-top: 0.82rem; }
 }
 @media (max-width: 767px) {
-    body.design-overhaul { line-height: 1.4; padding-bottom: 78px; }
+    body.design-overhaul { line-height: 1.4; padding-bottom: calc(78px + 4.5rem + env(safe-area-inset-bottom, 0px)); }
+    body.design-overhaul.os-frame-body { padding-bottom: calc(78px + 5.75rem + env(safe-area-inset-bottom, 0px)); }
     body.design-overhaul::before { opacity: 0.34; }
     body.design-overhaul .app-shell { border-radius: 1.22rem; padding: 0.72rem; }
     body.design-overhaul .app-header { border-radius: 0.95rem; padding: 0.68rem; }
@@ -846,7 +848,39 @@ button:focus-visible,
     body.design-overhaul .brand-block p { font-size: 0.79rem; max-width: 38ch; }
     body.design-overhaul .header-actions { padding: 0.3rem; gap: 0.3rem; }
     body.design-overhaul .header-tool-group { flex: 1; min-width: 0; }
-    body.design-overhaul .header-tool-group button { flex: 1; justify-content: center; padding-inline: 0.52rem; }
+    body.design-overhaul .header-tool-group button { flex: 1; justify-content: center; padding-inline: 0.52rem; min-height: 44px; min-width: 44px; }
+    body.design-overhaul #actions-menu-btn,
+    body.design-overhaul #links-menu-btn,
+    body.design-overhaul #quick-save-menu-btn,
+    body.design-overhaul #how-it-works-btn,
+    body.design-overhaul #video-btn { min-height: 44px; min-width: 44px; }
+    body.design-overhaul #actions-menu-dropdown button,
+    body.design-overhaul #actions-menu-dropdown label[data-menu-close-on-click],
+    body.design-overhaul #links-menu-dropdown a,
+    body.design-overhaul #quick-save-menu-dropdown button,
+    body.design-overhaul #quick-save-menu-dropdown label,
+    body.design-overhaul #mode-selector-dropdown .mode-dropdown-option { min-height: 44px; }
+    body.design-overhaul #actions-menu-dropdown,
+    body.design-overhaul #links-menu-dropdown,
+    body.design-overhaul #quick-save-menu-dropdown {
+        width: min(14rem, calc(100vw - 1.5rem));
+        max-width: calc(100vw - 1.5rem);
+    }
+    body.design-overhaul .helper-tooltip {
+        width: 28px;
+        height: 28px;
+        font-size: 0.7rem;
+        position: relative;
+    }
+    body.design-overhaul .helper-tooltip::after {
+        content: "";
+        position: absolute;
+        inset: -8px;
+    }
+    body.design-overhaul .form-input,
+    body.design-overhaul input[type="number"],
+    body.design-overhaul input[type="text"],
+    body.design-overhaul select { min-height: 44px; }
     body.design-overhaul .card { border-radius: 1rem; }
     body.design-overhaul .strategy-card,
     body.design-overhaul .chart-card,
@@ -858,7 +892,8 @@ button:focus-visible,
     body.design-overhaul #chart-summary-overlay { position: static; transform: none; margin-top: 0.52rem; pointer-events: auto; }
     body.design-overhaul #chart-summary-overlay > div { width: 100%; max-width: none; min-width: 0; }
     body.design-overhaul #data-tables-card { margin-bottom: 7.6rem; }
-    body.design-overhaul #data-tables-card .relative { padding-bottom: 5rem; }
+    body.design-overhaul #data-tables-card .relative { padding-bottom: 5rem; -webkit-overflow-scrolling: touch; }
+    body.design-overhaul #data-tables-card table { min-width: 34rem; }
     body.design-overhaul #data-tables-card table th,
     body.design-overhaul #data-tables-card table td { padding-top: 0.5rem; padding-bottom: 0.5rem; padding-inline: 0.5rem; }
     body.design-overhaul #data-tables-card table td { font-size: 0.72rem; }
@@ -879,18 +914,18 @@ button:focus-visible,
     #intro-how-it-works,
     #skip-to-customize-btn { font-size: 0.78rem; }
     #mode-simple,
-    #mode-pro { min-height: 34px; padding-inline: 0.62rem; font-size: 0.68rem; }
+    #mode-pro { min-height: 44px; padding-inline: 0.72rem; font-size: 0.72rem; }
     #tab-buy,
-    #tab-sell { min-height: 40px; padding-block: 0.74rem; font-size: 0.76rem; }
+    #tab-sell { min-height: 44px; padding-block: 0.74rem; font-size: 0.76rem; }
     .fee-type-btn,
     .chart-toggle-btn,
-    .pill-toggle-btn { min-height: 34px; padding-inline: 0.64rem; }
+    .pill-toggle-btn { min-height: 44px; padding-inline: 0.72rem; }
     #wizard-back,
     #wizard-next,
     #wizard-skip,
     #qr-close,
     #video-close,
-    #how-it-works-close { min-height: 40px; }
+    #how-it-works-close { min-height: 44px; }
 }
 @media (hover: none) and (pointer: coarse) {
     .btn-primary:hover,

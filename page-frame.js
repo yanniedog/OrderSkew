@@ -50,9 +50,10 @@
     var repo = script.getAttribute('data-repo') || CONFIG.repo;
 
     var cssHref = script.src.replace(/page-frame\.js(\?.*)?$/, 'page-frame.css');
+    var cssVersion = script.getAttribute('data-frame-css-version') || '20260606';
     var link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = cssHref;
+    link.href = cssHref + (cssHref.indexOf('?') >= 0 ? '&' : '?') + 'v=' + cssVersion;
     document.head.appendChild(link);
     var fontLink = document.createElement('link');
     fontLink.rel = 'stylesheet';
@@ -655,6 +656,7 @@
     }
 
     function init() {
+        document.body.classList.add('os-frame-body');
         document.body.prepend(buildNav());
         document.body.appendChild(buildFooter());
         var logger = createUniversalLogger();
