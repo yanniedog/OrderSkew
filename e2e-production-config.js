@@ -14,7 +14,7 @@ function getBaseUrl() {
 
 // Follow the calculator's actual versioned dependencies as its layout evolves.
 const rootHtml = require('node:fs').readFileSync(require('node:path').join(__dirname, 'index.html'), 'utf8');
-const ROOT_ASSETS = [...rootHtml.matchAll(/(?:src|href)="([\w.-]+\.(?:js|css)(?:\?[^"\s]*)?)"/g)]
+const ROOT_ASSETS = [...rootHtml.matchAll(/(?:src|href)="((?:calculator-assets\/)?[\w.-]+\.(?:js|css)(?:\?[^"\s]*)?)"/g)]
   .map(match => match[1]);
 
 const TOOL_ASSETS = {
