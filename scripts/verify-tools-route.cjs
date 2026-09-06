@@ -4,6 +4,13 @@
 const assert = require('node:assert/strict');
 const baseUrls = process.argv.slice(2);
 if (!baseUrls.length) baseUrls.push('https://www.orderskew.com', 'https://orderskew.com');
+const expectedPaths = [
+  '/pages/nab_homeloan_calculator/index.html',
+  '/pages/novel_indicator/index.html',
+  '/pages/domainname_wizard/index.html',
+  '/pages/crypto_ath_drawdown_cycles/index.html',
+  '/pages/boardspace_atlas/index.html'
+].sort();
 
 async function verify(baseUrl) {
   for (const path of ['/tools', '/tools/', '/pages/', '/pages/index.html']) {
@@ -16,11 +23,12 @@ async function verify(baseUrl) {
     assert.match(new URL(response.url).pathname, /^\/tools\/?$/, `${requestedUrl}: wrong destination`);
     const cardLinks = [...html.matchAll(/class="card-link" href="([^"]+)"/g)];
     assert.equal(cardLinks.length, 5, `${requestedUrl}: missing launch links`);
-    for (const [, href] of cardLinks) {
+    const actualPaths = cardLinks.map(([, href]) => {
       const target = new URL(href, new URL('/pages/', response.url));
       assert.equal(target.origin, new URL(response.url).origin);
-      assert.match(target.pathname, /^\/pages\/[^/]+\/index\.html$/);
-    }
+      return target.pathname;
+    }).sort();
+    assert.deepEqual(actualPaths, expectedPaths, `${requestedUrl}: incorrect launch destinations`);
     console.log(`PASS ${requestedUrl} -> ${response.url}: hub and five launch links`);
   }
 }

@@ -48,7 +48,7 @@ These rules are mandatory and override any conflicting preference.
   - **Typecheck**: `npm run typecheck`
   - **Test**: `npm run test` (vitest run)
   - **Deploy**: `npm run deploy` (wrangler deploy). Route must be `orderskew.com/api/*` (see `wrangler.toml`). Requires D1 DB, migrations applied, and secrets (e.g. SESSION_SECRET, GOOGLE_CLIENT_SECRET).
-- **CI**: `.github/workflows/novel-indicator-ci.yml` (on changes under `tools/novel_indicator/**`, `pages/index.html`, `README.md`). Runs frontend build, API typecheck + tests, D1 migration check, and guardrails below.
+- **CI**: `.github/workflows/novel-indicator-ci.yml` (on changes under `tools/novel_indicator/**`, `tools/index.html`, `README.md`). Runs frontend build, API typecheck + tests, D1 migration check, and guardrails below.
 
 ### Novel Indicator Guardrails (CI and local)
 
