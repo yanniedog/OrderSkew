@@ -955,7 +955,12 @@ body.design-overhaul #graph-column.viz-column { grid-template-rows: auto auto; }
     body.design-overhaul .header-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
     body.design-overhaul .header-tool-group { grid-column: 1 / -1; }
     body.design-overhaul .header-actions > .relative > button,
-    body.design-overhaul .header-tool-group button { min-height: 44px; width: 100%; }
+    body.design-overhaul .header-tool-group button { width: 100%; }
+    body.design-overhaul #how-it-works-btn,
+    body.design-overhaul #video-btn,
+    body.design-overhaul #quick-save-menu-btn,
+    body.design-overhaul #actions-menu-btn,
+    body.design-overhaul #links-menu-btn { min-height: 44px; }
 }
 .copy-value { display: block; width: 100%; padding: 0.25rem; font: inherit; text-align: right; color: inherit; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
 .copy-value:hover { background: var(--color-border); }
