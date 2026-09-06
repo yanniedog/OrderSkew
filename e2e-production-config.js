@@ -12,24 +12,10 @@ function getBaseUrl() {
   return base;
 }
 
-const ROOT_ASSETS = [
-  "styles.css",
-  "tailwind.generated.css",
-  "app.js",
-  "wizard-questions.js",
-  "wizard.js",
-  "charts.js",
-  "charts-how-it-works.js",
-  "main.navigation.js",
-  "main.ui.js",
-  "main.calculator.js",
-  "main.events.chart.js",
-  "main.events.intro.js",
-  "main.events.workspace.js",
-  "main.js",
-  "fix-vscode-links.js",
-  "page-frame.js",
-];
+// Follow the calculator's actual versioned dependencies as its layout evolves.
+const rootHtml = require('node:fs').readFileSync(require('node:path').join(__dirname, 'index.html'), 'utf8');
+const ROOT_ASSETS = [...rootHtml.matchAll(/(?:src|href)="([\w.-]+\.(?:js|css)(?:\?[^"\s]*)?)"/g)]
+  .map(match => match[1]);
 
 const TOOL_ASSETS = {
   nab_homeloan_calculator: {
