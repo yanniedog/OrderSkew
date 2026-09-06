@@ -19,7 +19,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
     svgSel.selectAll("*").remove();
 
     const width  = container.clientWidth;
-    const height = container.clientHeight;
+    const height = svgNode.clientHeight;
     const margin = { top: 20, right: 50, bottom: 40, left: 55 };
 
     const svg = svgSel

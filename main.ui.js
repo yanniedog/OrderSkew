@@ -68,7 +68,7 @@
 
 
         loadAdvancedMode: () => {
-            State.advancedMode = false;
+            State.advancedMode = localStorage.getItem(CONSTANTS.STORAGE_PREFIX + 'advanced_mode') === 'true';
             App.applyAdvancedMode();
         },
 
@@ -241,11 +241,13 @@
                 els.currPriceSell,
                 els.buyFloor,
                 els.sellCeiling,
-                els.existQty
+                els.existQty, els.existAvg, els.rungsInput, els.depthInput, els.skew, els.feeValue
             ];
             fields.forEach((field) => {
                 if (!field || !field.id) return;
                 field.classList.toggle('input-required-missing', ids.has(field.id));
+                field.setAttribute('aria-invalid', String(ids.has(field.id)));
+                if (ids.has(field.id)) field.closest('details')?.setAttribute('open', '');
             });
         },
 
@@ -328,22 +330,28 @@
             const chartEmptyState = document.getElementById('chart-empty-state');
             if (chartEmptyState) chartEmptyState.classList.add('hidden');
             const s = plan.summary;
+            const displayCurrency = value => value === null ? '—' : Utils.fmtCurrDisplay(value);
+            const profitNote = document.getElementById('profit-note');
+            if (profitNote) profitNote.textContent = State.tradingMode === 'buy-only'
+                ? 'Buy plan only; profit needs an exit price.'
+                : s.netProfit === null ? 'Enter Average Cost Basis to calculate profit.'
+                : 'Assumes every order fills. Profit includes all trading fees.';
             const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
             const setCls = (id, cls) => { const el = document.getElementById(id); if(el) el.className = cls; };
             
             const summaryMap = {
-                'chart-summary-net-profit': Utils.fmtCurrDisplay(s.netProfit), 
-                'chart-summary-roi': Utils.fmtPct(s.roi),
-                'chart-summary-avg-buy': Utils.fmtCurrDisplay(s.avgBuy), 
-                'chart-summary-avg-sell': Utils.fmtCurrDisplay(s.avgSell),
+                'chart-summary-net-profit': displayCurrency(s.netProfit),
+                'chart-summary-roi': s.roi === null ? '—' : Utils.fmtPct(s.roi),
+                'chart-summary-avg-buy': displayCurrency(s.avgBuy),
+                'chart-summary-avg-sell': displayCurrency(s.avgSell),
                 'chart-summary-total-fees': Utils.fmtCurrDisplay(s.totalFees), 
                 'chart-summary-total-quantity': Utils.fmtNumDisplay(s.totalQuantity),
                 'chart-summary-buy-value': Utils.fmtCurrDisplay(s.buyTotalValue),
                 'chart-summary-buy-volume': Utils.fmtNumDisplay(s.buyTotalVolume),
                 'chart-summary-sell-value': Utils.fmtCurrDisplay(s.sellTotalValue),
                 'chart-summary-sell-volume': Utils.fmtNumDisplay(s.sellTotalVolume),
-                'sticky-net-profit': Utils.fmtCurrDisplay(s.netProfit), 
-                'sticky-roi': Utils.fmtPct(s.roi),
+                'sticky-net-profit': displayCurrency(s.netProfit),
+                'sticky-roi': s.roi === null ? '—' : Utils.fmtPct(s.roi),
                 'sticky-avg-buy': Utils.fmtCurrDisplay(s.avgBuy), 
                 'sticky-avg-sell': Utils.fmtCurrDisplay(s.avgSell),
                 'sticky-fees': Utils.fmtCurrDisplay(s.totalFees), 
@@ -352,8 +360,8 @@
                 'sticky-ceiling': Utils.fmtCurrDisplay(s.rangeHigh)
             };
             Object.entries(summaryMap).forEach(([id, val]) => setTxt(id, val));
-            setCls('chart-summary-net-profit', `text-lg font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);
-            setCls('chart-summary-roi', `text-lg font-bold ${s.roi >= 0 ? 'text-green-600' : 'text-red-500'}`);
+            setCls('chart-summary-net-profit', `summary-value font-bold ${s.netProfit >= 0 ? 'text-[var(--color-primary)]' : 'text-[var(--color-invalid)]'}`);
+            setCls('chart-summary-roi', `summary-value font-bold ${s.roi >= 0 ? 'text-green-600' : 'text-red-500'}`);
             els.stickyFooter?.classList.add('visible');
 
             document.querySelectorAll('.fee-col').forEach(el => el.classList.toggle('hidden', !State.showFees));
@@ -369,12 +377,12 @@
                 const copiedSizeClass = State.copiedCellIds?.has(sizeCellId) ? 'copy-cell-copied' : '';
                 return `
                 <td class="px-4 py-3 font-mono text-xs text-[var(--color-text-muted)]">${isSell || !showExecuted ? '' : `<input type="checkbox" class="mr-2" ${State.sellOnlyHighestExecuted===r.rung?'checked':''} onclick="App.toggleExecuted(${r.rung})">`}${r.rung}</td>
-                <td data-copy-cell-id="${priceCellId}" class="px-4 py-3 text-right font-mono copy-cursor hover:bg-[var(--color-border)] transition-colors ${copiedPriceClass} ${selectedPriceClass}" onclick="App.copy('${r.price}', '${priceCellId}')">${Utils.fmtNumDisplay(r.price)}</td>
-                <td data-copy-cell-id="${sizeCellId}" class="px-4 py-3 text-right font-mono text-[var(--color-text)] copy-cursor hover:bg-[var(--color-border)] transition-colors ${copiedSizeClass} ${selectedSizeClass}" onclick="App.copy('${r.assetSize}', '${sizeCellId}')">${Utils.fmtNumDisplay(r.assetSize)}</td>
+                <td class="px-4 py-3 text-right font-mono"><button type="button" aria-label="Copy ${side} order ${r.rung} price: ${Utils.fmtNumDisplay(r.price)}" data-copy-cell-id="${priceCellId}" class="copy-value ${copiedPriceClass} ${selectedPriceClass}" onclick="App.copy('${r.price}', '${priceCellId}')">${Utils.fmtNumDisplay(r.price)}</button></td>
+                <td class="px-4 py-3 text-right font-mono"><button type="button" aria-label="Copy ${side} order ${r.rung} quantity: ${Utils.fmtNumDisplay(r.assetSize)}" data-copy-cell-id="${sizeCellId}" class="copy-value ${copiedSizeClass} ${selectedSizeClass}" onclick="App.copy('${r.assetSize}', '${sizeCellId}')">${Utils.fmtNumDisplay(r.assetSize)}</button></td>
                 <td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtNumDisplay(r.capital)}</td>
                 ${State.showFees ? `<td class="px-4 py-3 text-right font-mono text-[var(--color-text-muted)]">${Utils.fmtNumDisplay(r.fee)}</td>` : ''}
-                <td class="px-4 py-3 text-right font-mono font-medium ${isSell ? 'text-green-600' : 'text-[var(--color-text-secondary)]'}">
-                    ${Utils.fmtNumDisplay(isSell ? r.profit : r.avg)}
+                <td class="px-4 py-3 text-right font-mono font-medium ${isSell ? (r.profit < 0 ? 'text-red-500' : 'text-green-600') : 'text-[var(--color-text-secondary)]'}">
+                    ${isSell && r.profit === null ? '—' : Utils.fmtNumDisplay(isSell ? r.profit : r.avg)}
                 </td>
             `;
             };
@@ -406,70 +414,18 @@
         },
 
 
-        copy: (val, cellId = null) => {
+        copy: async (val, cellId = null) => {
             State.selectedCopyCellId = cellId || null;
-            if (cellId) State.copiedCellIds.add(cellId);
+
             const decimals = Number.isFinite(State.copyDecimalPlaces) ? State.copyDecimalPlaces : CONSTANTS.MAX_COPY_DECIMALS;
             const formatted = Utils.formatForCopy(val, decimals);
-            Utils.copyToClipboard(formatted);
+            if (await Utils.copyToClipboard(formatted)) {
+                if (cellId) State.copiedCellIds.add(cellId);
+            }
             App.updateCopyCellHighlight();
         },
         
 
-        exportCSV: () => {
-            if (!State.currentPlanData) return;
-            const p = State.currentPlanData;
-            const rows = [
-                ['Type', 'Rung', 'Price', 'Size', 'Value', 'Profit/Avg'],
-                ...p.buyLadder.map(r => ['Buy', r.rung, r.price, r.assetSize, r.capital, r.avg]),
-                ...p.sellLadder.map(r => ['Sell', r.rung, r.price, r.assetSize, r.capital, r.profit])
-            ];
-            const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-            const link = document.createElement("a");
-            link.setAttribute("href", encodeURI(csvContent));
-            link.setAttribute("download", "orderskew_plan.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        },
-        
-
-        saveConfig: () => {
-            const config = {
-                startingCapital: Utils.stripCommas(els.startCap?.value),
-                numberOfRungs: els.rungs?.value,
-                skewValue: els.skew?.value,
-                depth: els.depth?.value
-            };
-            const blob = new Blob([JSON.stringify(config)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'orderskew_config.json'; a.click();
-        },
-
-
-        loadConfig: (e) => {
-            const file = e.target?.files?.[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const c = JSON.parse(ev.target.result);
-                    if (c.startingCapital && els.startCap) {
-                        els.startCap.value = Utils.formatNumberWithCommas(c.startingCapital);
-                        if (els.rungs) els.rungs.value = c.numberOfRungs;
-                        if (els.skew) els.skew.value = c.skewValue;
-                        if (els.depth) els.depth.value = c.depth;
-                        els.rungs?.dispatchEvent(new Event('input'));
-                        els.skew?.dispatchEvent(new Event('input'));
-                        els.depth?.dispatchEvent(new Event('input'));
-                        els.startCap?.dispatchEvent(new Event('input'));
-                    }
-                } catch(err) { alert('Invalid Config'); }
-            };
-            reader.readAsText(file);
-        },
-        
         });
     };
 })();

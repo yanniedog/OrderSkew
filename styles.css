@@ -914,3 +914,36 @@ button:focus-visible,
         scroll-behavior: auto !important;
     }
 }
+
+/* Calculator audit: readable results and closed modal isolation. */
+.qr-modal:not(.open), #setup-wizard:not(.open) { visibility: hidden; }
+.qr-modal.open, #setup-wizard.open { visibility: visible; }
+body.design-overhaul #chart-summary-overlay { position: static; transform: none; margin-top: 0.75rem; pointer-events: auto; }
+body.design-overhaul #chart-summary-overlay > div { max-width: none; width: 100%; min-width: 0; }
+body.design-overhaul #depth-wrapper { display: flex; flex-direction: column; flex: none; }
+body.design-overhaul #depth-chart { height: 360px; flex: none; }
+body.design-overhaul #depth-chart-card { height: auto; }
+body.design-overhaul #graph-column.viz-column { grid-template-rows: auto auto; }
+#chart-summary-overlay .grid { gap: 0.75rem; }
+#chart-summary-overlay .grid > div { min-width: 0; }
+#chart-summary-overlay .float-right { float: none; display: block; }
+#chart-summary-overlay p, #chart-summary-overlay span { overflow-wrap: anywhere; }
+#chart-summary-overlay .summary-value { font-size: 1rem; line-height: 1.4; }
+.profit-note { color: var(--color-text-secondary); font-size: 0.75rem; margin-bottom: 0.6rem; }
+[aria-invalid="true"] { border-color: var(--color-invalid) !important; }
+[data-copy-cell-id]:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+@media (max-width: 767px) {
+    body.design-overhaul #depth-chart { height: 280px; }
+    body.design-overhaul #depth-wrapper { min-height: 280px; }
+    body.design-overhaul .form-input { font-size: 16px; }
+    body.design-overhaul #app { max-width: 100%; }
+    body.design-overhaul #data-tables-card { margin-bottom: 1rem; }
+    body.design-overhaul #data-tables-card .relative { padding-bottom: 0; }
+}
+.copy-value { display: block; width: 100%; padding: 0.25rem; font: inherit; text-align: right; color: inherit; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.copy-value:hover { background: var(--color-border); }
+body.design-overhaul .strategy-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+body.design-overhaul .strategy-panel { min-width: 0; }
+.table-help { padding: 0.5rem 0.75rem; font-size: 0.7rem; color: var(--color-text-secondary); }
+.advanced-toggle:focus-within { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.helper-tooltip { flex-shrink: 0; min-width: 32px; min-height: 32px; width: 32px; height: 32px; }

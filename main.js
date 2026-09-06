@@ -122,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'attachNavigationMethods',
         'attachUIMethods',
         'attachCalculatorMethods',
+        'attachConfigMethods',
         'attachEventMethods'
     ];
     const modules = window.OrderSkewModules || {};

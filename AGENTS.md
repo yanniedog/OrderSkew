@@ -69,6 +69,7 @@ These rules are mandatory and override any conflicting preference.
 ## Subproject: Trading Plan Calculator (root)
 
 - **Entry**: root `index.html`; static, CDN deps. No build step. Local dev: e.g. `python -m http.server 8000`.
+- **Calculator checks**: Node 22+, no root dependencies to install. Run `npm run test:calculator` for accounting, validation, precision, configuration and CSV regressions. CI runs this command and JavaScript syntax checks. Browser QA must also cover the root calculator at desktop and mobile widths; the numerical suite does not establish browser or production correctness.
 
 ## Deployment Verification Checklist
 

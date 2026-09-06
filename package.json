@@ -2,6 +2,7 @@
   "name": "orderskew",
   "private": true,
   "scripts": {
+    "test:calculator": "node --test tests/*.test.cjs",
     "test:domainname_wizard": "node test-domainname-wizard.js",
     "test:domainname_wizard:production": "node pages/domainname_wizard/source/e2e-production-curated-coverage.js https://www.orderskew.com/pages/domainname_wizard/",
     "test:domainname_wizard:production:assets": "node pages/domainname_wizard/source/e2e-production-asset-check.js https://www.orderskew.com/pages/domainname_wizard",

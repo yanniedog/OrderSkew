@@ -32,6 +32,7 @@ const SetupWizard = {
         } else if (field === 'depth') {
             element.value = value;
             if (els?.depth) els.depth.value = value;
+            if (els?.depthDisplayLabel) els.depthDisplayLabel.textContent = value;
         } else if (field === 'skew_value') {
             element.value = value;
             const v = parseInt(value);
@@ -614,10 +615,14 @@ const SetupWizard = {
             
             if (actualQuestionType === 'currency' || actualQuestionType === 'number' || actualQuestionType === 'percentage' || actualQuestionType === 'fee') {
                 value = parseFloat(value.replace(/,/g, ''));
-                if (isNaN(value) || value <= 0) {
+                if (!Number.isFinite(value) || value <= 0) {
                     SetupWizard.showError('Enter a valid positive number.');
                     input.focus();
                     input.select();
+                    return;
+                }
+                if (actualField === 'range_percent' && (value < 0.1 || value > 99)) {
+                    SetupWizard.showError('Range must be from 0.1% to 99%.');
                     return;
                 }
                 if (question.min !== undefined && value < question.min) {
@@ -749,12 +754,19 @@ const SetupWizard = {
             window.App.setTradingMode(tradingMode);
         }
         
+        const els = window.OrderSkewEls;
+        if (els?.currPriceSell && els?.currPrice) els.currPriceSell.value = els.currPrice.value;
+        if (els?.priceRangeMode) {
+            const hasTarget = tradingMode !== 'buy-sell' && SetupWizard.answers.target_price !== undefined;
+            els.priceRangeMode.value = hasTarget ? 'floor' : 'width';
+            const bound = tradingMode === 'sell-only' ? els.sellCeiling : els.buyFloor;
+            if (bound && hasTarget) bound.value = SetupWizard.answers.target_price;
+            els.priceRangeMode.dispatchEvent(new Event('change'));
+        }
+
         // Apply range_percent to depth for buy-sell mode
         if (tradingMode === 'buy-sell' && SetupWizard.answers['range_percent']) {
-            const depthInput = document.getElementById('depth_input');
-            const depthSlider = document.getElementById('depth');
-            if (depthInput) depthInput.value = SetupWizard.answers['range_percent'];
-            if (depthSlider) depthSlider.value = SetupWizard.answers['range_percent'];
+            SetupWizard.setFieldValue('depth', SetupWizard.answers['range_percent'], els?.depthInput);
         }
     },
 
