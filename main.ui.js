@@ -142,16 +142,7 @@
             if (els.modeSimple) els.modeSimple.className = `mode-switch-pill px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='simple'?activeClass:inactiveClass}`;
             if (els.modePro) els.modePro.className = `mode-switch-pill px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='pro'?activeClass:inactiveClass}`;
             
-            
-            const mainGrid = document.getElementById('main-content-grid');
-            const configColumn = document.getElementById('config-column');
-            const graphColumn = document.getElementById('graph-column');
-            
-            // Layout: Always use two columns on desktop (lg) to fill space; single column on mobile
-            if (mainGrid) mainGrid.className = 'app-layout-grid grid grid-cols-1 lg:grid-cols-12 gap-6';
-            if (configColumn) configColumn.className = 'controls-column lg:col-span-5 space-y-6 min-w-0';
-            if (graphColumn) graphColumn.className = 'viz-column lg:col-span-7 space-y-6 min-w-0 overflow-hidden';
-            
+            // Layout belongs to the workspace styles, including after legacy preference restoration.
             App.calculatePlan();
         },
 

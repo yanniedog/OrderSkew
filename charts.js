@@ -188,7 +188,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
             .attr("opacity", 0.3);
     }
 
-    // Average entry price line (white line, shown in all modes when avgBuyPrice is available)
+    // Theme-aware average entry marker, shown whenever avgBuyPrice is available.
     // Works in both Volume and Value ($) modes since it's positioned on the price (Y) axis
     if (avgBuyPrice !== null && Number.isFinite(avgBuyPrice) && avgBuyPrice > 0) {
         const avgY = y(avgBuyPrice);
@@ -207,7 +207,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
         }
     }
 
-    // Average sell price line (white line, shown in buy+sell mode when avgSellPrice is available)
+    // Theme-aware average exit marker in combined mode.
     // Works in both Volume and Value ($) modes since it's positioned on the price (Y) axis
     if (!isSellOnly && !isBuyOnly && avgSellPrice !== null && Number.isFinite(avgSellPrice) && avgSellPrice > 0) {
         const avgSellY = y(avgSellPrice);
