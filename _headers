@@ -1,0 +1,9 @@
+# Revalidate the calculator entrypoint so it advertises the current asset versions.
+/
+  Cache-Control: no-cache, must-revalidate
+/index.html
+  Cache-Control: no-cache, must-revalidate
+/tools
+  Cache-Control: no-cache, must-revalidate
+/tools/
+  Cache-Control: no-cache, must-revalidate

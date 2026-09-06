@@ -157,8 +157,6 @@ function drawHowItWorksChart(selector, currentPrice, showValue) {
         .attr("fill", buyColor)
         .attr("opacity", 0.7)
         .attr("rx", 2)
-        .transition()
-        .duration(600)
         .attr("width", function (d) { return Math.max(0, x(showValue ? d.value : d.volume) - margin.left); });
 
     barsGroup.selectAll(".sell-bar")
@@ -173,8 +171,6 @@ function drawHowItWorksChart(selector, currentPrice, showValue) {
         .attr("fill", sellColor)
         .attr("opacity", 0.7)
         .attr("rx", 2)
-        .transition()
-        .duration(600)
         .attr("width", function (d) { return Math.max(0, x(showValue ? d.value : d.volume) - margin.left); });
 
     if (!showValue || (buyData.length > 0 && sellData.length > 0)) {

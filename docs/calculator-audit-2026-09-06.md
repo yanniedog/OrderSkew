@@ -36,12 +36,13 @@ Live provenance: GitHub's Production deployment and the live footer both identif
 | C11 Medium — cramped/overlapping results and controls | Production desktop summary squeezes profit and ROI together. At the tablet desktop breakpoint, two nested control columns clip spacing/range labels. | Put results below the chart, allow wrapping and size the SVG independently. Stack control sections according to available width. Add a keyboard-focusable horizontal table region and scrolling/copy hint. |
 | C12 Medium — copy/export accessibility and accuracy | Table copy targets were mouse-only. Copy announced success without checking the legacy operation's return value and moved focus. CSV included both sides regardless of selected mode and omitted fees/settings. | Native keyboard-operable copy buttons preserve cell semantics; Clipboard API with checked fallback and failure feedback. CSV includes active sides, settings, summary, fees and net cash flow. |
 | C13 Low — settings/menu recovery | Advanced preference is written but ignored on reload; menus lack Escape handling; donation copy remains active for unconfigured addresses. | Restore the saved preference, close menus with Escape and disable unavailable address copying. |
+| C14 High — returning browsers mix old and new releases | After PR #20 deployed, Chrome loaded the new HTML but reused old calculator scripts: Buy Only again showed profit and table copy buttons were absent. Root scripts were served with `max-age=14400`. Direct HTTP checks matched the deployed source, isolating this to cached browser assets. | Give all 20 local script/style references content-derived query versions. Check their freshness in CI, normalize hashes across Windows/Linux, and request revalidation of the calculator HTML through root-only `_headers` rules. |
 
 ## Verification
 
 ### Deterministic checks
 
-`npm run test:calculator` — **60 tests passed, exit 0**. The calculation matrix covers 72 combinations: four price scales, three order counts, three skew values, and both spacing modes. Checks independently reconcile budget, inventory, costs, fees and profit, exercise invalid values, and cover configuration parsing/restoration, all three wizard paths and skipping, CSV output, copy failures and focus restoration. Before fixes, the initial regression suite failed 22 of 28 cases against the deployed source. Added tests reproduced the stale range caption, invalid imports replacing controls, and skip-without-target failures before their fixes.
+`npm run test:calculator` — **63 tests passed, exit 0**, plus verification of all 20 versioned calculator asset references. The calculation matrix covers 72 combinations: four price scales, three order counts, three skew values, and both spacing modes. Checks independently reconcile budget, inventory, costs, fees and profit, exercise invalid values, and cover configuration parsing/restoration, all three wizard paths and skipping, CSV output, copy failures and focus restoration. Before fixes, the initial regression suite failed 22 of 28 cases against the deployed source. Added tests reproduced the stale range caption, invalid imports replacing controls, and skip-without-target failures before their fixes.
 
 All calculator JavaScript files pass `node --check`; `git diff --check` passes. A portable Calculator CI workflow runs syntax and numerical/configuration tests with Node 22 and no installed root dependencies.
 
@@ -73,3 +74,10 @@ The final welcome-screen check reached the native "Save your current plan before
 No real orders, donations or other financial transactions were submitted. Subpages, their APIs, other browser engines, physical phones and comprehensive assistive-technology certification were not tested.
 
 The all-site `npm run test:production:all` command was not run: it tests the excluded subpages and this change has not been merged or deployed. No production rollout is claimed. Before a production deployment, resolve the repository's all-site verification requirement with the user's explicit calculator-only scope and run the agreed release checks after rollout.
+
+## Authorized rollout follow-up
+
+PR #20 was merged as `62896763f2ba2dd9dc433abe26fc6008a7e30207` after the user authorized merge and deployment. The returning-browser cache defect C14 was found during production acceptance. Its correction is on `codex/calculator-asset-versioning-20260906`, based on that merged main revision. Calculator-only scope remains in effect; the all-site suite includes excluded subpages.
+
+The user then requested automatic deployment, instant interactions and tools accessible through `/tools`. PR #21 also removes CSS/chart animations, artificial input/wizard delays and tool links from general navigation. `/tools` serves the existing hub with a correct `/pages/` base, and legacy hub URLs redirect there. Tool internals remain outside the requested test scope.
+

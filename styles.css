@@ -947,3 +947,9 @@ body.design-overhaul .strategy-panel { min-width: 0; }
 .table-help { padding: 0.5rem 0.75rem; font-size: 0.7rem; color: var(--color-text-secondary); }
 .advanced-toggle:focus-within { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .helper-tooltip { flex-shrink: 0; min-width: 32px; min-height: 32px; width: 32px; height: 32px; }
+/* The calculator responds immediately; visual changes have no motion or delay. */
+*, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+}

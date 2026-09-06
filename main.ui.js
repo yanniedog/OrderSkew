@@ -404,7 +404,7 @@
 
             App.redrawChart(plan);
             
-            setTimeout(() => App.ensureTableBottomSpace(), 100);
+            App.ensureTableBottomSpace();
         },
 
 
