@@ -40,12 +40,15 @@ const Utils = {
         if (abs >= 0.01) return isCurrency ? 4 : 6;
         return CONSTANTS.MAX_DISPLAY_DECIMALS;
     },
-    fmtCurrDisplay: (n) => Utils.fmtCurrCompact(n, Utils.getDisplayDecimals(n, true)),
-    fmtNumDisplay: (n) => Utils.fmtNum(n, Utils.getDisplayDecimals(n, false)),
+    fmtCurrDisplay: (n) => n !== 0 && Number.isFinite(n) && Math.abs(n) < 0.000001
+        ? '$' + n.toExponential(5) : Utils.fmtCurrCompact(n, Utils.getDisplayDecimals(n, true)),
+    fmtNumDisplay: (n) => n !== 0 && Number.isFinite(n) && Math.abs(n) < 0.000001
+        ? n.toExponential(5) : Utils.fmtNum(n, Utils.getDisplayDecimals(n, false)),
     formatForCopy: (value, decimals = CONSTANTS.MAX_COPY_DECIMALS) => {
         const n = typeof value === 'number' ? value : parseFloat(String(value));
         if (!Number.isFinite(n)) return String(value);
         const dec = Number.isFinite(decimals) ? Utils.clamp(Math.round(decimals), 0, CONSTANTS.MAX_COPY_DECIMALS) : CONSTANTS.MAX_COPY_DECIMALS;
+        if (dec > 0 && n !== 0 && Math.abs(n) < Math.pow(10, -dec)) return n.toExponential(dec - 1);
         let out = n.toFixed(dec).replace(/(\.\d*?[1-9])0+$/u, '$1').replace(/\.0+$/u, '');
         if (out === '-0') out = '0';
         return out;
@@ -53,6 +56,7 @@ const Utils = {
     formatNumberWithCommas: (value) => {
         if (value === null || value === undefined) return '';
         const strValue = value.toString();
+        if (/^-?[\d.]+e[+-]?\d*$/i.test(strValue)) return strValue;
         if (strValue === '' || strValue === '-' || strValue === '.' || strValue === '-.') {
             return strValue;
         }
@@ -77,6 +81,7 @@ const Utils = {
         const strValue = value.toString();
         if (strValue === '' || strValue === '-' || strValue === '.' || strValue === '-.') return strValue;
         let sanitized = strValue.replace(/,/g, '');
+        if (/^-?(?:\d+\.?\d*|\.\d+)e[+-]?\d*$/i.test(sanitized)) return sanitized;
         let sign = '';
         if (sanitized.startsWith('-')) { sign = '-'; sanitized = sanitized.slice(1); }
         sanitized = sanitized.replace(/[^0-9.]/g, '');
@@ -123,22 +128,32 @@ const Utils = {
         setTimeout(() => { introLayer.style.display = 'none'; }, 500);
     },
     getSkewLabel: (v) => v === 0 ? "Flat" : v <= 30 ? "Gentle" : v <= 70 ? "Moderate" : "Aggressive",
-    copyToClipboard: (text) => {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
+    copyToClipboard: async (text) => {
+        const previousFocus = document.activeElement;
+        let copied = false;
         try {
-            document.execCommand('copy');
-            const t = document.getElementById('toast');
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 2000);
-        } catch (err) { console.error('Fallback copy failed', err); }
-        document.body.removeChild(textArea);
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                copied = true;
+            }
+        } catch (_) { /* Fall back to selection-based copying when permission is unavailable. */ }
+        if (!copied) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.cssText = 'position:fixed;left:-9999px;top:0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try { copied = document.execCommand('copy'); } catch (_) { copied = false; }
+            textArea.remove();
+            previousFocus?.focus();
+        }
+        const toast = document.getElementById('toast');
+        if (toast) {
+            toast.textContent = copied ? 'Value copied!' : 'Copy failed. Select and copy the value manually.';
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        return copied;
     }
 };
 
@@ -244,6 +259,9 @@ const Calculator = {
         if (!Number.isFinite(targetAvg) || targetAvg <= 0) return weights;
         if (!prices.every(p => Number.isFinite(p) && p > 0)) return weights;
 
+        // Normalize prices so changing the asset's unit scale cannot overflow weights.
+        const priceScale = Math.max(...prices);
+        const scaledPrices = prices.map(p => p / priceScale);
         const avgForAlpha = (alpha) => {
             let sumW = 0;
             let sumWOverP = 0;
@@ -251,7 +269,7 @@ const Calculator = {
                 const w = weights[i];
                 const p = prices[i];
                 if (w <= 0 || p <= 0) continue;
-                const wp = w * Math.pow(p, alpha);
+                const wp = w * Math.pow(scaledPrices[i], alpha);
                 sumW += wp;
                 sumWOverP += wp / p;
             }
@@ -266,10 +284,10 @@ const Calculator = {
             return weights;
         }
         if (targetAvg <= avgLow) {
-            return weights.map((w, i) => w * Math.pow(prices[i], low));
+            return weights.map((w, i) => w * Math.pow(scaledPrices[i], low));
         }
         if (targetAvg >= avgHigh) {
-            return weights.map((w, i) => w * Math.pow(prices[i], high));
+            return weights.map((w, i) => w * Math.pow(scaledPrices[i], high));
         }
 
         for (let i = 0; i < 64; i++) {
@@ -282,7 +300,7 @@ const Calculator = {
             }
         }
         const alpha = (low + high) / 2;
-        return weights.map((w, i) => w * Math.pow(prices[i], alpha));
+        return weights.map((w, i) => w * Math.pow(scaledPrices[i], alpha));
     },
 
     computeEqualGrossAllocations: (totalQuantity, prices) => {

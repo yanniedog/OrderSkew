@@ -614,10 +614,14 @@ const SetupWizard = {
             
             if (actualQuestionType === 'currency' || actualQuestionType === 'number' || actualQuestionType === 'percentage' || actualQuestionType === 'fee') {
                 value = parseFloat(value.replace(/,/g, ''));
-                if (isNaN(value) || value <= 0) {
+                if (!Number.isFinite(value) || value <= 0) {
                     SetupWizard.showError('Enter a valid positive number.');
                     input.focus();
                     input.select();
+                    return;
+                }
+                if (actualField === 'range_percent' && (value < 0.1 || value > 99)) {
+                    SetupWizard.showError('Range must be from 0.1% to 99%.');
                     return;
                 }
                 if (question.min !== undefined && value < question.min) {
@@ -749,6 +753,15 @@ const SetupWizard = {
             window.App.setTradingMode(tradingMode);
         }
         
+        const els = window.OrderSkewEls;
+        if (els?.currPriceSell && els?.currPrice) els.currPriceSell.value = els.currPrice.value;
+        if (els?.priceRangeMode) {
+            els.priceRangeMode.value = tradingMode === 'buy-sell' ? 'width' : 'floor';
+            const bound = tradingMode === 'sell-only' ? els.sellCeiling : els.buyFloor;
+            if (bound && SetupWizard.answers.target_price !== undefined) bound.value = SetupWizard.answers.target_price;
+            els.priceRangeMode.dispatchEvent(new Event('change'));
+        }
+
         // Apply range_percent to depth for buy-sell mode
         if (tradingMode === 'buy-sell' && SetupWizard.answers['range_percent']) {
             const depthInput = document.getElementById('depth_input');

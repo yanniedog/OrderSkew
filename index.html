@@ -215,7 +215,7 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="toast">Value copied!</div>
+    <div id="toast" role="status" aria-live="polite" class="toast">Value copied!</div>
 
     <!-- QR Modal -->
     <div id="qr-modal" class="qr-modal">
@@ -539,7 +539,7 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="text" id="starting_capital" value="50,000" placeholder="e.g., 10,000" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="starting_capital_help">
+                                            <input type="text" id="starting_capital" inputmode="decimal" value="50,000" placeholder="e.g., 10,000" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="starting_capital_help">
                                         </div>
                                         <p id="starting_capital_help" class="input-helper-text">Total capital to allocate.</p>
                                     </div>
@@ -550,7 +550,7 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="text" id="current_price" value="100" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_help">
+                                            <input type="text" id="current_price" inputmode="decimal" value="100" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_help">
                                         </div>
                                         <p id="current_price_help" class="input-helper-text">Reference price for the ladder.</p>
                                     </div>
@@ -562,7 +562,7 @@
                                             <label class="text-xs font-medium text-[var(--color-text)]">Held Quantity</label>
                                             <button type="button" class="helper-tooltip" title="The amount of the asset you currently possess.">?</button>
                                         </div>
-                                        <input type="number" id="existing_quantity" value="0" placeholder="e.g., 50" class="form-input w-full rounded-lg p-3 text-sm font-mono" aria-describedby="existing_quantity_help">
+                                        <input type="number" id="existing_quantity" min="0" step="any" value="0" placeholder="e.g., 50" class="form-input w-full rounded-lg p-3 text-sm font-mono" aria-describedby="existing_quantity_help">
                                         <p id="existing_quantity_help" class="input-helper-text">Quantity you hold.</p>
                                     </div>
                                     <div>
@@ -572,7 +572,7 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="text" id="current_price_sell" value="100" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_sell_help">
+                                            <input type="text" id="current_price_sell" inputmode="decimal" value="100" placeholder="e.g., 100" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="current_price_sell_help">
                                         </div>
                                         <p id="current_price_sell_help" class="input-helper-text">Reference price for the ladder.</p>
                                     </div>
@@ -583,9 +583,9 @@
                                         </div>
                                         <div class="relative flex items-center">
                                             <span class="absolute left-4 text-[var(--color-text-secondary)] font-mono text-base">$</span>
-                                            <input type="number" id="existing_avg_price" value="0" placeholder="e.g., 80" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="existing_avg_price_help">
+                                            <input type="number" id="existing_avg_price" min="0" step="any" value="" placeholder="e.g., 80" class="form-input w-full rounded-lg p-3 text-sm font-mono pl-9" aria-describedby="existing_avg_price_help">
                                         </div>
-                                        <p id="existing_avg_price_help" class="input-helper-text">Optional for profit projections.</p>
+                                        <p id="existing_avg_price_help" class="input-helper-text">Leave blank if unknown; profit will be unavailable.</p>
                                     </div>
                                 </div>
                                 <details class="mt-3">
@@ -663,7 +663,7 @@
                                                     </div>
                                                 </div>
                                                 <input type="hidden" id="spacing_mode" value="absolute">
-                                                <input type="hidden" id="price_range_mode" value="floor">
+                                                <input type="hidden" id="price_range_mode" value="width">
                                             </div>
                                             <div id="width-mode-container" class="hidden">
                                                 <div class="flex items-center gap-2 mb-1">
@@ -674,7 +674,7 @@
                                                 <div class="flex items-center gap-3">
                                                     <input type="range" id="depth" min="0.1" max="99" step="0.1" value="20" class="flex-1">
                                                     <div class="relative">
-                                                        <input type="number" id="depth_input" value="20" step="0.1" class="form-input w-16 rounded-md p-1.5 text-center text-xs pr-5">
+                                                        <input type="number" id="depth_input" value="20" min="0.1" max="99" step="0.1" class="form-input w-16 rounded-md p-1.5 text-center text-xs pr-5">
                                                         <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-[var(--color-text-muted)]">%</span>
                                                     </div>
                                                 </div>
@@ -688,7 +688,7 @@
                                                     </div>
                                                     <div class="relative flex items-center">
                                                         <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
-                                                        <input type="number" id="buy_floor" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="Low">
+                                                        <input type="number" id="buy_floor" min="0" step="any" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="Low">
                                                     </div>
                                                 </div>
                                                 <div class="floor-sell-field">
@@ -698,7 +698,7 @@
                                                     </div>
                                                     <div class="relative flex items-center">
                                                         <span class="absolute left-2 text-[var(--color-text-secondary)] font-mono text-xs">$</span>
-                                                        <input type="number" id="sell_ceiling" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="High">
+                                                        <input type="number" id="sell_ceiling" min="0" step="any" class="form-input w-full rounded-lg p-2 text-xs pl-6" placeholder="High">
                                                     </div>
                                                 </div>
                                             </div>
@@ -780,13 +780,14 @@
                         <span id="mid-price-label" class="text-xs text-[var(--color-text-muted)]"></span>
                     </div>
                     <div id="depth-wrapper" class="d3-chart flex-1 w-full min-h-0 relative">
-                        <svg id="depth-chart" width="100%" height="100%"></svg>
-                        <div id="chart-empty-state" class="outputs-empty-state hidden absolute inset-0 flex items-center justify-center text-center px-4"></div>
+                        <svg id="depth-chart" role="img" aria-label="Order ladder; exact values are in the orders table below" width="100%" height="100%"></svg>
+                        <div role="status" aria-live="polite" id="chart-empty-state" class="outputs-empty-state hidden absolute inset-0 flex items-center justify-center text-center px-4"></div>
                         
                         <!-- Projected Results Overlay (always visible) -->
                         <div id="chart-summary-overlay" class="absolute top-1/2 right-2 sm:right-4 transform -translate-y-1/2 z-10 pointer-events-none">
                             <div class="bg-[var(--color-card)]/95 backdrop-blur-sm border border-[var(--color-border)] rounded-lg shadow-lg min-w-[140px] sm:min-w-[160px] max-w-[200px] p-2.5 sm:p-3">
                                 <h4 class="text-[10px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">Projected Results</h4>
+                                <p id="profit-note" class="profit-note"></p>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <p class="text-[9px] text-[var(--color-text-muted)]">Net Profit</p>
@@ -843,7 +844,8 @@
                         </div>
                     </div>
                     
-                    <div class="relative w-full overflow-x-auto pb-32 lg:pb-8">
+                    <p id="table-help" class="table-help">Select a price or quantity to copy. Scroll sideways for all columns.</p>
+                    <div class="relative w-full overflow-x-auto pb-32 lg:pb-8" tabindex="0" role="region" aria-label="Order tables" aria-describedby="table-help">
                         <div id="panel-buy" class="p-0">
                             <table class="w-full text-sm text-left whitespace-nowrap">
                                 <thead class="table-header uppercase">
@@ -887,12 +889,15 @@
     <!-- Load External Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="app.js"></script>
+    <script src="calculator.plan.js"></script>
     <script src="wizard-questions.js"></script>
     <script src="wizard.js"></script>
     <script src="charts.js"></script>
     <script src="charts-how-it-works.js"></script>
     <script src="main.navigation.js"></script>
     <script src="main.ui.js"></script>
+    <script src="main.config.js"></script>
+    <script src="main.accessibility.js"></script>
     <script src="main.calculator.js"></script>
     <script src="main.events.chart.js"></script>
     <script src="main.events.intro.js"></script>

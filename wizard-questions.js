@@ -39,7 +39,6 @@
             type: "currency",
             field: "target_price",
             placeholder: "80",
-            min: 0.01,
             default: undefined,
             dynamicHint: true
         }

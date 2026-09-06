@@ -1,0 +1,21 @@
+name: Calculator CI
+on:
+  push:
+    paths: ['*.js', 'index.html', 'styles.css', 'tests/**', '.github/workflows/calculator-ci.yml']
+  pull_request:
+    paths: ['*.js', 'index.html', 'styles.css', 'tests/**', '.github/workflows/calculator-ci.yml']
+permissions:
+  contents: read
+jobs:
+  calculator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check calculator syntax
+        run: |
+          for file in app.js calculator.plan.js charts.js main*.js wizard*.js; do node --check "$file"; done
+      - name: Verify calculator and settings regressions
+        run: npm run test:calculator

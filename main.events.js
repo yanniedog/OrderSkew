@@ -50,7 +50,7 @@
                     App.debouncedCalc();
                 });
                 input.addEventListener('input', () => {
-                    slider.value = input.value;
+                    if (input.value !== '' && input.validity.valid) slider.value = input.value;
                     if(display) display.textContent = input.value;
                     App.debouncedCalc();
                 });
@@ -364,6 +364,13 @@
                     buttonEl.setAttribute('aria-expanded', 'false');
                 };
 
+                dropdownEl.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') { close(); buttonEl.focus(); }
+                });
+                buttonEl.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') close();
+                });
+
                 const open = () => {
                     closeAllMenusExcept(close);
                     dropdownEl.classList.remove(...closedClasses);
@@ -523,6 +530,7 @@
                     donationAddress.dataset.address = addr;
                 }
                 if (donationNetworkLabel) donationNetworkLabel.textContent = DONATION_LABELS[chain] || 'Wallet';
+                if (donationCopy) donationCopy.disabled = !addr;
                 if (donationQr && typeof QRCode !== 'undefined') {
                     donationQr.innerHTML = '';
                     if (addr) new QRCode(donationQr, { text: addr, width: 160, height: 160 });
