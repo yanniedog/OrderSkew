@@ -69,6 +69,7 @@ These rules are mandatory and override any conflicting preference.
 ## Subproject: Trading Plan Calculator (root)
 
 - **Entry**: root `index.html`; static, CDN deps. No build step. Local dev: e.g. `python -m http.server 8000`.
+- **Asset versions**: After changing a root calculator script or stylesheet, run `npm run assets:calculator` and include the updated `index.html`. Content-derived query versions prevent returning browsers from mixing cached scripts with a new page. `npm run test:calculator` rejects stale asset references. Hashes normalize CRLF/LF for portable checkouts.
 - **Calculator checks**: Node 22+, no root dependencies to install. Run `npm run test:calculator` for accounting, validation, precision, configuration and CSV regressions. CI runs this command and JavaScript syntax checks. Browser QA must also cover the root calculator at desktop and mobile widths; the numerical suite does not establish browser or production correctness.
 
 ## Deployment Verification Checklist
