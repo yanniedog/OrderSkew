@@ -144,7 +144,7 @@
                 });
             });
 
-            // Direct mode choices keep all three strategies one action away.
+            // Direct workspace choices keep all three strategies one action away.
             const modeOptions = [...document.querySelectorAll('.mode-dropdown-option')];
             const buyModeInputs = document.getElementById('buy-mode-inputs');
             const sellModeInputs = document.getElementById('sell-mode-inputs');

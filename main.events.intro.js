@@ -1,4 +1,4 @@
-// OrderSkew: intro layer and How It Works modal bindings (called from main.events.js)
+// OrderSkew: intro layer and How It Works modal bindings (called from main.events.workspace.js)
 (function () {
     window.OrderSkewBindIntroEvents = function (App, els) {
         const howItWorksModal = document.getElementById('how-it-works-modal');

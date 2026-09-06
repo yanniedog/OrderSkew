@@ -1,4 +1,4 @@
-// OrderSkew: chart display event bindings (called from main.events.js)
+// OrderSkew: chart display event bindings (called from main.events.workspace.js)
 (function () {
     window.OrderSkewBindChartEvents = function (App, els) {
         const chartShowBars = document.getElementById('chart-show-bars');

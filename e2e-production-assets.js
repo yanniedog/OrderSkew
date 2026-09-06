@@ -90,9 +90,7 @@ function checkOne(url, name, opts = {}) {
 
 async function checkRootAssets() {
   let failed = 0;
-  failed += await checkOne(baseUrl + "/styles.css", "root styles.css", { expectStatus: OK_STATUSES });
   for (const asset of ROOT_ASSETS) {
-    if (asset === "styles.css") continue;
     failed += await checkOne(baseUrl + "/" + asset, "root " + asset, { expectStatus: OK_STATUSES });
   }
   return failed;
