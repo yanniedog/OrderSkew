@@ -5,8 +5,8 @@ const path = require('node:path');
 const vm = require('node:vm');
 const harness = require('./calculator-harness.cjs');
 
-function setup(answers) {
-    const h = harness();
+function setup(answers, overrides = {}) {
+    const h = harness(overrides);
     for (const field of Object.values(h.els)) {
         let value = field.value;
         Object.defineProperty(field, 'value', { get: () => value, set: next => { value = String(next); } });
@@ -22,6 +22,14 @@ function setup(answers) {
     h.context.window.SetupWizard.answers = answers;
     h.context.window.SetupWizard.applyAnswers();
     return h;
+}
+
+for (const mode of ['buy-only', 'sell-only', 'buy-sell']) {
+    test(`skipping ${mode} setup without a target preserves a usable percentage range`, () => {
+        const h = setup({ trading_mode: mode }, { buyFloor: '', sellCeiling: '' });
+        assert.equal(h.els.priceRangeMode.value, 'width');
+        assert.ok(h.calculate());
+    });
 }
 
 test('combined wizard applies its percentage to controls, range label and both ladders', () => {

@@ -8,6 +8,14 @@
     const feeFor = (value, settings) => settings.feeType === 'percent'
         ? value * settings.feeValue / 100 : (value > 0 ? settings.feeValue : 0);
 
+    Calculator.getPlanError = plan => {
+        const rows = [...plan.buyLadder, ...plan.sellLadder];
+        const finite = [...rows, plan.summary].every(row => Object.values(row).every(v => typeof v !== 'number' || Number.isFinite(v)));
+        if (!finite) return 'These values exceed the supported numerical range. Use smaller amounts or a less extreme price range.';
+        const executable = rows.every(r => r.price > 0 && r.assetSize > 0 && (r.netRevenue === undefined || r.netRevenue > 0));
+        return executable ? null : 'Fees consume an entire order. Reduce fees, reduce order count, or increase capital.';
+    };
+
     const buildBuys = (settings, weights, buyPrices) => {
         const totalWeight = weights.reduce((a, b) => a + b, 0);
         let cumQty = 0, cumValue = 0;

@@ -84,6 +84,26 @@ test('invalid uploaded settings leave the current plan and controls intact', asy
     assert.equal(h.State.currentPlanData, expected);
 });
 
+for (const invalid of [
+    { startingCapital: '' }, { currentPrice: '0' }, { feeValue: '-1' },
+    { priceRangeMode: 'floor', buyFloor: '' }, { priceRangeMode: 'floor', sellCeiling: '90' },
+    { tradingMode: 'sell-only', existingQuantity: '0' },
+    { tradingMode: 'sell-only', existingAvgPrice: '-1' },
+    { feeType: 'fixed', feeValue: '50000' }
+]) test(`invalid imported plan is rejected without replacing current settings: ${JSON.stringify(invalid)}`, async () => {
+    const h = setup();
+    const expected = h.calculate();
+    const before = JSON.stringify(h.Config.capture(h.els));
+    const text = JSON.stringify({ ...JSON.parse(before), ...invalid });
+    const messages = [];
+    h.context.alert = message => messages.push(message);
+    h.context.window.OrderSkewModules.attachConfigMethods(h.App, h.els);
+    await h.App.loadConfig({ target: { files: [{ size: text.length, text: async () => text }] } });
+    assert.equal(messages.length, 1);
+    assert.equal(JSON.stringify(h.Config.capture(h.els)), before);
+    assert.equal(h.State.currentPlanData, expected);
+});
+
 test('copy failure is reported without a false success toast', async () => {
     const h = setup();
     const toast = { classList: { add() {}, remove() {} } };

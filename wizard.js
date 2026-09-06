@@ -757,9 +757,10 @@ const SetupWizard = {
         const els = window.OrderSkewEls;
         if (els?.currPriceSell && els?.currPrice) els.currPriceSell.value = els.currPrice.value;
         if (els?.priceRangeMode) {
-            els.priceRangeMode.value = tradingMode === 'buy-sell' ? 'width' : 'floor';
+            const hasTarget = tradingMode !== 'buy-sell' && SetupWizard.answers.target_price !== undefined;
+            els.priceRangeMode.value = hasTarget ? 'floor' : 'width';
             const bound = tradingMode === 'sell-only' ? els.sellCeiling : els.buyFloor;
-            if (bound && SetupWizard.answers.target_price !== undefined) bound.value = SetupWizard.answers.target_price;
+            if (bound && hasTarget) bound.value = SetupWizard.answers.target_price;
             els.priceRangeMode.dispatchEvent(new Event('change'));
         }
 

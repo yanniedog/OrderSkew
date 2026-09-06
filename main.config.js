@@ -33,7 +33,26 @@
                 const n = Number(config[key]);
                 if (n < min || n > max || (integer && !Number.isInteger(n))) throw Error(`Invalid ${key}.`);
             }
+            if (config.version === 2) Config.validatePlan(config);
+            else if (!(Number(Utils.stripCommas(config.startingCapital)) > 0)) throw Error('Invalid startingCapital.');
             return Object.fromEntries(['version', ...expected].filter(key => key in config).map(key => [key, config[key]]));
+        },
+        validatePlan: config => {
+            const number = key => String(config[key]).trim() === '' ? NaN : Number(Utils.stripCommas(config[key]));
+            const settings = { tradingMode: config.tradingMode,
+                C: number(config.tradingMode === 'sell-only' ? 'existingQuantity' : 'startingCapital'),
+                currentPrice: number('currentPrice'), N: number('numberOfRungs'), S: number('skewValue'), depth: number('depth'),
+                existingAvgPrice: String(config.existingAvgPrice).trim() === '' ? null : number('existingAvgPrice'),
+                feeType: config.feeType, feeValue: number('feeValue'), feeSettlement: config.feeSettlement, spacingMode: config.spacingMode };
+            const bounds = config.priceRangeMode === 'floor'
+                ? { buyPriceEnd: number('buyFloor'), sellPriceEnd: number('sellCeiling') }
+                : { buyPriceEnd: settings.currentPrice * (1 - settings.depth / 100), sellPriceEnd: settings.currentPrice * (1 + settings.depth / 100) };
+            const validation = Calculator.validateSettings(settings, config.priceRangeMode, bounds);
+            if (!validation.isReady) throw Error(validation.invalidMessages.join(' '));
+            if (config.tradingMode === 'sell-only') bounds.buyPriceEnd = settings.currentPrice;
+            if (config.tradingMode === 'buy-only') bounds.sellPriceEnd = settings.currentPrice;
+            const error = Calculator.getPlanError(Calculator.createPlan({ ...settings, ...bounds }));
+            if (error) throw Error(error);
         },
         csv: (plan, settings) => {
             const rows = [['Setting', 'Value'], ...Object.entries(settings), [], ['Summary', 'Value'],
