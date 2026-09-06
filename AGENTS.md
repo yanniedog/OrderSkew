@@ -1,6 +1,6 @@
 # Order Skew Project Configuration
 
-Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools hub at `pages/`, and multiple subprojects with different deploy and test flows.
+Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools hub at `tools/`, and multiple subprojects with different deploy and test flows.
 
 ## Hard Enforcement Rules (Must Always Be Followed)
 
@@ -30,7 +30,7 @@ These rules are mandatory and override any conflicting preference.
 
 - **Production URL**: https://www.orderskew.com
 - **Hosting model**: Static site + optional backends. Main app and tools hub are static; Novel Indicator uses Cloudflare Worker + D1 for auth/profile; Domain Name Wizard backend can be Vercel (Next.js) or Cloudflare Worker.
-- **Tools hub**: `pages/index.html` links to NAB homeloan calculator, Novel Indicator, Domain Name Wizard, and Top 20 Ex-Stable ATH Drawdown Cycles. All under `pages/<tool>/`.
+- **Tools hub**: `tools/index.html` serves `/tools/`; `/tools` normalizes to this physical directory. Its base URL is `/pages/`, where the five individual tools and hub assets remain. Legacy `/pages` hub URLs redirect to `/tools/`. Avoid proxying to an `index.html` route: Cloudflare's HTML normalization can turn that proxy into a redirect loop. Verify the real host with `npm run test:tools-route:production` (optional arguments replace the default www and apex origins); this checks the hub and link resolution without opening individual tools.
 
 ## Repo-Level Commands
 
