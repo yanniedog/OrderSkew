@@ -50,10 +50,12 @@
     var repo = script.getAttribute('data-repo') || CONFIG.repo;
 
     var cssHref = script.src.replace(/page-frame\.js(\?.*)?$/, 'page-frame.css');
-    var link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = cssHref;
-    document.head.appendChild(link);
+    if (!document.querySelector('link[data-order-skew-frame]')) {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = cssHref;
+        document.head.appendChild(link);
+    }
     var fontLink = document.createElement('link');
     fontLink.rel = 'stylesheet';
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Space+Grotesk:wght@500;600&display=swap';
