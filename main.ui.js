@@ -96,7 +96,9 @@
             const exportMenu = document.getElementById('export-menu-items');
             const priceRangeDetails = document.getElementById('price-range-details');
             const allocationDetails = document.getElementById('allocation-details');
-            const advancedPanels = [modeToggleContainer, chartDisplayOptions, tableOptions, exportMenu];
+            const advancedPanels = [modeToggleContainer];
+            // Essential controls remain available in the redesigned workspace.
+            [chartDisplayOptions, tableOptions, exportMenu].forEach(panel => App.setElementVisible(panel, true));
             
             if (advancedToggle) {
                 // Sync checkbox checked state with State.advancedMode
@@ -278,6 +280,7 @@
                 'chart-summary-buy-volume',
                 'chart-summary-sell-value',
                 'chart-summary-sell-volume',
+                'plan-primary-value', 'plan-average-value', 'plan-order-count', 'plan-range',
                 'sticky-net-profit',
                 'sticky-roi',
                 'sticky-avg-buy',
@@ -340,6 +343,12 @@
             const setCls = (id, cls) => { const el = document.getElementById(id); if(el) el.className = cls; };
             
             const summaryMap = {
+                'plan-primary-label': State.tradingMode === 'sell-only' ? 'Sell order value' : 'Buy order value',
+                'plan-primary-value': displayCurrency(State.tradingMode === 'sell-only' ? s.sellTotalValue : s.buyTotalValue),
+                'plan-average-label': State.tradingMode === 'sell-only' ? 'Avg. net exit' : 'Average entry',
+                'plan-average-value': displayCurrency(State.tradingMode === 'sell-only' ? s.avgSell : s.avgBuy),
+                'plan-order-count': `${plan.buyLadder.length + plan.sellLadder.length} orders`,
+                'plan-range': `${Utils.fmtCurrDisplay(Math.min(...[...plan.buyLadder, ...plan.sellLadder].map(r => r.price)))} – ${Utils.fmtCurrDisplay(Math.max(...[...plan.buyLadder, ...plan.sellLadder].map(r => r.price)))}`,
                 'chart-summary-net-profit': displayCurrency(s.netProfit),
                 'chart-summary-roi': s.roi === null ? '—' : Utils.fmtPct(s.roi),
                 'chart-summary-avg-buy': displayCurrency(s.avgBuy),

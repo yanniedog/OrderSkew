@@ -199,8 +199,9 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
                 .attr("x2", width - margin.right)
                 .attr("y1", avgY)
                 .attr("y2", avgY)
-                .attr("stroke", "white")
-                .attr("stroke-width", 2)
+                .attr("stroke", "var(--color-chart-buy)")
+                .attr("stroke-dasharray", "4 4")
+                .attr("stroke-width", 1)
                 .attr("opacity", 0.9)
                 .attr("class", "avg-entry-line");
         }
@@ -217,8 +218,9 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
                 .attr("x2", width - margin.right)
                 .attr("y1", avgSellY)
                 .attr("y2", avgSellY)
-                .attr("stroke", "white")
-                .attr("stroke-width", 2)
+                .attr("stroke", "var(--color-chart-sell)")
+                .attr("stroke-dasharray", "4 4")
+                .attr("stroke-width", 1)
                 .attr("opacity", 0.9)
                 .attr("class", "avg-sell-line");
         }

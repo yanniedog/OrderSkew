@@ -144,189 +144,43 @@
                 });
             });
 
-            // Mode Selector Dropdown
-            const modeSelectorBtn = document.getElementById('mode-selector-btn');
-            const modeSelectorDropdown = document.getElementById('mode-selector-dropdown');
-            const modeSelectorText = document.getElementById('mode-selector-text');
-            const modeSelectorIcon = document.getElementById('mode-selector-icon');
-            const modeSelectorChevron = document.getElementById('mode-selector-chevron');
-            const modeDropdownOptions = document.querySelectorAll('.mode-dropdown-option');
+            // Direct mode choices keep all three strategies one action away.
+            const modeOptions = [...document.querySelectorAll('.mode-dropdown-option')];
             const buyModeInputs = document.getElementById('buy-mode-inputs');
             const sellModeInputs = document.getElementById('sell-mode-inputs');
             const currentPriceSell = document.getElementById('current_price_sell');
-
-            const modeConfig = {
-                'buy-only': {
-                    text: 'Buy Only',
-                    icon: '<svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>',
-                    iconBg: 'bg-red-500/20',
-                    color: 'red'
-                },
-                'sell-only': {
-                    text: 'Sell Only',
-                    icon: '<svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>',
-                    iconBg: 'bg-green-500/20',
-                    color: 'green'
-                },
-                'buy-sell': {
-                    text: 'Buy + Sell',
-                    icon: '<svg class="w-3.5 h-3.5 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>',
-                    iconBg: 'bg-cyan-500/20',
-                    color: 'cyan'
-                }
-            };
-
-            const toggleDropdown = (open) => {
-                if (!modeSelectorDropdown || !modeSelectorBtn || !modeSelectorChevron) return;
-                
-                if (open) {
-                    modeSelectorDropdown.classList.remove('opacity-0', 'invisible', 'translate-y-1');
-                    modeSelectorDropdown.classList.add('opacity-100', 'visible', 'translate-y-0');
-                    modeSelectorChevron.classList.add('rotate-180');
-                    modeSelectorBtn.setAttribute('aria-expanded', 'true');
-                } else {
-                    modeSelectorDropdown.classList.add('opacity-0', 'invisible', 'translate-y-1');
-                    modeSelectorDropdown.classList.remove('opacity-100', 'visible', 'translate-y-0');
-                    modeSelectorChevron.classList.remove('rotate-180');
-                    modeSelectorBtn.setAttribute('aria-expanded', 'false');
-                }
-            };
-
             const setTradingMode = (mode) => {
                 State.tradingMode = mode;
                 State.sellOnlyMode = mode === 'sell-only';
                 State.buyOnlyMode = mode === 'buy-only';
-                if (els.sellOnlyCheck) els.sellOnlyCheck.checked = mode === 'sell-only';
-                
-                // Update label based on mode
-                if (els.startCapLabel) {
-                    if (mode === 'buy-only') {
-                        els.startCapLabel.textContent = 'Initial Capital';
-                    } else if (mode === 'sell-only') {
-                        els.startCapLabel.textContent = 'Held Quantity';
-                    } else if (mode === 'buy-sell') {
-                        els.startCapLabel.textContent = 'Initial Capital';
-                    }
-                }
-                
-                // Update dropdown button
-                if (modeSelectorText && modeSelectorIcon) {
-                    const config = modeConfig[mode];
-                    if (config) {
-                        modeSelectorText.textContent = config.text;
-                        modeSelectorIcon.className = `w-5 h-5 rounded ${config.iconBg} flex items-center justify-center`;
-                        modeSelectorIcon.innerHTML = config.icon;
-                    }
-                }
-                
-                // Update dropdown options
-                modeDropdownOptions.forEach(option => {
-                    const optionMode = option.getAttribute('data-mode');
-                    const checkIcon = option.querySelector('svg:last-child');
-                    if (optionMode === mode) {
-                        option.setAttribute('aria-selected', 'true');
-                        if (checkIcon) checkIcon.classList.remove('opacity-0');
-                        if (checkIcon) checkIcon.classList.add('opacity-100');
-                    } else {
-                        option.setAttribute('aria-selected', 'false');
-                        if (checkIcon) checkIcon.classList.add('opacity-0');
-                        if (checkIcon) checkIcon.classList.remove('opacity-100');
-                    }
-                });
-                
-                buyModeInputs?.classList.toggle('hidden', mode === 'sell-only');
-                sellModeInputs?.classList.toggle('hidden', mode !== 'sell-only');
-                document.body.classList.toggle('sell-mode-active', mode === 'sell-only');
-                document.body.classList.toggle('buy-only-mode-active', mode === 'buy-only');
-                
-                if (mode === 'sell-only') App.switchTab('sell');
-                else if (mode === 'buy-only') App.switchTab('buy');
+                if (els.sellOnlyCheck) els.sellOnlyCheck.checked = State.sellOnlyMode;
+                if (els.startCapLabel) els.startCapLabel.textContent = 'Initial Capital';
+                modeOptions.forEach(option => option.setAttribute('aria-pressed', String(option.dataset.mode === mode)));
+                buyModeInputs?.classList.toggle('hidden', State.sellOnlyMode);
+                sellModeInputs?.classList.toggle('hidden', !State.sellOnlyMode);
+                document.body.classList.toggle('sell-mode-active', State.sellOnlyMode);
+                document.body.classList.toggle('buy-only-mode-active', State.buyOnlyMode);
+                if (State.sellOnlyMode) App.switchTab('sell');
+                else if (State.buyOnlyMode) App.switchTab('buy');
                 else State.sellOnlyHighestExecuted = null;
-                
                 App.updateModeLabels();
                 App.calculatePlan();
             };
-
-            // Expose setTradingMode for wizard
             App.setTradingMode = setTradingMode;
-
-            // Dropdown button click and keyboard - close other menus when opening mode selector
-            if (modeSelectorBtn) {
-                const modeSelectorClose = () => toggleDropdown(false);
-                menuCloseRegistry.push(modeSelectorClose);
-                modeSelectorBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isOpen = modeSelectorDropdown?.classList.contains('opacity-100');
-                    if (!isOpen) closeAllMenusExcept(modeSelectorClose);
-                    toggleDropdown(!isOpen);
-                });
-                modeSelectorBtn.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        const isOpen = modeSelectorDropdown?.classList.contains('opacity-100');
-                        toggleDropdown(!isOpen);
-                    } else if (e.key === 'Escape') {
-                        toggleDropdown(false);
-                    } else if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        if (!modeSelectorDropdown?.classList.contains('opacity-100')) {
-                            closeAllMenusExcept(modeSelectorClose);
-                        }
-                        toggleDropdown(true);
-                        const firstOption = modeDropdownOptions[0];
-                        if (firstOption) firstOption.focus();
-                    }
-                });
-            }
-
-            // Dropdown option clicks
-            modeDropdownOptions.forEach(option => {
-                option.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const mode = option.getAttribute('data-mode');
-                    if (mode) {
-                        setTradingMode(mode);
-                        toggleDropdown(false);
-                    }
+            modeOptions.forEach((option, index) => {
+                option.addEventListener('click', () => setTradingMode(option.dataset.mode));
+                option.addEventListener('keydown', event => {
+                    const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1
+                        : ['ArrowLeft', 'ArrowUp'].includes(event.key) ? -1 : 0;
+                    if (!direction) return;
+                    event.preventDefault();
+                    const next = modeOptions[(index + direction + modeOptions.length) % modeOptions.length];
+                    next.focus();
+                    setTradingMode(next.dataset.mode);
                 });
             });
-
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (modeSelectorDropdown && modeSelectorBtn && 
-                    !modeSelectorDropdown.contains(e.target) && 
-                    !modeSelectorBtn.contains(e.target)) {
-                    toggleDropdown(false);
-                }
-            });
-
-            modeDropdownOptions.forEach((option, index) => {
-                option.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        option.click();
-                    } else if (e.key === 'Escape') {
-                        toggleDropdown(false);
-                        modeSelectorBtn?.focus();
-                    } else if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        const next = modeDropdownOptions[index + 1];
-                        if (next) next.focus();
-                    } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        if (index === 0) {
-                            modeSelectorBtn?.focus();
-                        } else {
-                            const prev = modeDropdownOptions[index - 1];
-                            if (prev) prev.focus();
-                        }
-                    }
-                });
-            });
-
-            // Initialize with default mode
             setTradingMode(State.tradingMode);
-            
+
             // Sync price inputs between modes
             if (currentPriceSell && els.currPrice) {
                 currentPriceSell.addEventListener('input', () => {
