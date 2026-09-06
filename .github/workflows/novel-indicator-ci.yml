@@ -5,13 +5,13 @@ on:
     paths:
       - '.github/workflows/novel-indicator-ci.yml'
       - 'tools/novel_indicator/**'
-      - 'pages/index.html'
+      - 'tools/index.html'
       - 'README.md'
   pull_request:
     paths:
       - '.github/workflows/novel-indicator-ci.yml'
       - 'tools/novel_indicator/**'
-      - 'pages/index.html'
+      - 'tools/index.html'
       - 'README.md'
 
 jobs:
