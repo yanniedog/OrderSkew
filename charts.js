@@ -169,7 +169,6 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
                 .attr("width", 0).attr("height", effectiveBarHeight)
                 .attr("fill", getComputedStyle(document.body).getPropertyValue(colorVar).trim())
                 .attr("opacity", 0.7).attr("rx", 2)
-                .transition().duration(600)
                 .attr("width", d => Math.max(0, x(getIndividualValue(d)) - margin.left));
         };
         drawBars(buySeries, "buy-bar", "--color-chart-buy-start");

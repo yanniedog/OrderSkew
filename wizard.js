@@ -497,12 +497,8 @@ const SetupWizard = {
         
         const input = document.getElementById('wizard-input');
         if (input) {
-            setTimeout(() => {
-                input.focus();
-                if (input.type === 'text') {
-                    input.select();
-                }
-            }, 150);
+            input.focus();
+            if (input.type === 'text') input.select();
             input.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();
@@ -560,11 +556,7 @@ const SetupWizard = {
         SetupWizard.answers[field] = value;
         SetupWizard.updateFormInRealTime();
         SetupWizard.renderQuestion();
-        setTimeout(() => {
-            if (SetupWizard.currentStep < SetupWizard.questions.length - 1) {
-                SetupWizard.next();
-            }
-        }, 300);
+        if (SetupWizard.currentStep < SetupWizard.questions.length - 1) SetupWizard.next();
     },
 
     showError: (message) => {
@@ -734,11 +726,7 @@ const SetupWizard = {
         // Update history state when wizard finishes
         history.pushState({ introVisible: false }, '');
         
-        setTimeout(() => {
-            if (window.App) {
-                window.App.calculatePlan();
-            }
-        }, 300);
+        if (window.App) window.App.calculatePlan();
     },
 
     applyAnswers: () => {

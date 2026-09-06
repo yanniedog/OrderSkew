@@ -125,7 +125,7 @@ const Utils = {
         if (!introLayer) return;
         introLayer.style.opacity = '0';
         introLayer.style.pointerEvents = 'none';
-        setTimeout(() => { introLayer.style.display = 'none'; }, 500);
+        introLayer.style.display = 'none';
     },
     getSkewLabel: (v) => v === 0 ? "Flat" : v <= 30 ? "Gentle" : v <= 70 ? "Moderate" : "Aggressive",
     copyToClipboard: async (text) => {

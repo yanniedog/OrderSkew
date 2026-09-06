@@ -9,14 +9,12 @@
             if (!howItWorksModal) return;
             howItWorksModal.classList.toggle('open', show);
             if (show && window.drawHowItWorksChart) {
-                setTimeout(() => {
-                    if (howItWorksVolumeChart) {
-                        window.drawHowItWorksChart('#how-it-works-volume-chart svg', 100, false);
-                    }
-                    if (howItWorksValueChart) {
-                        window.drawHowItWorksChart('#how-it-works-value-chart svg', 100, true);
-                    }
-                }, 100);
+                if (howItWorksVolumeChart) {
+                    window.drawHowItWorksChart('#how-it-works-volume-chart svg', 100, false);
+                }
+                if (howItWorksValueChart) {
+                    window.drawHowItWorksChart('#how-it-works-value-chart svg', 100, true);
+                }
             }
         };
 
@@ -40,12 +38,10 @@
                 SetupWizard.prepare();
                 wizard.style.opacity = '1';
                 wizard.style.pointerEvents = 'auto';
-                requestAnimationFrame(() => {
-                    SetupWizard.show();
-                    Utils.setCookie('os_intro_seen', 'true');
-                    Utils.hideIntro(document.getElementById('intro-layer'));
-                    history.pushState({ introVisible: false }, '');
-                });
+                SetupWizard.show();
+                Utils.setCookie('os_intro_seen', 'true');
+                Utils.hideIntro(document.getElementById('intro-layer'));
+                history.pushState({ introVisible: false }, '');
             });
         }
 

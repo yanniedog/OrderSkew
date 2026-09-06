@@ -5,7 +5,7 @@ const { createHash } = require('node:crypto');
 
 function versionAssets(html, readAsset) {
     let count = 0;
-    const updated = html.replace(/(<(?:script|link)\b[^>]*\b(?:src|href)=["'])([^"']+)(["'])/g,
+    const updated = html.replace(/(<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*["'])([^"']+)(["'])/gi,
         (match, prefix, url, quote) => {
             const [file, rawQuery] = url.split('?');
             if (!/^[\w.-]+\.(?:js|css)$/.test(file)) return match;

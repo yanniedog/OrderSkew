@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function () {
         calculatePlanDebounced: null,
 
         init: () => {
-            App.calculatePlanDebounced = Utils.debounce(() => App.calculatePlan(), 50);
+            App.calculatePlanDebounced = () => App.calculatePlan();
             App.loadTheme();
             App.loadAdvancedMode();
             App.loadCopyDecimalPlaces();

@@ -23,7 +23,7 @@
         repo: 'yanniedog/orderskew',
         pathnames: {
             main: [ '', '/' ],
-            toolsHub: [ '/pages', '/pages/' ]
+            toolsHub: [ '/tools', '/tools/', '/pages', '/pages/' ]
         },
         commitLabel: 'Latest commit (main)',
         commitLoading: 'Loading latest commit\u2026',
@@ -67,7 +67,6 @@
     }
 
     var mainHref  = rootPath + '/index.html';
-    var toolsHref = rootPath + '/pages/index.html';
 
     var arrowSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
         'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
@@ -80,14 +79,10 @@
 
         var links = '';
 
-        if (pageType === 'main') {
-            links += '<a class="os-frame-link" href="' + toolsHref + '">' + arrowSvg + ' Tools</a>';
-        }
         if (pageType === 'tools-hub') {
             links += '<a class="os-frame-link" href="' + mainHref + '">' + arrowSvg + ' OrderSkew Home</a>';
         }
         if (pageType === 'tool') {
-            links += '<a class="os-frame-link" href="' + toolsHref + '">' + arrowSvg + ' All Tools</a>';
             links += '<a class="os-frame-link" href="' + mainHref + '">' + arrowSvg + ' OrderSkew Home</a>';
         }
 

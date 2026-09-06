@@ -1,9 +1,9 @@
 name: Calculator CI
 on:
   push:
-    paths: ['*.js', '*.css', 'index.html', '_headers', 'scripts/update-calculator-assets.cjs', 'tests/**', 'package.json', '.github/workflows/calculator-ci.yml']
+    paths: ['*.js', '*.css', 'index.html', 'pages/index.html', '_headers', '_redirects', 'scripts/update-calculator-assets.cjs', 'tests/**', 'package.json', '.github/workflows/calculator-ci.yml']
   pull_request:
-    paths: ['*.js', '*.css', 'index.html', '_headers', 'scripts/update-calculator-assets.cjs', 'tests/**', 'package.json', '.github/workflows/calculator-ci.yml']
+    paths: ['*.js', '*.css', 'index.html', 'pages/index.html', '_headers', '_redirects', 'scripts/update-calculator-assets.cjs', 'tests/**', 'package.json', '.github/workflows/calculator-ci.yml']
 permissions:
   contents: read
 jobs:

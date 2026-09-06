@@ -18,3 +18,10 @@ test('asset versions are stable across Windows/Linux checkout line endings and r
     assert.equal(versionAssets(html, () => 'a\r\nb\r\n').html, linux);
     assert.equal(versionAssets(linux, () => 'a\nb\n').html, linux);
 });
+
+test('valid HTML attribute spacing and capitalization cannot skip versioning', () => {
+    const result = versionAssets('<SCRIPT SRC = "app.js"></SCRIPT><link href = \'styles.css\'>', file => file);
+    assert.equal(result.count, 2);
+    assert.match(result.html, /SRC = "app.js\?v=[a-f0-9]{12}"/);
+    assert.match(result.html, /href = 'styles.css\?v=[a-f0-9]{12}'/);
+});

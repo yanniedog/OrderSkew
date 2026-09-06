@@ -42,7 +42,7 @@ Live provenance: GitHub's Production deployment and the live footer both identif
 
 ### Deterministic checks
 
-`npm run test:calculator` — **62 tests passed, exit 0**, plus verification of all 19 versioned calculator asset references. The calculation matrix covers 72 combinations: four price scales, three order counts, three skew values, and both spacing modes. Checks independently reconcile budget, inventory, costs, fees and profit, exercise invalid values, and cover configuration parsing/restoration, all three wizard paths and skipping, CSV output, copy failures and focus restoration. Before fixes, the initial regression suite failed 22 of 28 cases against the deployed source. Added tests reproduced the stale range caption, invalid imports replacing controls, and skip-without-target failures before their fixes.
+`npm run test:calculator` — **63 tests passed, exit 0**, plus verification of all 19 versioned calculator asset references. The calculation matrix covers 72 combinations: four price scales, three order counts, three skew values, and both spacing modes. Checks independently reconcile budget, inventory, costs, fees and profit, exercise invalid values, and cover configuration parsing/restoration, all three wizard paths and skipping, CSV output, copy failures and focus restoration. Before fixes, the initial regression suite failed 22 of 28 cases against the deployed source. Added tests reproduced the stale range caption, invalid imports replacing controls, and skip-without-target failures before their fixes.
 
 All calculator JavaScript files pass `node --check`; `git diff --check` passes. A portable Calculator CI workflow runs syntax and numerical/configuration tests with Node 22 and no installed root dependencies.
 
@@ -78,3 +78,5 @@ The all-site `npm run test:production:all` command was not run: it tests the exc
 ## Authorized rollout follow-up
 
 PR #20 was merged as `62896763f2ba2dd9dc433abe26fc6008a7e30207` after the user authorized merge and deployment. The returning-browser cache defect C14 was found during production acceptance. Its correction is on `codex/calculator-asset-versioning-20260906`, based on that merged main revision. Calculator-only scope remains in effect; the all-site suite includes excluded subpages.
+
+The user then requested automatic deployment, instant interactions and tools accessible through `/tools`. PR #21 also removes CSS/chart animations, artificial input/wizard delays and tool links from general navigation. `/tools` serves the existing hub with a correct `/pages/` base, and legacy hub URLs redirect there. Tool internals remain outside the requested test scope.
