@@ -7,3 +7,49 @@
   Cache-Control: no-cache, must-revalidate
 /tools/
   Cache-Control: no-cache, must-revalidate
+
+# Revalidate root calculator assets as well as HTML across releases.
+/tailwind.generated.css
+  Cache-Control: no-cache, must-revalidate
+/workspace.css
+  Cache-Control: no-cache, must-revalidate
+/workspace.controls.css
+  Cache-Control: no-cache, must-revalidate
+/workspace.results.css
+  Cache-Control: no-cache, must-revalidate
+/workspace.responsive.css
+  Cache-Control: no-cache, must-revalidate
+/workspace.dialogs.css
+  Cache-Control: no-cache, must-revalidate
+/app.js
+  Cache-Control: no-cache, must-revalidate
+/calculator.plan.js
+  Cache-Control: no-cache, must-revalidate
+/wizard-questions.js
+  Cache-Control: no-cache, must-revalidate
+/wizard.js
+  Cache-Control: no-cache, must-revalidate
+/charts.js
+  Cache-Control: no-cache, must-revalidate
+/charts-how-it-works.js
+  Cache-Control: no-cache, must-revalidate
+/main.navigation.js
+  Cache-Control: no-cache, must-revalidate
+/main.ui.js
+  Cache-Control: no-cache, must-revalidate
+/main.config.js
+  Cache-Control: no-cache, must-revalidate
+/main.accessibility.js
+  Cache-Control: no-cache, must-revalidate
+/main.calculator.js
+  Cache-Control: no-cache, must-revalidate
+/main.events.chart.js
+  Cache-Control: no-cache, must-revalidate
+/main.events.intro.js
+  Cache-Control: no-cache, must-revalidate
+/main.events.workspace.js
+  Cache-Control: no-cache, must-revalidate
+/main.js
+  Cache-Control: no-cache, must-revalidate
+/fix-vscode-links.js
+  Cache-Control: no-cache, must-revalidate

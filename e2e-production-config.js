@@ -25,7 +25,7 @@ const ROOT_ASSETS = [
   "main.calculator.js",
   "main.events.chart.js",
   "main.events.intro.js",
-  "main.events.js",
+  "main.events.workspace.js",
   "main.js",
   "fix-vscode-links.js",
   "page-frame.js",
