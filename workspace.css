@@ -6,7 +6,7 @@
     --color-card-muted:#edf1ec;
     --color-text:#202c28;
     --color-text-secondary:#55625b;
-    --color-text-muted:#68756d;
+    --color-text-muted:#59675f;
     --color-primary:#246b56;
     --color-secondary:#246b56;
     --color-primary-hover:#194c3c;
@@ -68,7 +68,7 @@ body {
     padding:0;
     background:var(--color-bg);
     color:var(--color-text);
-    font:14px/1.5 var(--font-body);
+    font:16px/1.6 var(--font-body);
     -webkit-font-smoothing:antialiased;
 }
 
@@ -165,7 +165,7 @@ button:active {
 
 .brand-descriptor {
     color:var(--color-text-muted);
-    font-size:12px;
+    font-size:14px;
     font-weight:500;
     letter-spacing:0;
 }
@@ -181,11 +181,11 @@ button:active {
     align-items:center;
     justify-content:center;
     gap:8px;
-    min-height:40px;
+    min-height:44px;
     border:1px solid var(--color-border-strong);
     border-radius:7px;
     padding:8px 13px;
-    font-size:12px;
+    font-size:14px;
     font-weight:700;
     white-space:nowrap;
     background:transparent;
@@ -257,7 +257,7 @@ button:active {
     background:transparent;
     border:0;
     border-radius:4px;
-    font-size:13px;
+    font-size:14px;
     color:var(--color-text);
     text-decoration:none;
     cursor:pointer;
@@ -278,11 +278,11 @@ button:active {
     justify-content:space-between;
     align-items:flex-end;
     gap:20px;
-    padding:36px 0 30px;
+    padding:44px 0 36px;
 }
 
 .eyebrow {
-    font:500 10px var(--font-mono);
+    font:500 14px var(--font-mono);
     letter-spacing:2px;
     color:var(--color-primary);
     margin-bottom:9px;
@@ -299,7 +299,7 @@ h1 {
 .page-description {
     margin:10px 0 0;
     color:var(--color-text-secondary);
-    font-size:13px;
+    font-size:16px;
 }
 
 .local-status {
@@ -307,7 +307,7 @@ h1 {
     align-items:center;
     gap:7px;
     color:var(--color-text-muted);
-    font-size:10px;
+    font-size:14px;
     white-space:nowrap;
     padding-bottom:3px;
 }
@@ -321,9 +321,9 @@ h1 {
 
 #main-content-grid {
     display:grid;
-    grid-template-columns:336px minmax(0,1fr);
+    grid-template-columns:400px minmax(0,1fr);
     align-items:start;
-    gap:24px;
+    gap:36px;
 }
 
 #config-column {
@@ -331,7 +331,7 @@ h1 {
     grid-column:auto;
     background:var(--color-card);
     border:1px solid var(--color-border);
-    border-radius:10px;
+    border-radius:12px;
 }
 
 #graph-column {
@@ -339,7 +339,7 @@ h1 {
     flex-direction:column;
     min-width:0;
     grid-column:auto;
-    gap:20px;
+    gap:28px;
     overflow:visible;
 }
 

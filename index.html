@@ -10,11 +10,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" href="calculator-assets/tailwind.generated.af494d9db00b.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.4e996562f07a.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.controls.ebb1bf8fdab7.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.results.2173c4dac2a3.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.responsive.9f858f84834a.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.dialogs.68abf109332e.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.4a0ccab830ba.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.controls.9b26467251ae.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.results.1b2d8c8d7f70.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.responsive.4af2d0c294c4.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.dialogs.d48634cd373e.css">
 </head>
 <body class="theme-light design-overhaul workspace-design">
 <div class="fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center transition-opacity duration-500 overflow-hidden" id="intro-layer">
@@ -258,7 +258,7 @@
     <header class="workspace-header">
         <a class="wordmark" href="/" aria-label="OrderSkew home"><span class="brand-symbol"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h5M4 14h9M4 9h13M4 4h16"/></svg></span>OrderSkew<span class="brand-divider"></span><span class="brand-descriptor">Trading workspace</span></a>
         <nav class="header-actions" aria-label="Calculator actions">
-            <button id="how-it-works-btn" class="toolbar-button guide-button" title="How It Works"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.5-2.5 1.5-2.5 3M12 16h.01"/></svg><span>Guide</span></button>
+
             <div class="menu-anchor">
                 <button id="quick-save-menu-btn" class="toolbar-button save-button" aria-label="Save or load a plan" title="Save or load a plan"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M7 3v6h10M7 21v-8h10v8"/></svg><span>Save plan</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
                 <div class="workspace-menu opacity-0 invisible" id="quick-save-menu-dropdown">
@@ -278,6 +278,7 @@
             <div class="menu-anchor">
                 <button id="actions-menu-btn" class="toolbar-button icon-button" aria-label="Actions Menu" title="More options"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
                 <div id="actions-menu-dropdown" class="workspace-menu opacity-0 invisible">
+<button id="how-it-works-btn" class="menu-item" title="How It Works"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 .5c0 1.5-2.5 1.5-2.5 3M12 16h.01"/></svg><span>Guide</span></button>
                     <button aria-label="Toggle Theme" class="w-full flex items-center gap-3 px-4 py-2.5 sm:py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-card-alt)] active:bg-[var(--color-border)] transition-colors text-left" id="theme-toggle-btn">
 <svg class="w-4 h-4 hidden" fill="none" id="icon-sun" stroke="currentColor" viewbox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
 <svg class="w-4 h-4" fill="none" id="icon-moon" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
@@ -294,58 +295,86 @@
             </div>
         </nav>
     </header>
-    <div class="page-heading"><div><p class="eyebrow">THE ORDER LADDER</p><h1>A plan for every price.</h1><p class="page-description">Structure your entries and exits. See exactly where your capital goes.</p></div><span class="local-status"><span></span>Calculated in your browser</span></div>
-    <nav class="mobile-jump-nav" aria-label="Workspace sections"><a href="#config-column">Settings</a><a href="#graph-column">Overview</a><a href="#depth-chart-card">Chart</a><a href="#data-tables-card">Orders</a></nav>
+    <div class="page-heading"><div><h1>Build your trading plan.</h1><p class="page-description">Set your starting point. Explore the result. Refine when you need to.</p></div><span class="local-status"><span></span>Calculated in your browser</span></div>
+    <nav class="mobile-jump-nav" aria-label="Workspace sections"><a href="#config-column">Set up</a><a href="#graph-column">Results</a><a href="#data-tables-card">Orders</a></nav>
     <main id="main-content-grid" class="app-layout-grid">
         <aside id="config-column" class="controls-column" aria-label="Plan settings">
-            <form id="trading-plan-form" onsubmit="return false;">
-                <section class="control-section strategy-section">
-                    <div class="section-heading"><h2><span class="section-number">01</span>Strategy</h2><button type="button" id="start-over-btn" class="text-button" title="Guided setup">Guided setup <span aria-hidden="true">↗</span></button></div>
-                    <div id="mode-selector-dropdown" class="mode-segments" role="group" aria-label="Trading mode">
-                        <button type="button" class="mode-dropdown-option" data-mode="buy-only" aria-pressed="true">Buy only</button>
-                        <button type="button" class="mode-dropdown-option" data-mode="sell-only" aria-pressed="false">Sell only</button>
-                        <button type="button" class="mode-dropdown-option" data-mode="buy-sell" aria-pressed="false">Buy + sell</button>
-                    </div>
-                    <div id="buy-mode-inputs" class="capital-fields"><div class="field"><div class="field-label"><label id="starting_capital_label">Initial Capital</label><button type="button" class="helper-tooltip" title="Amount to allocate across buy orders. Separately paid fees may require additional funds.">?</button></div><div class="input-wrap"><span class="input-prefix">$</span><input id="starting_capital" type="text" value="50,000" class="form-input has-prefix" inputmode="decimal"></div></div><div class="field"><div class="field-label"><label>Initial Asset Price</label><button type="button" class="helper-tooltip" title="Reference price used to position your orders. Enter the price manually.">?</button></div><div class="input-wrap"><span class="input-prefix">$</span><input id="current_price" type="text" value="100" class="form-input has-prefix" inputmode="decimal"></div></div></div>
-                    <div id="sell-mode-inputs" class="capital-fields hidden"><div class="field"><div class="field-label"><label>Held Quantity</label><button type="button" class="helper-tooltip" title="Total number of asset units you plan to sell.">?</button></div><div class="input-wrap"><input id="existing_quantity" type="number" value="0" class="form-input " min="0" step="any"></div></div><div class="field"><div class="field-label"><label>Initial Asset Price</label><button type="button" class="helper-tooltip" title="Reference price used to position your orders. Enter the price manually.">?</button></div><div class="input-wrap"><span class="input-prefix">$</span><input id="current_price_sell" type="text" value="100" class="form-input has-prefix" inputmode="decimal"></div></div><div class="field"><div class="field-label"><label>Average Cost Basis ($)</label><button type="button" class="helper-tooltip" title="Average purchase cost per asset unit. Leave blank if unknown; profit will be unavailable.">?</button></div><div class="input-wrap"><span class="input-prefix">$</span><input id="existing_avg_price" type="number" value="" class="form-input has-prefix" min="0" step="any" placeholder="Unknown"></div><p class="input-helper-text">Optional. Needed to calculate profit.</p></div></div>
-                </section>
-                <section id="price-range-details" class="control-section">
-                    <div class="section-heading"><h2><span class="section-number">02</span>Order ladder</h2></div>
-                    <div class="field">
-                        <div class="field-top"><div class="field-label"><label>Number of Orders</label><button type="button" class="helper-tooltip" title="How many orders to place across your range. Choose 2 to 50.">?</button></div><input id="number_of_rungs_input" type="number" min="2" max="50" value="10" class="form-input compact-input"></div>
-                        <input id="number_of_rungs" type="range" min="2" max="50" value="10"><span id="number_of_rungs_display" class="hidden">10</span>
-                        <div class="range-endpoints"><span>2 orders</span><span>50 orders</span></div>
-                    </div>
-                    <div class="field"><label class="standalone-label">Price range</label><div class="segmented-control"><button id="price_range_width" type="button" class="range-type-btn active" data-value="width">Percentage</button><button id="price_range_floor" type="button" class="range-type-btn" data-value="floor">Fixed prices</button></div></div>
-                    <input id="price_range_mode" type="hidden" value="width">
-                    <div id="width-mode-container" class="field">
-                        <div class="field-top"><label for="depth_input">Range from reference price</label><div class="percent-input"><input id="depth_input" type="number" min="0.1" max="99" step="0.1" value="20" class="form-input compact-input"><span>%</span></div></div>
-                        <input id="depth" type="range" min="0.1" max="99" step="0.1" value="20">
-                        <p class="input-helper-text"><span id="depth_display_label">20</span>% on each active side of your reference price.</p>
-                    </div>
-                    <div id="floor-mode-container" class="capital-fields hidden">
-                        <div class="buy-only-content"><div class="field"><div class="field-label"><label>Buy Range Low</label><button type="button" class="helper-tooltip" title="Lower edge of the buy ladder. Must be below the reference price.">?</button></div><div class="input-wrap"><span class="input-prefix">$</span><input id="buy_floor" type="number" value="" class="form-input has-prefix" min="0" step="any" placeholder="Low"></div></div></div>
-                        <div class="sell-only-content"><div class="field"><div class="field-label"><label>Sell Range High</label><button type="button" class="helper-tooltip" title="Upper edge of the sell ladder. Must be above the reference price.">?</button></div><div class="input-wrap"><span class="input-prefix">$</span><input id="sell_ceiling" type="number" value="" class="form-input has-prefix" min="0" step="any" placeholder="High"></div></div></div>
-                    </div>
-                    <div class="field"><label class="standalone-label">Price spacing</label><div class="segmented-control"><button id="spacing_mode_absolute" type="button" class="spacing-mode-btn active" data-value="absolute">Absolute</button><button id="spacing_mode_relative" type="button" class="spacing-mode-btn" data-value="relative">Relative</button></div></div>
-                    <input id="spacing_mode" type="hidden" value="absolute">
-                </section>
-                <section id="allocation-details" class="control-section">
-                    <div class="section-heading"><h2><span class="section-number">03</span>Allocation</h2><span id="skew_label" class="value-tag">Moderate</span></div>
-                    <div class="field"><div class="field-label"><label>Capital Skew</label><button type="button" class="helper-tooltip" title="Flat spreads capital equally. Higher skew puts more capital into orders farther from the reference price.">?</button></div><input id="skew_value" type="range" min="0" max="100" value="50"><div class="range-endpoints"><span>Equal</span><span>Weighted</span></div></div>
-                    <input id="skew_value_input" type="number" min="0" max="100" value="50" class="hidden">
-                </section>
-                <details class="control-section fees-section"><summary>Fees &amp; settlement <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary><div class="fees-content">
-                    <div class="field"><div class="field-label"><label>Trading Fee</label><button type="button" class="helper-tooltip" title="Fee charged for each order. Choose a percentage or a fixed amount.">?</button></div><div class="fee-input-row"><div class="segmented-control fee-type"><button id="fee_type_percent" type="button" class="fee-type-btn active" data-value="percent">%</button><button id="fee_type_fixed" type="button" class="fee-type-btn" data-value="fixed">$</button></div><div class="input-wrap"><span id="fee_dollar_prefix" class="input-prefix hidden">$</span><input id="fee_value" type="number" value="0.1" step="0.01" class="form-input"></div></div><input id="fee_type" type="hidden" value="percent"></div>
-                    <div class="field"><label for="fee_settlement" class="standalone-label">Fee settlement</label><select id="fee_settlement" class="form-input"><option value="netted">Deduct from each order</option><option value="external">Pay from separate funds</option></select></div>
-                </div></details>
-                <div class="settings-footnote">Adjust any value. Your plan updates instantly.</div>
-                <input type="checkbox" id="sell_only_mode" class="hidden"><input type="checkbox" id="advanced-mode-toggle" class="hidden">
-            </form>
-        </aside>
+    <form id="trading-plan-form" onsubmit="return false;">
+        <section class="control-section strategy-section">
+            <div class="section-heading"><h2>Set up your plan</h2></div>
+            <div id="mode-selector-dropdown" class="mode-segments" role="group" aria-label="Trading mode">
+                <button type="button" class="mode-dropdown-option" data-mode="buy-only" aria-pressed="true">Buy only</button>
+                <button type="button" class="mode-dropdown-option" data-mode="sell-only" aria-pressed="false">Sell only</button>
+                <button type="button" class="mode-dropdown-option" data-mode="buy-sell" aria-pressed="false">Buy + sell</button>
+            </div>
+            <div id="buy-mode-inputs" class="capital-fields"><div class="field">
+    <div class="field-label"><label for="starting_capital" id="starting_capital_label">Initial capital</label><button type="button" class="helper-tooltip" title="Amount to allocate across buy orders. Separately paid fees may require additional funds.">?</button></div>
+    <div class="input-wrap"><span class="input-prefix">$</span><input id="starting_capital" type="text" value="50,000" class="form-input has-prefix" inputmode="decimal"></div>
+
+</div><div class="field">
+    <div class="field-label"><label for="current_price">Reference price</label><button type="button" class="helper-tooltip" title="The price used to position your orders. Enter it manually.">?</button></div>
+    <div class="input-wrap"><span class="input-prefix">$</span><input id="current_price" type="text" value="100" class="form-input has-prefix" inputmode="decimal"></div>
+
+</div></div>
+            <div id="sell-mode-inputs" class="capital-fields hidden"><div class="field">
+    <div class="field-label"><label for="existing_quantity">Held quantity</label></div>
+    <div class="input-wrap"><input id="existing_quantity" type="number" value="0" class="form-input" min="0" step="any"></div>
+
+</div><div class="field">
+    <div class="field-label"><label for="current_price_sell">Reference price</label></div>
+    <div class="input-wrap"><span class="input-prefix">$</span><input id="current_price_sell" type="text" value="100" class="form-input has-prefix" inputmode="decimal"></div>
+
+</div><div class="field">
+    <div class="field-label"><label for="existing_avg_price">Average cost basis</label></div>
+    <div class="input-wrap"><span class="input-prefix">$</span><input id="existing_avg_price" type="number" value="" class="form-input has-prefix" min="0" step="any" placeholder="Unknown"></div>
+    <p class="input-helper-text">Optional. Needed to calculate profit.</p>
+</div></div>
+            <div class="ladder-fields capital-fields"><div class="field">
+    <div class="field-label"><label for="number_of_rungs_input">Orders per side</label></div>
+    <div class="input-wrap"><input id="number_of_rungs_input" type="number" value="10" class="form-input" min="2" max="50"></div>
+    <p class="input-helper-text">Choose 2 to 50 orders.</p>
+</div><div id="width-mode-container"><div class="field">
+    <div class="field-label"><label for="depth_input">Price range (%)</label></div>
+    <div class="input-wrap"><input id="depth_input" type="number" value="20" class="form-input" min="0.1" max="99" step="0.1"></div>
+    <p class="input-helper-text">From the reference price.</p>
+</div></div></div>
+            <div id="floor-mode-container" class="capital-fields hidden"><div class="buy-only-content"><div class="field">
+    <div class="field-label"><label for="buy_floor">Buy range low</label></div>
+    <div class="input-wrap"><span class="input-prefix">$</span><input id="buy_floor" type="number" value="" class="form-input has-prefix" min="0" step="any" placeholder="Low"></div>
+
+</div></div><div class="sell-only-content"><div class="field">
+    <div class="field-label"><label for="sell_ceiling">Sell range high</label></div>
+    <div class="input-wrap"><span class="input-prefix">$</span><input id="sell_ceiling" type="number" value="" class="form-input has-prefix" min="0" step="any" placeholder="High"></div>
+
+</div></div></div>
+            <input id="number_of_rungs" type="range" min="2" max="50" value="10" class="hidden"><span id="number_of_rungs_display" class="hidden">10</span>
+            <input id="depth" type="range" min="0.1" max="99" step="0.1" value="20" class="hidden"><span id="depth_display_label" class="hidden">20</span>
+            <div class="setup-help"><span>Updates as you edit.</span><button type="button" id="start-over-btn" class="text-button">Guided setup</button></div>
+        </section>
+        <section class="refinements" aria-labelledby="refinements-heading">
+            <h3 id="refinements-heading">Fine-tune your plan</h3>
+            <details id="range-settings" class="settings-disclosure">
+    <summary><span class="disclosure-text"><span class="disclosure-title">Range &amp; spacing</span><span id="range-settings-summary" class="disclosure-caption">Percentage · equal price steps</span></span><svg class="disclosure-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg></summary>
+    <div class="disclosure-content"><div class="field"><span class="standalone-label" id="range-type-label">Set the range using</span><div class="segmented-control" role="group" aria-labelledby="range-type-label"><button id="price_range_width" type="button" class="range-type-btn active" data-value="width">Percentage</button><button id="price_range_floor" type="button" class="range-type-btn" data-value="floor">Fixed prices</button></div></div>
+<div class="field"><span class="standalone-label" id="spacing-type-label">Space prices by</span><div class="segmented-control" role="group" aria-labelledby="spacing-type-label"><button id="spacing_mode_absolute" type="button" class="spacing-mode-btn active" data-value="absolute">Equal amounts</button><button id="spacing_mode_relative" type="button" class="spacing-mode-btn" data-value="relative">Equal % steps</button></div></div>
+<input id="price_range_mode" type="hidden" value="width"><input id="spacing_mode" type="hidden" value="absolute"></div>
+</details>
+            <details id="allocation-settings" class="settings-disclosure">
+    <summary><span class="disclosure-text"><span class="disclosure-title">Allocation</span><span id="allocation-settings-summary" class="disclosure-caption">Moderate weighting</span></span><svg class="disclosure-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg></summary>
+    <div class="disclosure-content"><div class="field"><div class="field-label"><label for="skew_value">Capital skew</label><span id="skew_label" class="value-tag">Moderate</span></div><input id="skew_value" type="range" min="0" max="100" value="50"><div class="range-endpoints"><span>Equal amounts</span><span>More at the far end</span></div><p class="input-helper-text">Increase the skew to allocate more to orders farther from the reference price.</p></div><input id="skew_value_input" type="number" min="0" max="100" value="50" class="hidden"></div>
+</details>
+            <details id="fee-settings" class="settings-disclosure">
+    <summary><span class="disclosure-text"><span class="disclosure-title">Fees</span><span id="fee-settings-summary" class="disclosure-caption">0.1% · deducted from orders</span></span><svg class="disclosure-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg></summary>
+    <div class="disclosure-content"><div class="field"><label for="fee_value" class="standalone-label">Fee per order</label><div class="fee-input-row"><div class="segmented-control fee-type" role="group" aria-label="Fee type"><button id="fee_type_percent" type="button" class="fee-type-btn active" data-value="percent">%</button><button id="fee_type_fixed" type="button" class="fee-type-btn" data-value="fixed">$</button></div><div class="input-wrap"><span id="fee_dollar_prefix" class="input-prefix hidden">$</span><input id="fee_value" type="number" value="0.1" min="0" step="0.01" class="form-input"></div></div><input id="fee_type" type="hidden" value="percent"></div>
+<div class="field"><label for="fee_settlement" class="standalone-label">Pay fees</label><select id="fee_settlement" class="form-input"><option value="netted">Deduct from each order</option><option value="external">From separate funds</option></select></div></div>
+</details>
+        </section>
+        <input type="checkbox" id="sell_only_mode" class="hidden"><input type="checkbox" id="advanced-mode-toggle" class="hidden">
+    </form>
+</aside>
         <div id="graph-column" class="viz-column">
             <section id="chart-summary-overlay" class="plan-overview" aria-label="Plan overview">
-                <div class="overview-heading"><h2>Your plan at a glance</h2><span id="plan-order-count" class="subtle-label"></span></div>
+                <div class="overview-heading"><h2>Your plan</h2><span id="plan-order-count" class="subtle-label"></span></div>
                 <div class="metrics-grid">
                     <div class="metric"><p id="plan-primary-label">Buy order value</p><strong id="plan-primary-value">—</strong></div>
                     <div class="metric"><p>Asset quantity</p><strong id="chart-summary-total-quantity">—</strong></div>
@@ -356,17 +385,17 @@
                 <p id="profit-note" class="profit-note"></p>
             </section>
             <section id="depth-chart-card" class="chart-card">
-                <div class="chart-heading"><div><h2>Order ladder</h2><p class="subtle-label">Price × allocation</p></div><div class="segmented-control chart-unit"><button id="chart-unit-volume" class="chart-toggle-btn active" type="button" title="Asset quantity (volume)">Quantity</button><button id="chart-unit-value" class="chart-toggle-btn" type="button" title="Dollar value">Value</button></div></div>
-                <div class="chart-toolbar"><div id="chart-legend" class="chart-legend"><span id="chart-buy-legend" class="buy-only-content"><i class="buy-dot"></i><span id="legend-buy-label">Buy</span></span><span class="sell-only-content"><i class="sell-dot"></i><span id="legend-sell-label">Sell</span></span><span id="mid-price-label" class="subtle-label"></span></div><div id="chart-display-options" class="chart-display-options"><label><input id="chart-show-bars" type="checkbox" checked>Orders</label><label><input id="chart-show-cumulative" type="checkbox" checked>Cumulative</label></div></div>
+                <div class="chart-heading"><div><h2>Order ladder</h2><p class="subtle-label">Your orders across the price range</p></div></div>
+                <div class="chart-toolbar"><details class="view-settings chart-settings"><summary>Chart options <svg class="disclosure-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg></summary><div class="view-settings-content"><div class="segmented-control chart-unit"><button id="chart-unit-volume" class="chart-toggle-btn active" type="button" title="Asset quantity (volume)">Quantity</button><button id="chart-unit-value" class="chart-toggle-btn" type="button" title="Dollar value">Value</button></div><div id="chart-display-options" class="chart-display-options"><label><input id="chart-show-bars" type="checkbox" checked>Orders</label><label><input id="chart-show-cumulative" type="checkbox" checked>Cumulative</label></div></div></details><div id="chart-legend" class="chart-legend"><span id="chart-buy-legend" class="buy-only-content"><i class="buy-dot"></i><span id="legend-buy-label">Buy</span></span><span class="sell-only-content"><i class="sell-dot"></i><span id="legend-sell-label">Sell</span></span><span id="mid-price-label" class="subtle-label"></span></div></div>
                 <div id="depth-wrapper" class="d3-chart"><svg id="depth-chart" role="img" aria-label="Order ladder; exact values are in the orders table below" width="100%" height="100%"></svg><div id="chart-empty-state" role="status" aria-live="polite" class="outputs-empty-state hidden"></div></div>
                 <div class="chart-footnote"><span>Each bar is one order. Shading shows the running total.</span><span id="plan-range"></span></div>
             </section>
-            <section id="data-tables-card" class="table-card">
-                <div class="table-heading"><h2>The orders behind your plan</h2><button id="download-csv-btn" type="button" class="toolbar-button export-button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4l4 4 4-4M4 16v5h16v-5"/></svg><span>Export CSV</span></button></div>
-                <div class="table-controls"><div id="table-tabs" class="table-tab-strip"><button id="tab-buy" type="button" class="table-tab-btn buy-only-content"><span id="tab-buy-label">Buy Orders</span></button><button id="tab-sell" type="button" class="table-tab-btn sell-only-content"><span id="tab-sell-label">Sell Orders</span></button></div><div id="table-options" class="table-options"><label><input id="show-fees-toggle" type="checkbox">Show fees</label><label>Copy decimals <input id="copy-decimal-places" type="number" min="0" max="8" value="8" class="form-input compact-input"></label></div></div>
+            <details id="data-tables-card" class="table-card orders-disclosure"><summary class="orders-summary"><span class="disclosure-text"><span class="disclosure-title">Order details</span><span id="orders-summary-count" class="disclosure-caption">Prices, quantities and export</span></span><span class="disclosure-action"><span class="when-closed">View orders</span><span class="when-open">Hide orders</span><svg class="disclosure-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg></span></summary>
+                <div class="table-heading"><h2>Orders</h2><button id="download-csv-btn" type="button" class="toolbar-button export-button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-4-4l4 4 4-4M4 16v5h16v-5"/></svg><span>Export CSV</span></button></div>
+                <div class="table-controls"><div id="table-tabs" class="table-tab-strip"><button id="tab-buy" type="button" class="table-tab-btn buy-only-content"><span id="tab-buy-label">Buy Orders</span></button><button id="tab-sell" type="button" class="table-tab-btn sell-only-content"><span id="tab-sell-label">Sell Orders</span></button></div><details class="view-settings table-settings"><summary>Table options <svg class="disclosure-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg></summary><div class="view-settings-content"><div id="table-options" class="table-options"><label><input id="show-fees-toggle" type="checkbox">Show fees</label><label>Copy decimals <input id="copy-decimal-places" type="number" min="0" max="8" value="8" class="form-input compact-input"></label></div></div></details></div>
                 <div class="table-scroll" role="region" aria-label="Order tables" tabindex="0"><div id="panel-buy" class=""><table><thead><tr><th scope="col">#</th><th scope="col">Price</th><th scope="col">Quantity</th><th scope="col">Order value</th><th class="fee-col hidden" scope="col">Fee</th><th id="buy-table-last-col" scope="col">Avg Price</th></tr></thead><tbody id="buy-ladder-body"></tbody></table></div><div id="panel-sell" class="hidden"><table><thead><tr><th scope="col">#</th><th scope="col">Price</th><th scope="col">Quantity</th><th scope="col">Order value</th><th class="fee-col hidden" scope="col">Fee</th><th id="sell-table-last-col" scope="col">Profit</th></tr></thead><tbody id="sell-ladder-body"></tbody></table></div></div>
-                <p id="table-help" class="table-help">Select any price or quantity to copy it. Scroll sideways for more columns.</p>
-            </section>
+                <p id="table-help" class="table-help">Select any price or quantity to copy it. Swipe or scroll the table for more columns.</p>
+            </details>
         </div>
     </main>
     <footer class="workspace-footer"><span>OrderSkew</span><span>Prices entered manually. Review your plan before placing orders.</span></footer>
@@ -378,17 +407,18 @@
 <script src="calculator-assets/calculator.plan.977ce21b99b1.js"></script>
 <script src="calculator-assets/wizard-questions.c390e9a339ad.js"></script>
 <script src="calculator-assets/wizard.dc8d34d87e2d.js"></script>
-<script src="calculator-assets/charts.53b233526e57.js"></script>
+<script src="calculator-assets/charts.2f14c7914bff.js"></script>
 <script src="calculator-assets/charts-how-it-works.ac5b0b2dcf37.js"></script>
 <script src="calculator-assets/main.navigation.b97581f73a71.js"></script>
 <script src="calculator-assets/main.ui.bbf57a82bfde.js"></script>
 <script src="calculator-assets/main.config.c4f4349d21b6.js"></script>
-<script src="calculator-assets/main.accessibility.35a6e44b7264.js"></script>
+<script src="calculator-assets/main.accessibility.4183f38e79b3.js"></script>
 <script src="calculator-assets/main.calculator.0054ab82937a.js"></script>
 <script src="calculator-assets/main.events.chart.3109a22a79c8.js"></script>
 <script src="calculator-assets/main.events.intro.9d4c8ca58cf9.js"></script>
 <script src="calculator-assets/main.events.workspace.b7a9e2e49ceb.js"></script>
 <script src="calculator-assets/main.664578807c2e.js"></script>
+<script src="calculator-assets/main.disclosure.c54b4517f504.js"></script>
 <script src="calculator-assets/fix-vscode-links.04b0e7cf2561.js"></script>
 </body>
 </html>

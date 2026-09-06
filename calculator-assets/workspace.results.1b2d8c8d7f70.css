@@ -1,12 +1,12 @@
 .plan-overview,.chart-card,.table-card {
     background:var(--color-card);
     border:1px solid var(--color-border);
-    border-radius:10px;
+    border-radius:12px;
     min-width:0;
 }
 
 .plan-overview {
-    padding:23px 24px 17px;
+    padding:32px;
 }
 
 .overview-heading {
@@ -14,24 +14,24 @@
     justify-content:space-between;
     align-items:center;
     gap:12px;
-    margin-bottom:22px;
+    margin-bottom:28px;
 }
 
 .overview-heading h2 {
-    font-size:12px;
+    font-size:20px;
     font-weight:600;
     color:var(--color-text-secondary);
 }
 
 .subtle-label {
-    font-size:10px;
+    font-size:14px;
     color:var(--color-text-muted);
 }
 
 .metrics-grid {
     display:grid;
-    grid-template-columns:1.2fr 1fr 1fr .75fr;
-    gap:18px;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:28px 32px;
 }
 
 .metric {
@@ -39,13 +39,13 @@
 }
 
 .metric>p {
-    font-size:10px;
+    font-size:14px;
     color:var(--color-text-muted);
     margin:0 0 7px;
 }
 
 .metric strong {
-    font:500 clamp(18px,1.7vw,25px)/1.3 var(--font-mono);
+    font:500 clamp(24px,2.2vw,30px)/1.4 var(--font-mono);
     letter-spacing:-1.1px;
     overflow-wrap:anywhere;
 }
@@ -57,7 +57,7 @@
 .profit-note {
     margin:17px 0 0;
     color:var(--color-text-muted);
-    font-size:10px;
+    font-size:14px;
 }
 
 .profit-strip {
@@ -77,7 +77,7 @@
 }
 
 .profit-strip span {
-    font-size:10px;
+    font-size:14px;
     color:var(--color-text-muted);
 }
 
@@ -88,7 +88,7 @@
 }
 
 .chart-card {
-    padding:23px 24px 0;
+    padding:32px 32px 0;
 }
 
 .chart-heading {
@@ -103,12 +103,12 @@
 }
 
 .chart-unit {
-    width:154px;
+    width:100%;
 }
 
 .chart-unit button {
-    min-height:29px;
-    font-size:10px;
+    min-height:44px;
+    font-size:14px;
     padding:4px 12px;
 }
 
@@ -126,7 +126,7 @@
     flex-wrap:wrap;
     align-items:center;
     gap:15px;
-    font-size:10px;
+    font-size:14px;
 }
 
 .chart-legend>span {
@@ -154,7 +154,7 @@
     display:flex;
     align-items:center;
     gap:12px;
-    font-size:10px;
+    font-size:14px;
     color:var(--color-text-secondary);
 }
 
@@ -164,13 +164,13 @@
     gap:6px;
     white-space:nowrap;
     cursor:pointer;
-    min-height:28px;
+    min-height:44px;
 }
 
 input[type="checkbox"] {
     accent-color:var(--color-primary);
-    width:13px;
-    height:13px;
+    width:18px;
+    height:18px;
     cursor:pointer;
 }
 
@@ -184,7 +184,7 @@ input[type="checkbox"] {
 #depth-chart {
     display:block;
     width:100%;
-    height:320px;
+    height:360px;
     overflow:visible;
     color:var(--color-text-muted);
 }
@@ -192,7 +192,7 @@ input[type="checkbox"] {
 #depth-chart text {
     font-family:var(--font-mono);
     fill:var(--color-text-muted);
-    font-size:10px;
+    font-size:14px;
 }
 
 #depth-chart .domain {
@@ -205,10 +205,10 @@ input[type="checkbox"] {
     flex-wrap:wrap;
     gap:6px;
     margin-top:8px;
-    padding:13px 0;
+    padding:20px 0;
     border-top:1px solid var(--color-border);
     color:var(--color-text-muted);
-    font-size:9px;
+    font-size:14px;
 }
 
 .chart-footnote #plan-range {
@@ -220,18 +220,18 @@ input[type="checkbox"] {
     justify-content:space-between;
     align-items:center;
     gap:16px;
-    padding:19px 24px 15px;
+    padding:24px 32px;
 }
 
 .export-button {
-    min-height:33px;
-    font-size:10px;
+    min-height:44px;
+    font-size:14px;
     padding:5px 9px;
 }
 
 .export-button svg {
-    width:13px;
-    height:13px;
+    width:18px;
+    height:18px;
 }
 
 .table-controls {
@@ -240,7 +240,7 @@ input[type="checkbox"] {
     align-items:center;
     gap:12px;
     border-bottom:1px solid var(--color-border);
-    padding:0 24px;
+    padding:0 32px;
 }
 
 .table-tab-strip {
@@ -250,8 +250,8 @@ input[type="checkbox"] {
 }
 
 .table-tab-btn {
-    font-size:11px!important;
-    padding:12px 0!important;
+    font-size:16px!important;
+    padding:16px 0!important;
     border-bottom-width:2px;
     font-weight:650;
     white-space:nowrap;
@@ -263,15 +263,15 @@ input[type="checkbox"] {
 }
 
 .table-options .compact-input {
-    width:35px;
-    min-height:25px;
+    width:64px;
+    min-height:44px;
     padding:3px;
-    font-size:10px;
+    font-size:14px;
 }
 
 .table-scroll {
     overflow-x:auto;
-    max-height:440px;
+    max-height:560px;
 }
 
 table {
@@ -281,14 +281,14 @@ table {
     font-variant-numeric:tabular-nums;
 }
 
-th {
+.table-card th {
     background:var(--color-card-alt);
     color:var(--color-text-muted);
-    font-size:9px;
+    font-size:14px;
     font-weight:500;
     letter-spacing:.2px;
     text-align:right;
-    padding:11px 17px;
+    padding:16px 20px;
     position:sticky;
     top:0;
     z-index:1;
@@ -299,9 +299,9 @@ th:first-child {
     padding-left:24px;
 }
 
-td {
-    font-size:11px;
-    padding:8px 17px!important;
+.table-card td {
+    font-size:16px;
+    padding:12px 20px!important;
     border-top:1px solid var(--color-border);
     text-align:right;
     font-family:var(--font-mono);
@@ -313,7 +313,7 @@ td:first-child {
     text-align:left;
     padding-left:24px!important;
     color:var(--color-text-muted);
-    font-size:10px;
+    font-size:14px;
 }
 
 tbody tr:hover {
@@ -327,7 +327,7 @@ tbody tr:last-child:has(td:only-child:empty) {
 .copy-value {
     display:block;
     width:100%;
-    min-height:28px;
+    min-height:44px;
     padding:3px 5px;
     border:0;
     border-radius:3px;
@@ -346,8 +346,8 @@ tbody tr:last-child:has(td:only-child:empty) {
 }
 
 .table-help {
-    padding:12px 24px;
-    font-size:9px;
+    padding:20px 32px;
+    font-size:14px;
     color:var(--color-text-muted);
     border-top:1px solid var(--color-border);
 }
@@ -366,12 +366,12 @@ tbody tr:last-child:has(td:only-child:empty) {
     color:var(--color-invalid);
     font-weight:650;
     font-family:var(--font-body);
-    font-size:13px;
+    font-size:14px;
 }
 
 .outputs-empty-subtitle,.outputs-table-empty-note {
     color:var(--color-text-muted);
-    font-size:11px;
+    font-size:14px;
     font-family:var(--font-body);
     white-space:normal;
     margin-top:7px;
@@ -403,7 +403,7 @@ tbody tr:last-child:has(td:only-child:empty) {
     justify-content:space-between;
     gap:20px;
     color:var(--color-text-muted);
-    font-size:10px;
+    font-size:14px;
     padding:26px 0 35px;
 }
 
@@ -421,7 +421,7 @@ tbody tr:last-child:has(td:only-child:empty) {
     padding:12px;
     box-shadow:0 8px 24px #0002;
     color:var(--color-text);
-    font-size:11px;
+    font-size:14px;
     max-width:260px;
     opacity:0;
 }
@@ -436,7 +436,7 @@ tbody tr:last-child:has(td:only-child:empty) {
     border-radius:7px;
     background:var(--color-text);
     color:var(--color-card);
-    font-size:12px;
+    font-size:14px;
     z-index:20000;
     visibility:hidden;
 }
@@ -444,3 +444,21 @@ tbody tr:last-child:has(td:only-child:empty) {
 .toast.show {
     visibility:visible;
 }
+
+.metric:nth-child(n+3) { padding-top:24px; border-top:1px solid var(--color-border); }
+.metric > p { font-size:16px; margin-bottom:10px; }
+.chart-settings { order:2; }
+.chart-legend { order:1; }
+.chart-display-options { flex-direction:column; align-items:flex-start; gap:12px; font-size:16px; }
+.chart-legend .subtle-label { display:none; }
+.orders-summary { padding:28px 32px; }
+.orders-summary .disclosure-title { font-size:20px; }
+.orders-disclosure[open] > summary { border-bottom:1px solid var(--color-border); }
+.orders-disclosure[open] .table-heading { padding-block:20px; }
+.table-card table { min-width:620px; }
+.table-options { font-size:16px; }
+.table-options .compact-input { font-size:16px; }
+.table-settings { margin-left:auto; }
+.table-card td:first-child { font-size:14px; }
+.table-scroll { scrollbar-gutter:stable; }
+.profit-note:empty { display:none; }
