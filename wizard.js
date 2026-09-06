@@ -32,6 +32,7 @@ const SetupWizard = {
         } else if (field === 'depth') {
             element.value = value;
             if (els?.depth) els.depth.value = value;
+            if (els?.depthDisplayLabel) els.depthDisplayLabel.textContent = value;
         } else if (field === 'skew_value') {
             element.value = value;
             const v = parseInt(value);
@@ -764,10 +765,7 @@ const SetupWizard = {
 
         // Apply range_percent to depth for buy-sell mode
         if (tradingMode === 'buy-sell' && SetupWizard.answers['range_percent']) {
-            const depthInput = document.getElementById('depth_input');
-            const depthSlider = document.getElementById('depth');
-            if (depthInput) depthInput.value = SetupWizard.answers['range_percent'];
-            if (depthSlider) depthSlider.value = SetupWizard.answers['range_percent'];
+            SetupWizard.setFieldValue('depth', SetupWizard.answers['range_percent'], els?.depthInput);
         }
     },
 
