@@ -188,7 +188,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
             .attr("opacity", 0.3);
     }
 
-    // Average entry price line (white line, shown in all modes when avgBuyPrice is available)
+    // Theme-aware average entry marker, shown whenever avgBuyPrice is available.
     // Works in both Volume and Value ($) modes since it's positioned on the price (Y) axis
     if (avgBuyPrice !== null && Number.isFinite(avgBuyPrice) && avgBuyPrice > 0) {
         const avgY = y(avgBuyPrice);
@@ -199,14 +199,15 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
                 .attr("x2", width - margin.right)
                 .attr("y1", avgY)
                 .attr("y2", avgY)
-                .attr("stroke", "white")
-                .attr("stroke-width", 2)
+                .attr("stroke", "var(--color-chart-buy)")
+                .attr("stroke-dasharray", "4 4")
+                .attr("stroke-width", 1)
                 .attr("opacity", 0.9)
                 .attr("class", "avg-entry-line");
         }
     }
 
-    // Average sell price line (white line, shown in buy+sell mode when avgSellPrice is available)
+    // Theme-aware average exit marker in combined mode.
     // Works in both Volume and Value ($) modes since it's positioned on the price (Y) axis
     if (!isSellOnly && !isBuyOnly && avgSellPrice !== null && Number.isFinite(avgSellPrice) && avgSellPrice > 0) {
         const avgSellY = y(avgSellPrice);
@@ -217,8 +218,9 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
                 .attr("x2", width - margin.right)
                 .attr("y1", avgSellY)
                 .attr("y2", avgSellY)
-                .attr("stroke", "white")
-                .attr("stroke-width", 2)
+                .attr("stroke", "var(--color-chart-sell)")
+                .attr("stroke-dasharray", "4 4")
+                .attr("stroke-width", 1)
                 .attr("opacity", 0.9)
                 .attr("class", "avg-sell-line");
         }

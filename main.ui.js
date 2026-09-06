@@ -96,7 +96,9 @@
             const exportMenu = document.getElementById('export-menu-items');
             const priceRangeDetails = document.getElementById('price-range-details');
             const allocationDetails = document.getElementById('allocation-details');
-            const advancedPanels = [modeToggleContainer, chartDisplayOptions, tableOptions, exportMenu];
+            const advancedPanels = [modeToggleContainer];
+            // Essential controls remain available in the redesigned workspace.
+            [chartDisplayOptions, tableOptions, exportMenu].forEach(panel => App.setElementVisible(panel, true));
             
             if (advancedToggle) {
                 // Sync checkbox checked state with State.advancedMode
@@ -140,16 +142,7 @@
             if (els.modeSimple) els.modeSimple.className = `mode-switch-pill px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='simple'?activeClass:inactiveClass}`;
             if (els.modePro) els.modePro.className = `mode-switch-pill px-3 py-1 text-xs font-medium rounded-md transition-all ${mode==='pro'?activeClass:inactiveClass}`;
             
-            
-            const mainGrid = document.getElementById('main-content-grid');
-            const configColumn = document.getElementById('config-column');
-            const graphColumn = document.getElementById('graph-column');
-            
-            // Layout: Always use two columns on desktop (lg) to fill space; single column on mobile
-            if (mainGrid) mainGrid.className = 'app-layout-grid grid grid-cols-1 lg:grid-cols-12 gap-6';
-            if (configColumn) configColumn.className = 'controls-column lg:col-span-5 space-y-6 min-w-0';
-            if (graphColumn) graphColumn.className = 'viz-column lg:col-span-7 space-y-6 min-w-0 overflow-hidden';
-            
+            // Layout belongs to the workspace styles, including after legacy preference restoration.
             App.calculatePlan();
         },
 
@@ -278,6 +271,7 @@
                 'chart-summary-buy-volume',
                 'chart-summary-sell-value',
                 'chart-summary-sell-volume',
+                'plan-primary-value', 'plan-average-value', 'plan-order-count', 'plan-range',
                 'sticky-net-profit',
                 'sticky-roi',
                 'sticky-avg-buy',
@@ -340,6 +334,12 @@
             const setCls = (id, cls) => { const el = document.getElementById(id); if(el) el.className = cls; };
             
             const summaryMap = {
+                'plan-primary-label': State.tradingMode === 'sell-only' ? 'Sell order value' : 'Buy order value',
+                'plan-primary-value': displayCurrency(State.tradingMode === 'sell-only' ? s.sellTotalValue : s.buyTotalValue),
+                'plan-average-label': State.tradingMode === 'sell-only' ? 'Avg. net exit' : 'Average entry',
+                'plan-average-value': displayCurrency(State.tradingMode === 'sell-only' ? s.avgSell : s.avgBuy),
+                'plan-order-count': `${plan.buyLadder.length + plan.sellLadder.length} orders`,
+                'plan-range': `${Utils.fmtCurrDisplay(Math.min(...[...plan.buyLadder, ...plan.sellLadder].map(r => r.price)))} – ${Utils.fmtCurrDisplay(Math.max(...[...plan.buyLadder, ...plan.sellLadder].map(r => r.price)))}`,
                 'chart-summary-net-profit': displayCurrency(s.netProfit),
                 'chart-summary-roi': s.roi === null ? '—' : Utils.fmtPct(s.roi),
                 'chart-summary-avg-buy': displayCurrency(s.avgBuy),
