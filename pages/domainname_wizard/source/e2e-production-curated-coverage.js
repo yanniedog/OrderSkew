@@ -39,7 +39,7 @@ async function main() {
           const el = document.getElementById("status-label");
           return el && el.textContent && el.textContent.trim().toLowerCase() !== "idle";
         },
-        { timeout: JOB_START_MS }
+        undefined, { timeout: JOB_START_MS }
       ).catch(() => null);
 
       log("Waiting for results panel and Curated Coverage in summary (up to " + (RESULTS_WAIT_MS / 1000) + "s)...");
@@ -51,7 +51,7 @@ async function main() {
           if (!kpis || !kpis.innerHTML) return false;
           return kpis.innerHTML.includes("Curated Coverage");
         },
-        { timeout: RESULTS_WAIT_MS }
+        undefined, { timeout: RESULTS_WAIT_MS }
       ).then(() => true).catch(() => false);
 
       if (!found) {
