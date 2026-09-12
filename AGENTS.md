@@ -37,7 +37,7 @@ These rules are mandatory and override any conflicting preference.
 | Purpose | Command | Notes |
 |-----|---|---|
 | Full production test (exhaustive battery) | `npm run test:production:all` | From repo root. Runs site-wide HTTP, asset checks (root + all tools), link checker, 404 checks, Novel Indicator API, Domain Name Wizard E2E. Optional: `SKIP_API_HEALTH=1` or `SKIP_NOVEL_API=1` to skip API; `PRODUCTION_SITE_WIDE_CONSOLE=1` for root/hub console checks; `PRODUCTION_FULL_E2E=1` for optional E2E (root, NAB, Crypto ATH, Novel); `PRODUCTION_KEYWORD_VERIFY=1` for Domain Name Wizard keyword E2E. Requires Playwright (e.g. in `pages/domainname_wizard/source/`). |
-| Domain Wizard full test (unit + E2E) | `npm run test:domainname_wizard` | From repo root. Requires `npm install` and `npx playwright install chromium` in `pages/domainname_wizard/source/`. |
+| Domain Wizard full test (unit + E2E) | `npm run test:domainname_wizard` | From repo root. Requires `npm ci --prefix pages/domainname_wizard/source` and `npx --prefix pages/domainname_wizard/source playwright install chromium`. |
 
 ## Subproject: Novel Indicator
 
@@ -64,7 +64,7 @@ These rules are mandatory and override any conflicting preference.
 - **Source**: `pages/domainname_wizard/source/`.
   - **Build**: `npm run build` (next build).
   - **Unit tests**: `npm test` (vitest run).
-  - **Full test from root**: `node test-domainname-wizard.js` (unit + static server + E2E Playwright). Requires `npm install` and `npx playwright install chromium` in `source/`.
+  - **Full test from root**: `node test-domainname-wizard.js` (unit + static server + E2E Playwright). Requires `npm ci` and `npx playwright install chromium` in `source/`.
 
 ## Subproject: Trading Plan Calculator (root)
 
@@ -118,10 +118,10 @@ These rules are mandatory and override any conflicting preference.
 
 ## Cursor Cloud specific instructions
 
-The startup update script already runs `npm install` in the JS/TS subprojects (`tools/novel_indicator/frontend`, `tools/novel_indicator/cloudflare_api`, `apps/worker`, `home-loan-archive`, `pages/domainname_wizard/source`) and installs Playwright chromium in `pages/domainname_wizard/source`. No root `npm install` is needed (root `package.json` has no dependencies).
+A fresh environment must install the dependencies for the subprojects it will test. Run `npm ci --prefix <directory>` for the relevant checked-in lockfile: `tools/novel_indicator/frontend`, `tools/novel_indicator/cloudflare_api`, `apps/worker`, `home-loan-archive`, or `pages/domainname_wizard/source`. For browser tests, also run `npx --prefix pages/domainname_wizard/source playwright install chromium`. An externally configured startup script may automate these steps, but this repository does not provide one. The root calculator tests use Node built-ins and need no root install.
 
 - **Run the core product locally**: it is a static site with no build step. Serve from repo root with `python3 -m http.server 8000`, then open `http://localhost:8000/index.html` (Trading Plan Calculator) or `http://localhost:8000/tools/index.html` (tools hub). See `README.md`.
 - **`npm run test:production:all` targets the LIVE `https://www.orderskew.com` by default**, not localhost. For local verification pass a local base URL and skip unreachable backends, e.g. `SKIP_NOVEL_API=1 node test-production-all.js http://localhost:8000`. Domain Name Wizard production sub-steps use hardcoded production URLs and do not receive the passed local base URL. Only expect a clean exit `0` against real production with deployed backends (per the Hard Enforcement Rules above).
-- **Playwright E2E runs headless** here; `node test-domainname-wizard.js` (unit + local static server + E2E) passes in this environment. Subproject unit tests: `cloudflare_api` and `apps/worker` use `npm test` (vitest); `home-loan-archive` uses the workers vitest pool.
+- **Playwright E2E runs headless** here; run `node test-domainname-wizard.js` for unit tests plus a local static server and E2E after installing the prerequisites. Subproject unit tests: `cloudflare_api` and `apps/worker` use `npm test` (vitest); `home-loan-archive` uses the workers vitest pool.
 - **No lint step is configured** anywhere; TypeScript projects use `npm run typecheck` (or `npm run build`) as the closest check.
-- **Optional/uninstalled by default**: the BoardSpace Atlas RL Python backend (`tools/boardspace_atlas_rl`, FastAPI + heavy `torch`) and the legacy Python backend are not installed by the update script and are not required for the static products; install them manually only if working on that backend.
+- **Optional/uninstalled by default**: the BoardSpace Atlas RL Python backend (`tools/boardspace_atlas_rl`, FastAPI + heavy `torch`) and the legacy Python backend are not required for the static products; install them manually only if working on that backend.
