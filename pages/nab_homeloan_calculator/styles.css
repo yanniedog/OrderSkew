@@ -500,7 +500,7 @@ tbody tr:hover {
         max-width: none;
     }
 
-    .btn {
+    button {
         min-height: 44px;
     }
 
