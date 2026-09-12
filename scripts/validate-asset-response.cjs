@@ -16,4 +16,18 @@ function validateAssetResponse(url, headers, body) {
     return null;
 }
 
-module.exports = { validateAssetResponse };
+function extractCalculatorAssets(html) {
+    return [...html.matchAll(/<(?:script|link)\b[^>]*\b(?:src|href)\s*=\s*["'](calculator-assets\/[\w.-]+\.(?:js|css)(?:\?[^"'\s]*)?)["']/gi)]
+        .map(match => match[1].replace(/&amp;/g, '&'));
+}
+
+function validateAssetSet(expected, actual) {
+    const expectedSet = new Set(expected);
+    const actualSet = new Set(actual);
+    if (!expectedSet.size || expectedSet.size !== actualSet.size || [...expectedSet].some(asset => !actualSet.has(asset))) {
+        return 'deployed calculator asset references differ from the current checkout';
+    }
+    return null;
+}
+
+module.exports = { validateAssetResponse, extractCalculatorAssets, validateAssetSet };

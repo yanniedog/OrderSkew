@@ -5,8 +5,8 @@
  */
 
 const https = require("https");
-const { validateAssetResponse } = require("./scripts/validate-asset-response.cjs");
-const { getBaseUrl, TOOL_ASSETS } = require("./e2e-production-config.js");
+const { validateAssetResponse, extractCalculatorAssets, validateAssetSet } = require("./scripts/validate-asset-response.cjs");
+const { getBaseUrl, ROOT_ASSETS, TOOL_ASSETS } = require("./e2e-production-config.js");
 
 const baseUrl = getBaseUrl();
 
@@ -100,8 +100,9 @@ async function checkRootAssets() {
   // cache a host's HTML fallback under an immutable filename.
   const { status, body } = await get(baseUrl + '/');
   if (status !== 200) { log('FAIL: root entrypoint status ' + status); return 1; }
-  const assets = [...body.matchAll(/(?:src|href)=["'](calculator-assets\/[\w.-]+\.(?:js|css))["']/g)].map(match => match[1]);
-  if (!assets.length) { log('FAIL: root entrypoint has no immutable calculator assets'); return 1; }
+  const assets = extractCalculatorAssets(body);
+  const referenceError = validateAssetSet(ROOT_ASSETS, assets);
+  if (referenceError) { log('FAIL: ' + referenceError); return 1; }
   for (const asset of assets) {
     failed += await checkOne(baseUrl + "/" + asset, "root " + asset, { expectStatus: OK_STATUSES });
   }
