@@ -1,3 +1,4 @@
+/* Verified release cache recovery 2026-09-12: replace immutable URLs previously cached as HTML. */
 // Keep closed overlays out of keyboard navigation and give fields accessible names.
 {
     const labelFields = () => {

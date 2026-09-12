@@ -1,3 +1,4 @@
+/* Verified release cache recovery 2026-09-12: replace immutable URLs previously cached as HTML. */
 .plan-overview,.chart-card,.table-card {
     background:var(--color-card);
     border:1px solid var(--color-border);

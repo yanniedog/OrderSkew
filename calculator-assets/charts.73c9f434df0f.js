@@ -1,3 +1,4 @@
+/* Verified release cache recovery 2026-09-12: replace immutable URLs previously cached as HTML. */
 // OrderSkew - D3 Chart Module (charts.js)
 
 /**
