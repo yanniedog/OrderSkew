@@ -20,7 +20,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
 
     const width  = container.clientWidth;
     const height = svgNode.clientHeight;
-    const margin = { top: 20, right: 50, bottom: 40, left: 55 };
+    const margin = { top: 24, right: 24, bottom: 48, left: 72 };
 
     const svg = svgSel
         .attr("width", width)
@@ -61,6 +61,9 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
 
     // Calculate price range
     const prices = allData.map(d => d.price);
+    // Reserve room for readable price labels, including small-priced assets.
+    const priceLabelWidth = Math.max(...prices.map(price => fmtPrice(price).length)) * 8.5 + 14;
+    margin.left = Math.min(width * 0.48, Math.max(72, priceLabelWidth));
     const yMin = d3.min(prices);
     const yMax = d3.max(prices);
     const mid = (yMin + yMax) / 2;
@@ -232,7 +235,7 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
     const uniquePrices = [...new Set(allPrices)];
     
     // If too many prices, show every Nth one but always include first and last
-    const maxTicks = 10;
+    const maxTicks = Math.max(2, Math.min(10, Math.floor(chartHeight / 34)));
     let tickValues;
     if (uniquePrices.length <= maxTicks) {
         tickValues = uniquePrices;
@@ -258,8 +261,8 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
 
     // X-axis
     const xAxis = d3.axisBottom(x)
-        .ticks(6)
-        .tickFormat(d => isValue ? fmtPrice(d) : fmtAmount(d));
+        .ticks(Math.max(2, Math.floor((width - margin.left - margin.right) / 110)))
+        .tickFormat(d => Math.abs(d) >= 1000 ? `${isValue ? '$' : ''}${d3.format('.3~s')(d)}` : isValue ? fmtPrice(d) : fmtAmount(d));
 
     svg.append("g")
         .attr("transform", `translate(0,${height - margin.bottom})`)
@@ -270,14 +273,13 @@ function drawDepthChart(selector, buys, sells, avgBuyPrice = null, avgSellPrice 
         .call(g => g.selectAll("text").attr("fill", "var(--color-text-secondary)"));
 
     // X-axis label
-    const unitLabel = isValue ? "Value ($)" : "Volume";
+    const unitLabel = isValue ? "Value ($)" : "Quantity";
     svg.append("text")
         .attr("x", (width + margin.left - margin.right) / 2)
         .attr("y", height - 5)
         .attr("fill", "currentColor")
         .attr("text-anchor", "middle")
-        .attr("font-size", "9px")
-        .attr("class", "opacity-50")
+        .attr("font-size", "14px")
         .text(unitLabel);
 
     // Tooltip and hover zones

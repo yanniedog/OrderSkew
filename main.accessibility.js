@@ -2,10 +2,10 @@
 {
     const labelFields = () => {
         const labels = {
-            starting_capital: 'Initial Capital', current_price: 'Initial Asset Price',
-            current_price_sell: 'Initial Asset Price', existing_quantity: 'Held Quantity',
+            starting_capital: 'Initial Capital', current_price: 'Reference price',
+            current_price_sell: 'Reference price', existing_quantity: 'Held Quantity',
             existing_avg_price: 'Average Cost Basis', number_of_rungs: 'Number of Orders slider',
-            number_of_rungs_input: 'Number of Orders', depth: 'Range percentage slider', depth_input: 'Range percentage',
+            number_of_rungs_input: 'Orders per side', depth: 'Range percentage slider', depth_input: 'Price range (%)',
             skew_value: 'Capital Skew', fee_value: 'Trading Fee', fee_settlement: 'Fee Settlement',
             buy_floor: 'Buy Range Low', sell_ceiling: 'Sell Range High', 'donation-chain': 'Blockchain'
         };
