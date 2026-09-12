@@ -71,7 +71,7 @@ const SITE_WIDE_CHECKS = [
     expectPatterns: [
       { regex: /id="starting_capital"[^>]*value="[^"]+"/, label: "starting capital default" },
       { regex: /id="current_price"[^>]*value="[^"]+"/, label: "current price default" },
-      { regex: /tailwind\.generated\.css/, label: "compiled Tailwind stylesheet" },
+      { regex: /tailwind\.generated(?:\.[a-f0-9]{12})?\.css/, label: "compiled Tailwind stylesheet" },
     ],
     forbiddenPatterns: [
       { regex: /cdn\.tailwindcss\.com/, label: "Tailwind CDN runtime" },
