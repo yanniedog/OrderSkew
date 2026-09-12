@@ -51,9 +51,11 @@
 
     var cssHref = script.src.replace(/page-frame\.js(\?.*)?$/, 'page-frame.css');
     if (!document.querySelector('link[data-order-skew-frame]')) {
+        var cssVersion = script.getAttribute('data-frame-css-version') || '20260912';
         var link = document.createElement('link');
         link.rel = 'stylesheet';
-        link.href = cssHref;
+        link.setAttribute('data-order-skew-frame', '');
+        link.href = cssHref + (cssHref.indexOf('?') >= 0 ? '&' : '?') + 'v=' + cssVersion;
         document.head.appendChild(link);
     }
     var fontLink = document.createElement('link');
@@ -652,6 +654,7 @@
     }
 
     function init() {
+        document.body.classList.add('os-frame-body');
         document.body.prepend(buildNav());
         document.body.appendChild(buildFooter());
         var logger = createUniversalLogger();
