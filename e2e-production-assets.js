@@ -5,7 +5,8 @@
  */
 
 const https = require("https");
-const { getBaseUrl, ROOT_ASSETS, TOOL_ASSETS } = require("./e2e-production-config.js");
+const { validateAssetResponse } = require("./scripts/validate-asset-response.cjs");
+const { getBaseUrl, TOOL_ASSETS } = require("./e2e-production-config.js");
 
 const baseUrl = getBaseUrl();
 
@@ -65,10 +66,15 @@ const OK_STATUSES = [200, 308];
 
 function checkOne(url, name, opts = {}) {
   return get(url).then(
-    ({ status, body }) => {
+    ({ status, body, headers }) => {
       const ok = Array.isArray(opts.expectStatus) ? opts.expectStatus.includes(status) : (opts.expectStatus || 200) === status;
       if (!ok) {
         log("FAIL: " + name + " status " + status);
+        return 1;
+      }
+      const assetError = validateAssetResponse(url, headers, body);
+      if (assetError) {
+        log("FAIL: " + name + " " + assetError);
         return 1;
       }
       if (opts.expectHtml && status === 200 && body.indexOf("<!") === -1) {
@@ -90,7 +96,13 @@ function checkOne(url, name, opts = {}) {
 
 async function checkRootAssets() {
   let failed = 0;
-  for (const asset of ROOT_ASSETS) {
+  // Only request assets advertised by deployed HTML: probing unpublished URLs can
+  // cache a host's HTML fallback under an immutable filename.
+  const { status, body } = await get(baseUrl + '/');
+  if (status !== 200) { log('FAIL: root entrypoint status ' + status); return 1; }
+  const assets = [...body.matchAll(/(?:src|href)=["'](calculator-assets\/[\w.-]+\.(?:js|css))["']/g)].map(match => match[1]);
+  if (!assets.length) { log('FAIL: root entrypoint has no immutable calculator assets'); return 1; }
+  for (const asset of assets) {
     failed += await checkOne(baseUrl + "/" + asset, "root " + asset, { expectStatus: OK_STATUSES });
   }
   return failed;

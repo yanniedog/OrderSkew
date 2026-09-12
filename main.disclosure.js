@@ -1,3 +1,4 @@
+/* Verified release cache recovery 2026-09-12: replace immutable URLs previously cached as HTML. */
 // Keep collapsed settings understandable without adding more controls to the page.
 document.addEventListener('DOMContentLoaded', () => {
     const field = id => document.getElementById(id);
