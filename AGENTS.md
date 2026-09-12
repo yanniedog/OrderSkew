@@ -37,7 +37,7 @@ These rules are mandatory and override any conflicting preference.
 | Purpose | Command | Notes |
 |-----|---|---|
 | Full production test (exhaustive battery) | `npm run test:production:all` | From repo root. Runs site-wide HTTP, asset checks (root + all tools), link checker, 404 checks, Novel Indicator API, Domain Name Wizard E2E. Optional: `SKIP_API_HEALTH=1` or `SKIP_NOVEL_API=1` to skip API; `PRODUCTION_SITE_WIDE_CONSOLE=1` for root/hub console checks; `PRODUCTION_FULL_E2E=1` for optional E2E (root, NAB, Crypto ATH, Novel); `PRODUCTION_KEYWORD_VERIFY=1` for Domain Name Wizard keyword E2E. Requires Playwright (e.g. in `pages/domainname_wizard/source/`). |
-| Domain Wizard full test (unit + E2E) | `npm run test:domainname_wizard` | From repo root. Requires `npm install` and `npx playwright install chromium` in `pages/domainname_wizard/source/`. |
+| Domain Wizard full test (unit + E2E) | `npm run test:domainname_wizard` | From repo root. Requires `npm ci --prefix pages/domainname_wizard/source` and `npx --prefix pages/domainname_wizard/source playwright install chromium`. |
 
 ## Subproject: Novel Indicator
 
@@ -64,7 +64,7 @@ These rules are mandatory and override any conflicting preference.
 - **Source**: `pages/domainname_wizard/source/`.
   - **Build**: `npm run build` (next build).
   - **Unit tests**: `npm test` (vitest run).
-  - **Full test from root**: `node test-domainname-wizard.js` (unit + static server + E2E Playwright). Requires `npm install` and `npx playwright install chromium` in `source/`.
+  - **Full test from root**: `node test-domainname-wizard.js` (unit + static server + E2E Playwright). Requires `npm ci` and `npx playwright install chromium` in `source/`.
 
 ## Subproject: Trading Plan Calculator (root)
 
