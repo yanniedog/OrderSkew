@@ -469,6 +469,15 @@ button.ghost {
     min-height: 44px;
   }
 
+  .play-board {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .play-board .grid {
+    min-width: max-content;
+  }
+
   .play-board button,
   .play-board .cell {
     min-width: 44px;

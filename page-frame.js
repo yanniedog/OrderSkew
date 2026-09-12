@@ -23,7 +23,7 @@
         repo: 'yanniedog/orderskew',
         pathnames: {
             main: [ '', '/' ],
-            toolsHub: [ '/pages', '/pages/' ]
+            toolsHub: [ '/tools', '/tools/', '/pages', '/pages/' ]
         },
         commitLabel: 'Latest commit (main)',
         commitLoading: 'Loading latest commit\u2026',
@@ -50,11 +50,14 @@
     var repo = script.getAttribute('data-repo') || CONFIG.repo;
 
     var cssHref = script.src.replace(/page-frame\.js(\?.*)?$/, 'page-frame.css');
-    var cssVersion = script.getAttribute('data-frame-css-version') || '20260606';
-    var link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = cssHref + (cssHref.indexOf('?') >= 0 ? '&' : '?') + 'v=' + cssVersion;
-    document.head.appendChild(link);
+    if (!document.querySelector('link[data-order-skew-frame]')) {
+        var cssVersion = script.getAttribute('data-frame-css-version') || '20260912';
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.setAttribute('data-order-skew-frame', '');
+        link.href = cssHref + (cssHref.indexOf('?') >= 0 ? '&' : '?') + 'v=' + cssVersion;
+        document.head.appendChild(link);
+    }
     var fontLink = document.createElement('link');
     fontLink.rel = 'stylesheet';
     fontLink.href = 'https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Space+Grotesk:wght@500;600&display=swap';
@@ -68,7 +71,6 @@
     }
 
     var mainHref  = rootPath + '/index.html';
-    var toolsHref = rootPath + '/pages/index.html';
 
     var arrowSvg = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" ' +
         'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
@@ -81,14 +83,10 @@
 
         var links = '';
 
-        if (pageType === 'main') {
-            links += '<a class="os-frame-link" href="' + toolsHref + '">' + arrowSvg + ' Tools</a>';
-        }
         if (pageType === 'tools-hub') {
             links += '<a class="os-frame-link" href="' + mainHref + '">' + arrowSvg + ' OrderSkew Home</a>';
         }
         if (pageType === 'tool') {
-            links += '<a class="os-frame-link" href="' + toolsHref + '">' + arrowSvg + ' All Tools</a>';
             links += '<a class="os-frame-link" href="' + mainHref + '">' + arrowSvg + ' OrderSkew Home</a>';
         }
 

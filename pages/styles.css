@@ -181,9 +181,6 @@ h1 {
     }
 
     .card-link {
-        display: inline-flex;
-        align-items: center;
-        min-height: 44px;
         padding: 10px 0;
     }
 }

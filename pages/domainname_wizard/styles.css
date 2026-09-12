@@ -758,8 +758,7 @@ td.est-val {
     gap: 8px 12px;
   }
 
-  .domain-filters label,
-  .domain-filters input {
+  .domain-filters label {
     min-width: 0;
     flex: 1 1 100%;
   }

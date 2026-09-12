@@ -273,21 +273,6 @@ body:has(.os-frame-nav) {
         font-size: 0.66rem;
     }
 
-    .os-frame-commit-link,
-    .os-frame-debug-link {
-        display: inline-flex;
-        align-items: center;
-        min-height: 44px;
-        padding: 0.35rem 0.5rem;
-    }
-
-    .os-frame-debug-btn {
-        min-height: 44px;
-        min-width: 44px;
-        padding: 0.45rem 0.85rem;
-        font-size: 0.72rem;
-    }
-
     .os-frame-footer-inner {
         gap: 6px 10px;
     }
