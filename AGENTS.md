@@ -1,6 +1,6 @@
 # Order Skew Project Configuration
 
-Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools hub at `pages/`, and multiple subprojects with different deploy and test flows.
+Order Skew is a monorepo containing the Trading Plan Calculator (root), a tools hub at `tools/`, and multiple subprojects with different deploy and test flows.
 
 ## Hard Enforcement Rules (Must Always Be Followed)
 
@@ -30,7 +30,7 @@ These rules are mandatory and override any conflicting preference.
 
 - **Production URL**: https://www.orderskew.com
 - **Hosting model**: Static site + optional backends. Main app and tools hub are static; Novel Indicator uses Cloudflare Worker + D1 for auth/profile; Domain Name Wizard backend can be Vercel (Next.js) or Cloudflare Worker.
-- **Tools hub**: `pages/index.html` links to NAB homeloan calculator, Novel Indicator, Domain Name Wizard, and Top 20 Ex-Stable ATH Drawdown Cycles. All under `pages/<tool>/`.
+- **Tools hub**: `tools/index.html` serves `/tools/`; `/tools` normalizes to this physical directory. Its base URL is `/pages/`, where the five individual tools and hub assets remain. Legacy `/pages` hub URLs redirect to `/tools/`. Avoid proxying to an `index.html` route: Cloudflare's HTML normalization can turn that proxy into a redirect loop. Verify the real host with `npm run test:tools-route:production` (optional arguments replace the default www and apex origins); this checks the hub and link resolution without opening individual tools.
 
 ## Repo-Level Commands
 
@@ -48,7 +48,7 @@ These rules are mandatory and override any conflicting preference.
   - **Typecheck**: `npm run typecheck`
   - **Test**: `npm run test` (vitest run)
   - **Deploy**: `npm run deploy` (wrangler deploy). Route must be `orderskew.com/api/*` (see `wrangler.toml`). Requires D1 DB, migrations applied, and secrets (e.g. SESSION_SECRET, GOOGLE_CLIENT_SECRET).
-- **CI**: `.github/workflows/novel-indicator-ci.yml` (on changes under `tools/novel_indicator/**`, `pages/index.html`, `README.md`). Runs frontend build, API typecheck + tests, D1 migration check, and guardrails below.
+- **CI**: `.github/workflows/novel-indicator-ci.yml` (on changes under `tools/novel_indicator/**`, `tools/index.html`, `README.md`). Runs frontend build, API typecheck + tests, D1 migration check, and guardrails below.
 
 ### Novel Indicator Guardrails (CI and local)
 
@@ -69,6 +69,9 @@ These rules are mandatory and override any conflicting preference.
 ## Subproject: Trading Plan Calculator (root)
 
 - **Entry**: root `index.html`; static, CDN deps. No build step. Local dev: e.g. `python -m http.server 8000`.
+- **Workspace design**: `workspace.css` owns tokens and the shell; `workspace.controls.css`, `workspace.results.css`, `workspace.responsive.css` and `workspace.dialogs.css` separate controls, output, breakpoints and dialogs. The root page has its own header/footer and does not load the shared subpage frame. Keep calculator interactions instant. Check light/dark themes, direct mode buttons, mobile section links, visible settings, overview accounting, menus and dialogs after UI changes.
+- **Asset versions**: Edit the root source files, then run `npm run assets:calculator` and commit both `index.html` and generated `calculator-assets/`. Each deployed filename includes a hash of its content; do not edit generated copies. Production overrides short cache lifetimes, so query versions and revalidation headers alone did not protect returning sessions. Content filenames make long caching safe. `npm run test:calculator` rejects stale references, missing/tampered artifacts and obsolete generated filenames. Hashes normalize CRLF/LF for portable checkouts.
+- **Calculator checks**: Node 22+, no root dependencies to install. Run `npm run test:calculator` for accounting, validation, precision, configuration and CSV regressions. CI runs this command and JavaScript syntax checks. Browser QA must also cover the root calculator at desktop and mobile widths; the numerical suite does not establish browser or production correctness.
 
 ## Deployment Verification Checklist
 
@@ -117,8 +120,8 @@ These rules are mandatory and override any conflicting preference.
 
 The startup update script already runs `npm install` in the JS/TS subprojects (`tools/novel_indicator/frontend`, `tools/novel_indicator/cloudflare_api`, `apps/worker`, `home-loan-archive`, `pages/domainname_wizard/source`) and installs Playwright chromium in `pages/domainname_wizard/source`. No root `npm install` is needed (root `package.json` has no dependencies).
 
-- **Run the core product locally**: it is a static site with no build step. Serve from repo root with `python3 -m http.server 8000`, then open `http://localhost:8000/index.html` (Trading Plan Calculator) or `http://localhost:8000/pages/index.html` (tools hub). See `README.md`.
-- **`npm run test:production:all` targets the LIVE `https://www.orderskew.com` by default**, not localhost. For local verification pass a local base URL and skip unreachable backends, e.g. `SKIP_NOVEL_API=1 node test-production-all.js http://localhost:8000`. It will still try Domain Name Wizard production sub-steps against the passed URL. Only expect a clean exit `0` against real production with deployed backends (per the Hard Enforcement Rules above).
+- **Run the core product locally**: it is a static site with no build step. Serve from repo root with `python3 -m http.server 8000`, then open `http://localhost:8000/index.html` (Trading Plan Calculator) or `http://localhost:8000/tools/index.html` (tools hub). See `README.md`.
+- **`npm run test:production:all` targets the LIVE `https://www.orderskew.com` by default**, not localhost. For local verification pass a local base URL and skip unreachable backends, e.g. `SKIP_NOVEL_API=1 node test-production-all.js http://localhost:8000`. Domain Name Wizard production sub-steps use hardcoded production URLs and do not receive the passed local base URL. Only expect a clean exit `0` against real production with deployed backends (per the Hard Enforcement Rules above).
 - **Playwright E2E runs headless** here; `node test-domainname-wizard.js` (unit + local static server + E2E) passes in this environment. Subproject unit tests: `cloudflare_api` and `apps/worker` use `npm test` (vitest); `home-loan-archive` uses the workers vitest pool.
 - **No lint step is configured** anywhere; TypeScript projects use `npm run typecheck` (or `npm run build`) as the closest check.
 - **Optional/uninstalled by default**: the BoardSpace Atlas RL Python backend (`tools/boardspace_atlas_rl`, FastAPI + heavy `torch`) and the legacy Python backend are not installed by the update script and are not required for the static products; install them manually only if working on that backend.

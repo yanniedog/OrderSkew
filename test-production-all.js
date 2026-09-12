@@ -5,7 +5,7 @@
  * Steps: site-wide HTTP, asset checks, link checker + 404, Novel Indicator API, optional E2E, Domain Name Wizard production, keyword verify (optional), Domain Name Wizard backend health (optional).
  */
 
-const { execSync } = require("child_process");
+const { execSync, execFileSync } = require("child_process");
 
 const baseUrl = process.argv[2] || "https://www.orderskew.com";
 const rootDir = __dirname;
@@ -26,6 +26,18 @@ function run(name, command, cwd = rootDir) {
 
 console.error("[test-production-all] Base URL: " + baseUrl);
 console.error("[test-production-all] Root: " + rootDir);
+
+console.error("[test-production-all] Step: Tools hub routing and launch destinations");
+const hubOrigins = ["www.orderskew.com", "orderskew.com"].includes(new URL(baseUrl).hostname)
+  ? [] : [baseUrl];
+try {
+  execFileSync(process.execPath, ["scripts/verify-tools-route.cjs", ...hubOrigins], {
+    cwd: rootDir, stdio: "inherit",
+  });
+} catch (err) {
+  console.error("[test-production-all] FAILED: Tools hub routing and launch destinations");
+  process.exit(1);
+}
 
 run(
   "Site-wide (root, tools hub, tool URLs)",

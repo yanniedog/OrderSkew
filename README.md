@@ -27,7 +27,7 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 
 ## Architecture Notes
 - `index.html` hosts the static app shell and loads CDN dependencies (Tailwind CSS, D3.js v7, `html2canvas`, and `jsPDF`).
-- Core logic is split across focused scripts: `app.js` (shared constants/state/calculator primitives), `main.navigation.js`, `main.ui.js`, `main.calculator.js`, `main.events.js`, and `main.js` (bootstrap/composition).
+- Core logic is split across focused scripts: `app.js` (shared constants/state/calculator primitives), `main.navigation.js`, `main.ui.js`, `main.calculator.js`, `main.events.workspace.js`, and `main.js` (bootstrap/composition).
 - `State.currentPlanData` remains the single source of truth so charts, tables, exports, and summaries stay consistent.
 - Sell-only workflows clone baseline buy ladders, track executed rungs, and derive existing positions for accurate profit and fee calculations.
 
