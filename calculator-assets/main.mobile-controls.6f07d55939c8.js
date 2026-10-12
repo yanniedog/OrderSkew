@@ -11,6 +11,35 @@
         control.input.value = String(Number(Math.min(max, Math.max(min, current + direction * step)).toPrecision(12)));
         control.input.dispatchEvent(new Event('input', { bubbles: true }));
     }
+    function bindStepButton(button, step) {
+        let timer;
+        let suppressClick = false;
+        const stop = () => { clearTimeout(timer); timer = null; };
+        const repeat = () => {
+            if (button.getClientRects?.().length === 0) return stop();
+            step();
+            timer = setTimeout(repeat, 100);
+        };
+        button.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || event.isPrimary === false) return;
+            event.preventDefault();
+            stop();
+            suppressClick = true;
+            button.focus({ preventScroll: true });
+            button.setPointerCapture?.(event.pointerId);
+            step();
+            timer = setTimeout(repeat, 350);
+        });
+        button.addEventListener('click', event => {
+            if (event.detail === 0 || !suppressClick) step();
+            suppressClick = false;
+        });
+        ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(event => button.addEventListener(event, stop));
+        button.addEventListener('contextmenu', event => event.preventDefault());
+        window.addEventListener('blur', stop);
+        window.addEventListener('pagehide', stop);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+    }
     function addSteppers(control) {
         const group = document.createElement('div');
         group.className = 'mobile-stepper';
@@ -18,7 +47,7 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent = direction < 0 ? '−' : '+';
-            button.addEventListener('click', () => stepControl(control, direction));
+            bindStepButton(button, () => stepControl(control, direction));
             return button;
         });
         group.append(buttons[0], control.input, buttons[1]);

@@ -12,6 +12,7 @@ function mobileHarness() {
         append(...children) { this.children.push(...children); }
         setAttribute(name, value) { this.attributes[name] = value; }
         getAttribute(name) { return this.attributes[name] || null; }
+        focus() {}
     }
     const ids = {};
     const fields = { startCap: 'starting_capital', currPrice: 'current_price', currPriceSell: 'current_price_sell',
@@ -26,8 +27,14 @@ function mobileHarness() {
         source.addEventListener('input', () => h.App.calculatePlan());
     });
     ['mobile-controls', 'mobile-controls-fields', 'mobile-controls-skew', 'mobile-controls-status'].forEach(id => { ids[id] = new Element(); });
-    const doc = { activeElement: null, getElementById: id => ids[id], createElement: () => new Element(),
-        addEventListener: (event, callback) => callback() };
+    const doc = Object.assign(new EventTarget(), { activeElement: null, getElementById: id => ids[id], createElement: () => new Element() });
+    doc.addEventListener = (event, callback) => event === 'DOMContentLoaded' ? callback()
+        : EventTarget.prototype.addEventListener.call(doc, event, callback);
+    h.context.window = Object.assign(new EventTarget(), h.context.window);
+    const timers = new Map();
+    let timerId = 0;
+    h.context.setTimeout = callback => { timers.set(++timerId, callback); return timerId; };
+    h.context.clearTimeout = id => timers.delete(id);
     h.context.document = doc;
     h.context.Event = Event;
     h.context.App = h.App;
@@ -39,7 +46,11 @@ function mobileHarness() {
         const input = group.children.length ? group.children[1] : group;
         return [input.id.replace('mobile-control-', ''), { label, input, buttons: group.children }];
     }));
-    return { ...h, ids, doc, controls, edit(name, value) {
+    return { ...h, ids, doc, controls, timers, tick() {
+        const [id, callback] = timers.entries().next().value;
+        timers.delete(id);
+        callback();
+    }, edit(name, value) {
         const input = controls[name].input;
         doc.activeElement = input;
         input.value = value;
@@ -91,6 +102,39 @@ test('price stepping preserves small positive asset prices', () => {
     h.controls.price.buttons[0].dispatchEvent(new Event('click'));
     assert.equal(h.els.currPrice.value, '0.0000099');
     assert.ok(h.State.currentPlanData.buyLadder.every(row => row.price > 0));
+});
+
+test('holding a step button repeats live changes, stops on release and does not double-count its click', () => {
+    const h = mobileHarness();
+    const button = h.controls.orders.buttons[2];
+    const down = Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0, pointerId: 1 });
+    button.dispatchEvent(down);
+    assert.equal(down.defaultPrevented, true);
+    assert.equal(h.State.currentPlanData.buyLadder.length, 11);
+    h.tick();
+    h.tick();
+    assert.equal(h.State.currentPlanData.buyLadder.length, 13);
+    button.dispatchEvent(new Event('pointerup'));
+    assert.equal(h.timers.size, 0);
+    button.dispatchEvent(Object.assign(new Event('click'), { detail: 1 }));
+    assert.equal(h.State.currentPlanData.buyLadder.length, 13);
+    button.dispatchEvent(Object.assign(new Event('click'), { detail: 0 }));
+    assert.equal(h.State.currentPlanData.buyLadder.length, 14);
+});
+
+test('cancelled pointers and window blur stop held steps, and repeat respects order limits', () => {
+    const h = mobileHarness();
+    const button = h.controls.orders.buttons[0];
+    const hold = () => button.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
+    h.edit('orders', '3');
+    hold();
+    h.tick();
+    assert.equal(h.State.currentPlanData.buyLadder.length, 2);
+    button.dispatchEvent(new Event('pointercancel'));
+    assert.equal(h.timers.size, 0);
+    hold();
+    h.context.window.dispatchEvent(new Event('blur'));
+    assert.equal(h.timers.size, 0);
 });
 
 test('mobile controls follow sell-only holdings and fixed bounds without editing hidden buy settings', () => {
