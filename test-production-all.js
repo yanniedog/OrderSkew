@@ -10,7 +10,9 @@ const retired = ['/tools', '/tools/', '/tools/index.html', '/pages', '/pages/', 
   '/pages/crypto_ath_drawdown_cycles/', '/pages/boardspace_atlas/', '/page-frame.js',
   '/api/crypto-ath/coingecko', '/api/crypto-ath/binance', '/api/domains/availability', '/api/names/generate',
   '/api/runs/ingest', '/api/runs/profile', '/api/dev-ecosystem', '/api/health', '/api/version', '/api/nonexistent',
-  '/apps/web/index.html', '/tools/novel_indicator/frontend/package.json', '/pages/domainname_wizard/app.js'];
+  '/apps/web/index.html', '/tools/novel_indicator/frontend/package.json', '/pages/domainname_wizard/app.js',
+  '/pages/nab_homeloan_calculator/index.html', '/pages/novel_indicator/index.html', '/pages/domainname_wizard/index.html',
+  '/pages/crypto_ath_drawdown_cycles/index.html', '/pages/boardspace_atlas/index.html', '/api/home-loan-rates/latest'];
 
 async function request(url, redirect = 'follow') {
   const response = await fetch(url, { redirect, signal: AbortSignal.timeout(20000) });
