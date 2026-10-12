@@ -24,6 +24,10 @@ const retiredApi = [
   ['GET', '/api/me'], ['GET', '/api/me/preferences'], ['PUT', '/api/me/preferences'],
   ['GET', '/api/me/runs'], ['POST', '/api/me/runs'],
   ['GET', '/api/me/runs/retirement-probe'], ['DELETE', '/api/me/runs/retirement-probe'],
+  ['POST', '/api/v1/session/start'], ['POST', '/api/v1/analyze'],
+  ['POST', '/api/v1/session/retirement-probe/human-move'],
+  ['POST', '/api/v1/session/retirement-probe/ai-move'],
+  ['POST', '/api/v1/session/retirement-probe/ai-move/start'], ['GET', '/api/v1/jobs/retirement-probe'],
   ...['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].flatMap(method =>
     ['/api/home-loan-rates', '/api/home-loan-rates/latest', '/api/nonexistent'].map(route => [method, route]))
 ];

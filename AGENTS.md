@@ -15,7 +15,7 @@ OrderSkew is the standalone Trading Plan Calculator. Former tools are preserved 
 
 Production: https://www.orderskew.com. Static deploys follow main pushes. Root `404.html` prevents the static host's SPA fallback from serving the calculator at former tool paths. Do not restore redirects to the tools hub.
 
-The `functions/api/[[path]].js` catch-all only returns HTTP 410 for retired tool APIs on every method. It must never call former backends or store data.
+The retirement handlers under `functions/` only return HTTP 410 for former tool APIs/pages on every method, bypassing cached static responses. They must never call former backends or store data. Root calculator assets remain static.
 
 The former Vercel Domain Name Wizard backend project is disconnected from this Git repository. Its historical deployments and data are retained separately; it must not deploy from OrderSkew or gate calculator changes.
 
