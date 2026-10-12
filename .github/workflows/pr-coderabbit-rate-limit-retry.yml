@@ -86,8 +86,8 @@ jobs:
           BODY="${COMMENT_BODY:-}"
           CREATED="${COMMENT_CREATED_AT:-}"
           if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ -z "$BODY" ]; then
-            META="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
-              --jq '[.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
+            META="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --slurp \
+              --jq 'add | [.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
                 and (.body|test("Review limit reached|rate limited by coderabbit|reached your PR review limit";"i")))]
                 | sort_by(.created_at) | reverse | .[0] // empty | {body, created_at}')"
             if [ -z "$META" ] || [ "$META" = "null" ]; then
@@ -98,8 +98,9 @@ jobs:
             CREATED="$(printf '%s' "$META" | jq -r .created_at)"
           fi
 
-          REVIEWED_AFTER="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/reviews" --paginate \
+          REVIEWED_AFTER="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/reviews" --paginate --slurp \
             | jq --arg after "$CREATED" '
+              add |
               [.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
                 and .submitted_at > $after
                 and (.state=="COMMENTED" or .state=="APPROVED" or .state=="CHANGES_REQUESTED")
@@ -110,8 +111,9 @@ jobs:
             exit 0
           fi
 
-          ARMED="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
+          ARMED="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --slurp \
             | jq --arg after "$CREATED" --arg marker "$RETRY_MARKER" '
+              add |
               ( [.[] | select(.created_at > $after and (.body|contains($marker)) and (.body|test("@coderabbitai\\s+review";"i")))]
                 | map(.created_at) | max ) as $retry
               | ( [.[] | select(.created_at > $after
@@ -186,8 +188,9 @@ jobs:
             exit 0
           fi
 
-          REVIEWED_AFTER="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/reviews" --paginate \
+          REVIEWED_AFTER="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/reviews" --paginate --slurp \
             | jq --arg after "$CREATED" '
+              add |
               [.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
                 and .submitted_at > $after
                 and (.state=="COMMENTED" or .state=="APPROVED" or .state=="CHANGES_REQUESTED")
