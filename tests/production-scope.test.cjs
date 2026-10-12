@@ -6,10 +6,10 @@ const http = require('node:http');
 const { execFile } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 
-async function checkDeployment(t, toolStillHosted, apiStillHosted = false) {
+async function checkDeployment(t, toolStillHosted, activeApiRoute = null) {
     const server = http.createServer((request, response) => {
         const route = new URL(request.url, 'http://localhost').pathname;
-        if (route === '/api/domains/availability' && request.method === 'POST' && apiStillHosted) {
+        if (route === activeApiRoute && request.method === 'POST') {
             response.end('{"available":true}');
             return;
         }
@@ -46,9 +46,15 @@ test('production suite rejects a former tools hub still being served', async t =
 });
 
 test('production suite rejects a POST-only tool API still being served', async t => {
-    const result = await checkDeployment(t, false, true);
+    const result = await checkDeployment(t, false, '/api/domains/availability');
     assert.equal(result.error.code, 1);
     assert.match(result.stderr, /domains\/availability POST: expected retired API 404\/410, got 200/);
+});
+
+test('production suite rejects a BoardSpace POST API still being served', async t => {
+    const result = await checkDeployment(t, false, '/api/v1/session/start');
+    assert.equal(result.error.code, 1);
+    assert.match(result.stderr, /v1\/session\/start POST: expected retired API 404\/410, got 200/);
 });
 
 test('the retired API catch-all returns 410 for every method without invoking a backend', async () => {
