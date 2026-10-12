@@ -6,7 +6,7 @@ const http = require('node:http');
 const { execFile } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 
-async function checkDeployment(t, toolStillHosted, activeApiRoute = null) {
+async function checkDeployment(t, toolStillHosted, activeApiRoute = null, redirectAssets = false) {
     const server = http.createServer((request, response) => {
         const route = new URL(request.url, 'http://localhost').pathname;
         if (route === activeApiRoute && request.method === 'POST') {
@@ -17,8 +17,13 @@ async function checkDeployment(t, toolStillHosted, activeApiRoute = null) {
             response.end('<!doctype html><h1>Old tools hub</h1>');
             return;
         }
-        const local = route === '/' ? 'index.html' : route.slice(1);
-        if (route === '/' || route.startsWith('/calculator-assets/')) {
+        if (route.startsWith('/calculator-assets/') && redirectAssets) {
+            response.writeHead(302, { Location: route.replace('/calculator-assets/', '/mirrored-assets/') });
+            response.end();
+            return;
+        }
+        const local = route === '/' ? 'index.html' : route.replace('/mirrored-assets/', '/calculator-assets/').slice(1);
+        if (route === '/' || route.startsWith('/calculator-assets/') || route.startsWith('/mirrored-assets/')) {
             response.setHeader('Content-Type', local.endsWith('.css') ? 'text/css' : local.endsWith('.js') ? 'text/javascript' : 'text/html');
             response.end(fs.readFileSync(path.join(root, local)));
         } else {
@@ -55,6 +60,13 @@ test('production suite rejects a BoardSpace POST API still being served', async 
     const result = await checkDeployment(t, false, '/api/v1/session/start');
     assert.equal(result.error.code, 1);
     assert.match(result.stderr, /v1\/session\/start POST: expected retired API 404\/410, got 200/);
+});
+
+test('production suite rejects redirected assets even when the target serves valid current bytes', async t => {
+    const result = await checkDeployment(t, false, null, true);
+    assert.equal(result.error.code, 1);
+    assert.match(result.stderr, /calculator-assets\/.*\.css/);
+    assert.match(result.stderr, /302 !== 200/);
 });
 
 test('the retired API catch-all returns 410 for every method without invoking a backend', async () => {

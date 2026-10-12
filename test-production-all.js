@@ -54,7 +54,7 @@ async function checkCalculator(origin) {
 async function checkAssets(origin) {
   for (const asset of expected) {
     const url = `${origin}/${asset}`;
-    const response = await request(url);
+    const response = await request(url, 'manual');
     assert.equal(response.status, 200, asset);
     assert.equal(validateAssetResponse(url, response.headers, response.body), null, asset);
     const local = fs.readFileSync(path.join(__dirname, asset.split('?')[0]), 'utf8').replace(/\r\n/g, '\n');
