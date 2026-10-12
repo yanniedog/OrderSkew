@@ -99,7 +99,7 @@ jobs:
           fi
 
           REVIEWED_AFTER="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/reviews" --paginate \
-            --jq --arg after "$CREATED" '
+            | jq --arg after "$CREATED" '
               [.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
                 and .submitted_at > $after
                 and (.state=="COMMENTED" or .state=="APPROVED" or .state=="CHANGES_REQUESTED")
@@ -111,7 +111,7 @@ jobs:
           fi
 
           ARMED="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate \
-            --jq --arg after "$CREATED" --arg marker "$RETRY_MARKER" '
+            | jq --arg after "$CREATED" --arg marker "$RETRY_MARKER" '
               ( [.[] | select(.created_at > $after and (.body|contains($marker)) and (.body|test("@coderabbitai\\s+review";"i")))]
                 | map(.created_at) | max ) as $retry
               | ( [.[] | select(.created_at > $after
@@ -127,45 +127,45 @@ jobs:
           fi
 
           WAIT_MIN="$(BODY="$BODY" python3 - <<'PY'
-import os, re
-text = os.environ.get("BODY") or ""
-patterns = [
-    r"next review available in[:\s*]*\*?\*?(\d+)\s*minutes?",
-    r"more reviews will be available in\s+(\d+)\s*minutes?",
-    r"available in[:\s*]*\*?\*?(\d+)\s*minutes?",
-    r"next review available in[:\s*]*\*?\*?(\d+)\s*hours?",
-    r"more reviews will be available in\s+(\d+)\s*hours?",
-    r"available in[:\s*]*\*?\*?(\d+)\s*hours?",
-]
-for pat in patterns:
-    m = re.search(pat, text, re.I)
-    if not m:
-        continue
-    n = int(m.group(1))
-    if re.search(r"hours?", m.group(0), re.I) and not re.search(r"minutes?", m.group(0), re.I):
-        print(n * 60)
-    else:
-        print(n)
-    raise SystemExit
-print(60)
-PY
-)"
+          import os, re
+          text = os.environ.get("BODY") or ""
+          patterns = [
+              r"next review available in[:\s*]*\*?\*?(\d+)\s*minutes?",
+              r"more reviews will be available in\s+(\d+)\s*minutes?",
+              r"available in[:\s*]*\*?\*?(\d+)\s*minutes?",
+              r"next review available in[:\s*]*\*?\*?(\d+)\s*hours?",
+              r"more reviews will be available in\s+(\d+)\s*hours?",
+              r"available in[:\s*]*\*?\*?(\d+)\s*hours?",
+          ]
+          for pat in patterns:
+              m = re.search(pat, text, re.I)
+              if not m:
+                  continue
+              n = int(m.group(1))
+              if re.search(r"hours?", m.group(0), re.I) and not re.search(r"minutes?", m.group(0), re.I):
+                  print(n * 60)
+              else:
+                  print(n)
+              raise SystemExit
+          print(60)
+          PY
+          )"
 
           BUFFER_MIN=2
           MAX_WAIT_MIN=120
           SLEEP_SEC="$(CREATED="$CREATED" WAIT_MIN="$WAIT_MIN" BUFFER_MIN="$BUFFER_MIN" MAX_WAIT_MIN="$MAX_WAIT_MIN" python3 - <<'PY'
-import os, datetime
-created = os.environ["CREATED"]
-wait = int(os.environ["WAIT_MIN"])
-buf = int(os.environ["BUFFER_MIN"])
-max_wait = int(os.environ["MAX_WAIT_MIN"])
-ts = datetime.datetime.fromisoformat(created.replace("Z", "+00:00"))
-ready = ts + datetime.timedelta(minutes=wait + buf)
-now = datetime.datetime.now(datetime.timezone.utc)
-sec = max(0, int((ready - now).total_seconds()))
-print(min(sec, max_wait * 60))
-PY
-)"
+          import os, datetime
+          created = os.environ["CREATED"]
+          wait = int(os.environ["WAIT_MIN"])
+          buf = int(os.environ["BUFFER_MIN"])
+          max_wait = int(os.environ["MAX_WAIT_MIN"])
+          ts = datetime.datetime.fromisoformat(created.replace("Z", "+00:00"))
+          ready = ts + datetime.timedelta(minutes=wait + buf)
+          now = datetime.datetime.now(datetime.timezone.utc)
+          sec = max(0, int((ready - now).total_seconds()))
+          print(min(sec, max_wait * 60))
+          PY
+          )"
 
           echo "PR #$PR rate-limited at ${CREATED}; wait_min=${WAIT_MIN}; sleep_sec=${SLEEP_SEC}"
           if [ "${NO_SLEEP:-false}" != "true" ] && [ "${SLEEP_SEC}" -gt 0 ]; then
@@ -187,7 +187,7 @@ PY
           fi
 
           REVIEWED_AFTER="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/reviews" --paginate \
-            --jq --arg after "$CREATED" '
+            | jq --arg after "$CREATED" '
               [.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
                 and .submitted_at > $after
                 and (.state=="COMMENTED" or .state=="APPROVED" or .state=="CHANGES_REQUESTED")
