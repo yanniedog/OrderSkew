@@ -1,6 +1,1 @@
-/pages /tools/ 301
-/pages/ /tools/ 301
-/pages/index.html /tools/ 301
-/pages/au_home_loan_rates /pages/ 301
-/pages/au_home_loan_rates/ /pages/ 301
-/pages/au_home_loan_rates/* /pages/ 301
+# Former tools are removed. 404.html disables the static host's SPA fallback.

@@ -1,8 +1,0 @@
-{
-  "name": "orderskew-bootstrap",
-  "publicApiBase": "/api",
-  "features": {
-    "health": true,
-    "version": true
-  }
-}
