@@ -36,18 +36,10 @@ An interactive, browser-based tool for designing and stress-testing staged buy a
 - When extending the calculator, preserve DRY principles by updating shared helpers (formatting, fee handling, export builders) instead of duplicating logic.
 - If you introduce new dependencies, prefer CDN builds compatible with static hosting since the project is currently serverless.
 
-## Additional Tools
-- `pages/index.html` is the tools hub.
-- `pages/novel_indicator/` hosts the Novel Indicator Lab static frontend.
-- Novel Indicator optimization and Binance data fetching run locally in the end user browser (Web Worker) with no login required for runs.
-- Optional account/profile persistence can still be handled by Cloudflare Worker + D1 when enabled.
-- Binance API rate limits apply per end-user IP because calls are made directly from the browser to Binance.
-- Full source for this tool lives under `tools/novel_indicator/` (frontend, Cloudflare API, migrations, deploy scripts, and legacy backend reference code).
-- `pages/domainname_wizard/` hosts a browser-native Domain Name Wizard tool with local worker processing.
-- Imported source snapshot from `C:\code\domainname-wizard` is stored at `pages/domainname_wizard/source/` (excluding `.next`, `node_modules`, and local env/debug artifacts).
-- Full automated test (unit + E2E): from repo root run `node test-domainname-wizard.js`. Requires `npm install` in `pages/domainname_wizard/source/` and Playwright browsers (`npx playwright install chromium` in that directory) for E2E.
-- `pages/crypto_ath_drawdown_cycles/` hosts the Top 20 Ex-Stable ATH Drawdown Cycles tool (CoinGecko non-stable top-20 ranking + Binance daily USDT cycle analysis with structured JSON output).
-- `pages/boardspace_atlas/` hosts BoardSpace Atlas with an in-browser synthetic archive plus an optional live-play client that can connect to a user-supplied AlphaZero-style backend.
-- BoardSpace Atlas backend source lives under `tools/boardspace_atlas_rl/` (FastAPI + PyTorch service, MCTS engine, self-play/training pipeline, and tests).
+## Former tools
 
+The five standalone tools and their backend source, shared assets, tests, lockfiles and history are preserved in [orderskew-tools-archive](https://github.com/yanniedog/orderskew-tools-archive). They are no longer hosted or developed in OrderSkew.
 
+## Verification
+
+Use Node 22+. Run `npm run test:calculator` locally. After deployment, run `npm run test:production:all`; it verifies calculator availability, deployed asset hashes/parity and real 404/410 responses for former tool routes on both production domains.

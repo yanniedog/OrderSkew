@@ -3,10 +3,6 @@
   Cache-Control: no-cache, must-revalidate
 /index.html
   Cache-Control: no-cache, must-revalidate
-/tools
-  Cache-Control: no-cache, must-revalidate
-/tools/
-  Cache-Control: no-cache, must-revalidate
 
 # Revalidate root calculator assets as well as HTML across releases.
 /calculator-assets/*

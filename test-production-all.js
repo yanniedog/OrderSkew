@@ -1,83 +1,60 @@
-/**
- * Run all production tests for www.orderskew.com. Exits 0 only if every step passes; 1 on first failure.
- * Usage: node test-production-all.js [baseUrl]
- * Example: node test-production-all.js https://www.orderskew.com
- * Steps: site-wide HTTP, asset checks, link checker + 404, Novel Indicator API, optional E2E, Domain Name Wizard production, keyword verify (optional), Domain Name Wizard backend health (optional).
- */
+// Calculator-only production verification; retired tools must return a real 404/410.
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const { extractCalculatorAssets, validateAssetSet, validateAssetResponse } = require('./scripts/validate-asset-response.cjs');
+const base = (process.argv[2] || process.env.BASE_URL || 'https://www.orderskew.com').replace(/\/$/, '');
+const expected = extractCalculatorAssets(fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8'));
+const retired = ['/tools', '/tools/', '/tools/index.html', '/pages', '/pages/', '/pages/index.html',
+  '/pages/nab_homeloan_calculator/', '/pages/novel_indicator/', '/pages/domainname_wizard/',
+  '/pages/crypto_ath_drawdown_cycles/', '/pages/boardspace_atlas/', '/page-frame.js',
+  '/api/crypto-ath/coingecko', '/api/crypto-ath/binance', '/api/domains/availability', '/api/names/generate',
+  '/api/runs/ingest', '/api/runs/profile', '/api/dev-ecosystem', '/api/health', '/api/version', '/api/nonexistent',
+  '/apps/web/index.html', '/tools/novel_indicator/frontend/package.json', '/pages/domainname_wizard/app.js',
+  '/pages/nab_homeloan_calculator/index.html', '/pages/novel_indicator/index.html', '/pages/domainname_wizard/index.html',
+  '/pages/crypto_ath_drawdown_cycles/index.html', '/pages/boardspace_atlas/index.html', '/api/home-loan-rates/latest'];
 
-const { execSync, execFileSync } = require("child_process");
+async function request(url, redirect = 'follow') {
+  const response = await fetch(url, { redirect, signal: AbortSignal.timeout(20000) });
+  return { status: response.status, body: await response.text(), headers: Object.fromEntries(response.headers) };
+}
 
-const baseUrl = process.argv[2] || "https://www.orderskew.com";
-const rootDir = __dirname;
+async function checkCalculator(origin) {
+  const response = await request(origin + '/');
+  assert.equal(response.status, 200, `${origin}: calculator must be available`);
+  assert.match(response.body, /Build your trading plan/);
+  assert.doesNotMatch(response.body, /(?:href|src)=["']\/?(?:tools|pages)\//i);
+  assert.equal(validateAssetSet(expected, extractCalculatorAssets(response.body)), null);
+  console.log(`PASS: ${origin} calculator availability, navigation and current asset references`);
+}
 
-function run(name, command, cwd = rootDir) {
-  console.error("[test-production-all] Step: " + name);
-  try {
-    execSync(command, {
-      cwd,
-      stdio: "inherit",
-      shell: true,
-    });
-  } catch (err) {
-    console.error("[test-production-all] FAILED: " + name);
-    process.exit(1);
+async function checkAssets() {
+  for (const asset of expected) {
+    const url = `${base}/${asset}`;
+    const response = await request(url);
+    assert.equal(response.status, 200, asset);
+    assert.equal(validateAssetResponse(url, response.headers, response.body), null, asset);
+    const local = fs.readFileSync(path.join(__dirname, asset.split('?')[0]), 'utf8').replace(/\r\n/g, '\n');
+    assert.equal(response.body.replace(/\r\n/g, '\n'), local, `${asset}: deployed bytes differ`);
   }
+  console.log(`PASS: ${expected.length} deployed calculator assets, MIME types, content hashes and checkout parity`);
 }
 
-console.error("[test-production-all] Base URL: " + baseUrl);
-console.error("[test-production-all] Root: " + rootDir);
-
-console.error("[test-production-all] Step: Tools hub routing and launch destinations");
-const hubOrigins = ["www.orderskew.com", "orderskew.com"].includes(new URL(baseUrl).hostname)
-  ? [] : [baseUrl];
-try {
-  execFileSync(process.execPath, ["scripts/verify-tools-route.cjs", ...hubOrigins], {
-    cwd: rootDir, stdio: "inherit",
-  });
-} catch (err) {
-  console.error("[test-production-all] FAILED: Tools hub routing and launch destinations");
-  process.exit(1);
+async function checkRetired(origin) {
+  for (const route of retired) {
+    const response = await request(origin + route, 'manual');
+    assert.ok([404, 410].includes(response.status), `${origin}${route}: expected retired route 404/410, got ${response.status}`);
+  }
+  console.log(`PASS: ${origin} all ${retired.length} former tool, hub, shared asset and API routes retired`);
 }
 
-run(
-  "Site-wide (root, tools hub, tool URLs)",
-  "node e2e-production-site-wide.js " + baseUrl.replace(/\/$/, "")
-);
+async function main() {
+  const production = ['www.orderskew.com', 'orderskew.com'].includes(new URL(base).hostname);
+  const origins = production ? ['https://www.orderskew.com', 'https://orderskew.com'] : [base];
+  for (const origin of origins) await checkCalculator(origin);
+  await checkAssets();
+  for (const origin of origins) await checkRetired(origin);
+  console.log('All calculator production and tool retirement checks passed. No checks skipped.');
+}
 
-run(
-  "Production asset checks (root, NAB, Crypto ATH, BoardSpace Atlas, Novel Indicator)",
-  "node e2e-production-assets.js " + baseUrl.replace(/\/$/, "")
-);
-
-run(
-  "Link checker and 404 checks",
-  "node e2e-production-links.js " + baseUrl.replace(/\/$/, "")
-);
-
-run(
-  "Novel Indicator API (health, session, login, me, 404); set SKIP_NOVEL_API=1 to skip or REQUIRE_NOVEL_API=1 to enforce",
-  "node e2e-production-novel-api.js " + baseUrl.replace(/\/$/, "")
-);
-
-run(
-  "Optional E2E (root, NAB, Crypto ATH, Novel); set PRODUCTION_FULL_E2E=1 to run",
-  "node e2e-production-optional-e2e.js " + baseUrl.replace(/\/$/, "")
-);
-
-run(
-  "Domain Name Wizard production (assets + static wizard + curated coverage)",
-  "npm run test:domainname_wizard:production:all"
-);
-
-run(
-  "Domain Name Wizard keyword verification (long); set PRODUCTION_KEYWORD_VERIFY=1 to run",
-  "node e2e-production-domainname-keyword.js " + baseUrl.replace(/\/$/, "")
-);
-
-run(
-  "Domain Name Wizard backend health; set DOMAINNAME_WIZARD_BACKEND_URL to run",
-  "node e2e-production-domainname-backend.js"
-);
-
-console.error("[test-production-all] All production checks passed.");
-process.exit(0);
+main().catch(error => { console.error(error.message); process.exitCode = 1; });
