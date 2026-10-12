@@ -8,12 +8,14 @@ OrderSkew is the standalone Trading Plan Calculator. Former tools are preserved 
 - Run `npm run test:calculator` and JavaScript syntax checks before merge.
 - Before claiming a deploy complete, run `npm run test:production:all` from the repository root. It must exit 0. Fix, redeploy and rerun on failure.
 - Final deploy reports must include the exact command, exit code and pass/fail summary by check group. Never describe unrun checks as passed.
-- The production suite verifies www/apex calculator availability, all current asset references, MIME types, hashes and local parity, plus real 404/410 responses for retired tool/hub/API routes. It has no skip flags or backend/tool tests.
+- The production suite verifies www/apex calculator availability and asset MIME types, hashes and local parity on each origin, plus real 404/410 responses for retired tool/hub routes and supported API method/path pairs. It has no skip flags or backend/tool tests.
 - Browser QA must cover desktop/mobile calculator edits, light/dark themes, live graph/table updates and console errors.
 
 ## Hosting
 
 Production: https://www.orderskew.com. Static deploys follow main pushes. Root `404.html` prevents the static host's SPA fallback from serving the calculator at former tool paths. Do not restore redirects to the tools hub.
+
+The `functions/api/[[path]].js` catch-all only returns HTTP 410 for retired tool APIs on every method. It must never call former backends or store data.
 
 The former Vercel Domain Name Wizard backend project is disconnected from this Git repository. Its historical deployments and data are retained separately; it must not deploy from OrderSkew or gate calculator changes.
 

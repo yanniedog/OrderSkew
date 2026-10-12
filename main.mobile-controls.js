@@ -8,8 +8,42 @@
         const step = whole ? 1 : 10 ** (Math.floor(Math.log10(Math.abs(current) || 100)) - 2);
         const min = control.name === 'orders' ? 2 : control.name === 'range' ? 0.1 : step;
         const max = control.input.max ? Number(control.input.max) : Infinity;
-        control.input.value = String(Number(Math.min(max, Math.max(min, current + direction * step)).toPrecision(12)));
+        const next = Number(Math.min(max, Math.max(min, current + direction * step)).toPrecision(12));
+        if (next === current) return false;
+        control.input.value = String(next);
         control.input.dispatchEvent(new Event('input', { bubbles: true }));
+        return next > min && next < max;
+    }
+    function bindStepButton(button, step) {
+        let timer;
+        let activePointer;
+        let suppressClick = false;
+        const stop = () => { clearTimeout(timer); timer = null; activePointer = undefined; };
+        const repeat = () => {
+            if (button.getClientRects?.().length === 0 || step() === false) return stop();
+            timer = setTimeout(repeat, 100);
+        };
+        button.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || event.isPrimary === false || activePointer !== undefined) return;
+            event.preventDefault();
+            stop();
+            suppressClick = true;
+            activePointer = event.pointerId;
+            button.focus({ preventScroll: true });
+            button.setPointerCapture?.(event.pointerId);
+            if (step() !== false) timer = setTimeout(repeat, 350);
+        });
+        button.addEventListener('click', event => {
+            if (event.detail === 0 || !suppressClick) step();
+            if (event.detail !== 0) suppressClick = false;
+        });
+        ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => button.addEventListener(type, event => {
+            if (event.pointerId === activePointer) stop();
+        }));
+        button.addEventListener('contextmenu', event => event.preventDefault());
+        window.addEventListener('blur', stop);
+        window.addEventListener('pagehide', stop);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
     }
     function addSteppers(control) {
         const group = document.createElement('div');
@@ -18,7 +52,7 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent = direction < 0 ? '−' : '+';
-            button.addEventListener('click', () => stepControl(control, direction));
+            bindStepButton(button, () => stepControl(control, direction));
             return button;
         });
         group.append(buttons[0], control.input, buttons[1]);

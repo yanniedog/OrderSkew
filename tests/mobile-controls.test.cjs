@@ -4,15 +4,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const harness = require('./calculator-harness.cjs');
+const { setMaxListeners } = require('node:events');
 
-function mobileHarness() {
-    const h = harness({}, 'buy-only');
-    class Element extends EventTarget {
-        constructor() { super(); this.value = ''; this.attributes = {}; this.children = []; }
-        append(...children) { this.children.push(...children); }
-        setAttribute(name, value) { this.attributes[name] = value; }
-        getAttribute(name) { return this.attributes[name] || null; }
-    }
+function fakeClock(context) {
+    const timers = new Map();
+    let timerId = 0;
+    context.setTimeout = (callback, delay) => { timers.set(++timerId, { callback, delay }); return timerId; };
+    context.clearTimeout = id => timers.delete(id);
+    return { timers, tick(expectedDelay) {
+        const [id, { callback, delay }] = timers.entries().next().value;
+        if (expectedDelay !== undefined) assert.equal(delay, expectedDelay);
+        timers.delete(id);
+        callback();
+    } };
+}
+
+function wireSources(h, Element) {
     const ids = {};
     const fields = { startCap: 'starting_capital', currPrice: 'current_price', currPriceSell: 'current_price_sell',
         existQty: 'existing_quantity', rungsInput: 'number_of_rungs_input', depthInput: 'depth_input',
@@ -25,9 +32,28 @@ function mobileHarness() {
         h.els[key] = source;
         source.addEventListener('input', () => h.App.calculatePlan());
     });
+    return ids;
+}
+
+function mobileHarness() {
+    const h = harness({}, 'buy-only');
+    const captures = new Map();
+    class Element extends EventTarget {
+        constructor() { super(); this.value = ''; this.attributes = {}; this.children = []; }
+        append(...children) { this.children.push(...children); }
+        setAttribute(name, value) { this.attributes[name] = value; }
+        getAttribute(name) { return this.attributes[name] || null; }
+        focus() {}
+        setPointerCapture(id) { captures.set(id, this); }
+    }
+    const ids = wireSources(h, Element);
     ['mobile-controls', 'mobile-controls-fields', 'mobile-controls-skew', 'mobile-controls-status'].forEach(id => { ids[id] = new Element(); });
-    const doc = { activeElement: null, getElementById: id => ids[id], createElement: () => new Element(),
-        addEventListener: (event, callback) => callback() };
+    const doc = Object.assign(new EventTarget(), { activeElement: null, getElementById: id => ids[id], createElement: () => new Element() });
+    doc.addEventListener = (event, callback) => event === 'DOMContentLoaded' ? callback()
+        : EventTarget.prototype.addEventListener.call(doc, event, callback);
+    h.context.window = Object.assign(new EventTarget(), h.context.window);
+    setMaxListeners(12, doc, h.context.window);
+    const clock = fakeClock(h.context);
     h.context.document = doc;
     h.context.Event = Event;
     h.context.App = h.App;
@@ -39,7 +65,12 @@ function mobileHarness() {
         const input = group.children.length ? group.children[1] : group;
         return [input.id.replace('mobile-control-', ''), { label, input, buttons: group.children }];
     }));
-    return { ...h, ids, doc, controls, edit(name, value) {
+    return { ...h, ...clock, ids, doc, controls, captures, release(pointerId, type = 'pointerup') {
+        const owner = captures.get(pointerId);
+        (owner || doc).dispatchEvent(Object.assign(new Event(type), { pointerId }));
+        captures.delete(pointerId);
+        owner?.dispatchEvent(Object.assign(new Event('lostpointercapture'), { pointerId }));
+    }, edit(name, value) {
         const input = controls[name].input;
         doc.activeElement = input;
         input.value = value;
@@ -91,6 +122,78 @@ test('price stepping preserves small positive asset prices', () => {
     h.controls.price.buttons[0].dispatchEvent(new Event('click'));
     assert.equal(h.els.currPrice.value, '0.0000099');
     assert.ok(h.State.currentPlanData.buyLadder.every(row => row.price > 0));
+});
+
+test('holding a step button repeats live changes, stops on release and does not double-count its click', () => {
+    const h = mobileHarness();
+    const button = h.controls.orders.buttons[2];
+    const down = Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0, pointerId: 1 });
+    button.dispatchEvent(down);
+    assert.equal(down.defaultPrevented, true);
+    assert.equal(h.State.currentPlanData.buyLadder.length, 11);
+    assert.equal(h.captures.get(1), button);
+    h.tick(350);
+    h.tick(100);
+    assert.equal(h.State.currentPlanData.buyLadder.length, 13);
+    h.release(1);
+    assert.equal(h.timers.size, 0);
+    button.dispatchEvent(Object.assign(new Event('click'), { detail: 1 }));
+    assert.equal(h.State.currentPlanData.buyLadder.length, 13);
+    button.dispatchEvent(Object.assign(new Event('click'), { detail: 0 }));
+    assert.equal(h.State.currentPlanData.buyLadder.length, 14);
+});
+
+test('cancelled pointers and window blur stop held steps, and repeat respects order limits', () => {
+    const h = mobileHarness();
+    const button = h.controls.orders.buttons[0];
+    const hold = () => button.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
+    h.edit('orders', '3');
+    hold();
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.State.currentPlanData.buyLadder.length, 2);
+    h.release(1, 'pointercancel');
+    assert.equal(h.timers.size, 0);
+    h.edit('orders', '10');
+    hold();
+    h.context.window.dispatchEvent(new Event('blur'));
+    assert.equal(h.timers.size, 0);
+});
+
+test('unrelated pointers cannot interrupt a hold and keyboard clicks do not add a release step', () => {
+    const h = mobileHarness();
+    const button = h.controls.orders.buttons[2];
+    const pointer = (type, pointerId) => button.dispatchEvent(Object.assign(new Event(type), { button: 0, pointerId }));
+    pointer('pointerdown', 1);
+    pointer('pointerdown', 2);
+    pointer('pointerup', 2);
+    h.tick(350);
+    assert.equal(h.els.rungsInput.value, '12');
+    button.dispatchEvent(Object.assign(new Event('click'), { detail: 0 }));
+    assert.equal(h.els.rungsInput.value, '13');
+    h.release(1);
+    button.dispatchEvent(Object.assign(new Event('click'), { detail: 1 }));
+    assert.equal(h.els.rungsInput.value, '13');
+    assert.equal(h.timers.size, 0);
+});
+
+test('held steps stop at both bounds without dispatching redundant input updates', () => {
+    const h = mobileHarness();
+    let updates = 0;
+    h.els.rungsInput.addEventListener('input', () => updates++);
+    for (const [start, index, bound] of [['49', 2, '50'], ['3', 0, '2']]) {
+        h.edit('orders', start);
+        updates = 0;
+        const button = h.controls.orders.buttons[index];
+        button.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
+        assert.equal(h.els.rungsInput.value, bound);
+        assert.equal(updates, 1);
+        assert.equal(h.timers.size, 0);
+        h.release(1);
+        button.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
+        assert.equal(updates, 1);
+        assert.equal(h.timers.size, 0);
+        h.release(1);
+    }
 });
 
 test('mobile controls follow sell-only holdings and fixed bounds without editing hidden buy settings', () => {
