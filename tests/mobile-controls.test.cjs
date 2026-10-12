@@ -4,18 +4,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const harness = require('./calculator-harness.cjs');
+const { setMaxListeners } = require('node:events');
 
-function mobileHarness() {
-    const h = harness({}, 'buy-only');
-    const captures = new Map();
-    class Element extends EventTarget {
-        constructor() { super(); this.value = ''; this.attributes = {}; this.children = []; }
-        append(...children) { this.children.push(...children); }
-        setAttribute(name, value) { this.attributes[name] = value; }
-        getAttribute(name) { return this.attributes[name] || null; }
-        focus() {}
-        setPointerCapture(id) { captures.set(id, this); }
-    }
+function fakeClock(context) {
+    const timers = new Map();
+    let timerId = 0;
+    context.setTimeout = (callback, delay) => { timers.set(++timerId, { callback, delay }); return timerId; };
+    context.clearTimeout = id => timers.delete(id);
+    return { timers, tick(expectedDelay) {
+        const [id, { callback, delay }] = timers.entries().next().value;
+        if (expectedDelay !== undefined) assert.equal(delay, expectedDelay);
+        timers.delete(id);
+        callback();
+    } };
+}
+
+function wireSources(h, Element) {
     const ids = {};
     const fields = { startCap: 'starting_capital', currPrice: 'current_price', currPriceSell: 'current_price_sell',
         existQty: 'existing_quantity', rungsInput: 'number_of_rungs_input', depthInput: 'depth_input',
@@ -28,15 +32,28 @@ function mobileHarness() {
         h.els[key] = source;
         source.addEventListener('input', () => h.App.calculatePlan());
     });
+    return ids;
+}
+
+function mobileHarness() {
+    const h = harness({}, 'buy-only');
+    const captures = new Map();
+    class Element extends EventTarget {
+        constructor() { super(); this.value = ''; this.attributes = {}; this.children = []; }
+        append(...children) { this.children.push(...children); }
+        setAttribute(name, value) { this.attributes[name] = value; }
+        getAttribute(name) { return this.attributes[name] || null; }
+        focus() {}
+        setPointerCapture(id) { captures.set(id, this); }
+    }
+    const ids = wireSources(h, Element);
     ['mobile-controls', 'mobile-controls-fields', 'mobile-controls-skew', 'mobile-controls-status'].forEach(id => { ids[id] = new Element(); });
     const doc = Object.assign(new EventTarget(), { activeElement: null, getElementById: id => ids[id], createElement: () => new Element() });
     doc.addEventListener = (event, callback) => event === 'DOMContentLoaded' ? callback()
         : EventTarget.prototype.addEventListener.call(doc, event, callback);
     h.context.window = Object.assign(new EventTarget(), h.context.window);
-    const timers = new Map();
-    let timerId = 0;
-    h.context.setTimeout = (callback, delay) => { timers.set(++timerId, { callback, delay }); return timerId; };
-    h.context.clearTimeout = id => timers.delete(id);
+    setMaxListeners(12, doc, h.context.window);
+    const clock = fakeClock(h.context);
     h.context.document = doc;
     h.context.Event = Event;
     h.context.App = h.App;
@@ -48,16 +65,11 @@ function mobileHarness() {
         const input = group.children.length ? group.children[1] : group;
         return [input.id.replace('mobile-control-', ''), { label, input, buttons: group.children }];
     }));
-    return { ...h, ids, doc, controls, timers, captures, release(pointerId, type = 'pointerup') {
+    return { ...h, ...clock, ids, doc, controls, captures, release(pointerId, type = 'pointerup') {
         const owner = captures.get(pointerId);
         (owner || doc).dispatchEvent(Object.assign(new Event(type), { pointerId }));
         captures.delete(pointerId);
         owner?.dispatchEvent(Object.assign(new Event('lostpointercapture'), { pointerId }));
-    }, tick(expectedDelay) {
-        const [id, { callback, delay }] = timers.entries().next().value;
-        if (expectedDelay !== undefined) assert.equal(delay, expectedDelay);
-        timers.delete(id);
-        callback();
     }, edit(name, value) {
         const input = controls[name].input;
         doc.activeElement = input;
