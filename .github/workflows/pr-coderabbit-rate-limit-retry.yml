@@ -87,7 +87,7 @@ jobs:
           CREATED="${COMMENT_CREATED_AT:-}"
           if [ "$EVENT_NAME" = "workflow_dispatch" ] || [ -z "$BODY" ]; then
             META="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --slurp \
-              --jq 'add | [.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
+              | jq 'add | [.[] | select((.user.login=="coderabbitai[bot]" or .user.login=="coderabbitai")
                 and (.body|test("Review limit reached|rate limited by coderabbit|reached your PR review limit";"i")))]
                 | sort_by(.created_at) | reverse | .[0] // empty | {body, created_at}')"
             if [ -z "$META" ] || [ "$META" = "null" ]; then

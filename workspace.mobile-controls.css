@@ -9,21 +9,27 @@
     }
     .mobile-controls summary {
         display:flex; align-items:center; justify-content:space-between;
-        min-height:48px; padding:8px 16px; cursor:pointer; font-weight:700; list-style:none;
+        min-height:44px; padding:0 12px; cursor:pointer; font-weight:700; list-style:none;
     }
     .mobile-controls summary::-webkit-details-marker { display:none; }
     .mobile-controls summary::after { content:'+'; font-size:22px; }
     .mobile-controls[open] summary::after { content:'−'; }
-    .mobile-controls-status { margin-left:auto; margin-right:16px; font-size:14px; color:var(--color-text-secondary); }
+    .mobile-controls-status { margin-left:auto; margin-right:8px; font-size:14px; color:var(--color-text-secondary); }
+    #mobile-skew-toggle { min-width:44px; min-height:44px; margin-right:8px; font-size:14px; color:var(--color-primary); }
     .mobile-controls-fields {
-        display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; padding:0 16px 12px;
+        display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; padding:0 10px 8px;
         max-height:34dvh; overflow-y:auto; overscroll-behavior:contain;
     }
-    .mobile-controls-fields label { display:grid; gap:4px; min-width:0; font-size:16px; }
-    .mobile-controls-fields label[hidden] { display:none; }
-    .mobile-controls-fields label:last-child { grid-column:1 / -1; }
-    .mobile-controls-fields .form-input { width:100%; min-width:0; min-height:44px; padding:8px 10px; font-size:16px; }
-    .mobile-controls-fields input[type=range] { padding:0; accent-color:var(--color-primary); }
+    .mobile-control-field { display:grid; gap:0; min-width:0; font-size:16px; }
+    .mobile-control-field > label { margin:0; line-height:22px; }
+    .mobile-control-field[hidden],.mobile-controls-skew[hidden] { display:none; }
+    .mobile-stepper { display:grid; grid-template-columns:44px minmax(0,1fr) 44px; border:1px solid var(--color-border-strong); border-radius:6px; overflow:hidden; }
+    .mobile-stepper button { min-height:44px; font-size:22px; background:var(--color-card-muted); color:var(--color-primary); touch-action:manipulation; }
+    .mobile-stepper .form-input { width:100%; min-width:0; height:44px; margin:0; padding:4px 2px; font-size:16px; border:0; border-radius:0; text-align:center; appearance:textfield; }
+    .mobile-stepper input::-webkit-inner-spin-button { appearance:none; }
+    .mobile-controls-skew { padding:0 12px 8px; }
+    .mobile-controls-skew .mobile-control-field { display:flex; align-items:center; gap:12px; }
+    .mobile-controls-skew input[type=range] { flex:1; min-width:0; min-height:44px; padding:0; accent-color:var(--color-primary); }
     .mobile-controls-fields [aria-invalid=true] { outline:2px solid var(--color-invalid); }
     /* Stable end space avoids scroll anchoring jumps when the panel appears. */
     .workspace { padding-bottom:calc(34dvh + 84px + env(safe-area-inset-bottom)); }

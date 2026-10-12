@@ -19,11 +19,13 @@ function mobileHarness() {
         skew: 'skew_value', priceRangeMode: 'price_range_mode', buyFloor: 'buy_floor', sellCeiling: 'sell_ceiling' };
     Object.entries(fields).forEach(([key, id]) => {
         const source = Object.assign(new Element(), h.els[key]);
+        if (key === 'rungsInput') source.max = '50';
+        if (key === 'depthInput') source.max = '99';
         ids[id] = source;
         h.els[key] = source;
         source.addEventListener('input', () => h.App.calculatePlan());
     });
-    ['mobile-controls', 'mobile-controls-fields', 'mobile-controls-status'].forEach(id => { ids[id] = new Element(); });
+    ['mobile-controls', 'mobile-controls-fields', 'mobile-controls-skew', 'mobile-controls-status'].forEach(id => { ids[id] = new Element(); });
     const doc = { activeElement: null, getElementById: id => ids[id], createElement: () => new Element(),
         addEventListener: (event, callback) => callback() };
     h.context.document = doc;
@@ -32,9 +34,10 @@ function mobileHarness() {
     h.context.window.App = h.App;
     h.calculate();
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'main.mobile-controls.js'), 'utf8'), h.context);
-    const controls = Object.fromEntries(ids['mobile-controls-fields'].children.map(label => {
-        const input = label.children[1];
-        return [input.id.replace('mobile-control-', ''), { label, input }];
+    const controls = Object.fromEntries([...ids['mobile-controls-fields'].children, ...ids['mobile-controls-skew'].children].map(label => {
+        const group = label.children[1];
+        const input = group.children.length ? group.children[1] : group;
+        return [input.id.replace('mobile-control-', ''), { label, input, buttons: group.children }];
     }));
     return { ...h, ids, doc, controls, edit(name, value) {
         const input = controls[name].input;
@@ -57,6 +60,37 @@ test('mobile edits recalculate the shared plan and empty edits clear stale outpu
     assert.equal(h.State.currentPlanData, null);
     assert.equal(h.controls.orders.input.value, '');
     assert.equal(h.ids['mobile-controls-status'].textContent, 'Check inputs');
+});
+
+test('step buttons update live orders, capital and price while respecting range and order limits', () => {
+    const h = mobileHarness();
+    const click = (name, direction) => h.controls[name].buttons[direction > 0 ? 2 : 0].dispatchEvent(new Event('click'));
+    click('orders', 1);
+    assert.equal(h.State.currentPlanData.buyLadder.length, 11);
+    click('amount', 1);
+    assert.equal(h.els.startCap.value, '50100');
+    click('price', -1);
+    assert.equal(h.els.currPrice.value, '99');
+    h.edit('orders', '50');
+    click('orders', 1);
+    assert.equal(h.State.currentPlanData.buyLadder.length, 50);
+    h.edit('orders', '2');
+    click('orders', -1);
+    assert.equal(h.State.currentPlanData.buyLadder.length, 2);
+    h.edit('range', '99');
+    click('range', 1);
+    assert.equal(h.els.depthInput.value, '99');
+    h.edit('range', '0.1');
+    click('range', -1);
+    assert.equal(h.els.depthInput.value, '0.1');
+});
+
+test('price stepping preserves small positive asset prices', () => {
+    const h = mobileHarness();
+    h.edit('price', '0.00001');
+    h.controls.price.buttons[0].dispatchEvent(new Event('click'));
+    assert.equal(h.els.currPrice.value, '0.0000099');
+    assert.ok(h.State.currentPlanData.buyLadder.every(row => row.price > 0));
 });
 
 test('mobile controls follow sell-only holdings and fixed bounds without editing hidden buy settings', () => {
