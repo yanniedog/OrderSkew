@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="calculator-assets/workspace.b792dcf64130.css">
     <link rel="stylesheet" href="calculator-assets/workspace.controls.ff76a6c9d7ff.css">
     <link rel="stylesheet" href="calculator-assets/workspace.results.3c33c7f99acb.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.responsive.8980dd1647b2.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.responsive.0e29b8138a4b.css">
     <link rel="stylesheet" href="calculator-assets/workspace.dialogs.cc7079b6d0c5.css">
     <link rel="stylesheet" href="calculator-assets/workspace.mobile-controls.4c4ee1233159.css">
 </head>
@@ -297,7 +297,7 @@
         </nav>
     </header>
     <div class="page-heading"><div><h1>Build your trading plan.</h1><p class="page-description">Set your starting point. Explore the result. Refine when you need to.</p></div><span class="local-status"><span></span>Calculated in your browser</span></div>
-    <nav class="mobile-jump-nav" aria-label="Workspace sections"><a href="#config-column">Set up</a><a href="#graph-column">Results</a><a href="#data-tables-card">Orders</a></nav>
+    <nav class="mobile-jump-nav" aria-label="Workspace sections"><a href="#depth-chart-card">Graph</a><a href="#config-column">Settings</a><a href="#data-tables-card">Orders</a></nav>
     <main id="main-content-grid" class="app-layout-grid">
         <aside id="config-column" class="controls-column" aria-label="Plan settings">
     <form id="trading-plan-form" onsubmit="return false;">
@@ -386,6 +386,9 @@
                 <p id="profit-note" class="profit-note"></p>
             </section>
             <section id="depth-chart-card" class="chart-card">
+                <nav class="mobile-setting-shortcuts" aria-label="Quick settings">
+                    <a href="#config-column">Mode</a><a href="#range-settings" data-mobile-setting>Range</a><a href="#fee-settings" data-mobile-setting>Fees</a>
+                </nav>
                 <div class="chart-heading"><div><h2>Order ladder</h2><p class="subtle-label">Your orders across the price range</p></div></div>
                 <div class="chart-toolbar"><details class="view-settings chart-settings"><summary>Chart options <svg class="disclosure-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 9l6 6 6-6"/></svg></summary><div class="view-settings-content"><div class="segmented-control chart-unit"><button id="chart-unit-volume" class="chart-toggle-btn active" type="button" title="Asset quantity (volume)">Quantity</button><button id="chart-unit-value" class="chart-toggle-btn" type="button" title="Dollar value">Value</button></div><div id="chart-display-options" class="chart-display-options"><label><input id="chart-show-bars" type="checkbox" checked>Orders</label><label><input id="chart-show-cumulative" type="checkbox" checked>Cumulative</label></div></div></details><div id="chart-legend" class="chart-legend"><span id="chart-buy-legend" class="buy-only-content"><i class="buy-dot"></i><span id="legend-buy-label">Buy</span></span><span class="sell-only-content"><i class="sell-dot"></i><span id="legend-sell-label">Sell</span></span><span id="mid-price-label" class="subtle-label"></span></div></div>
                 <div id="depth-wrapper" class="d3-chart"><svg id="depth-chart" role="img" aria-label="Order ladder; exact values are in the orders table below" width="100%" height="100%"></svg><div id="chart-empty-state" role="status" aria-live="polite" class="outputs-empty-state hidden"></div></div>
@@ -407,7 +410,7 @@
 <script src="calculator-assets/app.6943d8d901f9.js"></script>
 <script src="calculator-assets/calculator.plan.977ce21b99b1.js"></script>
 <script src="calculator-assets/wizard-questions.c390e9a339ad.js"></script>
-<script src="calculator-assets/wizard.dc8d34d87e2d.js"></script>
+<script src="calculator-assets/wizard.cf75d2e1c2eb.js"></script>
 <script src="calculator-assets/charts.73c9f434df0f.js"></script>
 <script src="calculator-assets/charts-how-it-works.ac5b0b2dcf37.js"></script>
 <script src="calculator-assets/main.navigation.b97581f73a71.js"></script>
@@ -416,10 +419,11 @@
 <script src="calculator-assets/main.accessibility.051e86a4b841.js"></script>
 <script src="calculator-assets/main.calculator.0054ab82937a.js"></script>
 <script src="calculator-assets/main.events.chart.3109a22a79c8.js"></script>
-<script src="calculator-assets/main.events.intro.9d4c8ca58cf9.js"></script>
+<script src="calculator-assets/main.events.intro.601f6e41c967.js"></script>
 <script src="calculator-assets/main.events.workspace.b7a9e2e49ceb.js"></script>
 <script src="calculator-assets/main.664578807c2e.js"></script>
 <script src="calculator-assets/main.disclosure.01c31ab5ef8a.js"></script>
+<script src="calculator-assets/main.mobile-workspace.245e94de2edd.js"></script>
 <script src="calculator-assets/fix-vscode-links.04b0e7cf2561.js"></script>
 <details id="mobile-controls" class="mobile-controls" aria-label="Quick plan controls" open>
     <summary>Adjust plan <span id="mobile-controls-status" class="mobile-controls-status" role="status" aria-live="polite">Live</span></summary>
@@ -431,7 +435,7 @@
         </div>
     </div>
 </details>
-<script src="calculator-assets/main.mobile-controls.199af2c991b0.js"></script>
+<script src="calculator-assets/main.mobile-controls.1877eaa51838.js"></script>
 </body>
 </html>
 

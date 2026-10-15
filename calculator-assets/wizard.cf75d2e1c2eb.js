@@ -727,6 +727,7 @@ const SetupWizard = {
         history.pushState({ introVisible: false }, '');
         
         if (window.App) window.App.calculatePlan();
+        window.dispatchEvent(new Event('orderskew:plan-ready'));
     },
 
     applyAnswers: () => {

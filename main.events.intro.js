@@ -54,6 +54,7 @@
                 App.setMode('pro');
                 App.calculatePlan();
                 history.pushState({ introVisible: false }, '');
+                window.dispatchEvent(new Event('orderskew:plan-ready'));
             });
         }
 
