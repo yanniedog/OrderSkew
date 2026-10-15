@@ -255,3 +255,21 @@ test('blank fixed-price bounds derive usable precision from a sub-dollar referen
     h.click(1);
     assert.ok(h.State.currentPlanData);
 });
+
+test('zero quantity refreshes its scale immediately after an external reference-price edit', () => {
+    const h = mobileHarness();
+    h.State.tradingMode = 'sell-only';
+    h.els.existQty.value = '0';
+    h.App.calculatePlan();
+    assert.equal(Number(h.slider.step), 0.01);
+    h.els.currPriceSell.value = '10000';
+    h.App.calculatePlan();
+    assert.equal(Number(h.slider.step), 0.0001);
+    assert.equal(Number(h.slider.max), 0.02);
+    h.els.currPriceSell.value = '10,000';
+    h.ids['mobile-step-up'].dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
+    assert.equal(h.els.existQty.value, '0.0001');
+    assert.equal(h.timers.size, 1);
+    h.release(1);
+    assert.equal(h.timers.size, 0);
+});
