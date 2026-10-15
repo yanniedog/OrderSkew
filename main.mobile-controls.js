@@ -46,11 +46,20 @@
         control.button.textContent = control.title;
         return Number(Utils.stripCommas(field(control.sourceId).value));
     }
+    function anchorValue(control, value) {
+        if (Number.isFinite(value) && value > 0) return value;
+        const raw = Number(Utils.stripCommas(field(State.tradingMode === 'sell-only' ? 'current_price_sell' : 'current_price').value));
+        const reference = Number.isFinite(raw) && raw > 0 ? raw : 1;
+        if (control.sourceId === 'existing_quantity') return 100 / reference;
+        if (['low', 'high'].includes(control.name)) return reference;
+        if (control.name === 'price') return 1;
+        return 100;
+    }
     function limits(control, value) {
         if (control.name === 'orders') return { min: 2, max: 50, step: 1 };
         if (control.name === 'range') return { min: 0.1, max: 99, step: 0.1 };
         if (control.name === 'skew') return { min: 0, max: 100, step: 1 };
-        const anchor = Number.isFinite(value) && value > 0 ? value : 100;
+        const anchor = anchorValue(control, value);
         const step = 10 ** (Math.floor(Math.log10(anchor)) - 2);
         let min = control.sourceId === 'existing_quantity' ? 0 : step;
         let max = Number((anchor * 2).toPrecision(12));

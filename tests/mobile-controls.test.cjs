@@ -216,3 +216,42 @@ test('capital and price fine steps can expand beyond the initial slider scale', 
     h.select('price'); h.slide(200); h.click(1);
     assert.equal(h.els.currPrice.value, '201');
 });
+
+test('zero holdings use the quote-price scale and can start with a fractional quantity', () => {
+    const h = mobileHarness();
+    h.State.tradingMode = 'sell-only';
+    h.els.existQty.value = '0';
+    h.els.currPriceSell.value = '10000';
+    h.App.calculatePlan();
+    assert.equal(h.slider.getAttribute('aria-label'), 'Quantity');
+    assert.equal(Number(h.slider.step), 0.0001);
+    h.click(1);
+    assert.equal(h.els.existQty.value, '0.0001');
+    assert.ok(h.State.currentPlanData);
+    h.slide(0.005);
+    assert.equal(h.els.existQty.value, '0.005');
+    assert.ok(Math.abs(h.State.currentPlanData.sellLadder.reduce((sum, row) => sum + row.assetSize, 0) - 0.005) < 1e-8);
+});
+
+test('blank fixed-price bounds derive usable precision from a sub-dollar reference price', () => {
+    const h = mobileHarness();
+    h.els.currPrice.value = '0.00001';
+    h.els.buyFloor.value = '';
+    h.els.priceRangeMode.value = 'floor';
+    h.App.calculatePlan();
+    h.select('low');
+    assert.equal(Number(h.slider.step), 0.0000001);
+    assert.ok(Number(h.slider.min) < Number(h.slider.max));
+    h.click(1);
+    assert.ok(Number(h.els.buyFloor.value) > 0 && Number(h.els.buyFloor.value) < 0.00001);
+    assert.ok(h.State.currentPlanData);
+    h.State.tradingMode = 'sell-only';
+    h.els.currPriceSell.value = '0.00001';
+    h.els.sellCeiling.value = '';
+    h.App.calculatePlan();
+    h.select('high');
+    assert.equal(Number(h.slider.step), 0.0000001);
+    assert.ok(Number(h.slider.min) > 0.00001 && Number(h.slider.min) < Number(h.slider.max));
+    h.click(1);
+    assert.ok(h.State.currentPlanData);
+});
