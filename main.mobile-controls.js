@@ -1,22 +1,8 @@
 // Mobile shortcuts use the full form events and validation as the source of truth.
 {
     const field = id => document.getElementById(id);
-    function stepControl(control, direction) {
-        const raw = Number(control.input.value);
-        const current = Number.isFinite(raw) ? raw : 0;
-        const whole = control.name === 'orders' || control.name === 'range';
-        const step = whole ? 1 : 10 ** (Math.floor(Math.log10(Math.abs(current) || 100)) - 2);
-        const min = control.name === 'orders' ? 2 : control.name === 'range' ? 0.1 : step;
-        const max = control.input.max ? Number(control.input.max) : Infinity;
-        const next = Number(Math.min(max, Math.max(min, current + direction * step)).toPrecision(12));
-        if (next === current) return false;
-        control.input.value = String(next);
-        control.input.dispatchEvent(new Event('input', { bubbles: true }));
-        return next > min && next < max;
-    }
     function bindStepButton(button, step) {
-        let timer;
-        let activePointer;
+        let timer, activePointer;
         let suppressClick = false;
         const stop = () => { clearTimeout(timer); timer = null; activePointer = undefined; };
         const repeat = () => {
@@ -44,105 +30,151 @@
         window.addEventListener('blur', stop);
         window.addEventListener('pagehide', stop);
         document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
+        return stop;
     }
-    function addSteppers(control) {
-        const group = document.createElement('div');
-        group.className = 'mobile-stepper';
-        const buttons = [-1, 1].map(direction => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = direction < 0 ? '−' : '+';
-            bindStepButton(button, () => stepControl(control, direction));
-            return button;
-        });
-        group.append(buttons[0], control.input, buttons[1]);
-        control.label.append(group);
-        control.buttons = buttons;
-    }
-    function createControl([name, title, sourceId], grid) {
-        const label = document.createElement('div');
-        label.className = 'mobile-control-field';
-        const caption = document.createElement('label');
-        const input = document.createElement('input');
-        caption.textContent = title;
-        input.id = `mobile-control-${name}`;
-        input.className = 'form-input';
-        input.type = name === 'skew' ? 'range' : 'number';
-        input.inputMode = name === 'orders' ? 'numeric' : 'decimal';
-        caption.htmlFor = input.id;
-        label.append(caption);
-        grid.append(label);
-        const control = { name, sourceId, label, caption, input };
-        if (name === 'skew') label.append(input);
-        else addSteppers(control);
-        input.addEventListener('input', () => {
-            const source = field(control.sourceId);
-            source.value = input.value;
-            source.dispatchEvent(new Event('input', { bubbles: true }));
-        });
-        return control;
-    }
-    function syncControl(control, sell, fixed) {
+    function describe(control) {
+        const sell = State.tradingMode === 'sell-only';
+        const fixed = field('price_range_mode').value === 'floor';
         if (control.name === 'amount') {
             control.sourceId = sell ? 'existing_quantity' : 'starting_capital';
-            control.caption.textContent = sell ? 'Held quantity' : 'Capital ($)';
+            control.title = sell ? 'Quantity' : 'Capital';
         }
         if (control.name === 'price') control.sourceId = sell ? 'current_price_sell' : 'current_price';
-        const source = field(control.sourceId);
-        control.label.hidden = (control.name === 'range' && fixed)
+        control.button.hidden = (control.name === 'range' && fixed)
             || (control.name === 'low' && (!fixed || sell))
             || (control.name === 'high' && (!fixed || State.tradingMode === 'buy-only'));
-        // Preserve an in-progress decimal or empty entry while the user types.
-        if (document.activeElement !== control.input) control.input.value = Utils.stripCommas(source.value);
-        control.input.min = source.min || '0';
-        control.input.max = source.max || '';
-        control.input.step = source.step || (control.name === 'orders' || control.name === 'skew' ? '1' : 'any');
-        control.input.setAttribute('aria-invalid', source.getAttribute('aria-invalid') || 'false');
-        if (control.name === 'skew') control.caption.textContent = `Skew · ${source.value}`;
-        control.buttons?.forEach((button, index) => {
-            button.setAttribute('aria-label', `${index ? 'Increase' : 'Decrease'} ${control.caption.textContent}`);
+        control.button.textContent = control.title;
+        return Number(Utils.stripCommas(field(control.sourceId).value));
+    }
+    function limits(control, value) {
+        if (control.name === 'orders') return { min: 2, max: 50, step: 1 };
+        if (control.name === 'range') return { min: 0.1, max: 99, step: 0.1 };
+        if (control.name === 'skew') return { min: 0, max: 100, step: 1 };
+        const anchor = Number.isFinite(value) && value > 0 ? value : 100;
+        const step = 10 ** (Math.floor(Math.log10(anchor)) - 2);
+        let min = control.sourceId === 'existing_quantity' ? 0 : step;
+        let max = Number((anchor * 2).toPrecision(12));
+        const price = Number(Utils.stripCommas(field('current_price').value));
+        if (control.name === 'low' && price > step) max = price - step;
+        if (control.name === 'high') {
+            const reference = Number(Utils.stripCommas(field(State.tradingMode === 'sell-only' ? 'current_price_sell' : 'current_price').value));
+            min = Number((reference + step).toPrecision(12));
+            max = Math.max(max, reference * 2);
+        }
+        return { min, max, step };
+    }
+    function displayValue(control, value) {
+        if (!Number.isFinite(value) || field(control.sourceId).value.trim() === '') return 'Check input';
+        const text = Number(value.toPrecision(8)).toLocaleString(undefined, { maximumSignificantDigits: 8 });
+        if (control.name === 'range') return `${text}%`;
+        return ['amount', 'price', 'low', 'high'].includes(control.name) && control.sourceId !== 'existing_quantity' ? `$${text}` : text;
+    }
+    function buildPicker(picker, select) {
+        return [['amount', 'Capital', 'starting_capital'], ['price', 'Price', 'current_price'],
+            ['orders', 'Orders', 'number_of_rungs_input'], ['range', 'Range', 'depth_input'],
+            ['skew', 'Skew', 'skew_value'], ['low', 'Buy low', 'buy_floor'], ['high', 'Sell high', 'sell_ceiling']]
+            .map(([name, title, sourceId]) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.id = `mobile-parameter-${name}`;
+                button.setAttribute('role', 'tab');
+                button.setAttribute('aria-controls', 'mobile-slider-panel');
+                picker.append(button);
+                const control = { name, title, sourceId, button };
+                button.addEventListener('click', () => select(control, true));
+                return control;
+            });
+    }
+    function bindPicker(picker, controls, select, current) {
+        picker.addEventListener('scroll', () => {
+            const center = picker.getBoundingClientRect().top + picker.clientHeight / 2;
+            const visible = controls.filter(control => !control.button.hidden);
+            const nearest = visible.reduce((best, control) => {
+                const distance = button => Math.abs(button.getBoundingClientRect().top + button.getBoundingClientRect().height / 2 - center);
+                return distance(control.button) < distance(best.button) ? control : best;
+            });
+            if (nearest !== current()) select(nearest, false);
+        });
+        picker.addEventListener('keydown', event => {
+            if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const visible = controls.filter(control => !control.button.hidden);
+            const index = visible.indexOf(current());
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? visible.length - 1
+                : Math.min(visible.length - 1, Math.max(0, index + (event.key === 'ArrowDown' ? 1 : -1)));
+            select(visible[next], true);
+            visible[next].button.focus({ preventScroll: true });
         });
     }
-    function bindPanel(panel) {
-        const toggle = field('mobile-skew-toggle');
-        toggle?.addEventListener('click', event => {
-            event.preventDefault();
-            const skew = field('mobile-controls-skew');
-            skew.hidden = !skew.hidden;
-            toggle.setAttribute('aria-expanded', String(!skew.hidden));
-            panel.open = true;
+    function render(model) {
+        const { controls, picker, slider } = model;
+        controls.forEach(describe);
+        if (!model.selected || model.selected.button.hidden) {
+            model.stops.forEach(stop => stop());
+            model.selected = controls.find(control => !control.button.hidden);
+            model.bounds = null;
+            model.selected.button.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+        }
+        const selected = model.selected, value = describe(selected);
+        const key = `${selected.sourceId}:${State.tradingMode}:${field('price_range_mode').value}`
+            + (['low', 'high'].includes(selected.name) ? `:${field('current_price').value}:${field('current_price_sell').value}` : '');
+        if (model.key && model.key !== key) model.stops.forEach(stop => stop());
+        if (!model.bounds || model.key !== key || value < model.bounds.min || value > model.bounds.max) model.bounds = limits(selected, value);
+        model.key = key;
+        controls.forEach(control => {
+            control.button.setAttribute('aria-selected', String(control === selected));
+            control.button.tabIndex = control === selected ? 0 : -1;
+        });
+        Object.assign(slider, model.bounds, { value: String(value) });
+        slider.setAttribute('aria-label', selected.title);
+        slider.setAttribute('aria-valuetext', displayValue(selected, value));
+        slider.setAttribute('aria-invalid', field(selected.sourceId).getAttribute('aria-invalid') || 'false');
+        field('mobile-slider-panel').setAttribute('aria-labelledby', selected.button.id);
+        field('mobile-control-value').textContent = displayValue(selected, value);
+        field('mobile-controls-status').textContent = State.currentPlanData ? 'Live' : 'Check inputs';
+    }
+    function setup(panel) {
+        const picker = field('mobile-parameter-picker'), slider = field('mobile-control-slider');
+        const model = { picker, slider };
+        const sync = () => render(model);
+        const stops = model.stops = [];
+        const select = (control, center) => {
+            stops.forEach(stop => stop());
+            model.selected = control;
+            model.bounds = null;
+            sync();
+            if (center) control.button.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+        };
+        const controls = model.controls = buildPicker(picker, select);
+        const apply = value => {
+            const source = field(model.selected.sourceId);
+            source.value = String(Number(value.toPrecision(12)));
+            source.dispatchEvent(new Event('input', { bubbles: true }));
+        };
+        slider.addEventListener('input', () => apply(Number(slider.value)));
+        [-1, 1].forEach(direction => stops.push(bindStepButton(field(direction < 0 ? 'mobile-step-down' : 'mobile-step-up'), () => {
+            const value = describe(model.selected);
+            const fine = limits(model.selected, value);
+            const max = ['orders', 'range', 'skew', 'low'].includes(model.selected.name) ? fine.max : Infinity;
+            const next = Math.min(max, Math.max(fine.min, value + direction * fine.step));
+            if (!Number.isFinite(next) || next === value) return false;
+            apply(next);
+            return next > fine.min && next < max;
+        })));
+        bindPicker(picker, controls, select, () => model.selected);
+        const calculate = App.calculatePlan;
+        App.calculatePlan = (...args) => { calculate(...args); sync(); };
+        panel.addEventListener('toggle', () => {
+            stops.forEach(stop => stop());
+            if (panel.open) model.selected.button.scrollIntoView?.({ block: 'center', inline: 'nearest' });
         });
         panel.addEventListener('keydown', event => {
-            if (event.key === 'Escape') {
-                panel.open = false;
-                panel.querySelector('summary').focus();
-            }
+            if (event.key === 'Escape') { panel.open = false; panel.querySelector('summary').focus(); }
         });
+        sync();
     }
     document.addEventListener('DOMContentLoaded', () => {
         const panel = field('mobile-controls');
-        const grid = field('mobile-controls-fields');
-        if (!panel || !window.App) return;
-        const definitions = [
-            ['amount', 'Capital ($)', 'starting_capital'],
-            ['price', 'Price ($)', 'current_price'],
-            ['orders', 'Orders', 'number_of_rungs_input'],
-            ['range', 'Range (%)', 'depth_input'],
-            ['low', 'Buy low ($)', 'buy_floor'],
-            ['high', 'Sell high ($)', 'sell_ceiling'],
-            ['skew', 'Skew', 'skew_value']
-        ];
-        const controls = definitions.map(definition => createControl(definition,
-            definition[0] === 'skew' ? field('mobile-controls-skew') : grid));
-        const sync = () => {
-            const sell = State.tradingMode === 'sell-only';
-            const fixed = field('price_range_mode').value === 'floor';
-            controls.forEach(control => syncControl(control, sell, fixed));
-            field('mobile-controls-status').textContent = State.currentPlanData ? 'Live' : 'Check inputs';
-        };
-        const calculate = App.calculatePlan;
-        App.calculatePlan = (...args) => { calculate(...args); sync(); };
-        bindPanel(panel);
-        sync();
+        if (panel && window.App) setup(panel);
     });
 }
