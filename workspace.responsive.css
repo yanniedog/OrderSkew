@@ -13,8 +13,6 @@
 }
 @media(max-width:980px) {
     #main-content-grid { grid-template-columns:1fr; gap:32px; }
-    #graph-column { order:-1; display:flex; flex-direction:column; }
-    #depth-chart-card { order:-1; }
     .mobile-setting-shortcuts { display:flex; gap:8px; margin-bottom:12px; }
     .mobile-setting-shortcuts a {
         flex:1; display:grid; place-items:center; min-height:44px; border-radius:6px;

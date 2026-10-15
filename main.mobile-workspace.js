@@ -1,6 +1,20 @@
 // Keep the graph in view on mobile without interrupting intentional navigation.
+function orderMobileWorkspace(mobile) {
+    const field = id => document.getElementById(id);
+    const focused = document.activeElement;
+    if (mobile.matches) {
+        field('config-column').before(field('graph-column'));
+        field('chart-summary-overlay').before(field('depth-chart-card'));
+    } else {
+        field('config-column').after(field('graph-column'));
+        field('chart-summary-overlay').after(field('depth-chart-card'));
+    }
+    if (focused !== document.activeElement) focused?.focus({ preventScroll: true });
+}
 document.addEventListener('DOMContentLoaded', () => {
     const mobile = window.matchMedia('(max-width: 980px)');
+    orderMobileWorkspace(mobile);
+    mobile.addEventListener('change', () => orderMobileWorkspace(mobile));
     const graph = document.getElementById('depth-chart-card');
     const settingIds = new Set(['range-settings', 'fee-settings']);
     const revealSetting = () => {
