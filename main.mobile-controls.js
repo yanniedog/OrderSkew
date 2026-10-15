@@ -7,7 +7,7 @@
         const stop = () => { clearTimeout(timer); timer = null; activePointer = undefined; };
         const repeat = () => {
             if (button.getClientRects?.().length === 0 || step() === false) return stop();
-            timer = setTimeout(repeat, 100);
+            if (activePointer !== undefined) timer = setTimeout(repeat, 100);
         };
         button.addEventListener('pointerdown', event => {
             if (event.button !== 0 || event.isPrimary === false || activePointer !== undefined) return;
@@ -17,7 +17,7 @@
             activePointer = event.pointerId;
             button.focus({ preventScroll: true });
             button.setPointerCapture?.(event.pointerId);
-            if (step() !== false) timer = setTimeout(repeat, 350);
+            if (step() !== false && activePointer === event.pointerId) timer = setTimeout(repeat, 350);
         });
         button.addEventListener('click', event => {
             if (event.detail === 0 || !suppressClick) step();
@@ -46,12 +46,24 @@
         control.button.textContent = control.title;
         return Number(Utils.stripCommas(field(control.sourceId).value));
     }
+    function anchorValue(control, value) {
+        const raw = Number(Utils.stripCommas(field(State.tradingMode === 'sell-only' ? 'current_price_sell' : 'current_price').value));
+        const reference = Number.isFinite(raw) && raw > 0 ? raw : 1;
+        const usable = Number.isFinite(value) && value > 0
+            && (control.name !== 'low' || value < reference)
+            && (control.name !== 'high' || value > reference);
+        if (usable) return value;
+        if (control.sourceId === 'existing_quantity') return 100 / reference;
+        if (['low', 'high'].includes(control.name)) return reference;
+        if (control.name === 'price') return 1;
+        return 100;
+    }
     function limits(control, value) {
         if (control.name === 'orders') return { min: 2, max: 50, step: 1 };
         if (control.name === 'range') return { min: 0.1, max: 99, step: 0.1 };
         if (control.name === 'skew') return { min: 0, max: 100, step: 1 };
-        const anchor = Number.isFinite(value) && value > 0 ? value : 100;
-        const step = 10 ** (Math.floor(Math.log10(anchor)) - 2);
+        const anchor = anchorValue(control, value);
+        const step = Number((10 ** (Math.floor(Math.log10(anchor)) - 2)).toPrecision(12));
         let min = control.sourceId === 'existing_quantity' ? 0 : step;
         let max = Number((anchor * 2).toPrecision(12));
         const price = Number(Utils.stripCommas(field('current_price').value));
@@ -116,8 +128,10 @@
             model.selected.button.scrollIntoView?.({ block: 'center', inline: 'nearest' });
         }
         const selected = model.selected, value = describe(selected);
-        const key = `${selected.sourceId}:${State.tradingMode}:${field('price_range_mode').value}`
-            + (['low', 'high'].includes(selected.name) ? `:${field('current_price').value}:${field('current_price_sell').value}` : '');
+        const usesReference = ['low', 'high'].includes(selected.name) || selected.sourceId === 'existing_quantity';
+        const references = usesReference ? ['current_price', 'current_price_sell']
+            .map(id => Number(Utils.stripCommas(field(id).value))).join(':') : '';
+        const key = `${selected.sourceId}:${State.tradingMode}:${field('price_range_mode').value}:${references}`;
         if (model.key && model.key !== key) model.stops.forEach(stop => stop());
         if (!model.bounds || model.key !== key || value < model.bounds.min || value > model.bounds.max) model.bounds = limits(selected, value);
         model.key = key;
