@@ -15,7 +15,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', revealSetting);
     revealSetting();
     const showGraph = () => {
-        if (mobile.matches) graph.scrollIntoView({ block: 'start', behavior: 'instant' });
+        // Modal focus restoration runs in a mutation observer before the next frame.
+        requestAnimationFrame(() => {
+            if (mobile.matches) graph.scrollIntoView({ block: 'start', behavior: 'instant' });
+        });
     };
     let interacted = false;
     ['pointerdown', 'touchstart', 'wheel', 'keydown'].forEach(type => {

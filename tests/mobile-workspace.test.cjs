@@ -16,9 +16,10 @@ function workspace({ mobile = true, hash = '', scrollY = 0, type = 'navigate' } 
         document, window, location, performance: { getEntriesByType: () => [{ type }] },
         requestAnimationFrame: callback => frames.push(callback)
     });
-    return { window, fields, links, snaps, location, load() {
+    const flushFrames = () => { while (frames.length) frames.shift()(); };
+    return { window, fields, links, snaps, location, flushFrames, load() {
         window.dispatchEvent(new Event('load'));
-        while (frames.length) frames.shift()();
+        flushFrames();
     } };
 }
 
@@ -44,5 +45,7 @@ test('quick settings and direct links reveal disclosures, and finished setup ret
     h.location.hash = '#fee-settings'; h.window.dispatchEvent(new Event('hashchange'));
     assert.equal(h.fields['fee-settings'].open, true);
     h.window.dispatchEvent(new Event('orderskew:plan-ready'));
+    assert.equal(h.snaps.length, 0, 'wait until modal focus has been restored');
+    h.flushFrames();
     assert.equal(h.snaps.length, 1);
 });
