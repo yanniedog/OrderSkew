@@ -153,11 +153,15 @@
         const sync = () => render(model);
         const stops = model.stops = [];
         const select = (control, center) => {
+            const changed = model.selected && model.selected !== control;
             stops.forEach(stop => stop());
             model.selected = control;
             model.bounds = null;
             sync();
             if (center) control.button.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+            if (changed && typeof navigator !== 'undefined' && navigator.vibrate) {
+                try { navigator.vibrate(8); } catch { /* Unsupported or blocked by the device. */ }
+            }
         };
         const controls = model.controls = buildPicker(picker, select);
         const apply = value => {
