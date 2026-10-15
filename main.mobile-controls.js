@@ -47,9 +47,12 @@
         return Number(Utils.stripCommas(field(control.sourceId).value));
     }
     function anchorValue(control, value) {
-        if (Number.isFinite(value) && value > 0) return value;
         const raw = Number(Utils.stripCommas(field(State.tradingMode === 'sell-only' ? 'current_price_sell' : 'current_price').value));
         const reference = Number.isFinite(raw) && raw > 0 ? raw : 1;
+        const usable = Number.isFinite(value) && value > 0
+            && (control.name !== 'low' || value < reference)
+            && (control.name !== 'high' || value > reference);
+        if (usable) return value;
         if (control.sourceId === 'existing_quantity') return 100 / reference;
         if (['low', 'high'].includes(control.name)) return reference;
         if (control.name === 'price') return 1;

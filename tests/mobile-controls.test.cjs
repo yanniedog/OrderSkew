@@ -273,3 +273,22 @@ test('zero quantity refreshes its scale immediately after an external reference-
     h.release(1);
     assert.equal(h.timers.size, 0);
 });
+
+test('fixed bounds can recover through the slider after a large reference-price change', () => {
+    const h = mobileHarness();
+    h.els.currPrice.value = '0.00001';
+    h.els.priceRangeMode.value = 'floor';
+    h.App.calculatePlan();
+    assert.equal(h.State.currentPlanData, null);
+    h.select('low');
+    assert.ok(Number(h.slider.min) < Number(h.slider.max) && Number(h.slider.max) < 0.00001);
+    h.click(-1);
+    assert.ok(h.State.currentPlanData);
+    h.State.tradingMode = 'sell-only';
+    h.els.currPriceSell.value = '10000';
+    h.App.calculatePlan();
+    h.select('high');
+    h.click(1);
+    assert.ok(Number(h.els.sellCeiling.value) > 10000);
+    assert.ok(h.State.currentPlanData);
+});
