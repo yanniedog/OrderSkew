@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-function workspace({ mobile = true, hash = '', scrollY = 0, type = 'navigate' } = {}) {
+function workspace({ mobile = true, hash = '', scrollY = 0, type = 'navigate', earlyInteraction } = {}) {
     const window = new EventTarget(), frames = [], snaps = [];
     const columns = ['config-column', 'graph-column'];
     const results = ['chart-summary-overlay', 'depth-chart-card', 'data-tables-card'];
@@ -13,8 +13,10 @@ function workspace({ mobile = true, hash = '', scrollY = 0, type = 'navigate' } 
     const media = Object.assign(new EventTarget(), { matches: mobile });
     Object.assign(window, { matchMedia: () => media, scrollY });
     const location = { hash };
+    let ready;
     const document = { getElementById: id => fields[id], querySelectorAll: () => links,
-        addEventListener: (name, callback) => callback() };
+        addEventListener: (name, callback) => { ready = callback; } };
+    fields['depth-chart-card'].focus = () => { document.activeElement = fields['depth-chart-card']; };
     document.activeElement = { focus: () => { document.activeElement = focused; } };
     const focused = document.activeElement;
     for (const group of [columns, results]) {
@@ -32,6 +34,8 @@ function workspace({ mobile = true, hash = '', scrollY = 0, type = 'navigate' } 
         document, window, location, performance: { getEntriesByType: () => [{ type }] },
         requestAnimationFrame: callback => frames.push(callback)
     });
+    if (earlyInteraction) window.dispatchEvent(new Event(earlyInteraction));
+    ready();
     const flushFrames = () => { while (frames.length) frames.shift()(); };
     return { window, fields, links, snaps, location, flushFrames, columns, results, media, document, focused, load() {
         window.dispatchEvent(new Event('load'));
@@ -61,6 +65,11 @@ test('initial graph landing respects deep links, restored position, history and 
     }
     const h = workspace(); h.window.dispatchEvent(new Event('pointerdown')); h.load();
     assert.equal(h.snaps.length, 0);
+    for (const earlyInteraction of ['pointerdown', 'touchstart', 'wheel', 'keydown']) {
+        const early = workspace({ earlyInteraction }); early.load(); assert.equal(early.snaps.length, 0);
+    }
+    const html = fs.readFileSync('index.html', 'utf8');
+    assert.ok(html.indexOf('main.mobile-workspace.') < html.indexOf('</head>'), 'guards must run before the page and blocking CDN scripts');
 });
 
 test('quick settings and direct links reveal disclosures, and finished setup returns to graph', () => {
@@ -75,4 +84,5 @@ test('quick settings and direct links reveal disclosures, and finished setup ret
     assert.equal(h.snaps.length, 0, 'wait until modal focus has been restored');
     h.flushFrames();
     assert.equal(h.snaps.length, 1);
+    assert.equal(h.document.activeElement, h.fields['depth-chart-card']);
 });

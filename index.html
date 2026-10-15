@@ -13,9 +13,10 @@
     <link rel="stylesheet" href="calculator-assets/workspace.b792dcf64130.css">
     <link rel="stylesheet" href="calculator-assets/workspace.controls.ff76a6c9d7ff.css">
     <link rel="stylesheet" href="calculator-assets/workspace.results.3c33c7f99acb.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.responsive.c749f2a9f611.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.responsive.a850f3f149fd.css">
     <link rel="stylesheet" href="calculator-assets/workspace.dialogs.cc7079b6d0c5.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.mobile-controls.4c4ee1233159.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.mobile-controls.7721746da7c9.css">
+    <script src="calculator-assets/main.mobile-workspace.095eec8b5315.js"></script>
 </head>
 <body class="theme-light design-overhaul workspace-design">
 <div class="fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center transition-opacity duration-500 overflow-hidden" id="intro-layer">
@@ -385,7 +386,7 @@
                 <div class="profit-strip sell-only-content"><div><span>Net profit</span><strong id="chart-summary-net-profit">—</strong></div><div><span>Return</span><strong id="chart-summary-roi">—</strong></div></div>
                 <p id="profit-note" class="profit-note"></p>
             </section>
-            <section id="depth-chart-card" class="chart-card">
+            <section id="depth-chart-card" class="chart-card" tabindex="-1" aria-label="Order ladder graph">
                 <nav class="mobile-setting-shortcuts" aria-label="Quick settings">
                     <a href="#config-column">Mode</a><a href="#range-settings" data-mobile-setting>Range</a><a href="#fee-settings" data-mobile-setting>Fees</a>
                 </nav>
@@ -423,7 +424,6 @@
 <script src="calculator-assets/main.events.workspace.b7a9e2e49ceb.js"></script>
 <script src="calculator-assets/main.664578807c2e.js"></script>
 <script src="calculator-assets/main.disclosure.01c31ab5ef8a.js"></script>
-<script src="calculator-assets/main.mobile-workspace.73c3986f91ca.js"></script>
 <script src="calculator-assets/fix-vscode-links.04b0e7cf2561.js"></script>
 <details id="mobile-controls" class="mobile-controls" aria-label="Quick plan controls" open>
     <summary>Adjust plan <span id="mobile-controls-status" class="mobile-controls-status" role="status" aria-live="polite">Live</span></summary>
