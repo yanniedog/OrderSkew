@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const harness = require('./calculator-harness.cjs');
-const { setMaxListeners } = require('node:events');
 
 function fakeClock(context) {
     const timers = new Map();
@@ -39,184 +38,181 @@ function mobileHarness() {
     const h = harness({}, 'buy-only');
     const captures = new Map();
     class Element extends EventTarget {
-        constructor() { super(); this.value = ''; this.attributes = {}; this.children = []; }
-        append(...children) { this.children.push(...children); }
+        constructor() { super(); this.value = ''; this.attributes = {}; this.children = []; this.scrollTop = 0; this.clientHeight = 88; }
+        append(child) { this.children.push(child); child.parent = this; }
         setAttribute(name, value) { this.attributes[name] = value; }
         getAttribute(name) { return this.attributes[name] || null; }
         focus() {}
         setPointerCapture(id) { captures.set(id, this); }
+        getClientRects() { return [{}]; }
+        getBoundingClientRect() {
+            const index = this.parent?.children.filter(child => !child.hidden).indexOf(this) || 0;
+            return { top: this.parent ? 22 + index * 44 - this.parent.scrollTop : 0, height: this.parent ? 44 : 88 };
+        }
+        scrollIntoView() {
+            if (!this.parent) return;
+            this.parent.scrollTop = this.parent.children.filter(child => !child.hidden).indexOf(this) * 44;
+            this.parent.dispatchEvent(new Event('scroll'));
+        }
     }
     const ids = wireSources(h, Element);
-    ['mobile-controls', 'mobile-controls-fields', 'mobile-controls-skew', 'mobile-controls-status'].forEach(id => { ids[id] = new Element(); });
-    const doc = Object.assign(new EventTarget(), { activeElement: null, getElementById: id => ids[id], createElement: () => new Element() });
-    doc.addEventListener = (event, callback) => event === 'DOMContentLoaded' ? callback()
-        : EventTarget.prototype.addEventListener.call(doc, event, callback);
+    ['mobile-controls', 'mobile-parameter-picker', 'mobile-control-slider', 'mobile-controls-status',
+        'mobile-slider-panel', 'mobile-control-value', 'mobile-step-down', 'mobile-step-up'].forEach(id => { ids[id] = new Element(); });
+    const doc = { getElementById: id => ids[id], createElement: () => new Element(), addEventListener: (event, cb) => { if (event === 'DOMContentLoaded') cb(); } };
     h.context.window = Object.assign(new EventTarget(), h.context.window);
-    setMaxListeners(12, doc, h.context.window);
     const clock = fakeClock(h.context);
-    h.context.document = doc;
-    h.context.Event = Event;
-    h.context.App = h.App;
+    Object.assign(h.context, { document: doc, Event, App: h.App });
     h.context.window.App = h.App;
     h.calculate();
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'main.mobile-controls.js'), 'utf8'), h.context);
-    const controls = Object.fromEntries([...ids['mobile-controls-fields'].children, ...ids['mobile-controls-skew'].children].map(label => {
-        const group = label.children[1];
-        const input = group.children.length ? group.children[1] : group;
-        return [input.id.replace('mobile-control-', ''), { label, input, buttons: group.children }];
-    }));
-    return { ...h, ...clock, ids, doc, controls, captures, release(pointerId, type = 'pointerup') {
-        const owner = captures.get(pointerId);
-        (owner || doc).dispatchEvent(Object.assign(new Event(type), { pointerId }));
-        captures.delete(pointerId);
-        owner?.dispatchEvent(Object.assign(new Event('lostpointercapture'), { pointerId }));
-    }, edit(name, value) {
-        const input = controls[name].input;
-        doc.activeElement = input;
-        input.value = value;
-        input.dispatchEvent(new Event('input'));
-    } };
+    const picker = ids['mobile-parameter-picker'], slider = ids['mobile-control-slider'];
+    const buttons = Object.fromEntries(picker.children.map(button => [button.id.replace('mobile-parameter-', ''), button]));
+    return { ...h, ...clock, ids, slider, picker, buttons, captures,
+        select(name) { buttons[name].dispatchEvent(new Event('click')); },
+        scroll(name) { picker.scrollTop = picker.children.filter(button => !button.hidden).indexOf(buttons[name]) * 44; picker.dispatchEvent(new Event('scroll')); },
+        slide(value) { slider.value = String(value); slider.dispatchEvent(new Event('input')); },
+        click(direction) { ids[direction > 0 ? 'mobile-step-up' : 'mobile-step-down'].dispatchEvent(Object.assign(new Event('click'), { detail: 0 })); },
+        release(pointerId) { captures.get(pointerId)?.dispatchEvent(Object.assign(new Event('pointerup'), { pointerId })); }
+    };
 }
 
-test('mobile edits recalculate the shared plan and empty edits clear stale outputs', () => {
-    const h = mobileHarness();
-    h.edit('orders', '6');
+test('one shared slider switches parameters without altering the plan, then updates live results', () => {
+    const h = mobileHarness(), plan = h.State.currentPlanData;
+    assert.equal(h.slider.getAttribute('aria-label'), 'Capital');
+    h.select('orders');
+    assert.equal(h.State.currentPlanData, plan);
+    assert.equal(h.slider.getAttribute('aria-label'), 'Orders');
+    assert.equal(h.buttons.orders.getAttribute('aria-selected'), 'true');
+    assert.equal(h.buttons.amount.getAttribute('aria-selected'), 'false');
+    h.slide(6);
     assert.equal(h.els.rungsInput.value, '6');
     assert.equal(h.State.currentPlanData.buyLadder.length, 6);
-    h.edit('range', '30');
-    assert.equal(h.els.depthInput.value, '30');
-    h.edit('amount', '10000');
+    h.select('amount');
+    h.slide(10000);
     assert.ok(Math.abs(h.State.currentPlanData.buyLadder.reduce((sum, row) => sum + row.capital, 0) - 10000) < 1e-8);
-    h.edit('orders', '');
-    assert.equal(h.State.currentPlanData, null);
-    assert.equal(h.controls.orders.input.value, '');
-    assert.equal(h.ids['mobile-controls-status'].textContent, 'Check inputs');
 });
 
-test('step buttons update live orders, capital and price while respecting range and order limits', () => {
+test('vertical scrolling and arrow keys select the centered parameter for the same horizontal slider', () => {
     const h = mobileHarness();
-    const click = (name, direction) => h.controls[name].buttons[direction > 0 ? 2 : 0].dispatchEvent(new Event('click'));
-    click('orders', 1);
-    assert.equal(h.State.currentPlanData.buyLadder.length, 11);
-    click('amount', 1);
-    assert.equal(h.els.startCap.value, '50100');
-    click('price', -1);
-    assert.equal(h.els.currPrice.value, '99');
-    h.edit('orders', '50');
-    click('orders', 1);
-    assert.equal(h.State.currentPlanData.buyLadder.length, 50);
-    h.edit('orders', '2');
-    click('orders', -1);
-    assert.equal(h.State.currentPlanData.buyLadder.length, 2);
-    h.edit('range', '99');
-    click('range', 1);
-    assert.equal(h.els.depthInput.value, '99');
-    h.edit('range', '0.1');
-    click('range', -1);
-    assert.equal(h.els.depthInput.value, '0.1');
+    h.scroll('range');
+    assert.equal(h.slider.getAttribute('aria-label'), 'Range');
+    h.slide(30);
+    assert.equal(h.els.depthInput.value, '30');
+    h.picker.dispatchEvent(Object.assign(new Event('keydown'), { key: 'ArrowDown' }));
+    assert.equal(h.slider.getAttribute('aria-label'), 'Skew');
+    h.slide(75);
+    assert.equal(h.els.skew.value, '75');
+    h.picker.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Home' }));
+    assert.equal(h.slider.getAttribute('aria-label'), 'Capital');
 });
 
-test('price stepping preserves small positive asset prices', () => {
+test('shared fine-step buttons retain timing, pointer capture, bounds and keyboard behavior', () => {
     const h = mobileHarness();
-    h.edit('price', '0.00001');
-    h.controls.price.buttons[0].dispatchEvent(new Event('click'));
-    assert.equal(h.els.currPrice.value, '0.0000099');
-    assert.ok(h.State.currentPlanData.buyLadder.every(row => row.price > 0));
-});
-
-test('holding a step button repeats live changes, stops on release and does not double-count its click', () => {
-    const h = mobileHarness();
-    const button = h.controls.orders.buttons[2];
+    h.select('orders');
+    const button = h.ids['mobile-step-up'];
     const down = Object.assign(new Event('pointerdown', { cancelable: true }), { button: 0, pointerId: 1 });
     button.dispatchEvent(down);
-    assert.equal(down.defaultPrevented, true);
-    assert.equal(h.State.currentPlanData.buyLadder.length, 11);
+    assert.ok(down.defaultPrevented);
     assert.equal(h.captures.get(1), button);
-    h.tick(350);
-    h.tick(100);
-    assert.equal(h.State.currentPlanData.buyLadder.length, 13);
-    h.release(1);
-    assert.equal(h.timers.size, 0);
-    button.dispatchEvent(Object.assign(new Event('click'), { detail: 1 }));
-    assert.equal(h.State.currentPlanData.buyLadder.length, 13);
-    button.dispatchEvent(Object.assign(new Event('click'), { detail: 0 }));
-    assert.equal(h.State.currentPlanData.buyLadder.length, 14);
-});
-
-test('cancelled pointers and window blur stop held steps, and repeat respects order limits', () => {
-    const h = mobileHarness();
-    const button = h.controls.orders.buttons[0];
-    const hold = () => button.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
-    h.edit('orders', '3');
-    hold();
-    assert.equal(h.timers.size, 0);
-    assert.equal(h.State.currentPlanData.buyLadder.length, 2);
-    h.release(1, 'pointercancel');
-    assert.equal(h.timers.size, 0);
-    h.edit('orders', '10');
-    hold();
-    h.context.window.dispatchEvent(new Event('blur'));
-    assert.equal(h.timers.size, 0);
-});
-
-test('unrelated pointers cannot interrupt a hold and keyboard clicks do not add a release step', () => {
-    const h = mobileHarness();
-    const button = h.controls.orders.buttons[2];
-    const pointer = (type, pointerId) => button.dispatchEvent(Object.assign(new Event(type), { button: 0, pointerId }));
-    pointer('pointerdown', 1);
-    pointer('pointerdown', 2);
-    pointer('pointerup', 2);
-    h.tick(350);
-    assert.equal(h.els.rungsInput.value, '12');
-    button.dispatchEvent(Object.assign(new Event('click'), { detail: 0 }));
+    h.tick(350); h.tick(100);
     assert.equal(h.els.rungsInput.value, '13');
+    h.click(1);
     h.release(1);
     button.dispatchEvent(Object.assign(new Event('click'), { detail: 1 }));
-    assert.equal(h.els.rungsInput.value, '13');
+    assert.equal(h.els.rungsInput.value, '14');
     assert.equal(h.timers.size, 0);
+    h.slide(50);
+    h.click(1);
+    assert.equal(h.els.rungsInput.value, '50');
 });
 
-test('held steps stop at both bounds without dispatching redundant input updates', () => {
+test('changing the wheel selection or mode cancels a held step before it can change another parameter', () => {
     const h = mobileHarness();
-    let updates = 0;
-    h.els.rungsInput.addEventListener('input', () => updates++);
-    for (const [start, index, bound] of [['49', 2, '50'], ['3', 0, '2']]) {
-        h.edit('orders', start);
-        updates = 0;
-        const button = h.controls.orders.buttons[index];
-        button.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
-        assert.equal(h.els.rungsInput.value, bound);
-        assert.equal(updates, 1);
-        assert.equal(h.timers.size, 0);
-        h.release(1);
-        button.dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
-        assert.equal(updates, 1);
-        assert.equal(h.timers.size, 0);
-        h.release(1);
-    }
+    h.select('orders');
+    h.ids['mobile-step-up'].dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 1 }));
+    h.select('price');
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.els.currPrice.value, '100');
+    h.select('amount');
+    h.ids['mobile-step-up'].dispatchEvent(Object.assign(new Event('pointerdown'), { button: 0, pointerId: 2 }));
+    h.State.tradingMode = 'sell-only';
+    h.App.calculatePlan();
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.els.existQty.value, '10');
 });
 
-test('mobile controls follow sell-only holdings and fixed bounds without editing hidden buy settings', () => {
+test('mode-aware picker exposes fixed bounds and switches sell controls to holdings', () => {
     const h = mobileHarness();
+    h.select('range');
     h.State.tradingMode = 'sell-only';
     h.els.priceRangeMode.value = 'floor';
     h.App.calculatePlan();
-    assert.equal(h.controls.range.label.hidden, true);
-    assert.equal(h.controls.low.label.hidden, true);
-    assert.equal(h.controls.high.label.hidden, false);
-    h.edit('amount', '25');
-    assert.equal(h.els.existQty.value, '25');
+    assert.ok(h.buttons.range.hidden);
+    assert.ok(h.buttons.low.hidden);
+    assert.equal(h.buttons.high.hidden, false);
+    assert.equal(h.slider.getAttribute('aria-label'), 'Quantity');
+    h.slide(15);
+    assert.equal(h.els.existQty.value, '15');
     assert.equal(h.els.startCap.value, '50000');
-    h.edit('high', '150');
+    h.select('high');
+    assert.ok(Number(h.slider.min) > 100);
+    h.slide(150);
     assert.ok(h.State.currentPlanData.sellLadder.every(row => row.price > 100 && row.price < 150));
-    assert.ok(Math.abs(h.State.currentPlanData.sellLadder.reduce((sum, row) => sum + row.assetSize, 0) - 25) < 1e-8);
 });
 
-test('full-form updates refresh mobile values and validation', () => {
+test('external form changes and invalid entries stay authoritative and refresh the shared slider', () => {
     const h = mobileHarness();
     h.els.startCap.value = '12,345';
-    h.els.rungsInput.setAttribute('aria-invalid', 'true');
     h.App.calculatePlan();
-    assert.equal(h.controls.amount.input.value, '12345');
-    assert.equal(h.controls.orders.input.getAttribute('aria-invalid'), 'true');
+    assert.equal(h.slider.value, '12345');
+    h.els.startCap.value = '';
+    h.App.calculatePlan();
+    assert.equal(h.State.currentPlanData, null);
+    assert.equal(h.els.startCap.value, '');
+    assert.equal(h.ids['mobile-control-value'].textContent, 'Check input');
+    assert.equal(h.ids['mobile-controls-status'].textContent, 'Check inputs');
+});
+
+test('tiny prices keep precision and fixed-bound limits follow reference-price changes', () => {
+    const h = mobileHarness();
+    h.els.currPrice.value = '0.00001';
+    h.App.calculatePlan();
+    h.select('price'); h.click(-1);
+    assert.equal(h.els.currPrice.value, '0.0000099');
+    h.els.currPrice.value = '100';
+    h.els.priceRangeMode.value = 'floor';
+    h.App.calculatePlan();
+    h.select('low');
+    assert.ok(Number(h.slider.max) < 100);
+    h.els.currPrice.value = '90';
+    h.App.calculatePlan();
+    assert.ok(Number(h.slider.max) < 90);
+});
+
+test('unrelated pointers cannot cancel a hold, while pointer cancellation and blur stop it', () => {
+    const h = mobileHarness(), button = h.ids['mobile-step-up'];
+    h.select('orders');
+    const pointer = (type, pointerId) => button.dispatchEvent(Object.assign(new Event(type), { pointerId, button: 0 }));
+    pointer('pointerdown', 1); pointer('pointerdown', 2); pointer('pointerup', 2);
+    h.tick(350);
+    assert.equal(h.els.rungsInput.value, '12');
+    pointer('pointercancel', 1);
+    assert.equal(h.timers.size, 0);
+    pointer('pointerdown', 3);
+    h.context.window.dispatchEvent(new Event('blur'));
+    assert.equal(h.timers.size, 0);
+    pointer('pointerdown', 4);
+    h.ids['mobile-controls'].open = false;
+    h.ids['mobile-controls'].dispatchEvent(new Event('toggle'));
+    assert.equal(h.timers.size, 0);
+});
+
+test('capital and price fine steps can expand beyond the initial slider scale', () => {
+    const h = mobileHarness();
+    h.slide(100000);
+    h.click(1);
+    assert.equal(h.els.startCap.value, '101000');
+    assert.ok(Number(h.slider.max) > 101000);
+    h.select('price'); h.slide(200); h.click(1);
+    assert.equal(h.els.currPrice.value, '201');
 });

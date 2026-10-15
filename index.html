@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="calculator-assets/workspace.results.3c33c7f99acb.css">
     <link rel="stylesheet" href="calculator-assets/workspace.responsive.8980dd1647b2.css">
     <link rel="stylesheet" href="calculator-assets/workspace.dialogs.cc7079b6d0c5.css">
-    <link rel="stylesheet" href="calculator-assets/workspace.mobile-controls.33f5e9deb00f.css">
+    <link rel="stylesheet" href="calculator-assets/workspace.mobile-controls.4c4ee1233159.css">
 </head>
 <body class="theme-light design-overhaul workspace-design">
 <div class="fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center transition-opacity duration-500 overflow-hidden" id="intro-layer">
@@ -422,11 +422,16 @@
 <script src="calculator-assets/main.disclosure.01c31ab5ef8a.js"></script>
 <script src="calculator-assets/fix-vscode-links.04b0e7cf2561.js"></script>
 <details id="mobile-controls" class="mobile-controls" aria-label="Quick plan controls" open>
-    <summary>Adjust plan <span id="mobile-controls-status" class="mobile-controls-status" role="status" aria-live="polite">Live</span><button id="mobile-skew-toggle" type="button" aria-controls="mobile-controls-skew" aria-expanded="false">Skew</button></summary>
-    <div id="mobile-controls-fields" class="mobile-controls-fields"></div>
-    <div id="mobile-controls-skew" class="mobile-controls-skew" hidden></div>
+    <summary>Adjust plan <span id="mobile-controls-status" class="mobile-controls-status" role="status" aria-live="polite">Live</span></summary>
+    <div class="mobile-control-dock">
+        <div id="mobile-parameter-picker" class="mobile-parameter-picker" role="tablist" aria-label="Plan parameter" aria-orientation="vertical"></div>
+        <div id="mobile-slider-panel" class="mobile-slider-panel" role="tabpanel">
+            <div class="mobile-slider-value"><button id="mobile-step-down" type="button" aria-label="Decrease selected parameter">−</button><output id="mobile-control-value"></output><button id="mobile-step-up" type="button" aria-label="Increase selected parameter">+</button></div>
+            <input id="mobile-control-slider" type="range" aria-label="Capital">
+        </div>
+    </div>
 </details>
-<script src="calculator-assets/main.mobile-controls.73a504624d8c.js"></script>
+<script src="calculator-assets/main.mobile-controls.15012e976ff9.js"></script>
 </body>
 </html>
 
