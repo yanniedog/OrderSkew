@@ -60,7 +60,7 @@
         if (control.name === 'range') return { min: 0.1, max: 99, step: 0.1 };
         if (control.name === 'skew') return { min: 0, max: 100, step: 1 };
         const anchor = anchorValue(control, value);
-        const step = 10 ** (Math.floor(Math.log10(anchor)) - 2);
+        const step = Number((10 ** (Math.floor(Math.log10(anchor)) - 2)).toPrecision(12));
         let min = control.sourceId === 'existing_quantity' ? 0 : step;
         let max = Number((anchor * 2).toPrecision(12));
         const price = Number(Utils.stripCommas(field('current_price').value));
